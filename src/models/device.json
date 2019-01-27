@@ -1,0 +1,251 @@
+{
+  "name": "Device",
+  "base": "PersistedModel",
+  "plural": "Devices",
+  "idInjection": true,
+  "options": {
+    "validateUpsert": true
+  },
+  "properties": {
+    "devEui": {
+      "type": "String",
+      "required": true,
+      "default": null,
+      "unique": true
+    },
+    "appKey": {
+      "type": "String",
+      "required": false
+    },
+    "name": {
+      "type": "String",
+      "required": false,
+      "default": null
+    },
+    "type": {
+      "type": "String",
+      "required": false,
+      "default": null
+    },
+    "status": {
+      "type": "boolean",
+      "default": false
+    },
+    "description": {
+      "type": "String",
+      "required": false
+    },
+    "icons": {
+      "type": "Array",
+      "required": false,
+      "default": [],
+      "description": "urls pointing to icon image"
+    },
+    "accessPointUrl": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "frameCounter": {
+      "type": "number",
+      "required": true,
+      "default": 0
+    },
+    "lastSignal": {
+      "type": "date",
+      "required": false
+    },
+    "qrCode": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "extraParams": {
+      "type": "object",
+      "required": false
+    },
+    "protocolName": {
+      "type": "string",
+      "required": true,
+      "default": null
+    },
+    "protocolVersion": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "deleted": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "indexes": {},
+  "protected": ["devEui", "appKey"],
+  "hidden": ["deleted"],
+  "validations": [],
+  "relations": {
+    "account": {
+      "type": "belongsTo",
+      "model": "Account",
+      "foreignKey": "accountId",
+      "options": {
+        "nestRemoting": false
+      }
+    },
+    "deviceAddress": {
+      "type": "hasOne",
+      "model": "Address",
+      "foreignKey": "deviceId"
+    },
+    "sensors": {
+      "type": "hasMany",
+      "model": "Sensor",
+      "foreignKey": "deviceId"
+    }
+  },
+  "acls": [
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "admin",
+      "permission": "ALLOW"
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$everyone",
+      "permission": "DENY"
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$authenticated",
+      "permission": "ALLOW",
+      "property": [
+        "create",
+        "find",
+        "findById",
+        "replaceById",
+        "replaceOrCreate",
+        "updateById",
+        "updateAttributes",
+        "upsert",
+        "exists",
+        "textSearch",
+        "geoLocate",
+        "createAuthLink",
+        "__create__deviceAddress",
+        "__get__deviceAddress"
+      ]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$owner",
+      "permission": "ALLOW",
+      "property": [
+        "replaceById",
+        "replaceOrCreate",
+        "updateById",
+        "updateAttributes",
+        "upsert",
+        "exists",
+        "find",
+        "findById",
+        "__get__deviceAddress",
+        "__update__deviceAddress",
+        "__destroy__deviceAddress",
+        "__updateById__sensors",
+        "__destroyById__sensors",
+        "__get__sensors"
+      ]
+    }
+  ],
+  "methods": {
+    "onPublish": {
+      "description": ["MQTT piping to Device model"],
+      "accepts": [
+        {
+          "arg": "pattern",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "packet",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "result",
+        "type": "object"
+      }
+    },
+    "textSearch": {
+      "description": ["Call the text search intern method"],
+      "accepts": [
+        {
+          "arg": "ctx",
+          "type": "object",
+          "http": {
+            "source": "context"
+          }
+        },
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "result",
+        "type": "array"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/text-search"
+      }
+    },
+    "geoLocate": {
+      "description": ["Find user by geopoint in coordinates property"],
+      "accepts": [
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "result",
+        "type": "array"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/geo-locate"
+      }
+    },
+    "createAuthLink": {
+      "description": ["Generate a link to connect device to ambienz"],
+      "accepts": [
+        {
+          "arg": "account",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "deviceId",
+          "type": "string",
+          "required": true
+        },
+        {
+          "arg": "method",
+          "type": "string"
+        }
+      ],
+      "returns": {
+        "arg": "link",
+        "type": "string"
+      }
+    }
+  }
+}

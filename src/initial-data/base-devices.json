@@ -1,0 +1,16 @@
+[
+  {
+    "type": "gateway",
+    "devEui": "edouard",
+    "appKey": "",
+    "name": "getlarge",
+    "status": false
+  },
+  {
+    "type": "admin",
+    "devEui": "edouard",
+    "appKey": "",
+    "name": "getlarge",
+    "status": false
+  }
+]

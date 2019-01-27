@@ -1,0 +1,36 @@
+{
+  "db": {
+    "name": "db",
+    "connector": "memory",
+    "maxDepthOfQuery": 12,
+    "maxDepthOfData": 32
+  },
+  "transient": {
+    "name": "transient",
+    "connector": "transient"
+  },
+  "email": {
+    "name": "email",
+    "connector": "mail",
+    "transports": [
+      {
+        "type": "smtp",
+        "host": "",
+        "secure": true,
+        "port": 465,
+        "auth": {
+          "user": "",
+          "pass": ""
+        }
+      }
+    ]
+  },
+  "storage": {
+    "name": "storage",
+    "connector": "loopback-component-storage",
+    "provider": "filesystem",
+    "root": "./storage",
+    "nameConflict": "makeUnique",
+    "maxFileSize": "10428800"
+  }
+}

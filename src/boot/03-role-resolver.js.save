@@ -1,0 +1,58 @@
+export default function roleResolver(server) {
+  const Role = server.models.Role;
+  //  const studio = 'studio';
+
+  console.log('[BOOT] roleResolver');
+
+  Role.registerResolver('favoriteMember', (role, context, cb) => {
+    console.log('[BOOT] roleResolver', role);
+
+    function reject() {
+      process.nextTick(() => {
+        cb(null, false);
+      });
+    }
+    if (context.modelName !== 'Studio' && context.modelName !== 'Teacher') {
+      return reject();
+    }
+    // do not allow anonymous users
+    const userId = context.accessToken.userId;
+    if (!userId) {
+      return reject();
+    }
+    // check if userId is in favorite table for the given profile id
+    context.model.findById(context.modelId).then((profile) => {
+      console.log('[BOOT] roleResolver, profile', profile);
+
+      if (!profile) return reject();
+      if (context.modelName === 'Studio') {
+        const Favorite = server.models.Favorite;
+        return Favorite.count({
+          studioId: profile.ownerId,
+          teacherId: userId,
+        }).then((count) => {
+          if (count) {
+            return cb(null, count > 0); // true = is a favorite member
+          }
+          return cb(null, false);
+        });
+      }
+      if (context.modelName === 'Teacher') {
+        const Favorite = server.models.Favorite;
+        return Favorite.count({
+          studioId: userId,
+          teacherId: profile.ownerId,
+        }).then((count) => {
+          if (count) {
+            return cb(null, count > 0); // true = is a favorite member
+          }
+          return cb(null, false);
+        });
+      }
+      return profile;
+    });
+
+    return true;
+  });
+
+}

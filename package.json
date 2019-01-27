@@ -1,0 +1,140 @@
+{
+  "name": "device-manager",
+  "version": "1.0.0",
+  "main": "index.js",
+  "engines": {
+    "node": ">=8.9.4"
+  },
+  "scripts": {
+    "lint": "npx eslint --ext js .",
+    "start": "babel-node ./index.js",
+    "dev": "cp deploy/.env_dev .env && NODE_ENV=development nodemon --exec babel-node ./index.js",
+    "devLocal": "cp deploy/.env_local .env && NODE_ENV=local nodemon --exec babel-node ./index.js",
+    "startStage": "pm2 startOrRestart ecosystem.config.js --env staging --update-env",
+    "startProd": "pm2 startOrRestart ecosystem.config.js --env production --update-env",
+    "build": "cd components && webpack"
+  },
+  "dependencies": {
+    "aloes-handlers": "^1.0.12",
+    "body-parser": "^1.18.3",
+    "compression": "^1.0.3",
+    "cors": "^2.5.2",
+    "dotenv": "^6.0.0",
+    "ejs": "^2.6.1",
+    "express": "^4.16.2",
+    "express-history-api-fallback": "^2.2.1",
+    "express-http-proxy": "^1.5.0",
+    "helmet": "^3.13.0",
+    "http-server": "^0.11.1",
+    "loopback": "^3.16.2",
+    "loopback-boot": "github:klarkc/loopback-boot#master",
+    "loopback-component-explorer": "^6.3.1",
+    "loopback-component-storage": "^3.5.0",
+    "loopback-connector-mongodb": "^3.8.0",
+    "loopback-connector-redis": "^3.0.0",
+    "loopback-connector-rest": "^3.3.0",
+    "loopback-ds-timestamp-mixin": "^3.4.1",
+    "moment": "^2.22.2",
+    "moment-recur": "^1.0.7",
+    "mosca": "^2.8.3",
+    "mqtt-pattern": "^1.2.0",
+    "node-geocoder": "^3.22.0",
+    "request": "^2.88.0",
+    "shuffle": "^0.2.2",
+    "stripe": "^6.13.0",
+    "strong-error-handler": "^2.0.0",
+    "text-table": "^0.2.0",
+    "uid": "0.0.2",
+    "weighted": "^0.3.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.0.0",
+    "@babel/core": "^7.2.2",
+    "@babel/node": "^7.0.0",
+    "@babel/plugin-proposal-class-properties": "^7.0.0",
+    "@babel/plugin-proposal-decorators": "^7.0.0",
+    "@babel/plugin-proposal-export-namespace-from": "^7.0.0",
+    "@babel/plugin-proposal-function-sent": "^7.0.0",
+    "@babel/plugin-proposal-json-strings": "^7.0.0",
+    "@babel/plugin-proposal-numeric-separator": "^7.0.0",
+    "@babel/plugin-proposal-throw-expressions": "^7.0.0",
+    "@babel/plugin-syntax-dynamic-import": "^7.0.0",
+    "@babel/plugin-syntax-import-meta": "^7.0.0",
+    "@babel/preset-env": "^7.0.0",
+    "babel-eslint": "^8.2.6",
+    "connect-history-api-fallback": "^1.5.0",
+    "eslint": "^4.19.1",
+    "eslint-config-airbnb-base": "^11.3.0",
+    "eslint-config-loopback": "^8.0.0",
+    "eslint-config-prettier": "^3.1.0",
+    "eslint-plugin-babel": "^5.3.0",
+    "eslint-plugin-import": "^2.9.0",
+    "eslint-plugin-prettier": "^2.6.2",
+    "eslint-plugin-vue": "^4.0.0",
+    "identity-obj-proxy": "^3.0.0",
+    "nodemon": "^1.18.8",
+    "prettier": "1.16.1",
+    "regenerator-runtime": "^0.11.1",
+    "tfilter": "^1.0.1",
+    "through2": "^2.0.3",
+    "tmp": "0.0.33",
+    "yargs": "^10.0.3"
+  },
+  "babel": {
+    "presets": [
+      "@babel/preset-env"
+    ],
+    "plugins": [
+      "@babel/plugin-syntax-dynamic-import",
+      "@babel/plugin-syntax-import-meta",
+      "@babel/plugin-proposal-class-properties",
+      "@babel/plugin-proposal-json-strings",
+      [
+        "@babel/plugin-proposal-decorators",
+        {
+          "legacy": true
+        }
+      ],
+      "@babel/plugin-proposal-function-sent",
+      "@babel/plugin-proposal-export-namespace-from",
+      "@babel/plugin-proposal-numeric-separator",
+      "@babel/plugin-proposal-throw-expressions"
+    ]
+  },
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "es6": true,
+      "node": true
+    },
+    "extends": [
+      "airbnb-base",
+      "loopback",
+      "prettier"
+    ],
+    "plugins": [
+      "babel"
+    ],
+    "parserOptions": {
+      "ecmaVersion": 2018,
+      "parser": "babel-eslint"
+    },
+    "rules": {
+      "import/no-unresolved": "off",
+      "import/extensions": "off",
+      "import/prefer-default-export": "off",
+      "no-param-reassign": "off",
+      "one-var-declaration-per-line": "off"
+    },
+    "globals": {
+      "require": true
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://framagit.org/getlarge/device-manager"
+  },
+  "license": "",
+  "description": "IoT at work",
+  "extended": true
+}

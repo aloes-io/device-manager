@@ -1,0 +1,16 @@
+[
+  {
+    "type": "admin",
+    "subscribed": "paid",
+    "firstName": "edouard",
+    "lastName": "getlarge",
+    "email": "ed@getlarge.eu",
+    "password": "test",
+    "fullName": "edouard getlarge",
+    "fullAddress": "98 Rue des Garennes 38390 Bouvesse-Quirieu",
+    "avatarImgUrl": "/icons/image-placeholder.png",
+    "headerImgUrl": "/images/header-placeholder.png",
+    "status": false,
+    "emailVerified": true
+  }
+]

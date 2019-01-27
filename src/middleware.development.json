@@ -1,0 +1,19 @@
+{
+  "initial": {
+    "./middleware/tracker": {
+      "params": {"enabled": true}
+    }
+  },
+  "final:after": {
+    "./middleware/log-error": {
+      "params": {"enabled": true}
+    },
+    "strong-error-handler": {
+      "params": {
+        "debug": false,
+        "log": true,
+        "safeFields": ["errorCode"]
+      }
+    }
+  }
+}

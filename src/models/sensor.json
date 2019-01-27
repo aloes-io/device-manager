@@ -1,0 +1,154 @@
+{
+  "name": "Sensor",
+  "base": "PersistedModel",
+  "plural": "Sensors",
+  "idInjection": true,
+  "options": {
+    "validateUpsert": true
+  },
+  "properties": {
+    "name": {
+      "type": "string",
+      "required": false,
+      "description": "example Digital Input"
+    },
+    "type": {
+      "type": "number",
+      "required": true,
+      "description": "IPSO object ID, for example 3300"
+    },
+    "devEui": {
+      "type": "String",
+      "required": true,
+      "default": null
+    },
+    "resources": {
+      "type": "object",
+      "required": false,
+      "description": "Object with IPSO resource IDs as keys, example { '5700' : '5', '5701': '°C'}",
+      "default": null
+    },
+    "value": {
+      "type": "object",
+      "required": false,
+      "description": "last measurement",
+      "default": null
+    },
+    "buffer": {
+      "type": "buffer",
+      "required": false,
+      "description": "last buffer ( audio, image,... stream )",
+      "default": null
+    },
+    "lastSignal": {
+      "type": "date",
+      "required": false
+    },
+    "resource": {
+      "type": "Number",
+      "required": false,
+      "description": "ipso resource id - measurement",
+      "default": null
+    },
+    "mainResourceId": {
+      "type": "Number",
+      "required": false,
+      "description": "ipso resource id - measurement",
+      "default": null
+    },
+    "frameCounter": {
+      "type": "number",
+      "required": true,
+      "default": 0
+    },
+    "icons": {
+      "type": "Array",
+      "required": false,
+      "description": "url pointing to icon image"
+    },
+    "colors": {
+      "type": "Array",
+      "required": false
+    },
+    "template": {
+      "type": "String",
+      "required": false,
+      "description": "html component containing state data"
+    },
+    "protocolName": {
+      "type": "string",
+      "required": true,
+      "default": ""
+    },
+    "protocolVersion": {
+      "type": "string",
+      "required": false,
+      "default": ""
+    },
+    "nativeSensorId": {
+      "type": "string",
+      "required": true
+    },
+    "nativeNodeId": {
+      "type": "string",
+      "required": false,
+      "default": ""
+    },
+    "outputPath": {
+      "type": "string",
+      "required": false,
+      "default": ""
+    },
+    "inputPath": {
+      "type": "string",
+      "required": false,
+      "default": ""
+    },
+    "nativeType": {
+      "type": "number",
+      "required": true,
+      "description": "original sensor type",
+      "default": ""
+    },
+    "nativeResource": {
+      "type": "number",
+      "required": false,
+      "description": "original resource type",
+      "default": ""
+    }
+  },
+  "hidden": [],
+  "validations": [],
+  "relations": {
+    "account": {
+      "type": "belongsTo",
+      "model": "Account",
+      "foreignKey": "accountId",
+      "options": {
+        "nestRemoting": false
+      }
+    },
+    "device": {
+      "type": "belongsTo",
+      "model": "Device",
+      "foreignKey": "deviceId",
+      "options": {
+        "nestRemoting": true
+      }
+    },
+    "measurements": {
+      "type": "hasMany",
+      "model": "Measurement",
+      "foreignKey": "sensorId"
+    }
+  },
+  "acls": [
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$everyone",
+      "permission": "ALLOW"
+    }
+  ],
+  "methods": {}
+}

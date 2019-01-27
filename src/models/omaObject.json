@@ -1,0 +1,51 @@
+{
+  "name": "OmaObject",
+  "plural": "OmaObjects",
+  "base": "PersistedModel",
+  "idInjection": true,
+  "options": {
+    "validateUpsert": true
+  },
+  "mixins": {},
+  "properties": {
+    "id": {
+      "type": "number",
+      "id": true
+    },
+    "name": {
+      "required": true,
+      "type": "string",
+      "description": "object Name"
+    },
+    "description": {
+      "type": "string",
+      "required": true
+    },
+    "resources": {
+      "type": "object",
+      "required": true
+    },
+    "colors": {
+      "type": "array",
+      "default": [],
+      "required": true
+    },
+    "icons": {
+      "type": "array",
+      "default": [],
+      "required": true
+    }
+  },
+  "protected": [],
+  "validations": [],
+  "relations": {},
+  "acls": [
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$everyone",
+      "permission": "ALLOW"
+    }
+  ],
+  "methods": {}
+}

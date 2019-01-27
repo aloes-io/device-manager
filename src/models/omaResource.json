@@ -1,0 +1,53 @@
+{
+  "name": "OmaResource",
+  "plural": "OmaResources",
+  "base": "PersistedModel",
+  "idInjection": true,
+  "options": {
+    "validateUpsert": true
+  },
+  "mixins": {},
+  "properties": {
+    "id": {
+      "type": "number",
+      "id": true
+    },
+    "resource": {
+      "required": true,
+      "type": "string",
+      "description": "resource Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false
+    },
+    "operations": {
+      "type": "string",
+      "required": false
+    },
+    "type": {
+      "type": "string",
+      "required": false
+    },
+    "unit": {
+      "type": "string",
+      "required": false
+    },
+    "range": {
+      "type": "array",
+      "required": false
+    }
+  },
+  "protected": [],
+  "validations": [],
+  "relations": {},
+  "acls": [
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$everyone",
+      "permission": "ALLOW"
+    }
+  ],
+  "methods": {}
+}

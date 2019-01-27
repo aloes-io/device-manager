@@ -1,0 +1,56 @@
+{
+  "name": "Measurement",
+  "base": "PersistedModel",
+  "plural": "Measurements",
+  "idInjection": true,
+  "options": {
+    "validateUpsert": true
+  },
+  "properties": {
+    "type": {
+      "type": "number",
+      "required": true,
+      "default": 3300
+    },
+    "resource": {
+      "type": "number",
+      "required": true,
+      "default": 5700
+    },
+    "tag": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "value": {
+      "type": "string",
+      "required": true
+    },
+    "date": {
+      "type": "date",
+      "required": true
+    }
+  },
+  "hidden": [],
+  "validations": [],
+  "relations": {
+    "device": {
+      "type": "belongsTo",
+      "model": "Device",
+      "foreignKey": "deviceId",
+      "options": {
+        "nestRemoting": false
+      }
+    },
+    "sensor": {
+      "type": "belongsTo",
+      "model": "Sensor",
+      "foreignKey": "sensorId",
+      "options": {
+        "nestRemoting": false
+      }
+    }
+  },
+  "acls": [],
+  "methods": {}
+}

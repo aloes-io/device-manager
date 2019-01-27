@@ -1,0 +1,29 @@
+{
+  "restApiRoot": "/api",
+  "restApiHost": "localhost",
+  "host": "0.0.0.0",
+  "port": 3000,
+  "emailFrom": "hey@getlarge.eu",
+  "verifyTemplate": "src/views/verify.ejs",
+  "resetTemplate": "src/views/reset-password.ejs",
+  "contactFormTemplate": "src/views/contact-form.ejs",
+  "inviteTemplate": "src/views/mail-invite.ejs",
+  "unsubscribeReasonsTemplate": "src/views/unsubscribe-reasons.ejs",
+  "remoting": {
+    "context": false,
+    "rest": {
+      "handleErrors": false,
+      "normalizeHttpPath": false,
+      "xml": false
+    },
+    "json": {
+      "strict": true,
+      "limit": "10mb"
+    },
+    "urlencoded": {
+      "extended": true,
+      "limit": "10mb"
+    },
+    "cors": false
+  }
+}

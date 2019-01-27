@@ -1,0 +1,68 @@
+{
+  "initial:before": {
+    "loopback#favicon": {"params": "$!../favicon.ico"}
+  },
+  "initial": {
+    "compression": {},
+    "./middleware/tracker": {
+      "params": {"enabled": false}
+    },
+    "cors": {
+      "params": {
+        "origin": true,
+        "credentials": true,
+        "maxAge": 86400
+      }
+    },
+    "helmet#xssFilter": {},
+    "helmet#frameguard": {
+      "params": ["deny"]
+    },
+    "helmet#hsts": {
+      "params": {
+        "maxAge": 0,
+        "includeSubdomains": true
+      }
+    },
+    "helmet#hidePoweredBy": {},
+    "helmet#ieNoOpen": {},
+    "helmet#noSniff": {},
+    "helmet#noCache": {
+      "enabled": false
+    }
+  },
+  "session": {},
+  "auth": {},
+  "parse": {
+    "body-parser#urlencoded": {
+      "params": {
+        "extended": true
+      }
+    }
+  },
+  "routes": {
+    "loopback#rest": {
+      "paths": ["${restApiRoot}"]
+    }
+  },
+  "files": {
+    "loopback#static": {
+      "params": "$!../client"
+    }
+  },
+  "final": {
+    "loopback#urlNotFound": {}
+  },
+  "final:after": {
+    "./middleware/log-error": {
+      "params": {"enabled": false}
+    },
+    "strong-error-handler": {
+      "params": {
+        "debug": false,
+        "log": true,
+        "safeFields": ["errorCode"]
+      }
+    }
+  }
+}

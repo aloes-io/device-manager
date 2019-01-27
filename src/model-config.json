@@ -1,0 +1,110 @@
+{
+  "_meta": {
+    "sources": ["loopback/common/models", "loopback/server/models", "../common/models", "./models"],
+    "mixins": [
+      "loopback/common/mixins",
+      "loopback/server/mixins",
+      "../node_modules/loopback-ds-timestamp-mixin",
+      "../common/mixins",
+      "./mixins"
+    ]
+  },
+  "User": {
+    "dataSource": "db",
+    "public": false
+  },
+  "AccessToken": {
+    "dataSource": "db",
+    "public": false,
+    "relations": {
+      "account": {
+        "type": "belongsTo",
+        "model": "Account",
+        "foreignKey": "userId"
+      },
+      "device": {
+        "type": "belongsTo",
+        "model": "Device",
+        "foreignKey": "userId"
+      }
+    }
+  },
+  "ACL": {
+    "dataSource": "db",
+    "public": false
+  },
+  "RoleMapping": {
+    "dataSource": "db",
+    "public": false,
+    "options": {
+      "strictObjectIDCoercion": true
+    },
+    "relations": {
+      "account": {
+        "type": "belongsTo",
+        "model": "Account",
+        "foreignKey": "userId"
+      },
+      "role": {
+        "type": "belongsTo",
+        "model": "Role",
+        "foreignKey": "roleId"
+      }
+    }
+  },
+  "Role": {
+    "dataSource": "db",
+    "public": false,
+    "relations": {
+      "account": {
+        "type": "hasMany",
+        "model": "Account",
+        "through": "RoleMapping",
+        "foreignKey": "roleId"
+      }
+    }
+  },
+  "Account": {
+    "dataSource": "db",
+    "public": true
+  },
+  "Address": {
+    "dataSource": "db",
+    "public": false
+  },
+  "container": {
+    "dataSource": "storage",
+    "public": false
+  },
+  "Device": {
+    "dataSource": "db",
+    "public": true
+  },
+  "Email": {
+    "dataSource": "email"
+  },
+  "Favorite": {
+    "dataSource": "db",
+    "public": false
+  },
+  "files": {
+    "dataSource": "db",
+    "public": true
+  },
+  "Measurement": {
+    "dataSource": "db",
+    "public": false
+  },
+  "OmaObject": {
+    "dataSource": "db",
+    "public": true
+  },
+  "OmaResource": {
+    "dataSource": "db",
+    "public": true
+  },
+  "Sensor": {
+    "dataSource": "db",
+    "public": true
+  }
+}

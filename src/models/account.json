@@ -1,0 +1,356 @@
+{
+  "name": "Account",
+  "plural": "Accounts",
+  "base": "User",
+  "idInjection": true,
+  "options": {
+    "validateUpsert": true
+  },
+  "mixins": {},
+  "restrictResetPasswordTokenScope": true,
+  "emailVerificationRequired": true,
+  "properties": {
+    "type": {
+      "type": "string",
+      "required": true
+    },
+    "firstName": {
+      "type": "string",
+      "required": true
+    },
+    "lastName": {
+      "type": "string",
+      "required": false
+    },
+    "fullName": {
+      "type": "string"
+    },
+    "fullAddress": {
+      "type": "string"
+    },
+    "avatarImgUrl": {
+      "type": "string"
+    },
+    "headerImgUrl": {
+      "type": "string"
+    },
+    "favoriteColors": {
+      "type": "array",
+      "default": ["#FFF"]
+    },
+    "status": {
+      "type": "boolean"
+    },
+    "subscribed": {
+      "type": "string",
+      "default": "new"
+    },
+    "currentSubscribedEnd": {
+      "type": "string",
+      "required": false
+    },
+    "deleted": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "hidden": ["deleted, emailVerified"],
+  "validations": [],
+  "relations": {
+    "roleMapping": {
+      "type": "hasMany",
+      "model": "RoleMapping",
+      "foreignKey": "principalId"
+    },
+    "role": {
+      "type": "hasMany",
+      "model": "Role",
+      "foreignKey": "principalId",
+      "through": "RoleMapping"
+    },
+    "profileAddress": {
+      "type": "hasOne",
+      "model": "Address",
+      "foreignKey": "accountId"
+    },
+    "devices": {
+      "type": "hasMany",
+      "model": "Device",
+      "foreignKey": "accountId"
+    },
+    "favorites": {
+      "type": "hasMany",
+      "model": "Favorite",
+      "foreignKey": "ownerId"
+    },
+    "files": {
+      "type": "hasMany",
+      "model": "files",
+      "foreignKey": "ownerId"
+    },
+    "virtualObjects": {
+      "type": "hasMany",
+      "model": "VirtualObject",
+      "foreignKey": "accountId"
+    }
+  },
+  "acls": [
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "admin",
+      "permission": "ALLOW"
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$everyone",
+      "permission": "DENY"
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$owner",
+      "permission": "ALLOW",
+      "property": [
+        "replaceById",
+        "replaceOrCreate",
+        "updateById",
+        "updateAttributes",
+        "upsert",
+        "exists",
+        "find",
+        "findById",
+        "__update__profileAddress",
+        "__destroy__profileAddress",
+        "__get__devices",
+        "__create__devices",
+        "__findById__devices",
+        "__updateById__devices",
+        "__destroyById__devices",
+        "__create__favorites",
+        "__findById__favorites",
+        "__updateById__favorites"
+      ]
+    },
+    {
+      "accessType": "EXECUTE",
+      "principalType": "ROLE",
+      "principalId": "$everyone",
+      "permission": "ALLOW",
+      "property": [
+        "create",
+        "verifyEmail",
+        "verifyCaptcha",
+        "sendContactForm",
+        "resetPassword",
+        "updatePasswordFromToken"
+      ]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$authenticated",
+      "permission": "ALLOW",
+      "property": [
+        "findById",
+        "verifyAddress",
+        "textSearch",
+        "geoLocate",
+        "sendInvite",
+        "__create__profileAddress",
+        "__get__profileAddress",
+        "__get__schedulers",
+        "__get__devices",
+        "__create__devices",
+        "__findById__devices",
+        "__get__favorites",
+        "__get__events",
+        "__get__device"
+      ]
+    }
+  ],
+  "methods": {
+    "verifyEmail": {
+      "description": [" Request verify account email "],
+      "accepts": [
+        {
+          "arg": "account",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "result",
+        "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/verify-email"
+      }
+    },
+    "verifyCaptcha": {
+      "description": ["Verify captcha response ( coinhive ) "],
+      "accepts": [
+        {
+          "arg": "hashes",
+          "type": "string",
+          "required": true
+        },
+        {
+          "arg": "token",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "result",
+        "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/verify-captcha"
+      }
+    },
+    "resetPassword": {
+      "description": ["Reset password for a user with email."],
+      "accepts": [
+        {
+          "arg": "options",
+          "type": "object",
+          "required": true,
+          "http": {
+            "source": "body"
+          }
+        }
+      ],
+      "returns": {
+        "arg": "success",
+        "type": "boolean"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/reset-password-request"
+      }
+    },
+    "updatePasswordFromToken": {
+      "description": ["update password from a temporary token "],
+      "accepts": [
+        {
+          "arg": "accessToken",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "newPassword",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "returns": {"type": "boolean", "arg": "passwordChanged"},
+      "http": {"path": "/update-password-from-token", "verb": "post"}
+    },
+    "sendContactForm": {
+      "description": ["send an email via contact form"],
+      "accepts": [
+        {
+          "arg": "form",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "response",
+        "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/send-contact-form"
+      }
+    },
+    "sendInvite": {
+      "description": ["Invite a new account to join Aloes"],
+      "accepts": [
+        {
+          "arg": "ctx",
+          "type": "object",
+          "http": {
+            "source": "context"
+          }
+        },
+        {
+          "arg": "options",
+          "type": "object"
+        }
+      ],
+      "returns": {
+        "arg": "success",
+        "type": "boolean"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/invite-studio"
+      }
+    },
+    "verifyAddress": {
+      "description": ["Call the address model"],
+      "accepts": [
+        {
+          "arg": "address",
+          "type": "object"
+        }
+      ],
+      "returns": {
+        "arg": "updatedAddress",
+        "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/verify-address"
+      }
+    },
+    "textSearch": {
+      "description": ["Call the text search intern method"],
+      "accepts": [
+        {
+          "arg": "ctx",
+          "type": "object",
+          "http": {
+            "source": "context"
+          }
+        },
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "result",
+        "type": "array"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/text-search"
+      }
+    },
+    "geoLocate": {
+      "description": ["Find user by geopoint in coordinates property"],
+      "accepts": [
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "result",
+        "type": "array"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/geo-locate"
+      }
+    }
+  }
+}

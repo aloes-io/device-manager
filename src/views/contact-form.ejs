@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body {
+        font-size: 14px;
+      }
+      div.mail {
+        text-align: center;
+      }
+      .header {
+        margin-left: 25%;
+        border-radius: 10%;
+        height: 15%;
+        width: 50%;
+      }
+      h2.header {
+        color: #67c4ca;
+        margin-top: 2%;
+        font-size: 130%;
+      }
+      a.confirm {
+        font-size: 110%;
+        color: #8ac8a3;
+        border-radius: 50%;
+        height: 150px;
+        width: 150px;
+      }
+      img.joli{
+        width: 30%;
+        align-content: center;
+        max-height: auto;
+      }
+      p.content {
+        color: #686868;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mail">
+      <h2 class="header">Aloes</h2>
+      <h4 class="header"><%= firstName %> <%= lastName %> a envoyé un message.</h4>
+      <p class="content">email : <%= email %></p>
+      <p class="content">sujet : <%= subject %></p>
+      <br>
+      <p class="content"><%= text %></p>
+    </div>
+  </body>
+</html>
