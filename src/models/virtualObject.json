@@ -1,0 +1,115 @@
+{
+  "name": "VirtualObject",
+  "plural": "VirtualObjects",
+  "base": "PersistedModel",
+  "idInjection": true,
+  "options": {
+    "validateUpsert": true
+  },
+  "properties": {
+    "name": {
+      "type": "String",
+      "required": false,
+      "default": null
+    },
+    "type": {
+      "type": "String",
+      "required": false,
+      "default": null
+    },
+    "status": {
+      "type": "boolean",
+      "default": false
+    },
+    "description": {
+      "type": "String",
+      "required": false
+    },
+    "accessPointUrl": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "lastSignal": {
+      "type": "date",
+      "required": false
+    },
+    "qrCode": {
+      "type": "string",
+      "required": false,
+      "default": null
+    }
+  },
+  "indexes": {},
+  "protected": [],
+  "hidden": ["deleted"],
+  "validations": [],
+  "relations": {
+    "account": {
+      "type": "belongsTo",
+      "model": "Account",
+      "foreignKey": "ownerId",
+      "options": {
+        "nestRemoting": false
+      }
+    },
+    "members": {
+      "type": "referencesMany",
+      "model": "Account",
+      "foreignKey": "memberIds",
+      "options": {
+        "validate": true,
+        "forceId": false
+      }
+    },
+    "sensors": {
+      "type": "referencesMany",
+      "model": "Sensor",
+      "foreignKey": "sensorIds",
+      "options": {
+        "validate": true,
+        "forceId": false
+      }
+    }
+  },
+  "acls": [
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "admin",
+      "permission": "ALLOW"
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$everyone",
+      "permission": "ALLOW"
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$authenticated",
+      "permission": "ALLOW",
+      "property": ["create", "find", "findById", "exists", "__updateById__sensors", "__get__sensors"]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$owner",
+      "permission": "ALLOW",
+      "property": [
+        "replaceById",
+        "replaceOrCreate",
+        "updateById",
+        "updateAttributes",
+        "upsert",
+        "exists",
+        "find",
+        "findById",
+        "__updateById__sensors",
+        "__get__sensors"
+      ]
+    }
+  ],
+  "methods": {}
+}

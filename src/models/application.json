@@ -1,0 +1,35 @@
+{
+  "name": "Application",
+  "plural": "Applications",
+  "base": "PersistedModel",
+  "idInjection": true,
+  "options": {
+    "validateUpsert": true
+  },
+  "properties": {
+    "name": {
+      "type": "string",
+      "default": "",
+      "required": false
+    },
+    "appEui": {
+      "type": "String",
+      "required": true,
+      "default": null,
+      "unique": true
+    },
+    "appKey": {
+      "type": "String",
+      "required": false
+    },
+    "public": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "hidden": [],
+  "validations": [],
+  "relations": {},
+  "acls": [],
+  "methods": {}
+}

@@ -51,6 +51,46 @@
       }
     }
   },
-  "acls": [],
+  "acls": [
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "admin",
+      "permission": "ALLOW"
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$everyone",
+      "permission": "ALLOW",
+      "property": [
+        "create",
+        "find",
+        "findById",
+        "replaceById",
+        "replaceOrCreate",
+        "updateById",
+        "updateAttributes",
+        "upsert",
+        "exists"
+      ]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$owner",
+      "permission": "ALLOW",
+      "property": [
+        "replaceById",
+        "replaceOrCreate",
+        "updateById",
+        "updateAttributes",
+        "upsert",
+        "exists",
+        "find",
+        "findById"
+      ]
+    }
+  ],
   "methods": {}
 }

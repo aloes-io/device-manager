@@ -1,6 +1,6 @@
 {
-  "name": "OmaResource",
-  "plural": "OmaResources",
+  "name": "OmaView",
+  "plural": "OmaViews",
   "base": "PersistedModel",
   "idInjection": true,
   "options": {
@@ -15,27 +15,16 @@
     "name": {
       "required": true,
       "type": "string",
-      "description": "resource Name"
+      "description": "object Name"
     },
-    "description": {
-      "type": "string",
-      "required": false
+    "resources": {
+      "type": "object",
+      "required": true
     },
-    "operations": {
-      "type": "string",
-      "required": false
-    },
-    "type": {
-      "type": "string",
-      "required": false
-    },
-    "unit": {
-      "type": "string",
-      "required": false
-    },
-    "range": {
+    "icons": {
       "type": "array",
-      "required": false
+      "default": [],
+      "required": true
     }
   },
   "protected": [],

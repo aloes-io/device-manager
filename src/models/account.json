@@ -160,7 +160,6 @@
         "sendInvite",
         "__create__profileAddress",
         "__get__profileAddress",
-        "__get__schedulers",
         "__get__devices",
         "__create__devices",
         "__findById__devices",

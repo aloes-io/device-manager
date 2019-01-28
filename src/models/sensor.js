@@ -30,30 +30,6 @@ module.exports = function(Sensor) {
     message: "Wrong sensor protocol name",
   });
 
-  function parseStream(payload, bufferSize) {
-    console.log("parseStream.........", payload);
-
-    if (payload.length === bufferSize) {
-      //console.log(this.counter);
-      if (counter === 1) {
-        return (uploadedFiles = new Blob([payload], {
-          type: "image/jpeg",
-        }));
-      } else {
-        return (uploadedFiles = new Blob([uploadedFiles, payload], {
-          type: "image/jpeg",
-        }));
-      }
-    } else if (payload.length <= 4) {
-      //console.log("last", this.counter);
-      const blob = new Blob([this.uploadedFiles, payload], {
-        type: "image/jpeg",
-      });
-      uploadedFiles = [];
-      counter = 0;
-    }
-  }
-
   // Sensor.observe("before save", async (ctx) => {
   //   logger.publish(3, `${collectionName}`, "beforeSave:req", ctx.instance);
   //   logger.publish(3, `${collectionName}`, "beforeSave:req", ctx.data);
@@ -65,7 +41,7 @@ module.exports = function(Sensor) {
   //       sensor = ctx.instance;
   //     }
   //     // if (sensor.type) {
-  //     //   const foundIpsoObject = handlers.ipsoObjects.find((object) => object.value === sensor.type);
+  //     //   const foundIpsoObject = handlers.omaObjects.find((object) => object.value === sensor.type);
   //     //   // todo : insert template based on sensor type
   //     //   //  sensor.template = "AloesSensorSnap/AloesSensorSnap.vue";
   //     //   sensor.template = `${process.env.HTTP_SERVER_URL}/aloes-sensor-snap.vue`;
@@ -125,7 +101,7 @@ module.exports = function(Sensor) {
         });
       }
       if (result && result.topic && result.payload) {
-        return Sensor.app.send(result.topic, result.payload);
+        return Sensor.app.publish(result.topic, result.payload);
       }
       return null;
     }
@@ -148,7 +124,7 @@ module.exports = function(Sensor) {
         pattern: "aloesClient",
       });
       if (result && result.topic && result.payload) {
-        return Sensor.app.send(result.topic, result.payload);
+        return Sensor.app.publish(result.topic, result.payload);
       }
       return null;
     } catch (error) {
@@ -159,11 +135,10 @@ module.exports = function(Sensor) {
   Sensor.beforeRemote("**.find", async (ctx) => {
     // only send results where user is in subscribers list of the room he requested
     logger.publish(4, `${collectionName}`, "beforeFind:req", ctx.methodString);
-    logger.publish(4, `${collectionName}`, "beforeFind:req", ctx.data);
-    logger.publish(4, `${collectionName}`, "beforeFind:req", ctx.instance);
+    logger.publish(4, `${collectionName}`, "beforeFind:req", ctx.args);
     // logger.publish(4, `${collectionName}`, "beforeFind:res", template);
     // return template;
-    //  return;
+    return ctx;
   });
 
   Sensor.onPublish = async (pattern, packet) => {

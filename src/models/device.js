@@ -135,7 +135,7 @@ module.exports = function(Device) {
             pattern: "aloesClient",
           });
           if (result && result.topic && result.payload) {
-            return Device.app.send(result.topic, result.payload);
+            return Device.app.publish(result.topic, result.payload);
           }
         }
         result = await handlers.publish({
@@ -147,7 +147,7 @@ module.exports = function(Device) {
           pattern: "aloesClient",
         });
         if (result && result.topic && result.payload) {
-          return Device.app.send(result.topic, result.payload);
+          return Device.app.publish(result.topic, result.payload);
         }
         return null;
       }
@@ -181,7 +181,7 @@ module.exports = function(Device) {
           pattern: "aloesClient",
         });
         if (result && result.topic && result.payload) {
-          return Device.app.send(result.topic, result.payload);
+          return Device.app.publish(result.topic, result.payload);
         }
       }
       return null;
@@ -219,7 +219,7 @@ module.exports = function(Device) {
       if (!decoded) return null;
       if (decoded.topic) {
         // publish to decoded.protocol
-        await Device.app.send(decoded.topic, decoded.payload.toString());
+        await Device.app.publish(decoded.topic, decoded.payload.toString());
         return null;
       } else if (decoded.devEui) {
         //  save device and sensor
@@ -303,6 +303,8 @@ module.exports = function(Device) {
             // await sensor.measurements.create({
             //   date: decoded.lastSignal,
             //   type: sensor.type,
+            //   omaObjectId: sensor.type,
+            //   omaResourceId: decoded.resource,
             //   resource: decoded.resource,
             //   deviceId: device.id,
             //   value: updatedSensor.value,
@@ -320,7 +322,7 @@ module.exports = function(Device) {
             method: "STREAM",
             pattern: "aloesClient",
           });
-          return Device.app.send(stream.topic, stream.payload);
+          return Device.app.publish(stream.topic, stream.payload);
         }
         return decoded;
       }

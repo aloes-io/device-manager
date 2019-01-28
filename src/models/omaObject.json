@@ -21,6 +21,10 @@
       "type": "string",
       "required": true
     },
+    "resourceIds": {
+      "type": "string",
+      "required": true
+    },
     "resources": {
       "type": "object",
       "required": true
@@ -28,12 +32,12 @@
     "colors": {
       "type": "array",
       "default": [],
-      "required": true
+      "required": false
     },
     "icons": {
       "type": "array",
       "default": [],
-      "required": true
+      "required": false
     }
   },
   "protected": [],

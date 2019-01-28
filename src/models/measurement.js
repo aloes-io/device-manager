@@ -1,5 +1,5 @@
 /* eslint-disable no-param-reassign */
-import handlers from "aloes-handlers";
+import {publish} from "aloes-handlers";
 import logger from "../logger.js";
 
 module.exports = function(Measurement) {
@@ -30,7 +30,7 @@ module.exports = function(Measurement) {
     logger.publish(4, `${collectionName}`, "afterSave:req", ctx.instance);
     if (ctx.instance.deviceId && Measurement.app.broker) {
       if (ctx.isNewInstance) {
-        const result = await handlers.publish({
+        const result = await publish({
           userId: ctx.instance.deviceId,
           collectionName,
           data: ctx.instance,
@@ -38,7 +38,7 @@ module.exports = function(Measurement) {
           pattern: "aloesClient",
         });
         if (result && result.topic && result.payload) {
-          return Measurement.app.send(result.topic, result.payload);
+          return Measurement.app.publish(result.topic, result.payload);
         }
         return null;
       }

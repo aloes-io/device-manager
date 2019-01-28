@@ -15,7 +15,7 @@
     "build": "cd components && webpack"
   },
   "dependencies": {
-    "aloes-handlers": "^1.0.12",
+    "aloes-handlers": "^1.0.13",
     "body-parser": "^1.18.3",
     "compression": "^1.0.3",
     "cors": "^2.5.2",

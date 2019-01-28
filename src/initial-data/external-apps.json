@@ -1,0 +1,9 @@
+[
+  {
+    "type": "IoTAgent",
+    "appEui": "virtualObjectManager",
+    "appKey": "",
+    "name": "virtualObjectManager",
+    "status": false
+  }
+]

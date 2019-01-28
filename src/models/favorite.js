@@ -20,7 +20,7 @@ module.exports = function(Favorite) {
           pattern: "aloesClient",
         });
         if (result && result.topic && result.payload) {
-          await Favorite.app.send(result.topic, result.payload);
+          await Favorite.app.publish(result.topic, result.payload);
         } else return null;
       }
       return null;
@@ -41,7 +41,7 @@ module.exports = function(Favorite) {
           pattern: "aloesClient",
         });
         if (result && result.topic && result.payload) {
-          await Favorite.app.send(result.topic, result.payload);
+          await Favorite.app.publish(result.topic, result.payload);
         } else return null;
         //  return null;
       }

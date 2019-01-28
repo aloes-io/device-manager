@@ -72,6 +72,10 @@
     "dataSource": "db",
     "public": false
   },
+  "Application": {
+    "dataSource": "db",
+    "public": false
+  },
   "container": {
     "dataSource": "storage",
     "public": false
@@ -103,7 +107,15 @@
     "dataSource": "db",
     "public": true
   },
+  "OmaView": {
+    "dataSource": "db",
+    "public": true
+  },
   "Sensor": {
+    "dataSource": "db",
+    "public": true
+  },
+  "VirtualObject": {
     "dataSource": "db",
     "public": true
   }

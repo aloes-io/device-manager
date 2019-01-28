@@ -28,6 +28,12 @@
       "description": "Object with IPSO resource IDs as keys, example { '5700' : '5', '5701': '°C'}",
       "default": null
     },
+    "omaResources": {
+      "type": "array",
+      "required": false,
+      "description": "Object with IPSO resource IDs as keys, example [ {id: 5700, value: '5'}, {id: 5701: '°C'} ]",
+      "default": null
+    },
     "value": {
       "type": "object",
       "required": false,
@@ -45,12 +51,6 @@
       "required": false
     },
     "resource": {
-      "type": "Number",
-      "required": false,
-      "description": "ipso resource id - measurement",
-      "default": null
-    },
-    "mainResourceId": {
       "type": "Number",
       "required": false,
       "description": "ipso resource id - measurement",
@@ -147,7 +147,41 @@
       "accessType": "*",
       "principalType": "ROLE",
       "principalId": "$everyone",
-      "permission": "ALLOW"
+      "permission": "ALLOW",
+      "property": [
+        "replaceById",
+        "replaceOrCreate",
+        "updateById",
+        "updateAttributes",
+        "upsert",
+        "exists",
+        "find",
+        "findById",
+        "__get__measurements",
+        "__create__measurements",
+        "__findById__measurements",
+        "__destroyById__measurements"
+      ]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$owner",
+      "permission": "ALLOW",
+      "property": [
+        "replaceById",
+        "replaceOrCreate",
+        "updateById",
+        "updateAttributes",
+        "upsert",
+        "exists",
+        "find",
+        "findById",
+        "__get__measurements",
+        "__create__measurements",
+        "__findById__measurements",
+        "__destroyById__measurements"
+      ]
     }
   ],
   "methods": {}
