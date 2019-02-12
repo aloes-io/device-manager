@@ -3,8 +3,6 @@ import boot from "loopback-boot";
 import path from "path";
 import dotenv from "dotenv";
 import bodyParser from "body-parser";
-import mosca from "mosca";
-
 import broker from "./broker";
 import logger from "./logger";
 
@@ -14,6 +12,7 @@ if (result.error) {
 }
 // parse .env file, leave this uncommented
 console.log("[INIT] Parsing dotenv config : ", result.parsed);
+//  const conf = result.parsed;
 
 const app = loopback();
 const options = {
@@ -45,7 +44,6 @@ app.start = function() {
     app.emit("started");
     logger.publish(2, "loopback", "Setup", `${process.env.APP_NAME} / ${process.env.NODE_ENV}`);
     logger.publish(2, "loopback", "Setup", `config : ${app.get("host")}:${app.get("port")}`);
-
     const baseUrl = app.get("url").replace(/\/$/, "");
     logger.publish(2, "loopback", "Setup", `Express API server listening @: ${baseUrl}/api`);
     if (app.get("loopback-component-explorer")) {
@@ -59,15 +57,7 @@ app.start = function() {
 
 app.on("started", () => {
   //  console.log("config", app.settings);
-  const brokerConfig = {
-    interfaces: [
-      {type: "mqtt", port: Number(process.env.MQTT_BROKER_PORT)},
-      //  { type: "mqtts", port: brokerPortSecure, credentials: { keyPath: privateKeyPath, certPath: certificatePath } },
-    ],
-  };
-  app.broker = new mosca.Server(brokerConfig);
-  app.broker.attachHttpServer(httpServer);
-  broker.initBroker(app);
+  broker.init(app, httpServer);
 });
 
 app.close = function() {
@@ -77,25 +67,12 @@ app.close = function() {
 
 app.publish = (topic, payload) => {
   app.emit("publish", topic, payload);
-  logger.publish(4, "Loopback", "publish", {topic, payload});
-  // if (app.broker) {
-  //   if (typeof payload !== "string") {
-  //     payload = JSON.stringify(payload);
-  //   }
-  //   app.broker.publish({
-  //     topic,
-  //     payload,
-  //     retain: false,
-  //     qos: 0,
-  //   });
-  // }
 };
 
 // Bootstrap the application, configure models, datasources and middleware.
 // Sub-apps like REST API are mounted via boot scripts.
 boot(app, options, (err) => {
   if (err) throw err;
-
   // start the server if `$ node server.js`
   if (require.main === module) {
     app.start();

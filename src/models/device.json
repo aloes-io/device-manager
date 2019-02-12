@@ -8,22 +8,22 @@
   },
   "properties": {
     "devEui": {
-      "type": "String",
+      "type": "string",
       "required": true,
       "default": null,
       "unique": true
     },
     "appKey": {
-      "type": "String",
+      "type": "string",
       "required": false
     },
     "name": {
-      "type": "String",
+      "type": "string",
       "required": false,
       "default": null
     },
     "type": {
-      "type": "String",
+      "type": "string",
       "required": false,
       "default": null
     },
@@ -32,11 +32,11 @@
       "default": false
     },
     "description": {
-      "type": "String",
+      "type": "string",
       "required": false
     },
     "icons": {
-      "type": "Array",
+      "type": "array",
       "required": false,
       "default": [],
       "description": "urls pointing to icon image"
@@ -145,11 +145,13 @@
       "permission": "ALLOW",
       "property": [
         "replaceById",
+        "destroyById",
         "replaceOrCreate",
         "updateById",
         "updateAttributes",
         "upsert",
         "exists",
+        "delete",
         "find",
         "findById",
         "__get__deviceAddress",

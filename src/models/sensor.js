@@ -1,11 +1,11 @@
 /* eslint-disable no-param-reassign */
 import handlers from "aloes-handlers";
 import logger from "../logger.js";
+//  import cache from "../cache.js";
+//  const cache = require("../cache.js")();
 
 module.exports = function(Sensor) {
   const collectionName = "Sensor";
-  let counter = 0;
-  let uploadedFiles;
 
   async function typeValidator(err) {
     if (this.type.toString().length === 4) {
@@ -30,6 +30,22 @@ module.exports = function(Sensor) {
     message: "Wrong sensor protocol name",
   });
 
+  // Sensor.observe("access", async (ctx) => {
+  //   console.log(`Accessing ${ctx.Model.modelName} matching ${JSON.stringify(ctx.query.where)}`);
+  //   //  const cache = require("../cache.js")();
+  //   const key = Object.keys(ctx.query.where)[0];
+  //   console.log(`Accessing ${ctx.Model.modelName}`, Object.keys(ctx.query.where));
+
+  //   const sensor = cache.findObjs(ctx.Model.modelName, key, ctx.query.where[key]);
+  //   if (!sensor) {
+  //     console.log(new Error(`${ctx.Model.modelName} is not valid: ${JSON.stringify(ctx.query.where)}`));
+  //     //  throw
+  //   }
+  //   console.log(`Accessing ${ctx.Model.modelName}`, sensor);
+
+  //   return ctx;
+  // });
+
   // Sensor.observe("before save", async (ctx) => {
   //   logger.publish(3, `${collectionName}`, "beforeSave:req", ctx.instance);
   //   logger.publish(3, `${collectionName}`, "beforeSave:req", ctx.data);
@@ -39,35 +55,9 @@ module.exports = function(Sensor) {
   //       sensor = ctx.data;
   //     } else if (ctx.instance) {
   //       sensor = ctx.instance;
-  //     }
-  //     // if (sensor.type) {
-  //     //   const foundIpsoObject = handlers.omaObjects.find((object) => object.value === sensor.type);
-  //     //   // todo : insert template based on sensor type
-  //     //   //  sensor.template = "AloesSensorSnap/AloesSensorSnap.vue";
-  //     //   sensor.template = `${process.env.HTTP_SERVER_URL}/aloes-sensor-snap.vue`;
-  //     //   sensor.icons = foundIpsoObject.icons;
-  //     //   sensor.colors = foundIpsoObject.colors;
-  //     //   sensor.name = foundIpsoObject.name;
-  //     //   sensor.frameCounter += 1;
-  //     // }
-  //     if (sensor.value && sensor.mainResourceId) {
-  //       logger.publish(3, `${collectionName}`, "beforeSave:req", typeof sensor.value);
-  //       if (typeof sensor.value === "object") {
-  //         console.log("beforeSave2.........", sensor.value);
-  //         // const payload = Buffer.from(sensor.value);
-  //         // console.log("beforeSave3.........", payload);
-  //         counter += 1;
-  //         if (!sensor.value.length) {
-  //           return false;
-  //         }
-  //         return parseStream(sensor.value, 1024);
-  //       } else if (typeof sensor.value === "string") {
-  //         sensor.value = {[sensor.mainResourceId]: sensor.value};
-  //       }
-  //       logger.publish(4, collectionName, "beforeSave:res1", sensor);
-  //       return sensor;
-  //     }
+  //     } else return null;
   //     logger.publish(4, collectionName, "beforeSave:res", sensor);
+
   //     return sensor;
   //   } catch (error) {
   //     logger.publish(3, `${collectionName}`, "beforeSave:err", error);
@@ -80,6 +70,8 @@ module.exports = function(Sensor) {
     //  const updatedOptions = await utils.renderVueTemplate(template, context);
     if (ctx.instance.id && ctx.instance.accountId && Sensor.app.broker) {
       let result;
+      // find in redis, virtual objects where sensorIds inq instance.id
+      // publish to each virtual objects
 
       // and publish on device.accountId/Device/device.id/ipso_object_id/sensorId/ipso_resources_id/value
       if (ctx.isNewInstance) {
@@ -95,7 +87,7 @@ module.exports = function(Sensor) {
           userId: ctx.instance.accountId,
           collectionName,
           data: ctx.instance,
-          modelId: ctx.instance.id,
+          //  modelId: ctx.instance.id,
           method: "PUT",
           pattern: "aloesClient",
         });
@@ -130,15 +122,6 @@ module.exports = function(Sensor) {
     } catch (error) {
       return error;
     }
-  });
-
-  Sensor.beforeRemote("**.find", async (ctx) => {
-    // only send results where user is in subscribers list of the room he requested
-    logger.publish(4, `${collectionName}`, "beforeFind:req", ctx.methodString);
-    logger.publish(4, `${collectionName}`, "beforeFind:req", ctx.args);
-    // logger.publish(4, `${collectionName}`, "beforeFind:res", template);
-    // return template;
-    return ctx;
   });
 
   Sensor.onPublish = async (pattern, packet) => {

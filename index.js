@@ -27,7 +27,7 @@ app.on("started", () => {
   //  process.send('ready');
   //  console.log(`[SETUP] config : host ${app.get('host')} | port ${app.get('port')}`);
   const baseUrl = app.get("url").replace(/\/$/, "");
-  console.log(`[SETUP] Browse ${process.env.APP_NAME} at ${baseUrl}`);
+  console.log(`[LOOPBACK] setup:Browse ${process.env.APP_NAME} at ${baseUrl}`);
 });
 
 // process.on('SIGINT', () => {

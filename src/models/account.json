@@ -34,10 +34,6 @@
     "headerImgUrl": {
       "type": "string"
     },
-    "favoriteColors": {
-      "type": "array",
-      "default": ["#FFF"]
-    },
     "status": {
       "type": "boolean"
     },
@@ -78,9 +74,9 @@
       "model": "Device",
       "foreignKey": "accountId"
     },
-    "favorites": {
+    "teams": {
       "type": "hasMany",
-      "model": "Favorite",
+      "model": "Team",
       "foreignKey": "ownerId"
     },
     "files": {
@@ -91,7 +87,7 @@
     "virtualObjects": {
       "type": "hasMany",
       "model": "VirtualObject",
-      "foreignKey": "accountId"
+      "foreignKey": "ownerId"
     }
   },
   "acls": [
@@ -128,9 +124,9 @@
         "__findById__devices",
         "__updateById__devices",
         "__destroyById__devices",
-        "__create__favorites",
-        "__findById__favorites",
-        "__updateById__favorites"
+        "__create__teams",
+        "__findById__teams",
+        "__updateById__teams"
       ]
     },
     {
@@ -141,6 +137,7 @@
       "property": [
         "create",
         "verifyEmail",
+        "findByEmail",
         "verifyCaptcha",
         "sendContactForm",
         "resetPassword",
@@ -186,6 +183,24 @@
       "http": {
         "verb": "post",
         "path": "/verify-email"
+      }
+    },
+    "findByEmail": {
+      "description": [" Request verify account email "],
+      "accepts": [
+        {
+          "arg": "email",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "result",
+        "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/find-by-email"
       }
     },
     "verifyCaptcha": {

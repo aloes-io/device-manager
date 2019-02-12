@@ -89,45 +89,82 @@ module.exports = function(Account) {
     }
   });
 
-  Account.afterRemote("confirm", async (context) => {
-    logger.publish(4, `${collectionName}`, "afterConfirm:req", context.args.uid);
-    if (context.args.uid) {
+  Account.afterRemoteError("confirm", async (ctx) => {
+    logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, "");
+    ctx.res.redirect(process.env.HTTP_CLIENT_URL);
+    return null;
+  });
+
+  Account.afterRemote("confirm", async (ctx) => {
+    logger.publish(4, `${collectionName}`, "afterConfirm:req", ctx.args.uid);
+    if (ctx.args.uid) {
       return utils
-        .mkDirByPathSync(`${process.env.FS_PATH}/${context.args.uid}`)
+        .mkDirByPathSync(`${process.env.FS_PATH}/${ctx.args.uid}`)
         .then((res) => {
           console.log(`[${collectionName.toUpperCase()}] container Check : ${res}`);
           return res;
         })
         .catch((err) => err);
     }
-    const error = await utils.buildError("INVALID_CONATINER", `while creating containers for ${context.args.uid}`);
+    const error = await utils.buildError("INVALID_CONATINER", `while creating containers for ${ctx.args.uid}`);
     logger.publish(4, `${collectionName}`, "afterConfirm:err", error);
     return error;
   });
 
-  Account.beforeRemote("login", async (context) => {
-    logger.publish(4, `${collectionName}`, "beforeLogin:res", context.args);
-    return Account.login(context.args.credentials, "account")
-      .then((token) => token)
-      .catch((err) => {
-        logger.publish(4, `${collectionName}`, "beforeLogin:err", {
-          err,
-        });
-        return err;
+  Account.beforeRemote("login", async (ctx) => {
+    logger.publish(4, `${collectionName}`, "beforeLogin:req", ctx.args);
+    try {
+      const token = await Account.login(ctx.args.credentials, "account");
+      return token;
+    } catch (err) {
+      logger.publish(4, `${collectionName}`, "beforeLogin:err", {
+        err,
       });
+      if (err.code && err.code === "LOGIN_FAILED_EMAIL_NOT_VERIFIED") {
+        console.log("account not verified");
+        //  return new Error("account not verified");
+        ctx.res.send("LOGIN_FAILED_EMAIL_NOT_VERIFIED");
+        return err;
+      }
+      ctx.res.send("LOGIN_FAILED");
+      return err;
+    }
   });
+
+  Account.findByEmail = async (email) => {
+    try {
+      logger.publish(4, `${collectionName}`, "findByEmail:req", email);
+      const account = await Account.findOne({where: {email}});
+      if (!account || account === null) {
+        return new Error("account doesn't exist");
+      }
+      const result = await mails.verifyEmail(account);
+      if (result && !result.email.accepted) {
+        const error = new Error("Email rejected");
+        logger.publish(2, `${collectionName}`, "findByEmail:err", error);
+        return error;
+      }
+      logger.publish(4, `${collectionName}`, "findByEmail:res", result);
+      return result;
+    } catch (error) {
+      logger.publish(4, `${collectionName}`, "findByEmail:err", error);
+      return error;
+    }
+  };
 
   Account.verifyEmail = async (account) => {
     try {
       logger.publish(4, `${collectionName}`, "verifyEmail:req", account);
-      let result = {};
       const instance = await Account.findById(account.id);
-      if (instance.verificationToken) {
-        result = await mails.verifyEmail(instance);
-      } else if (instance.id) {
-        return {message: "account already verified"};
-      } else if (!instance.id) {
-        return {message: "account doesn't exist"};
+      if (!instance || instance === null) {
+        return new Error("account doesn't exist");
+      }
+      logger.publish(4, `${collectionName}`, "verifyEmail:res1", instance);
+      const result = await mails.verifyEmail(instance);
+      if (result && !result.email.accepted) {
+        const error = new Error("Email rejected");
+        logger.publish(2, `${collectionName}`, "findByEmail:err", error);
+        return error;
       }
       logger.publish(4, `${collectionName}`, "verifyEmail:res", result);
       return result;
@@ -316,5 +353,4 @@ module.exports = function(Account) {
       //  next(error);
     }
   };
-
 };

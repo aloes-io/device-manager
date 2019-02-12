@@ -2,12 +2,9 @@
 import ejs from "ejs";
 import * as fs from "fs";
 import path from "path";
-import moment from "moment";
 import server from "./server";
 import logger from "./logger";
 //  import createVue from "./views/create-vue";
-
-require("moment-recur");
 
 const collectionName = "Utils";
 const utils = {};

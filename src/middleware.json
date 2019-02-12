@@ -5,7 +5,7 @@
   "initial": {
     "compression": {},
     "./middleware/tracker": {
-      "params": {"enabled": false}
+      "params": {"enabled": true}
     },
     "cors": {
       "params": {

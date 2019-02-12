@@ -20,7 +20,6 @@ module.exports = (Application) => {
     logger.publish(3, `${collectionName}`, "afterSave:req", ctx.instance);
     try {
       if (ctx.instance && Application.app) {
-        let result;
         if (ctx.isNewInstance) {
           const token = await Application.app.models.AccessToken.findOrCreate(
             {

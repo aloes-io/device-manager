@@ -1,9 +1,10 @@
 # Aloes - Device Manager
 
-- Handle devices and sensors CRUD, and authentification
+- Handle devices and sensors CRUD
+- Authentification by access token for accounts / devices / external apps
 - MQTT flow triggered by HTTP operations hooks
 - Dispatch MQTT payload from several protocol sources
-- Modelling sensors with IPSO schemas
+- Modelling sensors with OMA schemas
 
 
 REST API Server build upon :

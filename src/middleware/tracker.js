@@ -1,16 +1,15 @@
+import logger from "../logger";
+
 module.exports = function(options) {
   return function tracker(req, res, next) {
     if (options.enabled) {
-      console.log(
-        "[TRACKER] Request tracking middleware triggered on %s",
-        req.url,
-      );
+      logger.publish(4, "tracker", "Request tracking middleware triggered on", req.url);
       // filter out url containing explorer, let in those containing a known model name
       const start = process.hrtime();
       res.once("finish", () => {
         const diff = process.hrtime(start);
         const ms = diff[0] * 1e3 + diff[1] * 1e-6;
-        console.log("[TRACKER] The request processing time is %d ms.", ms);
+        logger.publish(4, "tracker", "Response", `processing time is ${ms} ms`);
         return true;
       });
       next();
