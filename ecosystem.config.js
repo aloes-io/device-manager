@@ -10,7 +10,7 @@ module.exports = {
   apps: [
     {
       script: "./index.js",
-      interpreter: "./node_modules/babel-cli/bin/babel-node.js",
+      interpreter: "./node_modules/@babel/node/bin/babel-node.js",
       output: "./log/device-manager.out.log",
       error: "./log/device-manager.error.log",
       max_memory_restart: "1G",
