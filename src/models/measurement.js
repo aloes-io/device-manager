@@ -1,6 +1,6 @@
 /* eslint-disable no-param-reassign */
 import {publish} from "aloes-handlers";
-import logger from "../logger.js";
+import logger from "../services/logger";
 
 module.exports = function(Measurement) {
   const collectionName = "Measurement";

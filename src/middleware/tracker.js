@@ -1,4 +1,4 @@
-import logger from "../logger";
+import logger from "../services/logger";
 
 module.exports = function(options) {
   return function tracker(req, res, next) {

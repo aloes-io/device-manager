@@ -1,4 +1,4 @@
-import logger from "../logger";
+import logger from "../services/logger";
 
 const CONTAINERS_URL = `${process.env.HTTP_SERVER_URL}${
   process.env.REST_API_ROOT

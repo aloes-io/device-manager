@@ -1,5 +1,5 @@
 import NodeGeocoder from "node-geocoder";
-import logger from "../logger";
+import logger from "../services/logger";
 
 const options = {
   provider: "opencage",

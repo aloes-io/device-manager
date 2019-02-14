@@ -3,8 +3,8 @@ import boot from "loopback-boot";
 import path from "path";
 import dotenv from "dotenv";
 import bodyParser from "body-parser";
-import broker from "./broker";
-import logger from "./logger";
+import broker from "./services/broker";
+import logger from "./services/logger";
 
 const result = dotenv.config();
 if (result.error) {

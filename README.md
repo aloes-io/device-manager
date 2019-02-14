@@ -32,9 +32,11 @@ REST API Server build upon :
 - /src --> contains source code
   - /. --> Loopback configuration
   - /boot --> code executed at application start
-  - /initial-data --> basic datasets to make global application running
+  - /initial-data --> JSON datasets to make global application running
   - /middleware --> scripts used in development/staging only
+  - /mixins --> add special properties to models
   - /models --> REST API descriptions and controllers
+  - /services --> external modules
   - /views --> templates used for automatic mailing
 
 

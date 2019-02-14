@@ -4,14 +4,15 @@ const result = dotenv.config();
 if (result.error) {
   throw result.error;
 }
-console.log("[PM2] Parsing dotenv config : ", result.parsed);
+//  console.log("[PM2] Parsing dotenv config : ", result.parsed);
+
 module.exports = {
   apps: [
     {
       script: "./index.js",
       interpreter: "./node_modules/babel-cli/bin/babel-node.js",
-      output: "./log/aloes.out.log",
-      error: "./log/aloes.error.log",
+      output: "./log/device-manager.out.log",
+      error: "./log/device-manager.error.log",
       max_memory_restart: "1G",
       restart_delay: 500,
       wait_ready: true,

@@ -1,5 +1,5 @@
 import {omaObjects, omaResources, omaViews} from "aloes-handlers";
-import logger from "../logger";
+import logger from "../services/logger";
 
 export default async function createOmaApi(server) {
   try {

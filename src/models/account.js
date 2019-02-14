@@ -1,6 +1,6 @@
-import mails from "../mails";
-import logger from "../logger";
-import utils from "../utils";
+import mails from "../services/mails";
+import logger from "../services/logger";
+import utils from "../services/utils";
 import initialRolesList from "../initial-data/base-roles.json";
 
 const collectionName = "Account";

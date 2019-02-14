@@ -1,7 +1,7 @@
 /* eslint-disable no-param-reassign */
 import handlers from "aloes-handlers";
-import logger from "../logger";
-import utils from "../utils";
+import logger from "../services/logger";
+import utils from "../services/utils";
 
 module.exports = function(Device) {
   const collectionName = "Device";
@@ -192,14 +192,14 @@ module.exports = function(Device) {
   const parseMessage = async (packet, message) => {
     logger.publish(4, `${collectionName}`, "parseMessage:req", message);
     if (message.topic && message.payload) {
-      // publish to message.protocol
+      // publish to message.protocolName
       await Device.app.publish(message.topic, message.payload.toString());
       return null;
     } else if (message.devEui || message.deviceId) {
-      //  save device and sensor
+      //  update device and sensor
       const device = await Device.findOne({
         where: {
-          or: [{devEui: message.devEui}, {id: message.deviceId}],
+          and: [{protocolName: message.protocolName}, {or: [{devEui: message.devEui}, {id: message.deviceId}]}],
         },
       });
       //  console.log("onPublish, device :", device);
@@ -251,19 +251,9 @@ module.exports = function(Device) {
           return sensor;
         }
         let tempSensor = sensor;
-        // const attributes = {
-        //   type: sensor.type,
-        //   protocolName: device.protocolName,
-        //   deviceId: device.id,
-        //   accountId: device.accountId,
-        //   resources: sensor.resources,
-        //   ...message,
-        //   frameCounter: sensor.frameCounter + 1,
-        // };
-        //  console.log("updating sensor 1:", attributes);
+
         if (message.value && message.resource) {
           tempSensor = await handlers.updateAloesSensors(tempSensor, Number(message.resource), message.value);
-          //  tempSensor.value = null;
           tempSensor.frameCounter += 1;
         }
         console.log("UPDATE ALOES SENSOR");

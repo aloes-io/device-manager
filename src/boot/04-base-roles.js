@@ -1,5 +1,5 @@
 import initialRolesList from "../initial-data/base-roles.json";
-import logger from "../logger";
+import logger from "../services/logger";
 
 //  export default function createBaseRoles(server) {
 

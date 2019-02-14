@@ -1,4 +1,4 @@
-import logger from "../logger";
+import logger from "../services/logger";
 
 export default async function autoUpdate(server) {
   const db = server.datasources.db;

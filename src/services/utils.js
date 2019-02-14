@@ -2,7 +2,7 @@
 import ejs from "ejs";
 import * as fs from "fs";
 import path from "path";
-import server from "./server";
+import server from "../server";
 import logger from "./logger";
 //  import createVue from "./views/create-vue";
 

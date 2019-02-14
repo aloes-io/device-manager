@@ -1,5 +1,5 @@
-import utils from "../utils";
-import logger from "../logger";
+import utils from "../services/utils";
+import logger from "../services/logger";
 
 // for each user in the db, create a unique file container
 //  export default async function initStorages(server) {

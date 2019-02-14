@@ -1,7 +1,7 @@
 /* eslint-disable no-param-reassign */
 import handlers from "aloes-handlers";
-import logger from "../logger.js";
-//  import cache from "../cache.js";
+import logger from "../services/logger";
+//  import cache from "../services/cache";
 //  const cache = require("../cache.js")();
 
 module.exports = function(Sensor) {

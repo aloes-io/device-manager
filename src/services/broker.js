@@ -1,6 +1,8 @@
 import mosca from "mosca";
 import redis from "redis";
 import {patternDetector} from "aloes-handlers";
+import mqttPattern from "mqtt-pattern";
+import externalApps from "../initial-data/external-apps.json";
 import logger from "./logger";
 
 const broker = {};
@@ -40,11 +42,18 @@ broker.start = (app) => {
   const authenticate = (client, username, password, cb) => {
     //  logger.publish(4, "broker", "Authenticate:req", {client: client.id, username, password: password.toString()});
     let auth = false;
+    if (!password || !username) {
+      client.user = "guest";
+      auth = true;
+      cb(null, auth);
+      return auth;
+    }
     return app.models.AccessToken.findById(password.toString(), (err, token) => {
       if (err || !token) {
+        auth = false;
         logger.publish(4, "broker", "Authenticate:res", {username, auth});
         cb(null, auth);
-        return;
+        return auth;
       }
       if (token && token.userId) {
         if (token.devEui && (token.devEui === client.id.toString() || token.userId.toString() === username)) {
@@ -63,12 +72,11 @@ broker.start = (app) => {
       logger.publish(4, "broker", "Authenticate:res", {username, auth});
       app.emit("publish", `${token.userId}/Auth/POST`, auth.toString(), false, 1);
       cb(null, auth);
+      return auth;
     });
   };
 
   const authorizePublish = (client, topic, payload, cb) => {
-    // todo : if topicParts[1] === "Sensor"
-    //  check that the clientId (virtual object, device or account), references that sensor
     const topicParts = topic.split("/");
     let auth = false;
     if (client.user && topicParts[0].startsWith(client.user)) {
@@ -113,16 +121,23 @@ broker.start = (app) => {
   app.broker.on("ready", setup);
 
   app.broker.on("error", (err) => {
-    console.log("broker error: ", err);
+    logger.publish(4, "broker", "error", err);
   });
 
   app.broker.on("clientConnected", async (client) => {
     //  if (!Object.prototype.hasOwnProperty.call(client, "id")) return null;
     logger.publish(4, "broker", "clientConnected:req", client.id);
     if (client.user) {
-      const device = await app.models.Device.findById(client.user);
-      if (device && device !== null) {
-        return device.updateAttribute("status", true);
+      if (client.devEui) {
+        const device = await app.models.Device.findById(client.user);
+        if (device && device !== null) {
+          return device.updateAttribute("status", true);
+        }
+      } else if (client.appEui) {
+        const externalApp = await app.models.Application.findById(client.user);
+        if (externalApp && externalApp !== null) {
+          return externalApp.updateAttribute("status", true);
+        }
       }
     }
     return null;
@@ -131,9 +146,16 @@ broker.start = (app) => {
   app.broker.on("clientDisconnected", async (client) => {
     logger.publish(4, "broker", "clientDisconnected:req", client.id);
     if (client.user) {
-      const device = await app.models.Device.findById(client.user);
-      if (device && device !== null) {
-        return device.updateAttributes({frameCounter: 0, status: false});
+      if (client.devEui) {
+        const device = await app.models.Device.findById(client.user);
+        if (device && device !== null) {
+          return device.updateAttributes({frameCounter: 0, status: false});
+        }
+      } else if (client.appEui) {
+        const externalApp = await app.models.Application.findById(client.user);
+        if (externalApp && externalApp !== null) {
+          return externalApp.updateAttributes({frameCounter: 0, status: false});
+        }
       }
     }
     return null;
@@ -142,6 +164,33 @@ broker.start = (app) => {
   app.on("closed", () => {
     app.broker.close();
   });
+
+  const externalAppDetector = async (packet) => {
+    try {
+      const pattern = {name: "empty", params: null};
+      if (packet.topic.split("/")[0] === "$SYS") return null;
+      logger.publish(2, "broker", "externalAppDetector:req", packet.topic);
+
+      await externalApps.forEach((externalApp) => {
+        if (externalApp.pattern && mqttPattern.matches(externalApp.pattern, packet.topic)) {
+          logger.publish(2, "broker", "externalAppDetector:res", `reading ${externalApp.name} API ...`);
+          //  const parsedProtocol = await extractProtocol(app.pattern, packet.topic);
+          const parsedProtocol = mqttPattern.exec(externalApp.pattern, packet.topic);
+          logger.publish(4, "broker", "externalAppDetector:res", parsedProtocol);
+          pattern.name = externalApp.name;
+          pattern.params = parsedProtocol;
+          return pattern;
+        }
+        return null;
+      });
+
+      pattern.params = "topic doesn't match pattern";
+      return pattern;
+    } catch (error) {
+      logger.publish(2, "broker", "externalAppDetector:err", error);
+      return error;
+    }
+  };
 
   app.on("publish", (topic, payload, retain, qos) => {
     logger.publish(4, "broker", "publish", {topic});
@@ -156,41 +205,16 @@ broker.start = (app) => {
     });
   });
 
-  // let counter = 0;
-  // let tempBuffer = [];
-  // const parseStream = async (payload, bufferSize) => {
-  //   console.log("parseStream:req", payload, bufferSize, counter);
-  //   if (payload.length === bufferSize) {
-  //     if (counter === 1) {
-  //       tempBuffer = Uint8Array.from(payload).buffer;
-  //     } else {
-  //       tempBuffer = Uint8Array.from([tempBuffer, payload]).buffer;
-  //     }
-  //   } else if (payload.length <= 4) {
-  //     tempBuffer = Uint8Array.from([tempBuffer, payload]).buffer;
-  //     //  uploadedFiles = [];
-  //     counter = 0;
-  //   }
-  //   console.log("parseStream:res", tempBuffer);
-  //   return tempBuffer;
-  // };
-
   app.broker.on("published", async (packet, client) => {
     try {
-      // if (typeof packet.payload === "object" && packet.payload instanceof Buffer) {
-      //   counter += 1;
-      //   if (!packet.payload.length) {
-      //     return false;
-      //   }
-      //   const result = await parseStream(packet.payload, 1024);
-      //   //  parseStream(packet.payload, packet.payload.length);
-      //   console.log("RESULT STREAM ", result);
-      //   console.log("payload is ArrayBuffer ? ", result instanceof ArrayBuffer);
-      // }
-      const pattern = await patternDetector(packet);
-      if (!pattern || pattern === null) return null;
-      logger.publish(2, "broker", "onPublish:res1", pattern);
+      let pattern = await patternDetector(packet);
 
+      if (!pattern || pattern === null || pattern.name === "empty") {
+        pattern = await externalAppDetector(packet);
+      }
+      if (!pattern || pattern === null) return null;
+
+      logger.publish(2, "broker", "onPublish:res1", pattern);
       let collectionName = null;
       // todo : consider platform connection like LoraWan, another collection name ? or just another device type ?
       // proxy mqtt stream  for plugin/handler ?
@@ -199,6 +223,7 @@ broker.start = (app) => {
           if (pattern.subType === "iot") {
             collectionName = "Device";
           }
+          //  collectionName = "Application";
           break;
         case "aloesLight":
           collectionName = "Device";

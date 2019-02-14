@@ -1,5 +1,5 @@
 import initialAccountsList from "../initial-data/base-accounts.json";
-import logger from "../logger";
+import logger from "../services/logger";
 
 //  export default createBaseAccounts;
 module.exports = function(server) {

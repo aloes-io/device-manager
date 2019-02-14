@@ -1,5 +1,5 @@
 import externalAppsList from "../initial-data/external-apps.json";
-import logger from "../logger";
+import logger from "../services/logger";
 
 module.exports = function createExternalApps(server) {
   const Application = server.models.Application;
