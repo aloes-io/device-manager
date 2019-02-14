@@ -13,13 +13,13 @@
       "required": false
     },
     "appEui": {
-      "type": "String",
+      "type": "string",
       "required": true,
       "default": null,
       "unique": true
     },
     "appKey": {
-      "type": "String",
+      "type": "string",
       "required": false
     },
     "public": {

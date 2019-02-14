@@ -1,5 +1,5 @@
-import {emailFrom, verifyTemplate, resetTemplate, inviteTemplate, contactFormTemplate} from "./config.json";
-import server from "./server";
+import {emailFrom, verifyTemplate, resetTemplate, inviteTemplate, contactFormTemplate} from "../config.json";
+import server from "../server";
 import utils from "./utils";
 import logger from "./logger";
 

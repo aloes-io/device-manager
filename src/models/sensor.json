@@ -18,7 +18,7 @@
       "description": "IPSO object ID, for example 3300"
     },
     "devEui": {
-      "type": "String",
+      "type": "string",
       "required": true,
       "default": null
     },
@@ -28,22 +28,10 @@
       "description": "Object with IPSO resource IDs as keys, example { '5700' : '5', '5701': '°C'}",
       "default": null
     },
-    "omaResources": {
-      "type": "array",
-      "required": false,
-      "description": "Object with IPSO resource IDs as keys, example [ {id: 5700, value: '5'}, {id: 5701: '°C'} ]",
-      "default": null
-    },
     "value": {
       "type": "object",
       "required": false,
       "description": "last measurement",
-      "default": null
-    },
-    "buffer": {
-      "type": "buffer",
-      "required": false,
-      "description": "last buffer ( audio, image,... stream )",
       "default": null
     },
     "lastSignal": {
@@ -51,7 +39,7 @@
       "required": false
     },
     "resource": {
-      "type": "Number",
+      "type": "number",
       "required": false,
       "description": "ipso resource id - measurement",
       "default": null
@@ -62,18 +50,13 @@
       "default": 0
     },
     "icons": {
-      "type": "Array",
+      "type": "array",
       "required": false,
       "description": "url pointing to icon image"
     },
     "colors": {
-      "type": "Array",
+      "type": "object",
       "required": false
-    },
-    "template": {
-      "type": "String",
-      "required": false,
-      "description": "html component containing state data"
     },
     "protocolName": {
       "type": "string",
@@ -170,6 +153,7 @@
       "permission": "ALLOW",
       "property": [
         "replaceById",
+        "destroyById",
         "replaceOrCreate",
         "updateById",
         "updateAttributes",
@@ -177,6 +161,7 @@
         "exists",
         "find",
         "findById",
+        "delete",
         "__get__measurements",
         "__create__measurements",
         "__findById__measurements",

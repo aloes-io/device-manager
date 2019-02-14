@@ -87,10 +87,6 @@
   "Email": {
     "dataSource": "email"
   },
-  "Favorite": {
-    "dataSource": "db",
-    "public": false
-  },
   "files": {
     "dataSource": "db",
     "public": true
@@ -114,6 +110,10 @@
   "Sensor": {
     "dataSource": "db",
     "public": true
+  },
+  "Team": {
+    "dataSource": "db",
+    "public": false
   },
   "VirtualObject": {
     "dataSource": "db",

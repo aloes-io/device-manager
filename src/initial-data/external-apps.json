@@ -4,6 +4,28 @@
     "appEui": "virtualObjectManager",
     "appKey": "",
     "name": "virtualObjectManager",
-    "status": false
+    "status": false,
+    "pattern": "+appEui/+collectionName/+method/+devEui",
+    "validators": {
+      "appEui": "string",
+      "collectionName": ["IoTAgent"],
+      "devEui": "string",
+      "methods": ["HEAD", "POST", "GET", "PUT", "DELETE"]
+    }
+  },
+  {
+    "type": "IoTAgent",
+    "appEui": "aloes-lorawan",
+    "appKey": "",
+    "name": "aloesLoraWan",
+    "status": false,
+    "pattern": "+appEui/+type/+method/+gatewayId/#device",
+    "validators": {
+      "appEui": "string",
+      "device": "string",
+      "methods": ["Confirmed Data Down", "Unconfirmed Data Down", "Join Request"],
+      "directions": ["UP", "DOWN"],
+      "type": ["PUSH_DATA", "PULL_DATA"]
+    }
   }
 ]

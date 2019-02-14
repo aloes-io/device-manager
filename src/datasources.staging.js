@@ -32,14 +32,6 @@ module.exports = {
       },
     ],
   },
-  // redis: {
-  //   name: 'redis',
-  //   connector: 'redis',
-  //   db: process.env.REDIS_COLLECTION || 'ymc_stage',
-  //   host: process.env.REDIS_HOST || 'localhost',
-  //   port: Number(process.env.REDIS_PORT) || 6379,
-  //   password: process.env.REDIS_PASS || '',
-  // },
   storage: {
     name: "storage",
     connector: "loopback-component-storage",

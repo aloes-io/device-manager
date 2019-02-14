@@ -8,12 +8,12 @@
   },
   "properties": {
     "name": {
-      "type": "String",
+      "type": "string",
       "required": false,
       "default": null
     },
     "type": {
-      "type": "String",
+      "type": "string",
       "required": false,
       "default": null
     },
@@ -22,7 +22,7 @@
       "default": false
     },
     "description": {
-      "type": "String",
+      "type": "string",
       "required": false
     },
     "accessPointUrl": {
@@ -53,15 +53,6 @@
         "nestRemoting": false
       }
     },
-    "members": {
-      "type": "referencesMany",
-      "model": "Account",
-      "foreignKey": "memberIds",
-      "options": {
-        "validate": true,
-        "forceId": false
-      }
-    },
     "sensors": {
       "type": "referencesMany",
       "model": "Sensor",
@@ -83,14 +74,38 @@
       "accessType": "*",
       "principalType": "ROLE",
       "principalId": "$everyone",
-      "permission": "ALLOW"
+      "permission": "DENY"
+    },
+    {
+      "accessType": "EXECUTE",
+      "principalType": "ROLE",
+      "principalId": "teamMember",
+      "permission": "ALLOW",
+      "property": ["find", "findById", "exists", "__get__sensors"]
+    },
+    {
+      "accessType": "EXECUTE",
+      "principalType": "ROLE",
+      "principalId": "editor",
+      "permission": "ALLOW",
+      "property": [
+        "find",
+        "findById",
+        "exists",
+        "replaceById",
+        "replaceOrCreate",
+        "updateById",
+        "updateAttributes",
+        "upsert",
+        "__get__sensors"
+      ]
     },
     {
       "accessType": "*",
       "principalType": "ROLE",
       "principalId": "$authenticated",
       "permission": "ALLOW",
-      "property": ["create", "find", "findById", "exists", "__updateById__sensors", "__get__sensors"]
+      "property": ["create"]
     },
     {
       "accessType": "*",

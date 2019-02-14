@@ -1,16 +1,11 @@
 import handlers from "aloes-handlers";
 
-module.exports = function(Favorite) {
-  const collectionName = "Favorite";
+module.exports = function(Team) {
+  const collectionName = "Team";
 
-  Favorite.observe("after save", async (ctx) => {
+  Team.observe("after save", async (ctx) => {
     console.log(`[${collectionName.toUpperCase()}]  after save : ${JSON.stringify(ctx.options)}`);
-    // teacher = Favorite.app.models.Teacher.findById(ctx.instance.memberId)
-    // studio = Favorite.app.models.Studio.findById(ctx.instance.studioId)
-    // check who's the sender : ctx.options.accessToken.userId === studio.accountId or teacher.accountId
-    // send a notification to the profile invited
-    // send via profile or account id ?
-    if (Favorite.app.brocker !== undefined) {
+    if (Team.app.brocker !== undefined) {
       if (ctx.isNewInstance) {
         const result = await handlers.publish({
           accountId: ctx.options.accessToken.userId,
@@ -20,19 +15,19 @@ module.exports = function(Favorite) {
           pattern: "aloesClient",
         });
         if (result && result.topic && result.payload) {
-          await Favorite.app.publish(result.topic, result.payload);
-        } else return null;
+          await Team.app.publish(result.topic, result.payload);
+        }
       }
       return null;
     }
     return null;
   });
 
-  Favorite.observe("before delete", async (ctx) => {
+  Team.observe("before delete", async (ctx) => {
     try {
       const instance = await ctx.Model.findById(ctx.where.id);
       console.log("before delete ", instance);
-      if (instance && Favorite.app.brocker) {
+      if (instance && Team.app.brocker) {
         const result = await handlers.publish({
           accountId: ctx.options.accessToken.userId,
           collectionName,
@@ -41,9 +36,9 @@ module.exports = function(Favorite) {
           pattern: "aloesClient",
         });
         if (result && result.topic && result.payload) {
-          await Favorite.app.publish(result.topic, result.payload);
-        } else return null;
-        //  return null;
+          await Team.app.publish(result.topic, result.payload);
+        }
+        return null;
       }
       return null;
     } catch (error) {

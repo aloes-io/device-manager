@@ -1,9 +1,7 @@
 /* eslint-disable no-param-reassign */
 import handlers from "aloes-handlers";
-import mqttPattern from "mqtt-pattern";
-
-import logger from "../logger";
-import utils from "../utils";
+import logger from "../services/logger";
+import utils from "../services/utils";
 
 module.exports = function(Device) {
   const collectionName = "Device";
@@ -91,7 +89,7 @@ module.exports = function(Device) {
         default:
           console.log(device.type);
       }
-      logger.publish(4, collectionName, "beforeSave:res", device);
+      logger.publish(5, collectionName, "beforeSave:res", device);
       return device;
     } catch (error) {
       logger.publish(3, `${collectionName}`, "beforeSave:err", error);
@@ -100,7 +98,7 @@ module.exports = function(Device) {
   });
 
   Device.observe("after save", async (ctx) => {
-    logger.publish(3, `${collectionName}`, "afterSave:req", ctx.instance);
+    logger.publish(5, `${collectionName}`, "afterSave:req", ctx.instance);
     try {
       if (ctx.instance && Device.app) {
         let result;
@@ -115,6 +113,7 @@ module.exports = function(Device) {
             {
               devEui: ctx.instance.devEui,
               userId: ctx.instance.id,
+              ttl: 0,
             },
           );
           logger.publish(2, collectionName, "afterSave:res1", token[0]);
@@ -190,13 +189,110 @@ module.exports = function(Device) {
     }
   });
 
+  const parseMessage = async (packet, message) => {
+    logger.publish(4, `${collectionName}`, "parseMessage:req", message);
+    if (message.topic && message.payload) {
+      // publish to message.protocolName
+      await Device.app.publish(message.topic, message.payload.toString());
+      return null;
+    } else if (message.devEui || message.deviceId) {
+      //  update device and sensor
+      const device = await Device.findOne({
+        where: {
+          and: [{protocolName: message.protocolName}, {or: [{devEui: message.devEui}, {id: message.deviceId}]}],
+        },
+      });
+      //  console.log("onPublish, device :", device);
+      if (!device.id) return null;
+      let filter;
+      if (message.nativeSensorId && message.nativeType && message.type) {
+        filter = {
+          where: {
+            protocolName: device.protocolName,
+            deviceId: device.id,
+            devEui: device.devEui,
+            nativeSensorId: message.nativeSensorId,
+            type: message.type,
+            nativeType: message.nativeType,
+          },
+        };
+      } else if (message.nativeSensorId && message.inputPath && message.outputPath) {
+        // const inputPath = {like: new RegExp(`.*${message.inputPath}.*`, "i")}
+        // const outputPath = {like: new RegExp(`.*${message.outputPath}.*`, "i")}
+        filter = {
+          where: {
+            protocolName: device.protocolName,
+            deviceId: device.id,
+            devEui: device.devEui,
+            nativeSensorId: message.nativeSensorId,
+            nativeNodeId: message.nativeNodeId,
+            //  mainResourceId: message.mainResourceId,
+            inputPath: message.inputPath,
+            outputPath: message.outputPath,
+          },
+        };
+      } else {
+        console.log("can't compose filter");
+        return null;
+      }
+      let sensor = await Device.app.models.Sensor.findOne(filter);
+      //  console.log("found sensor :", sensor);
+      if (message.method === "GET") {
+        return sensor;
+      } else if (message.method === "POST" || message.method === "PUT" || message.method === "HEAD") {
+        delete message.method;
+        delete message.prefix;
+        await device.updateAttributes({frameCounter: device.frameCounter + 1, lastSignal: message.lastSignal});
+        if ((!sensor || sensor === null) && message.type) {
+          sensor = await device.sensors.create({
+            ...message,
+            accountId: device.accountId,
+          });
+          return sensor;
+        }
+        let tempSensor = sensor;
+
+        if (message.value && message.resource) {
+          tempSensor = await handlers.updateAloesSensors(tempSensor, Number(message.resource), message.value);
+          tempSensor.frameCounter += 1;
+        }
+        console.log("UPDATE ALOES SENSOR");
+        console.log(" sensor value:", tempSensor.value);
+        console.log("type of sensor value:", typeof tempSensor.value);
+
+        // await sensor.measurements.create({
+        //   date: message.lastSignal,
+        //   type: sensor.type,
+        //   type: typeof tempSensor.value,
+        //   omaObjectId: sensor.type,
+        //   omaResourceId: message.resource,
+        //   resource: message.resource,
+        //   deviceId: device.id,
+        //   value: tempSensor.value,
+        // });
+        return sensor.updateAttributes(tempSensor);
+      } else if (message.method === "STREAM") {
+        console.log("streaming sensor:");
+        const stream = await handlers.publish({
+          userId: device.accountId,
+          collectionName: "Sensor",
+          data: message.value,
+          method: "STREAM",
+          pattern: "aloesClient",
+        });
+        return Device.app.publish(stream.topic, stream.payload);
+      }
+      return message;
+    }
+    return null;
+  };
+
   Device.onPublish = async (pattern, packet) => {
     try {
       // logger.publish(4, `${collectionName}`, "onPublish:req", pattern);
       let decoded;
       switch (pattern.name) {
         case "mySensors":
-          // and publish on virtualObjects where sensorId is referenced
           decoded = await handlers.mySensorsDecoder(packet, pattern.params);
           break;
         case "aloesLight":
@@ -215,118 +311,9 @@ module.exports = function(Device) {
           console.log(pattern);
       }
       // check decoded payload
-      logger.publish(4, `${collectionName}`, "onPublish:req", decoded);
+      //  logger.publish(4, `${collectionName}`, "onPublish:req", decoded);
       if (!decoded) return null;
-      if (decoded.topic) {
-        // publish to decoded.protocol
-        await Device.app.publish(decoded.topic, decoded.payload.toString());
-        return null;
-      } else if (decoded.devEui) {
-        //  save device and sensor
-        const device = await Device.findOne({
-          where: {
-            devEui: decoded.devEui,
-          },
-        });
-        //  console.log("onPublish, device :", device);
-        if (!device.id) return null;
-        let filter;
-        if (decoded.nativeSensorId && decoded.nativeType && decoded.type) {
-          filter = {
-            where: {
-              protocolName: device.protocolName,
-              deviceId: device.id,
-              devEui: decoded.devEui,
-              nativeSensorId: decoded.nativeSensorId,
-              type: decoded.type,
-              nativeType: decoded.nativeType,
-            },
-          };
-        } else if (decoded.nativeSensorId && decoded.inputPath && decoded.outputPath) {
-          // const inputPath = {like: new RegExp(`.*${decoded.inputPath}.*`, "i")}
-          // const outputPath = {like: new RegExp(`.*${decoded.outputPath}.*`, "i")}
-          filter = {
-            where: {
-              protocolName: device.protocolName,
-              deviceId: device.id,
-              devEui: decoded.devEui,
-              nativeSensorId: decoded.nativeSensorId,
-              nativeNodeId: decoded.nativeNodeId,
-              //  mainResourceId: decoded.mainResourceId,
-              inputPath: decoded.inputPath,
-              outputPath: decoded.outputPath,
-            },
-          };
-        } else {
-          console.log("can't compose filter");
-          return null;
-        }
-        console.log("found filter :", JSON.stringify(filter));
-        let sensor = await Device.app.models.Sensor.findOne(filter);
-        console.log("found sensor :", sensor);
-        if (decoded.method === "GET") {
-          return sensor;
-        } else if (decoded.method === "POST" || decoded.method === "HEAD") {
-          delete decoded.method;
-          delete decoded.prefix;
-          if ((!sensor || sensor === null) && decoded.type) {
-            sensor = await device.sensors.create({
-              ...decoded,
-              accountId: device.accountId,
-            });
-            //  await device.updateAttributes({frameCounter: 0, lastSignal: decoded.lastSignal});
-          } else {
-            await device.updateAttributes({frameCounter: device.frameCounter + 1, lastSignal: decoded.lastSignal});
-            let attributes = {
-              type: sensor.type,
-              resources: sensor.resources,
-              ...decoded,
-              frameCounter: sensor.frameCounter + 1,
-            };
-            console.log("updating sensor 1:", attributes);
-            if (decoded.value && decoded.resource) {
-              const updatedSensor = handlers.updateAloesSensors(attributes, Number(decoded.resource), decoded.value);
-              console.log("updating sensor 2:", updatedSensor);
-              attributes.resources = {...updatedSensor.resources};
-              attributes.value = updatedSensor.value;
-            }
-            console.log("type of sensor value:", typeof attributes.value);
-            if (typeof attributes.value === "object") {
-              //  return parseStream(decoded.value, 1024);
-            } else if (typeof attributes.value === "string") {
-              //  attributes.value = {[decoded.resource]: attributes.value};
-            } else if (typeof attributes.value === "number") {
-              //  attributes.value = {[decoded.resource]: attributes.value.toString()};
-            } else {
-              return null;
-            }
-            // await sensor.measurements.create({
-            //   date: decoded.lastSignal,
-            //   type: sensor.type,
-            //   omaObjectId: sensor.type,
-            //   omaResourceId: decoded.resource,
-            //   resource: decoded.resource,
-            //   deviceId: device.id,
-            //   value: updatedSensor.value,
-            // });
-            console.log("updating sensor with :", attributes);
-            sensor = await sensor.updateAttributes(attributes);
-          }
-          console.log("onPublish, sensor 2:", sensor);
-        } else if (decoded.method === "STREAM") {
-          console.log("streaming sensor:");
-          const stream = await handlers.publish({
-            userId: device.accountId,
-            collectionName: "Sensor",
-            data: packet.payload,
-            method: "STREAM",
-            pattern: "aloesClient",
-          });
-          return Device.app.publish(stream.topic, stream.payload);
-        }
-        return decoded;
-      }
-      return decoded;
+      return parseMessage(packet, decoded);
     } catch (error) {
       return error;
     }

@@ -1,5 +1,5 @@
 import initialRolesList from "../initial-data/base-roles.json";
-import logger from "../logger";
+import logger from "../services/logger";
 
 //  export default function createBaseRoles(server) {
 
@@ -10,15 +10,15 @@ module.exports = function createBaseRoles(server) {
     .then((roles) => {
       if (roles.length < 1) {
         return Role.create(initialRolesList).then((res) => {
-          logger.publish(4, "boot", "createBaseRoles:res", res);
+          logger.publish(4, "loopback", "boot:createBaseRoles:res", res);
           return res;
         });
       }
-      logger.publish(4, "boot", "foundBaseRoles:res", roles);
+      logger.publish(4, "loopback", "boot:foundBaseRoles:res", roles);
       return roles;
     })
     .catch((err) => {
-      logger.publish(5, "boot", "createBaseRoles:err", err);
+      logger.publish(5, "loopback", "boot:createBaseRoles:err", err);
       return err;
     });
 }

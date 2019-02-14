@@ -1,9 +1,10 @@
 # Aloes - Device Manager
 
-- Handle devices and sensors CRUD, and authentification
+- Handle devices and sensors CRUD
+- Authentification by access token for accounts / devices / external apps
 - MQTT flow triggered by HTTP operations hooks
 - Dispatch MQTT payload from several protocol sources
-- Modelling sensors with IPSO schemas
+- Modelling sensors with OMA schemas
 
 
 REST API Server build upon :
@@ -31,9 +32,11 @@ REST API Server build upon :
 - /src --> contains source code
   - /. --> Loopback configuration
   - /boot --> code executed at application start
-  - /initial-data --> basic datasets to make global application running
+  - /initial-data --> JSON datasets to make global application running
   - /middleware --> scripts used in development/staging only
+  - /mixins --> add special properties to models
   - /models --> REST API descriptions and controllers
+  - /services --> external modules
   - /views --> templates used for automatic mailing
 
 
