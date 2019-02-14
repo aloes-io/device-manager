@@ -33,7 +33,7 @@ module.exports = {
   ],
   deploy: {
     staging: {
-      key: "~/.ssh/server5",
+      key: "~/.ssh/server4",
       user: `${result.parsed.VPS_STAGE_USER}`,
       host: [result.parsed.VPS_STAGE_HOST],
       ssh_options: ["Port=22", "StrictHostKeyChecking=yes"],
@@ -47,7 +47,7 @@ module.exports = {
       "post-deploy": "npm install && npm run startStage",
     },
     production: {
-      key: "~/.ssh/server5",
+      key: "~/.ssh/server4",
       user: `${result.parsed.VPS_PROD_USER}`,
       host: [result.parsed.VPS_PROD_HOST],
       ssh_options: ["Port=22", "StrictHostKeyChecking=yes"],
