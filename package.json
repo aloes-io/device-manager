@@ -15,7 +15,7 @@
     "build": "cd components && webpack"
   },
   "dependencies": {
-    "aloes-handlers": "^1.0.19",
+    "aloes-handlers": "^1.1.5",
     "body-parser": "^1.18.3",
     "colors": "^1.3.3",
     "compression": "^1.0.3",
@@ -40,6 +40,7 @@
     "mosca": "^2.8.3",
     "mqtt-pattern": "^1.2.0",
     "node-geocoder": "^3.22.0",
+    "oma-json": "^1.0.5",
     "redis": "^2.8.0",
     "redis-delete-pattern": "^0.1.0",
     "request": "^2.88.0",

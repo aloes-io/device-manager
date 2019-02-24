@@ -6,11 +6,11 @@ import utils from "../services/utils";
 module.exports = function(Device) {
   const collectionName = "Device";
 
-  async function protocolNameValidator(err) {
-    const protocolPatternsKeys = Object.getOwnPropertyNames(handlers.protocolPatterns);
-    if (protocolPatternsKeys.find((key) => key === this.protocolName)) return;
-    err();
-  }
+  // async function protocolNameValidator(err) {
+  //   const protocolPatternsKeys = Object.getOwnPropertyNames(handlers.protocolPatterns);
+  //   if (protocolPatternsKeys.find((key) => key === this.protocolName)) return;
+  //   err();
+  // }
 
   async function typeValidator(err) {
     if (
@@ -25,9 +25,9 @@ module.exports = function(Device) {
     err();
   }
 
-  Device.validate("protocolName", protocolNameValidator, {
-    message: "Wrong device protocol name",
-  });
+  // Device.validate("protocolName", protocolNameValidator, {
+  //   message: "Wrong device protocol name",
+  // });
 
   Device.validate("type", typeValidator, {
     message: "Wrong device type",
@@ -137,6 +137,7 @@ module.exports = function(Device) {
             return Device.app.publish(result.topic, result.payload);
           }
         }
+        //  check if token is still valid ?
         result = await handlers.publish({
           userId: ctx.instance.accountId,
           collectionName,
@@ -189,46 +190,45 @@ module.exports = function(Device) {
     }
   });
 
-  const parseMessage = async (packet, message) => {
-    logger.publish(4, `${collectionName}`, "parseMessage:req", message);
-    if (message.topic && message.payload) {
-      // publish to message.protocolName
-      await Device.app.publish(message.topic, message.payload.toString());
-      return null;
-    } else if (message.devEui || message.deviceId) {
+  const parseMessage = async (packet, params) => {
+    logger.publish(4, `${collectionName}`, "parseMessage:req", params);
+    if (params.topic && params.payload) {
+      // publish to params.protocolName
+      return Device.app.publish(params.topic, params.payload.toString());
+    } else if (params.devEui || params.deviceId) {
       //  update device and sensor
       const device = await Device.findOne({
         where: {
-          and: [{protocolName: message.protocolName}, {or: [{devEui: message.devEui}, {id: message.deviceId}]}],
+          and: [{protocolName: params.protocolName}, {or: [{devEui: params.devEui}, {id: params.deviceId}]}],
         },
       });
       //  console.log("onPublish, device :", device);
       if (!device.id) return null;
       let filter;
-      if (message.nativeSensorId && message.nativeType && message.type) {
+      if (params.nativeSensorId && params.nativeType && params.type) {
         filter = {
           where: {
             protocolName: device.protocolName,
             deviceId: device.id,
             devEui: device.devEui,
-            nativeSensorId: message.nativeSensorId,
-            type: message.type,
-            nativeType: message.nativeType,
+            nativeSensorId: params.nativeSensorId,
+            type: params.type,
+            nativeType: params.nativeType,
           },
         };
-      } else if (message.nativeSensorId && message.inputPath && message.outputPath) {
-        // const inputPath = {like: new RegExp(`.*${message.inputPath}.*`, "i")}
-        // const outputPath = {like: new RegExp(`.*${message.outputPath}.*`, "i")}
+      } else if (params.nativeSensorId && params.inputPath && params.outputPath) {
+        // const inputPath = {like: new RegExp(`.*${params.inputPath}.*`, "i")}
+        // const outputPath = {like: new RegExp(`.*${params.outputPath}.*`, "i")}
         filter = {
           where: {
             protocolName: device.protocolName,
             deviceId: device.id,
             devEui: device.devEui,
-            nativeSensorId: message.nativeSensorId,
-            nativeNodeId: message.nativeNodeId,
-            //  mainResourceId: message.mainResourceId,
-            inputPath: message.inputPath,
-            outputPath: message.outputPath,
+            nativeSensorId: params.nativeSensorId,
+            nativeNodeId: params.nativeNodeId,
+            //  mainResourceId: params.mainResourceId,
+            inputPath: params.inputPath,
+            outputPath: params.outputPath,
           },
         };
       } else {
@@ -237,23 +237,24 @@ module.exports = function(Device) {
       }
       let sensor = await Device.app.models.Sensor.findOne(filter);
       //  console.log("found sensor :", sensor);
-      if (message.method === "GET") {
+      if (params.method === "GET") {
+        // publish sensor to native route
         return sensor;
-      } else if (message.method === "POST" || message.method === "PUT" || message.method === "HEAD") {
-        delete message.method;
-        delete message.prefix;
-        await device.updateAttributes({frameCounter: device.frameCounter + 1, lastSignal: message.lastSignal});
-        if ((!sensor || sensor === null) && message.type) {
+      } else if (params.method === "POST" || params.method === "PUT" || params.method === "HEAD") {
+        delete params.method;
+        delete params.prefix;
+        await device.updateAttributes({frameCounter: device.frameCounter + 1, lastSignal: params.lastSignal});
+        if ((!sensor || sensor === null) && params.type) {
           sensor = await device.sensors.create({
-            ...message,
+            ...params,
             accountId: device.accountId,
           });
           return sensor;
         }
         let tempSensor = sensor;
 
-        if (message.value && message.resource) {
-          tempSensor = await handlers.updateAloesSensors(tempSensor, Number(message.resource), message.value);
+        if (params.value && params.resource) {
+          tempSensor = await handlers.updateAloesSensors(tempSensor, Number(params.resource), params.value);
           tempSensor.frameCounter += 1;
         }
         console.log("UPDATE ALOES SENSOR");
@@ -261,28 +262,28 @@ module.exports = function(Device) {
         console.log("type of sensor value:", typeof tempSensor.value);
 
         // await sensor.measurements.create({
-        //   date: message.lastSignal,
+        //   date: params.lastSignal,
         //   type: sensor.type,
         //   type: typeof tempSensor.value,
         //   omaObjectId: sensor.type,
-        //   omaResourceId: message.resource,
-        //   resource: message.resource,
+        //   omaResourceId: params.resource,
+        //   resource: params.resource,
         //   deviceId: device.id,
         //   value: tempSensor.value,
         // });
         return sensor.updateAttributes(tempSensor);
-      } else if (message.method === "STREAM") {
+      } else if (params.method === "STREAM") {
         console.log("streaming sensor:");
         const stream = await handlers.publish({
           userId: device.accountId,
           collectionName: "Sensor",
-          data: message.value,
+          data: params.value,
           method: "STREAM",
           pattern: "aloesClient",
         });
         return Device.app.publish(stream.topic, stream.payload);
       }
-      return message;
+      return params;
     }
     return null;
   };
@@ -300,12 +301,6 @@ module.exports = function(Device) {
           break;
         case "aloesClient":
           decoded = await handlers.aloesClientDecoder(packet, pattern.params);
-          break;
-        case "nodeWebcam":
-          console.log(pattern);
-          break;
-        case "tracker":
-          console.log(pattern);
           break;
         default:
           console.log(pattern);

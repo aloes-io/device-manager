@@ -41,54 +41,59 @@ broker.init = (app, httpServer) => {
 broker.start = (app) => {
   const authenticate = (client, username, password, cb) => {
     //  logger.publish(4, "broker", "Authenticate:req", {client: client.id, username, password: password.toString()});
-    let auth = false;
-    if (!password || !username) {
-      client.user = "guest";
-      auth = true;
-      cb(null, auth);
-      return auth;
-    }
-    return app.models.AccessToken.findById(password.toString(), (err, token) => {
-      if (err || !token) {
-        auth = false;
-        logger.publish(4, "broker", "Authenticate:res", {username, auth});
+
+    try {
+      let auth = false;
+      if (!password || !username) {
+        client.user = "guest";
+        auth = true;
         cb(null, auth);
         return auth;
       }
-      if (token && token.userId) {
-        if (token.devEui && (token.devEui === client.id.toString() || token.userId.toString() === username)) {
-          auth = true;
-          client.user = username;
-          client.devEui = token.devEui;
-        } else if (token.appEui && (token.appEui === client.id.toString() || token.appEui === username)) {
-          auth = true;
-          client.user = username;
-          client.appEui = token.appEui;
-        } else if (token.userId.toString() === username) {
-          auth = true;
-          client.user = username;
+      return app.models.AccessToken.findById(password.toString(), (err, token) => {
+        if (err || !token) {
+          auth = false;
+          logger.publish(4, "broker", "Authenticate:res", {username, auth});
+          cb(null, auth);
+          return auth;
         }
-      }
-      logger.publish(4, "broker", "Authenticate:res", {username, auth});
-      app.emit("publish", `${token.userId}/Auth/POST`, auth.toString(), false, 1);
-      cb(null, auth);
-      return auth;
-    });
+        if (token && token.userId && token.userId.toString() === username) {
+          auth = true;
+          client.user = username;
+          if (token.devEui) {
+            client.devEui = token.devEui;
+          } else if (token.appEui) {
+            client.appEui = token.appEui;
+          }
+        }
+        logger.publish(4, "broker", "Authenticate:res", {username, auth});
+        app.emit("publish", `${token.userId}/Auth/POST`, auth.toString(), false, 1);
+        cb(null, auth);
+        return auth;
+      });
+    } catch (error) {
+      logger.publish(4, "broker", "Authenticate:err", error);
+      cb(null, false);
+      return false;
+    }
   };
 
   const authorizePublish = (client, topic, payload, cb) => {
     const topicParts = topic.split("/");
     let auth = false;
-    if (client.user && topicParts[0].startsWith(client.user)) {
-      console.log("authorizeSubscribe", client.user);
-      logger.publish(4, "broker", "authorizeSubscribe:req", client.user);
-      auth = true;
-    } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
-      logger.publish(4, "broker", "authorizeSubscribe:req", client.devEui);
-      auth = true;
-    } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
-      logger.publish(4, "broker", "authorizeSubscribe:req", client.appEui);
-      auth = true;
+    if (client.user) {
+      if (topicParts[0].startsWith(client.user)) {
+        logger.publish(4, "broker", "authorizePublish:req", {account: client.user});
+        auth = true;
+      }
+      if (client.devEui && topicParts[0].startsWith(client.devEui)) {
+        logger.publish(4, "broker", "authorizePublish:req", {device: client.devEui});
+        auth = true;
+      }
+      if (client.appEui) {
+        logger.publish(4, "broker", "authorizePublish:req", {application: client.appEui});
+        auth = true;
+      }
     }
     logger.publish(3, "broker", "authorizePublish:res", {topic, auth});
     cb(null, auth);
@@ -98,14 +103,18 @@ broker.start = (app) => {
     const topicParts = topic.split("/");
     let auth = false;
     if (client.user && topicParts[0].startsWith(client.user)) {
-      logger.publish(4, "broker", "authorizeSubscribe:req", client.user);
-      auth = true;
-    } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
-      logger.publish(4, "broker", "authorizeSubscribe:req", client.devEui);
-      auth = true;
-    } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
-      logger.publish(4, "broker", "authorizeSubscribe:req", client.appEui);
-      auth = true;
+      if (topicParts[0].startsWith(client.user)) {
+        logger.publish(4, "broker", "authorizeSubscribe:req", {account: client.user});
+        auth = true;
+      }
+      if (client.devEui && topicParts[0].startsWith(client.devEui)) {
+        logger.publish(4, "broker", "authorizeSubscribe:req", {device: client.devEui});
+        auth = true;
+      }
+      if (client.appEui) {
+        logger.publish(4, "broker", "authorizeSubscribe:req", {application: client.appEui});
+        auth = true;
+      }
     }
     logger.publish(3, "broker", "authorizeSubscribe:res", {topic, auth});
     cb(null, auth);
@@ -174,17 +183,17 @@ broker.start = (app) => {
       await externalApps.forEach((externalApp) => {
         if (externalApp.pattern && mqttPattern.matches(externalApp.pattern, packet.topic)) {
           logger.publish(2, "broker", "externalAppDetector:res", `reading ${externalApp.name} API ...`);
-          //  const parsedProtocol = await extractProtocol(app.pattern, packet.topic);
           const parsedProtocol = mqttPattern.exec(externalApp.pattern, packet.topic);
-          logger.publish(4, "broker", "externalAppDetector:res", parsedProtocol);
           pattern.name = externalApp.name;
           pattern.params = parsedProtocol;
           return pattern;
         }
         return null;
       });
-
-      pattern.params = "topic doesn't match pattern";
+      if (pattern.name && pattern.name === "empty") {
+        pattern.params = "topic doesn't match pattern";
+      }
+      logger.publish(4, "broker", "externalAppDetector:res", pattern);
       return pattern;
     } catch (error) {
       logger.publish(2, "broker", "externalAppDetector:err", error);
@@ -207,43 +216,50 @@ broker.start = (app) => {
 
   app.broker.on("published", async (packet, client) => {
     try {
-      let pattern = await patternDetector(packet);
-
-      if (!pattern || pattern === null || pattern.name === "empty") {
+      let pattern;
+      if (!client || !client.user) return null;
+      console.log("client user", client.user);
+      if (client.appEui) {
+        console.log("client appEui", client.appEui);
         pattern = await externalAppDetector(packet);
+      } else {
+        pattern = await patternDetector(packet);
       }
-      if (!pattern || pattern === null) return null;
+      if (!pattern || pattern === null || pattern.name === "empty") new Error("invalid pattern");
 
       logger.publish(2, "broker", "onPublish:res1", pattern);
-      let collectionName = null;
-      // todo : consider platform connection like LoraWan, another collection name ? or just another device type ?
-      // proxy mqtt stream  for plugin/handler ?
+      let serviceName = null;
       switch (pattern.name) {
         case "aloesClient":
+          // next, use pattern.direction , tx || rx
           if (pattern.subType === "iot") {
-            collectionName = "Device";
+            serviceName = "Device";
+          } else if (pattern.subType === "web") {
+            serviceName = "Application";
           }
-          //  collectionName = "Application";
           break;
         case "aloesLight":
-          collectionName = "Device";
+          serviceName = "Device";
           break;
         case "mySensors":
-          collectionName = "Device";
+          serviceName = "Device";
           break;
         case "nodeWebcam":
-          collectionName = "Device";
+          serviceName = "Device";
           break;
-        case "tracker":
-          collectionName = "Device";
+        case "loraWan":
+          serviceName = "Application";
           break;
         default:
-          collectionName = null;
+          serviceName = null;
       }
-      if (collectionName === null) return null;
-      logger.publish(2, "broker", "onPublish:res", collectionName);
-      return app.models[collectionName].onPublish(pattern, packet, client);
+      if (serviceName === null) return new Error("protocol not supported");
+      logger.publish(2, "broker", "onPublish:res", serviceName);
+      return app.models[serviceName].onPublish(pattern, packet, client);
     } catch (error) {
+      if (!error) {
+        error = new Error("invalid pattern");
+      }
       logger.publish(2, "broker", "onPublish:err", error);
       return error;
     }

@@ -30,6 +30,39 @@
   "hidden": [],
   "validations": [],
   "relations": {},
-  "acls": [],
-  "methods": {}
+  "acls": [
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "admin",
+      "permission": "ALLOW"
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$everyone",
+      "permission": "DENY"
+    }
+  ],
+  "methods": {
+    "onPublish": {
+      "description": ["MQTT piping to Device model"],
+      "accepts": [
+        {
+          "arg": "pattern",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "packet",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "result",
+        "type": "object"
+      }
+    }
+  }
 }

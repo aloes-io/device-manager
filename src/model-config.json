@@ -91,6 +91,10 @@
     "dataSource": "db",
     "public": true
   },
+  "GraphLink": {
+    "dataSource": "db",
+    "public": false
+  },
   "Measurement": {
     "dataSource": "db",
     "public": false

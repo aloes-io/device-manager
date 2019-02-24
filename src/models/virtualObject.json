@@ -53,6 +53,24 @@
         "nestRemoting": false
       }
     },
+    "hierarchyGraph": {
+      "type": "embedsMany",
+      "model": "GraphLink",
+      "property": "hierarchyGraph",
+      "options": {
+        "validate": true,
+        "forceId": false
+      }
+    },
+    "eventGraph": {
+      "type": "embedsMany",
+      "model": "GraphLink",
+      "property": "eventGraph",
+      "options": {
+        "validate": true,
+        "forceId": false
+      }
+    },
     "sensors": {
       "type": "referencesMany",
       "model": "Sensor",

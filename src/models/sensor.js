@@ -14,11 +14,11 @@ module.exports = function(Sensor) {
     err();
   }
 
-  async function protocolNameValidator(err) {
-    const protocolPatternsKeys = Object.getOwnPropertyNames(handlers.protocolPatterns);
-    if (protocolPatternsKeys.find((key) => key === this.protocolName)) return;
-    err();
-  }
+  // async function protocolNameValidator(err) {
+  //   const protocolPatternsKeys = Object.getOwnPropertyNames(handlers.protocolPatterns);
+  //   if (protocolPatternsKeys.find((key) => key === this.protocolName)) return;
+  //   err();
+  // }
 
   Sensor.validatesPresenceOf("deviceId");
 
@@ -26,9 +26,9 @@ module.exports = function(Sensor) {
     message: "Wrong sensor type",
   });
 
-  Sensor.validate("protocolName", protocolNameValidator, {
-    message: "Wrong sensor protocol name",
-  });
+  // Sensor.validate("protocolName", protocolNameValidator, {
+  //   message: "Wrong sensor protocol name",
+  // });
 
   // Sensor.observe("access", async (ctx) => {
   //   console.log(`Accessing ${ctx.Model.modelName} matching ${JSON.stringify(ctx.query.where)}`);
