@@ -1,0 +1,26 @@
+{
+  "name": "accessToken",
+  "plural": "accessTokens",
+  "base": "AccessToken",
+  "properties": {},
+  "validations": [],
+  "relations": {
+    "user": {
+      "type": "belongsTo",
+      "model": "user",
+      "foreignKey": "userId"
+    },
+    "application": {
+      "type": "belongsTo",
+      "model": "Application",
+      "foreignKey": "userId"
+    },
+    "device": {
+      "type": "belongsTo",
+      "model": "Device",
+      "foreignKey": "userId"
+    }
+  },
+  "acls": [],
+  "methods": []
+}

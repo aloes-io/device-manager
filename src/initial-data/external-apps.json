@@ -15,11 +15,16 @@
   },
   {
     "type": "IoTAgent",
-    "appEui": "aloes-lorawan",
-    "appKey": "",
     "name": "loraWan",
     "status": false,
-    "pattern": "+appEui/+collectionName/+method/+gatewayId",
+    "description": null,
+    "icon": "/icons/image-placeholder.png",
+    "accessPointUrl": "192.168.1.63",
+    "transportProtocol": "loraWan",
+    "transportProtocolVersion": null,
+    "public": false,
+    "appEui": "IDYKS1CFDI73FWKLCTWSKJTBDD8GB7BD",
+    "pattern": "IDYKS1CFDI73FWKLCTWSKJTBDD8GB7BD/+collectionName/+method",
     "validators": {
       "appEui": "string",
       "mTypes": [
@@ -33,8 +38,23 @@
         "Presentation"
       ],
       "directions": ["RX", "TX"],
-      "types": ["DECODED", "ENCODED", "PUSH_DATA", "PULL_DATA", "PULL_RESP", "PUSH_ACK", "PULL_ACK", "TX_ACK"],
-      "collectionNames": ["Application", "Device", "Sensor", "VirtualObject", "IoTAgent"],
+      "types": [
+        "DECODED",
+        "ENCODED",
+        "PUSH_DATA",
+        "PULL_DATA",
+        "PULL_RESP",
+        "PUSH_ACK",
+        "PULL_ACK",
+        "TX_ACK"
+      ],
+      "collectionNames": [
+        "Application",
+        "Device",
+        "Sensor",
+        "VirtualObject",
+        "IoTAgent"
+      ],
       "modelId": "string",
       "methods": ["HEAD", "POST", "GET", "PUT", "DELETE", "STREAM"],
       "gatewayId": "string",

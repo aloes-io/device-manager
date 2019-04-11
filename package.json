@@ -3,34 +3,50 @@
   "version": "1.0.0",
   "main": "index.js",
   "engines": {
-    "node": ">=8.9.4"
+    "node": ">=9.0.0",
+    "npm": ">=6.0.0"
   },
   "scripts": {
     "lint": "npx eslint --ext js .",
     "start": "babel-node ./index.js",
-    "dev": "cp deploy/.env_dev .env && NODE_ENV=development nodemon --exec babel-node ./index.js",
-    "devLocal": "cp deploy/.env_local .env && NODE_ENV=local nodemon --exec babel-node ./index.js",
-    "startStage": "pm2 startOrRestart ecosystem.config.js --env staging --update-env",
-    "startProd": "pm2 startOrRestart ecosystem.config.js --env production --update-env",
-    "build": "cd components && webpack"
+    "start:dev": "cp deploy/.env_dev .env && NODE_ENV=development nodemon --exec babel-node ./index.js",
+    "start:local": "cp deploy/.env_local .env && NODE_ENV=local nodemon --exec babel-node ./index.js",
+    "start:stage": "cp deploy/.env_staging .env && NODE_ENV=staging nodemon --exec babel-node ./index.js",
+    "docs:models": "jsdoc2md ./src/models/* > ./docs/api/README.md",
+    "docs:md": "npm run docs:models",
+    "docs:dev": "npm run docs:md ; cp ./README.md ./docs/readme/. ; vuepress dev docs",
+    "docs:build": "npm run docs:md ; cp ./README.md ./docs/readme/. ; vuepress build docs",
+    "docs:serve": "light-server -s public -p 7000 --servePrefix /device-manager/",
+    "setup:stage": "cp deploy/.env_staging .env ; pm2 deploy ecosystem.config.js staging setup",
+    "setup:prod": "cp deploy/.env_staging .env ; pm2 deploy ecosystem.config.js production setup",
+    "update:stage": "cp deploy/.env_production .env ; pm2 deploy ecosystem.config.js staging update",
+    "update:prod": "cp deploy/.env_production .env ; pm2 deploy ecosystem.config.js production update",
+    "deploy:stage": "pm2 startOrRestart ecosystem.config.js --env staging --update-env",
+    "deploy:prod": "pm2 startOrRestart ecosystem.config.js --env production --update-env"
   },
   "dependencies": {
-    "aloes-handlers": "^1.1.5",
+    "aloes-handlers": "^1.2.0",
     "body-parser": "^1.18.3",
     "colors": "^1.3.3",
     "compression": "^1.0.3",
+    "connect-ensure-login": "^0.1.1",
+    "cookie-parser": "^1.4.4",
     "cors": "^2.5.2",
     "dotenv": "^6.2.0",
     "ejs": "^2.6.1",
     "express": "^4.16.2",
+    "express-flash": "0.0.2",
     "express-history-api-fallback": "^2.2.1",
     "express-http-proxy": "^1.5.0",
+    "express-session": "^1.15.6",
     "helmet": "^3.13.0",
     "http-server": "^0.11.1",
+    "iot-agent": "^1.0.3",
     "loopback": "^3.16.2",
     "loopback-boot": "github:klarkc/loopback-boot#master",
     "loopback-component-explorer": "^6.3.1",
-    "loopback-component-storage": "^3.5.0",
+    "loopback-component-passport": "^3.10.0",
+    "loopback-component-storage": "^3.6.0",
     "loopback-connector-mongodb": "^3.8.0",
     "loopback-connector-redis": "^3.0.0",
     "loopback-connector-rest": "^3.3.0",
@@ -40,7 +56,10 @@
     "mosca": "^2.8.3",
     "mqtt-pattern": "^1.2.0",
     "node-geocoder": "^3.22.0",
-    "oma-json": "^1.0.5",
+    "oma-json": "^1.0.6",
+    "passport": "^0.4.0",
+    "passport-github": "^1.1.0",
+    "passport-local": "^1.0.0",
     "redis": "^2.8.0",
     "redis-delete-pattern": "^0.1.0",
     "request": "^2.88.0",
@@ -65,6 +84,7 @@
     "@babel/plugin-syntax-dynamic-import": "^7.0.0",
     "@babel/plugin-syntax-import-meta": "^7.0.0",
     "@babel/preset-env": "^7.0.0",
+    "acorn": "^6.1.0",
     "babel-eslint": "^8.2.6",
     "connect-history-api-fallback": "^1.5.0",
     "eslint": "^4.19.1",
@@ -76,12 +96,15 @@
     "eslint-plugin-prettier": "^2.6.2",
     "eslint-plugin-vue": "^4.0.0",
     "identity-obj-proxy": "^3.0.0",
+    "jsdoc-to-markdown": "^4.0.1",
+    "light-server": "^2.6.0",
     "nodemon": "^1.18.8",
     "prettier": "1.16.1",
     "regenerator-runtime": "^0.11.1",
     "tfilter": "^1.0.1",
     "through2": "^2.0.3",
     "tmp": "0.0.33",
+    "vuepress": "^1.0.0-alpha.47",
     "yargs": "^10.0.3"
   },
   "babel": {
@@ -134,9 +157,20 @@
       "require": true
     }
   },
+  "eslintIgnore": [
+    "/public/",
+    "/docs/",
+    "/node_modules/"
+  ],
+  "prettier": {
+    "bracketSpacing": false,
+    "singleQuote": true,
+    "printWidth": 80,
+    "trailingComma": "all"
+  },
   "repository": {
     "type": "git",
-    "url": "https://framagit.org/getlarge/device-manager"
+    "url": "https://framagit.org/aloes/device-manager"
   },
   "license": "",
   "description": "IoT at work",

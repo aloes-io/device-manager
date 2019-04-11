@@ -4,16 +4,23 @@
   "plural": "Devices",
   "idInjection": true,
   "options": {
-    "validateUpsert": true
+    "validateUpsert": true,
+    "allowEternalTokens": true
   },
+  "mixins": {},
   "properties": {
     "devEui": {
       "type": "string",
-      "required": true,
+      "required": false,
       "default": null,
       "unique": true
     },
-    "appKey": {
+    "devAddr": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "apiKey": {
       "type": "string",
       "required": false
     },
@@ -60,16 +67,27 @@
       "required": false,
       "default": null
     },
-    "extraParams": {
-      "type": "object",
-      "required": false
+    "authMode": {
+      "type": "string",
+      "required": false,
+      "default": null
     },
-    "protocolName": {
+    "transportProtocol": {
       "type": "string",
       "required": true,
       "default": null
     },
-    "protocolVersion": {
+    "transportProtocolVersion": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "messageProtocol": {
+      "type": "string",
+      "required": true,
+      "default": null
+    },
+    "messageProtocolVersion": {
       "type": "string",
       "required": false,
       "default": null
@@ -84,12 +102,12 @@
   "hidden": ["deleted"],
   "validations": [],
   "relations": {
-    "account": {
-      "type": "belongsTo",
-      "model": "Account",
-      "foreignKey": "accountId",
+    "accessTokens": {
+      "type": "hasMany",
+      "model": "accessToken",
+      "foreignKey": "userId",
       "options": {
-        "nestRemoting": false
+        "disableInclude": true
       }
     },
     "deviceAddress": {
@@ -101,6 +119,14 @@
       "type": "hasMany",
       "model": "Sensor",
       "foreignKey": "deviceId"
+    },
+    "user": {
+      "type": "belongsTo",
+      "model": "user",
+      "foreignKey": "ownerId",
+      "options": {
+        "nestRemoting": false
+      }
     }
   },
   "acls": [
@@ -131,11 +157,12 @@
         "updateAttributes",
         "upsert",
         "exists",
-        "textSearch",
+        "search",
         "geoLocate",
         "createAuthLink",
         "__create__deviceAddress",
-        "__get__deviceAddress"
+        "__get__deviceAddress",
+        "__update__deviceAddress"
       ]
     },
     {
@@ -152,6 +179,7 @@
         "upsert",
         "exists",
         "delete",
+        "refreshToken",
         "find",
         "findById",
         "__get__deviceAddress",
@@ -183,7 +211,7 @@
         "type": "object"
       }
     },
-    "textSearch": {
+    "search": {
       "description": ["Call the text search intern method"],
       "accepts": [
         {
@@ -200,12 +228,12 @@
         }
       ],
       "returns": {
-        "arg": "result",
+        "arg": "devices",
         "type": "array"
       },
       "http": {
         "verb": "post",
-        "path": "/text-search"
+        "path": "/search"
       }
     },
     "geoLocate": {
@@ -224,6 +252,20 @@
       "http": {
         "verb": "post",
         "path": "/geo-locate"
+      }
+    },
+    "refreshToken": {
+      "description": ["Refresh or create API key"],
+      "accepts": [
+        {
+          "arg": "device",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "device",
+        "type": "object"
       }
     },
     "createAuthLink": {

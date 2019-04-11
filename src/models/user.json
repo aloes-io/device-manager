@@ -1,6 +1,6 @@
 {
-  "name": "Account",
-  "plural": "Accounts",
+  "name": "user",
+  "plural": "users",
   "base": "User",
   "idInjection": true,
   "options": {
@@ -12,11 +12,11 @@
   "properties": {
     "type": {
       "type": "string",
-      "required": true
+      "required": false
     },
     "firstName": {
       "type": "string",
-      "required": true
+      "required": false
     },
     "lastName": {
       "type": "string",
@@ -53,6 +53,41 @@
   "hidden": ["deleted, emailVerified"],
   "validations": [],
   "relations": {
+    "accessTokens": {
+      "type": "hasMany",
+      "model": "accessToken",
+      "foreignKey": "userId"
+    },
+    "profileAddress": {
+      "type": "hasOne",
+      "model": "Address",
+      "foreignKey": "userId"
+    },
+    "applications": {
+      "type": "hasMany",
+      "model": "Application",
+      "foreignKey": "userId"
+    },
+    "credentials": {
+      "type": "hasMany",
+      "model": "userCredential",
+      "foreignKey": "userId"
+    },
+    "devices": {
+      "type": "hasMany",
+      "model": "Device",
+      "foreignKey": "ownerId"
+    },
+    "files": {
+      "type": "hasMany",
+      "model": "files",
+      "foreignKey": "ownerId"
+    },
+    "identities": {
+      "type": "hasMany",
+      "model": "userIdentity",
+      "foreignKey": "userId"
+    },
     "roleMapping": {
       "type": "hasMany",
       "model": "RoleMapping",
@@ -64,24 +99,9 @@
       "foreignKey": "principalId",
       "through": "RoleMapping"
     },
-    "profileAddress": {
-      "type": "hasOne",
-      "model": "Address",
-      "foreignKey": "accountId"
-    },
-    "devices": {
-      "type": "hasMany",
-      "model": "Device",
-      "foreignKey": "accountId"
-    },
     "teams": {
       "type": "hasMany",
       "model": "Team",
-      "foreignKey": "ownerId"
-    },
-    "files": {
-      "type": "hasMany",
-      "model": "files",
       "foreignKey": "ownerId"
     },
     "virtualObjects": {
@@ -117,6 +137,8 @@
         "exists",
         "find",
         "findById",
+        "__create__profileAddress",
+        "__get__profileAddress",
         "__update__profileAddress",
         "__destroy__profileAddress",
         "__get__devices",
@@ -124,6 +146,11 @@
         "__findById__devices",
         "__updateById__devices",
         "__destroyById__devices",
+        "__get__applications",
+        "__create__applications",
+        "__findById__applications",
+        "__updateById__applications",
+        "__destroyById__applications",
         "__create__teams",
         "__findById__teams",
         "__updateById__teams"
@@ -151,27 +178,27 @@
       "permission": "ALLOW",
       "property": [
         "findById",
+        "find",
         "verifyAddress",
-        "textSearch",
-        "geoLocate",
         "sendInvite",
         "__create__profileAddress",
         "__get__profileAddress",
         "__get__devices",
         "__create__devices",
         "__findById__devices",
-        "__get__favorites",
-        "__get__events",
-        "__get__device"
+        "__get__applications",
+        "__create__applications",
+        "__findById__applications",
+        "__get__teams"
       ]
     }
   ],
   "methods": {
     "verifyEmail": {
-      "description": [" Request verify account email "],
+      "description": [" Request verify user email "],
       "accepts": [
         {
-          "arg": "account",
+          "arg": "user",
           "type": "object",
           "required": true
         }
@@ -186,7 +213,7 @@
       }
     },
     "findByEmail": {
-      "description": [" Request verify account email "],
+      "description": [" Request verify user email "],
       "accepts": [
         {
           "arg": "email",
@@ -283,7 +310,7 @@
       }
     },
     "sendInvite": {
-      "description": ["Invite a new account to join Aloes"],
+      "description": ["Invite a new user to join Aloes"],
       "accepts": [
         {
           "arg": "ctx",
@@ -307,7 +334,7 @@
       }
     },
     "verifyAddress": {
-      "description": ["Call the address model"],
+      "description": ["Call the profileAddress model"],
       "accepts": [
         {
           "arg": "address",
@@ -321,49 +348,6 @@
       "http": {
         "verb": "post",
         "path": "/verify-address"
-      }
-    },
-    "textSearch": {
-      "description": ["Call the text search intern method"],
-      "accepts": [
-        {
-          "arg": "ctx",
-          "type": "object",
-          "http": {
-            "source": "context"
-          }
-        },
-        {
-          "arg": "filter",
-          "type": "object",
-          "required": true
-        }
-      ],
-      "returns": {
-        "arg": "result",
-        "type": "array"
-      },
-      "http": {
-        "verb": "post",
-        "path": "/text-search"
-      }
-    },
-    "geoLocate": {
-      "description": ["Find user by geopoint in coordinates property"],
-      "accepts": [
-        {
-          "arg": "filter",
-          "type": "object",
-          "required": true
-        }
-      ],
-      "returns": {
-        "arg": "result",
-        "type": "array"
-      },
-      "http": {
-        "verb": "post",
-        "path": "/geo-locate"
       }
     }
   }

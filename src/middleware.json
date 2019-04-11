@@ -5,11 +5,10 @@
   "initial": {
     "compression": {},
     "./middleware/tracker": {
-      "params": {"enabled": true}
+      "params": {"enabled": false}
     },
     "cors": {
       "params": {
-        "origin": true,
         "credentials": true,
         "maxAge": 86400
       }
@@ -33,23 +32,13 @@
   },
   "session": {},
   "auth": {},
-  "parse": {
-    "body-parser#urlencoded": {
-      "params": {
-        "extended": true
-      }
-    }
-  },
+  "parse": {},
   "routes": {
     "loopback#rest": {
       "paths": ["${restApiRoot}"]
     }
   },
-  "files": {
-    "loopback#static": {
-      "params": "$!../client"
-    }
-  },
+  "files": {},
   "final": {
     "loopback#urlNotFound": {}
   },

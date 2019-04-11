@@ -19,8 +19,11 @@
     },
     "devEui": {
       "type": "string",
-      "required": true,
+      "required": false,
       "default": null
+    },
+    "hwEui": {
+      "type": "string"
     },
     "resources": {
       "type": "object",
@@ -29,7 +32,7 @@
       "default": null
     },
     "value": {
-      "type": "object",
+      "type": "any",
       "required": false,
       "description": "last measurement",
       "default": null
@@ -58,55 +61,76 @@
       "type": "object",
       "required": false
     },
-    "protocolName": {
+    "transportProtocol": {
       "type": "string",
       "required": true,
       "default": ""
     },
-    "protocolVersion": {
+    "transportProtocolVersion": {
+      "type": "string",
+      "required": false,
+      "default": ""
+    },
+    "messageProtocol": {
+      "type": "string",
+      "required": true,
+      "default": null
+    },
+    "messageProtocolVersion": {
       "type": "string",
       "required": false,
       "default": ""
     },
     "nativeSensorId": {
       "type": "string",
-      "required": true
+      "required": true,
+      "default": "0"
     },
     "nativeNodeId": {
       "type": "string",
       "required": false,
-      "default": ""
-    },
-    "outputPath": {
-      "type": "string",
-      "required": false,
-      "default": ""
-    },
-    "inputPath": {
-      "type": "string",
-      "required": false,
-      "default": ""
+      "default": null
     },
     "nativeType": {
       "type": "number",
       "required": true,
       "description": "original sensor type",
-      "default": ""
+      "default": 0
     },
     "nativeResource": {
       "type": "number",
       "required": false,
       "description": "original resource type",
       "default": ""
+    },
+    "outputPath": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "inputPath": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "inPrefix": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "outPrefix": {
+      "type": "string",
+      "required": false,
+      "default": null
     }
   },
   "hidden": [],
   "validations": [],
   "relations": {
-    "account": {
+    "user": {
       "type": "belongsTo",
-      "model": "Account",
-      "foreignKey": "accountId",
+      "model": "user",
+      "foreignKey": "ownerId",
       "options": {
         "nestRemoting": false
       }

@@ -8,7 +8,7 @@ module.exports = function(Team) {
     if (Team.app.brocker !== undefined) {
       if (ctx.isNewInstance) {
         const result = await handlers.publish({
-          accountId: ctx.options.accessToken.userId,
+          userId: ctx.options.accessToken.userId,
           collectionName,
           data: ctx.instance,
           method: "POST",
@@ -29,7 +29,7 @@ module.exports = function(Team) {
       console.log("before delete ", instance);
       if (instance && Team.app.brocker) {
         const result = await handlers.publish({
-          accountId: ctx.options.accessToken.userId,
+          userId: ctx.options.accessToken.userId,
           collectionName,
           data: instance,
           method: "DELETE",

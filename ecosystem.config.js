@@ -44,7 +44,7 @@ module.exports = {
       "pre-deploy-local": `scp -P 22 deploy/.env_staging ${result.parsed.VPS_STAGE_USER}@${
         result.parsed.VPS_STAGE_HOST
       }:/home/${result.parsed.VPS_STAGE_USER}/${result.parsed.NODE_NAME}/source/.env`,
-      "post-deploy": "npm install && npm run startStage",
+      "post-deploy": "npm install && npm run deploy:stage",
     },
     production: {
       key: "~/.ssh/server4",
@@ -58,7 +58,7 @@ module.exports = {
       "pre-deploy-local": `scp -P 22 deploy/.env_production ${result.parsed.VPS_PROD_USER}@${
         result.parsed.VPS_PROD_HOST
       }:/home/${result.parsed.VPS_PROD_USER}/${result.parsed.NODE_NAME}/source/.env`,
-      "post-deploy": "npm install && npm run startProd",
+      "post-deploy": "npm install && npm run deploy:prod",
     },
   },
 };

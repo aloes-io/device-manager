@@ -22,7 +22,7 @@
   "relations": {
     "members": {
       "type": "hasMany",
-      "model": "Account",
+      "model": "user",
       "foreignKey": "memberId"
     }
   },

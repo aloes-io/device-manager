@@ -28,16 +28,6 @@
     "resources": {
       "type": "object",
       "required": true
-    },
-    "colors": {
-      "type": "array",
-      "default": [],
-      "required": false
-    },
-    "icons": {
-      "type": "array",
-      "default": [],
-      "required": false
     }
   },
   "protected": [],
