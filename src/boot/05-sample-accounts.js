@@ -1,16 +1,16 @@
-import initialAccountsList from "../initial-data/base-accounts.json";
+import initialUsersList from "../initial-data/base-accounts.json";
 import logger from "../services/logger";
 
 //  export default createBaseAccounts;
 module.exports = function(server) {
-  const Account = server.models.Account;
+  const User = server.models.user;
   const Role = server.models.Role;
   const RoleMapping = server.models.RoleMapping;
 
-  return Account.find()
+  return User.find()
     .then((accounts) => {
       if (accounts.length < 1) {
-        return Account.create(initialAccountsList);
+        return User.create(initialUsersList);
       }
       return null;
     })

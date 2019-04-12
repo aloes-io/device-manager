@@ -1,8 +1,8 @@
 {
   "name": "Address",
-  "base": "PersistedModel",
   "plural": "Addresses",
-  "idInjection": true,
+  "base": "PersistedModel",
+  "idInjection": false,
   "options": {
     "validateUpsert": true
   },
@@ -54,9 +54,9 @@
   "hidden": [],
   "validations": [],
   "relations": {
-    "account": {
+    "user": {
       "type": "belongsTo",
-      "model": "Account",
+      "model": "user",
       "options": {
         "nestRemoting": false
       }

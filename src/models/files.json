@@ -25,9 +25,9 @@
   },
   "validations": [],
   "relations": {
-    "account": {
+    "user": {
       "type": "belongsTo",
-      "model": "Account",
+      "model": "user",
       "foreignKey": "ownerId",
       "options": {
         "nestRemoting": false

@@ -12,11 +12,11 @@ module.exports = function createExternalApps(server) {
           return res;
         });
       }
-      logger.publish(4, "loopback", "boot:foundExternalApps:res", apps);
+      logger.publish(5, "loopback", "boot:foundExternalApps:res", apps);
       return apps;
     })
     .catch((err) => {
-      logger.publish(5, "loopback", "boot:createExternalApps:err", err);
+      logger.publish(4, "loopback", "boot:createExternalApps:err", err);
       return err;
     });
 };

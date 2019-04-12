@@ -1,9 +1,10 @@
-import {omaObjects, omaResources, omaViews} from "aloes-handlers";
+import {omaObjects, omaResources, omaViews} from "oma-json";
 import logger from "../services/logger";
 
 export default async function createOmaApi(server) {
   try {
     const foundOmaObjects = await server.models.OmaObject.find();
+    // todo update models based on package.json version for oma-json
     if (foundOmaObjects.length === omaObjects.length) {
       return null;
     }

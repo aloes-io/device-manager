@@ -5,6 +5,10 @@ const CONTAINERS_URL = `${process.env.HTTP_SERVER_URL}${
 }/files/`;
 const collectionName = "files";
 
+/**
+ * @module Files
+ */
+
 module.exports = function(Files) {
   const uploadToContainer = (ctx, ownerId, options) =>
     new Promise((resolve, reject) =>

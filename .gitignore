@@ -18,6 +18,7 @@ coverage
 node_modules
 npm-debug.log
 /client
+/public/
 #config files
 .env
 .env.local

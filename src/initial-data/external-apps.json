@@ -5,7 +5,7 @@
     "appKey": "",
     "name": "virtualObjectManager",
     "status": false,
-    "pattern": "+appEui/+collectionName/+method/+devEui",
+    "pattern": "+appEui/+collectionName/+method/+modelId",
     "validators": {
       "appEui": "string",
       "collectionName": ["IoTAgent"],
@@ -15,17 +15,52 @@
   },
   {
     "type": "IoTAgent",
-    "appEui": "aloes-lorawan",
-    "appKey": "",
-    "name": "aloesLoraWan",
+    "name": "loraWan",
     "status": false,
-    "pattern": "+appEui/+type/+method/+gatewayId/#device",
+    "description": null,
+    "icon": "/icons/image-placeholder.png",
+    "accessPointUrl": "192.168.1.63",
+    "transportProtocol": "loraWan",
+    "transportProtocolVersion": null,
+    "public": false,
+    "appEui": "IDYKS1CFDI73FWKLCTWSKJTBDD8GB7BD",
+    "pattern": "IDYKS1CFDI73FWKLCTWSKJTBDD8GB7BD/+collectionName/+method",
     "validators": {
       "appEui": "string",
-      "device": "string",
-      "methods": ["Confirmed Data Down", "Unconfirmed Data Down", "Join Request"],
-      "directions": ["UP", "DOWN"],
-      "type": ["PUSH_DATA", "PULL_DATA"]
+      "mTypes": [
+        "Join Request",
+        "Join Accept",
+        "Confirmed Data Up",
+        "Unconfirmed Data Up",
+        "Confirmed Data Down",
+        "Unconfirmed Data Down",
+        "Proprietary",
+        "Presentation"
+      ],
+      "directions": ["RX", "TX"],
+      "types": [
+        "DECODED",
+        "ENCODED",
+        "PUSH_DATA",
+        "PULL_DATA",
+        "PULL_RESP",
+        "PUSH_ACK",
+        "PULL_ACK",
+        "TX_ACK"
+      ],
+      "collectionNames": [
+        "Application",
+        "Device",
+        "Sensor",
+        "VirtualObject",
+        "IoTAgent"
+      ],
+      "modelId": "string",
+      "methods": ["HEAD", "POST", "GET", "PUT", "DELETE", "STREAM"],
+      "gatewayId": "string",
+      "device": ["devEui/devAddr", "cayenneType"],
+      "devAddrLength": 8,
+      "devEuiLength": 16
     }
   }
 ]

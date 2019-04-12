@@ -66,7 +66,7 @@ utils.renderTemplate = (options) =>
 //   return filledTemplate;
 // };
 
-utils.roleResolver = async (account, subcribeType) => {
+utils.roleResolver = async (user, subcribeType) => {
   try {
     logger.publish(4, `${collectionName}`, "roleResolver:req", {
       subcribeType,
@@ -75,7 +75,7 @@ utils.roleResolver = async (account, subcribeType) => {
     const RoleMapping = server.models.RoleMapping;
     const adminRole = await Role.findOne({where: {name: "admin"}});
     const payload = await Role.find({where: {name: subcribeType}})
-      .then((role) => ({account, role: role[0]}))
+      .then((role) => ({user, role: role[0]}))
       .then((res) => res);
 
     const response = {...payload};
@@ -83,12 +83,12 @@ utils.roleResolver = async (account, subcribeType) => {
     const foundRole = await RoleMapping.findOrCreate(
       {
         where: {
-          and: [{principalId: response.account.id}, {roleId: {neq: adminRole.id}}],
+          and: [{principalId: response.user.id}, {roleId: {neq: adminRole.id}}],
         },
       },
       {
         principalType: RoleMapping.USER,
-        principalId: response.account.id,
+        principalId: response.user.id,
         roleId: response.role.id,
       },
     );
@@ -100,7 +100,7 @@ utils.roleResolver = async (account, subcribeType) => {
     const result = await RoleMapping.replaceById(foundRole[0].id, {
       ...foundRole[0],
       principalType: RoleMapping.USER,
-      principalId: response.account.id,
+      principalId: response.user.id,
       roleId: response.role.id,
     });
     logger.publish(4, collectionName, "roleResolver:res", {
@@ -130,97 +130,6 @@ const findCollection = (filter, collectionIdsList) =>
       (err, collection) => (err ? reject(err) : resolve(collection)),
     );
   });
-
-utils.composeTextSearchResult = async (userId, filter, collection) => {
-  collection.forEach((instance) => {
-    if (instance._id && !instance.id) {
-      instance.id = instance._id;
-      delete instance._id;
-    }
-    return instance;
-  });
-  logger.publish(4, collectionName, "composeTextSearchResult:req", {
-    userId,
-    filter,
-  });
-  let filteredCollection = collection;
-  if (filter.status) {
-    //  console.log('status filter');
-    filteredCollection = filteredCollection.filter((instance) => instance.status === true);
-  }
-
-  // if (filter.collectionType.toLowerCase() === "studio" && filter.yogaStyle) {
-  //   filteredCollection = filteredCollection.filter((profile) => {
-  //     if (profile.yogaPractices) {
-  //       const found = profile.yogaPractices.find((style) => style === filter.yogaStyle);
-  //       if (found) {
-  //         //  console.log('yogastyle filter', found);
-  //         return true;
-  //       }
-  //       return false;
-  //     }
-  //     return false;
-  //   });
-  // }
-  // if (filter.collectionType.toLowerCase() === "teacher" && filter.certifiedYA) {
-  //   //  console.log('teacher YA filter');
-  //   filteredCollection = filteredCollection.filter((profile) => {
-  //     const found = profile.trainings.find((training) => training.certifiedYA === true);
-  //     if (found) {
-  //       return profile;
-  //     }
-  //     return false;
-  //   });
-  // }
-  //  console.log('2', filteredCollection);
-  let collectionIdsList = filteredCollection.map((instance) => instance.id);
-  if (filter.favorites) {
-    const profileOwner = await server.models.Account.findOne({
-      where: {
-        accountId: userId,
-      },
-      include: "favorites",
-    });
-    const favorites = profileOwner.favorites();
-    collectionIdsList = favorites.map((favorite) => {
-      const found = collectionIdsList.find((id) => id.toString() === favorite.memberId.toString());
-      if (found) {
-        return found;
-      }
-      return false;
-    });
-  }
-
-  if (filter.scheduler) {
-    const matches = await server.models.Event.find({
-      where: {
-        and: [
-          {[`${filter.collectionType.toLowerCase()}Id`]: {inq: collectionIdsList}},
-          {
-            start: {gte: filter.scheduler.start},
-          },
-          {
-            start: {lte: filter.scheduler.end},
-          },
-          {
-            end: {lte: filter.scheduler.end},
-          },
-          {
-            end: {gte: filter.scheduler.start},
-          },
-        ],
-      },
-    });
-    //  console.log('scheduler filter 2', matches);
-    collectionIdsList = matches.map((match) => match[`${match.collectionType.toLowerCase()}Id`]);
-    collectionIdsList = collectionIdsList.filter((item, index, inputArray) => inputArray.indexOf(item) === index);
-  }
-  if (filter.collectionType.toLowerCase() === "device") filter.relationName = "deviceAddress";
-  else filter.relationName = "profileAddress";
-  const result = await findCollection(filter, collectionIdsList);
-  logger.publish(4, `${collectionName}`, "composeTextSearchResult:res", result);
-  return result;
-};
 
 utils.composeGeoLocateResult = async (filter, collectionIdsList) => {
   try {
@@ -259,7 +168,7 @@ utils.verifyCaptcha = async (coinhive, hashes, token) => {
   return false;
 };
 
-utils.createLink = async (coinhive, account, url) => {
+utils.createLink = async (coinhive, user, url) => {
   let result;
   const temp = {
     url,

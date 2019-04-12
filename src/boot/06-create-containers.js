@@ -6,7 +6,7 @@ import logger from "../services/logger";
 
 module.exports = async function(server) {
   let result;
-  const Account = server.models.Account;
+  const User = server.models.user;
   const Storage = server.datasources.storage.settings.root;
 
   async function createContainers(accounts) {
@@ -25,7 +25,7 @@ module.exports = async function(server) {
     return result;
   }
 
-  await Account.find()
+  await User.find()
     .then((accounts) => {
       if (accounts.length < 1) {
         return false;

@@ -31,7 +31,7 @@ module.exports = {
   // redis: {
   //   name: 'redis',
   //   connector: 'redis',
-  //   db: process.env.REDIS_COLLECTION || 'ymc_local',
+  //   db: process.env.REDIS_COLLECTION || 'aloes_local',
   //   host: process.env.REDIS_HOST || 'localhost',
   //   port: Number(process.env.REDIS_PORT) || 6379,
   // },

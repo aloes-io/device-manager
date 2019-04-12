@@ -15,9 +15,30 @@
       "./mixins"
     ]
   },
-  "accessToken": {
+  "User": {
     "dataSource": "db",
     "public": false
+  },
+  "AccessToken": {
+    "dataSource": "db",
+    "public": false,
+    "relations": {
+      "account": {
+        "type": "belongsTo",
+        "model": "Account",
+        "foreignKey": "userId"
+      },
+      "application": {
+        "type": "belongsTo",
+        "model": "Application",
+        "foreignKey": "userId"
+      },
+      "device": {
+        "type": "belongsTo",
+        "model": "Device",
+        "foreignKey": "userId"
+      }
+    }
   },
   "ACL": {
     "dataSource": "db",
@@ -30,9 +51,9 @@
       "strictObjectIDCoercion": true
     },
     "relations": {
-      "user": {
+      "account": {
         "type": "belongsTo",
-        "model": "user",
+        "model": "Account",
         "foreignKey": "userId"
       },
       "role": {
@@ -46,13 +67,17 @@
     "dataSource": "db",
     "public": false,
     "relations": {
-      "user": {
+      "account": {
         "type": "hasMany",
-        "model": "user",
+        "model": "Account",
         "through": "RoleMapping",
         "foreignKey": "roleId"
       }
     }
+  },
+  "Account": {
+    "dataSource": "db",
+    "public": true
   },
   "Address": {
     "dataSource": "db",
@@ -76,6 +101,10 @@
   "files": {
     "dataSource": "db",
     "public": true
+  },
+  "GraphLink": {
+    "dataSource": "db",
+    "public": false
   },
   "Measurement": {
     "dataSource": "db",
@@ -101,10 +130,6 @@
     "dataSource": "db",
     "public": false
   },
-  "user": {
-    "dataSource": "db",
-    "public": true
-  },
   "userCredential": {
     "dataSource": "db",
     "public": false
@@ -112,5 +137,9 @@
   "userIdentity": {
     "dataSource": "db",
     "public": false
+  },
+  "VirtualObject": {
+    "dataSource": "db",
+    "public": true
   }
 }
