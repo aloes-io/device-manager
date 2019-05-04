@@ -1,12 +1,12 @@
 /* eslint-disable no-underscore-dangle */
-import ejs from "ejs";
-import * as fs from "fs";
-import path from "path";
-import server from "../server";
-import logger from "./logger";
+import ejs from 'ejs';
+import * as fs from 'fs';
+import path from 'path';
+import server from '../server';
+import logger from './logger';
 //  import createVue from "./views/create-vue";
 
-const collectionName = "Utils";
+const collectionName = 'Utils';
 const utils = {};
 
 utils.buildError = (code, message) => {
@@ -16,26 +16,26 @@ utils.buildError = (code, message) => {
   return err;
 };
 
-utils.mkDirByPathSync = async (targetDir, {isRelativeToScript = false} = {}) => {
+utils.mkDirByPathSync = async (targetDir, { isRelativeToScript = false } = {}) => {
   const sep = path.sep;
-  const initDir = path.isAbsolute(targetDir) ? sep : "";
-  const baseDir = isRelativeToScript ? __dirname : ".";
+  const initDir = path.isAbsolute(targetDir) ? sep : '';
+  const baseDir = isRelativeToScript ? __dirname : '.';
 
   return targetDir.split(sep).reduce((parentDir, childDir) => {
     const curDir = path.resolve(baseDir, parentDir, childDir);
     try {
       fs.mkdirSync(curDir);
     } catch (err) {
-      if (err.code === "EEXIST") {
+      if (err.code === 'EEXIST') {
         // curDir already exists!
         return curDir;
       }
       // To avoid `EISDIR` error on Mac and `EACCES`-->`ENOENT` and `EPERM` on Windows.
-      if (err.code === "ENOENT") {
+      if (err.code === 'ENOENT') {
         // Throw the original parentDir error on curDir `ENOENT` failure.
         throw new Error(`EACCES: permission denied, mkdir '${parentDir}'`);
       }
-      const caughtErr = ["EACCES", "EPERM", "EISDIR"].indexOf(err.code) > -1;
+      const caughtErr = ['EACCES', 'EPERM', 'EISDIR'].indexOf(err.code) > -1;
       if (!caughtErr || (caughtErr && targetDir === curDir)) {
         throw err; // Throw if it's just the last created dir.
       }
@@ -44,9 +44,11 @@ utils.mkDirByPathSync = async (targetDir, {isRelativeToScript = false} = {}) => 
   }, initDir);
 };
 
-utils.renderTemplate = (options) =>
+utils.renderTemplate = options =>
   new Promise((resolve, reject) => {
-    ejs.renderFile(options.template, options, (err, html) => (err ? reject(err) : resolve({...options, html})));
+    ejs.renderFile(options.template, options, (err, html) =>
+      err ? reject(err) : resolve({ ...options, html }),
+    );
   });
 
 // generate sensors and virtual object template ( .vue )
@@ -68,22 +70,22 @@ utils.renderTemplate = (options) =>
 
 utils.roleResolver = async (user, subcribeType) => {
   try {
-    logger.publish(4, `${collectionName}`, "roleResolver:req", {
+    logger.publish(4, `${collectionName}`, 'roleResolver:req', {
       subcribeType,
     });
     const Role = server.models.Role;
     const RoleMapping = server.models.RoleMapping;
-    const adminRole = await Role.findOne({where: {name: "admin"}});
-    const payload = await Role.find({where: {name: subcribeType}})
-      .then((role) => ({user, role: role[0]}))
-      .then((res) => res);
+    const adminRole = await Role.findOne({ where: { name: 'admin' } });
+    const payload = await Role.find({ where: { name: subcribeType } })
+      .then(role => ({ user, role: role[0] }))
+      .then(res => res);
 
-    const response = {...payload};
-    logger.publish(4, `${collectionName}`, "roleResolver:res1", response);
+    const response = { ...payload };
+    logger.publish(4, `${collectionName}`, 'roleResolver:res1', response);
     const foundRole = await RoleMapping.findOrCreate(
       {
         where: {
-          and: [{principalId: response.user.id}, {roleId: {neq: adminRole.id}}],
+          and: [{ principalId: response.user.id }, { roleId: { neq: adminRole.id } }],
         },
       },
       {
@@ -92,9 +94,9 @@ utils.roleResolver = async (user, subcribeType) => {
         roleId: response.role.id,
       },
     );
-    logger.publish(4, `${collectionName}`, "roleResolver:res2", foundRole[0]);
+    logger.publish(4, `${collectionName}`, 'roleResolver:res2', foundRole[0]);
     if (!foundRole) {
-      return new Error("no role found or created !");
+      return new Error('no role found or created !');
     }
 
     const result = await RoleMapping.replaceById(foundRole[0].id, {
@@ -103,12 +105,12 @@ utils.roleResolver = async (user, subcribeType) => {
       principalId: response.user.id,
       roleId: response.role.id,
     });
-    logger.publish(4, collectionName, "roleResolver:res", {
+    logger.publish(4, collectionName, 'roleResolver:res', {
       result,
     });
     return result;
   } catch (error) {
-    logger.publish(4, collectionName, "roleResolver:err", {
+    logger.publish(4, collectionName, 'roleResolver:err', {
       error,
     });
     return error;
@@ -119,11 +121,11 @@ const findCollection = (filter, collectionIdsList) =>
   new Promise((resolve, reject) => {
     server.models[filter.collectionType].find(
       {
-        where: {id: {inq: collectionIdsList}},
+        where: { id: { inq: collectionIdsList } },
         include: {
           relation: filter.relationName,
           scope: {
-            where: {public: true},
+            where: { public: true },
           },
         },
       },
@@ -133,13 +135,13 @@ const findCollection = (filter, collectionIdsList) =>
 
 utils.composeGeoLocateResult = async (filter, collectionIdsList) => {
   try {
-    if (filter.collectionType.toLowerCase() === "device") filter.relationName = "deviceAddress";
-    else filter.relationName = "profileAddress";
+    if (filter.collectionType.toLowerCase() === 'device') filter.relationName = 'deviceAddress';
+    else filter.relationName = 'profileAddress';
     const result = await findCollection(filter, collectionIdsList);
-    logger.publish(4, `${collectionName}`, "composeGeoLocateResult:res3", result);
+    logger.publish(4, `${collectionName}`, 'composeGeoLocateResult:res3', result);
     return result;
   } catch (error) {
-    logger.publish(4, `${collectionName}`, "composeGeoLocateResult:err", error);
+    logger.publish(4, `${collectionName}`, 'composeGeoLocateResult:err', error);
     return error;
   }
 };
@@ -151,14 +153,14 @@ utils.verifyCaptcha = async (coinhive, hashes, token) => {
     secret: process.env.COINHIVE_API_KEY,
   };
   const body = Object.keys(temp)
-    .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(temp[key])}`)
-    .join("&");
+    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(temp[key])}`)
+    .join('&');
   //  console.log(`[${collectionName.toUpperCase()}] verifyCaptcha req : ${body}`);
   if (coinhive) {
     return coinhive
-      .verifyCaptcha("token/verify", body)
-      .then((res) => JSON.parse(res))
-      .catch((err) => err);
+      .verifyCaptcha('token/verify', body)
+      .then(res => JSON.parse(res))
+      .catch(err => err);
     // console.log(
     //   `[${collectionName.toUpperCase()}] verifyCaptcha res :`,
     //   JSON.parse(res),
@@ -176,17 +178,17 @@ utils.createLink = async (coinhive, user, url) => {
     secret: process.env.COINHIVE_API_KEY,
   };
   const body = Object.keys(temp)
-    .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(temp[key])}`)
-    .join("&");
+    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(temp[key])}`)
+    .join('&');
   if (coinhive) {
-    console.log("creating link", body);
+    console.log('creating link', body);
     await coinhive
-      .createLink("link/create", body)
-      .then((res) => {
+      .createLink('link/create', body)
+      .then(res => {
         console.log(`[${collectionName.toUpperCase()}] createLink res :`, res);
         result = JSON.parse(res);
       })
-      .catch((err) => err);
+      .catch(err => err);
     return result;
   }
   return false;

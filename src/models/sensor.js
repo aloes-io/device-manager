@@ -63,8 +63,9 @@ module.exports = function(Sensor) {
           result = await iotAgent.publish({
             userId: ctx.instance.ownerId,
             collectionName,
+            modelId: ctx.instance.id,
             data: ctx.instance,
-            method: 'POST',
+            method: ctx.instance.method || 'POST',
             pattern: 'aloesClient',
           });
         } else {
@@ -72,12 +73,13 @@ module.exports = function(Sensor) {
             userId: ctx.instance.ownerId,
             collectionName,
             data: ctx.instance,
-            //  modelId: ctx.instance.id,
-            method: 'PUT',
+            modelId: ctx.instance.id,
+            method: ctx.instance.method || 'PUT',
             pattern: 'aloesClient',
           });
         }
         if (result && result.topic && result.payload) {
+          //  return Sensor.app.emit('publish', result.topic, result.payload, false, 0);
           return Sensor.app.publish(result.topic, result.payload);
         }
         throw new Error('Invalid MQTT Packet encoding');
@@ -90,12 +92,11 @@ module.exports = function(Sensor) {
   });
 
   Sensor.observe('before delete', async ctx => {
-    //  console.log('before delete ', ctx);
     try {
       const instance = await ctx.Model.findById(ctx.where.id);
       //  console.log('before delete ', instance);
       await Sensor.app.models.Measurement.destroyAll({
-        sensorId: {like: new RegExp(`.*${ctx.where.id}.*`, 'i')},
+        sensorId: { like: new RegExp(`.*${ctx.where.id}.*`, 'i') },
       });
       const result = await iotAgent.publish({
         userId: instance.ownerId,

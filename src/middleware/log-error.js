@@ -3,7 +3,7 @@ module.exports = function(options) {
     //  const socket = app.io;
     if (options.enabled) {
       //  socket.emit('logs', 'test');
-      console.log("[ERROR]", err);
+      console.log('[ERROR]', err);
       next(err);
     }
     next();

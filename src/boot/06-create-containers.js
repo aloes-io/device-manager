@@ -1,5 +1,5 @@
-import utils from "../services/utils";
-import logger from "../services/logger";
+import utils from '../services/utils';
+import logger from '../services/logger';
 
 // for each user in the db, create a unique file container
 //  export default async function initStorages(server) {
@@ -10,15 +10,15 @@ module.exports = async function(server) {
   const Storage = server.datasources.storage.settings.root;
 
   async function createContainers(accounts) {
-    await accounts.forEach((account) => {
+    await accounts.forEach(account => {
       utils
         .mkDirByPathSync(`${Storage}/${account.id}`)
-        .then((res) => {
-          logger.publish(4, "loopback", "boot:createContainers:res", res);
-          result = {...result, res};
+        .then(res => {
+          logger.publish(4, 'loopback', 'boot:createContainers:res', res);
+          result = { ...result, res };
         })
-        .catch((err) => {
-          logger.publish(2, "loopback", "boot:createContainers:err", err);
+        .catch(err => {
+          logger.publish(2, 'loopback', 'boot:createContainers:err', err);
           result = err;
         });
     });
@@ -26,40 +26,40 @@ module.exports = async function(server) {
   }
 
   await User.find()
-    .then((accounts) => {
+    .then(accounts => {
       if (accounts.length < 1) {
         return false;
       }
       return utils
         .mkDirByPathSync(`${Storage}`)
-        .then((storage) => {
-          logger.publish(4, "loopback", "boot:initStorages:res", storage);
+        .then(storage => {
+          logger.publish(4, 'loopback', 'boot:initStorages:res', storage);
           result = storage;
           createContainers(accounts)
-            .then((containers) => {
-              result = {storage, containers};
+            .then(containers => {
+              result = { storage, containers };
             })
-            .catch((err) => {
+            .catch(err => {
               result = err;
             });
         })
-        .catch((err) => {
-          if (err.code === "EEXIST") {
-            logger.publish(2, "loopback", "boot:initStorages:err", err.code);
+        .catch(err => {
+          if (err.code === 'EEXIST') {
+            logger.publish(2, 'loopback', 'boot:initStorages:err', err.code);
             createContainers(accounts)
-              .then((containers) => {
-                result = {err, containers};
+              .then(containers => {
+                result = { err, containers };
               })
-              .catch((error) => {
+              .catch(error => {
                 result = error;
               });
           }
-          logger.publish(2, "loopback", "boot:initStorages:err", err);
+          logger.publish(2, 'loopback', 'boot:initStorages:err', err);
           result = err;
         });
     })
-    .catch((err) => {
-      logger.publish(2, "loopback", "boot:initStorages:err", err);
+    .catch(err => {
+      logger.publish(2, 'loopback', 'boot:initStorages:err', err);
       return err;
     });
   return result;

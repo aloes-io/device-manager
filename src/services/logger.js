@@ -28,15 +28,13 @@ logger.publish = (priority, collectionName, command, content) => {
       if (content instanceof Error) {
         fullContent = content;
       } else {
-        fullContent = `[${collectionName.toUpperCase()}] ${command} : ${JSON.stringify(
-          content,
-        )}`;
+        fullContent = `[${collectionName.toUpperCase()}] ${command} : ${JSON.stringify(content)}`;
       }
     } else if (typeof content !== 'object') {
       fullContent = `[${collectionName.toUpperCase()}] ${command} : ${content}`;
     }
     if (typeof fullContent === 'string' && fullContent.length > maxLineSize) {
-      fullContent = `${fullContent.substring(0, maxLineSize-3)} ...`;
+      fullContent = `${fullContent.substring(0, maxLineSize - 3)} ...`;
     }
     switch (collectionName.toUpperCase()) {
       case 'BROKER':

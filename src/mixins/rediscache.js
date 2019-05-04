@@ -1,5 +1,5 @@
 import redis from 'redis';
-import {promisify} from 'util';
+import { promisify } from 'util';
 import app from '../server';
 
 module.exports = (Model, options) => {
@@ -85,11 +85,7 @@ module.exports = (Model, options) => {
           ctx.method.name.indexOf('get') !== -1) &&
         redisClient.connected
       ) {
-        console.log(
-          '[CACHE] beforeRemote get:req',
-          ctx.req.query,
-          ctx.req.params,
-        );
+        console.log('[CACHE] beforeRemote get:req', ctx.req.query, ctx.req.params);
         let modelName = null;
         // const modelName = `${ctx.method.sharedClass.name}-${ctx.method.name}`;
         if (ctx.method.name.startsWith('__get')) {
@@ -128,9 +124,7 @@ module.exports = (Model, options) => {
             return ctx;
           }
           const keys = Object.keys(rawCacheValue);
-          cacheValue = await keys.forEach(key =>
-            JSON.parse(rawCacheValue[key]),
-          );
+          cacheValue = await keys.forEach(key => JSON.parse(rawCacheValue[key]));
         }
         if (cacheValue && cacheValue !== null) {
           ctx.result = cacheValue;
@@ -175,11 +169,7 @@ module.exports = (Model, options) => {
         redisClient.connected
       ) {
         //  console.log("[CACHE] afterRemote get:req", res);
-        console.log(
-          '[CACHE] afterRemote get:req',
-          ctx.req.query,
-          ctx.req.params,
-        );
+        console.log('[CACHE] afterRemote get:req', ctx.req.query, ctx.req.params);
         let modelName;
         if (ctx.method.name.startsWith('__get')) {
           const methodParts = ctx.method.name.split('__');
@@ -216,11 +206,7 @@ module.exports = (Model, options) => {
         cacheValue = await redisClient.hgetallAsync(modelName);
         console.log('[CACHE] afterRemote get:cacheValue', cacheValue);
         if (!cacheValue || cacheValue === null) {
-          if (
-            typeof res === 'object' &&
-            res instanceof Array &&
-            res.length > 1
-          ) {
+          if (typeof res === 'object' && res instanceof Array && res.length > 1) {
             cacheValue = {};
             await res.forEach(instance => {
               cacheValue[instance.id] = JSON.stringify(instance);
@@ -268,18 +254,10 @@ module.exports = (Model, options) => {
           //  console.log("[CACHE] afterSave:req", ctx);
           const modelName = `${ctx.Model.modelName}`;
           //  const cacheKey = `${modelName}-*`;
-          await redisClient.hsetAsync(
-            modelName,
-            ctx.instance.id,
-            JSON.stringify(ctx.instance),
-          );
+          await redisClient.hsetAsync(modelName, ctx.instance.id, JSON.stringify(ctx.instance));
           await redisClient.expireAsync(modelName, cacheExpire);
         } else {
-          console.log(
-            'Updated %s matching %j',
-            ctx.Model.pluralModelName,
-            ctx.where,
-          );
+          console.log('Updated %s matching %j', ctx.Model.pluralModelName, ctx.where);
           //  await redisClient.hmsetAsync(ctx.Model.pluralModelName, cacheValue);
           //  await redisClient.expireAsync(modelName, cacheExpire);
         }
@@ -295,11 +273,7 @@ module.exports = (Model, options) => {
   Model.observe('after delete', async ctx => {
     try {
       if (redisClient.connected && ctx.where) {
-        console.log(
-          'Deleted %s matching %j',
-          ctx.Model.pluralModelName,
-          ctx.where,
-        );
+        console.log('Deleted %s matching %j', ctx.Model.pluralModelName, ctx.where);
         const modelName = `${ctx.Model.definition.name}`;
         //  const cacheKey = `${modelName}-*`;
         let cacheValue;

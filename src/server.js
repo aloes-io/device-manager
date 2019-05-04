@@ -1,6 +1,7 @@
 import loopback from 'loopback';
 import boot from 'loopback-boot';
 //  import {ensureLoggedIn} from 'connect-ensure-login';
+import nodeCleanup from 'node-cleanup';
 import broker from './services/broker';
 import logger from './services/logger';
 
@@ -13,28 +14,13 @@ const options = {
 
 let httpServer;
 
-app.start = function() {
+app.start = () => {
   httpServer = app.listen(() => {
     app.emit('started');
-    logger.publish(
-      2,
-      'loopback',
-      'Setup',
-      `${process.env.APP_NAME} / ${process.env.NODE_ENV}`,
-    );
-    logger.publish(
-      2,
-      'loopback',
-      'Setup',
-      `config : ${app.get('host')}:${app.get('port')}`,
-    );
+    logger.publish(2, 'loopback', 'Setup', `${process.env.APP_NAME} / ${process.env.NODE_ENV}`);
+    logger.publish(2, 'loopback', 'Setup', `config : ${app.get('host')}:${app.get('port')}`);
     const baseUrl = app.get('url').replace(/\/$/, '');
-    logger.publish(
-      2,
-      'loopback',
-      'Setup',
-      `Express API server listening @: ${baseUrl}/api`,
-    );
+    logger.publish(2, 'loopback', 'Setup', `Express API server listening @: ${baseUrl}/api`);
 
     //  app.get('/auth/account', ensureLoggedIn('/login'), (req, res, next) => {
     app.get('/auth/account', (req, res, next) => {
@@ -80,23 +66,40 @@ app.on('started', () => {
   broker.init(app, httpServer);
 });
 
-app.close = function() {
-  app.emit('closed');
-  httpServer.close();
+app.close = async () => {
+  try {
+    logger.publish(2, 'loopback', 'Close', `${process.env.APP_NAME} / ${process.env.NODE_ENV}`);
+    await broker.close(app);
+    httpServer.close();
+    return app.emit('closed');
+  } catch (error) {
+    return error;
+  }
 };
 
-app.publish = (topic, payload) => {
-  app.emit('publish', topic, payload);
+app.publish = (topic, payload, qos, retain) => {
+  app.emit('publish', topic, payload, qos, retain);
 };
 
 // Bootstrap the application, configure models, datasources and middleware.
 // Sub-apps like REST API are mounted via boot scripts.
 boot(app, options, err => {
   if (err) throw err;
-  // start the server if `$ node server.js`
   if (require.main === module) {
     app.start();
   }
+});
+
+nodeCleanup((exitCode, signal) => {
+  if (signal) {
+    app.close(err => {
+      console.log('close app : ', exitCode, signal, err);
+      process.kill(process.pid, signal);
+    });
+    nodeCleanup.uninstall(); // don't call cleanup handler again
+    return false;
+  }
+  return true;
 });
 
 export default app;

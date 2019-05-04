@@ -1,7 +1,7 @@
 module.exports = {
   db: {
-    name: "db",
-    connector: "mongodb",
+    name: 'db',
+    connector: 'mongodb',
     database: process.env.MONGO_COLLECTION,
     host: process.env.MONGO_HOST,
     port: Number(process.env.MONGO_PORT) || 27017,
@@ -13,11 +13,11 @@ module.exports = {
     enableGeoIndexing: true,
   },
   email: {
-    name: "email",
-    connector: "mail",
+    name: 'email',
+    connector: 'mail',
     transports: [
       {
-        type: "smtp",
+        type: 'smtp',
         host: process.env.SMTP_HOST,
         secure: process.env.SMTP_SECURE,
         port: Number(process.env.SMTP_PORT),
@@ -36,31 +36,31 @@ module.exports = {
   //   port: Number(process.env.REDIS_PORT) || 6379,
   // },
   storage: {
-    name: "storage",
-    connector: "loopback-component-storage",
-    provider: "filesystem",
-    root: process.env.FS_PATH || "./storage",
-    nameConflict: "makeUnique",
-    maxFileSize: "10428800",
+    name: 'storage',
+    connector: 'loopback-component-storage',
+    provider: 'filesystem',
+    root: process.env.FS_PATH || './storage',
+    nameConflict: 'makeUnique',
+    maxFileSize: '10428800',
   },
   coinhive: {
-    name: "coinhive",
-    connector: "rest",
+    name: 'coinhive',
+    connector: 'rest',
     debug: true,
     operations: [
       {
         template: {
-          method: "POST",
-          url: "https://api.coinhive.com/{path}",
+          method: 'POST',
+          url: 'https://api.coinhive.com/{path}',
           headers: {
-            accept: "application/json",
-            "content-type": "application/x-www-form-urlencoded",
+            accept: 'application/json',
+            'content-type': 'application/x-www-form-urlencoded',
           },
-          body: "{body}",
+          body: '{body}',
         },
         functions: {
-          verifyCaptcha: ["path", "body"],
-          createLink: ["path", "body"],
+          verifyCaptcha: ['path', 'body'],
+          createLink: ['path', 'body'],
         },
       },
     ],

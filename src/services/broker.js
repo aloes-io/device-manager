@@ -38,54 +38,55 @@ broker.init = (app, httpServer) => {
   broker.start(app);
 };
 
+broker.close = async app => {
+  try {
+    await app.models.Device.updateAll({ status: true }, { status: false });
+    logger.publish(4, 'broker', 'close', process.env.MQTT_BROKER_URL);
+    return app.broker.close();
+  } catch (error) {
+    return error;
+  }
+};
+
 broker.start = app => {
   const authenticate = (client, username, password, cb) => {
-    logger.publish(4, 'broker', 'Authenticate:req', {
-      client: client.id,
-      username,
-      password: password.toString(),
-    });
     try {
+      logger.publish(4, 'broker', 'Authenticate:req', {
+        client: client.id,
+        username,
+        password,
+      });
       let auth = false;
-      if (!password || !username) {
+      if (!password || password === null || !username || username === null) {
         //  client.user = 'guest';
+        logger.publish(4, 'broker', 'Authenticate:res', 'missing credentials');
         auth = false;
         cb(null, auth);
         return auth;
       }
-      //  return app.models.AccessToken.findById(
-      return app.models.accessToken.findById(
-        password.toString(),
-        (err, token) => {
-          if (err || !token) {
-            auth = false;
-            logger.publish(4, 'broker', 'Authenticate:res', {username, auth});
-            cb(null, auth);
-            return auth;
-          }
-          if (token && token.userId && token.userId.toString() === username) {
-            auth = true;
-            client.user = username;
-            if (token.devEui) {
-              client.devEui = token.devEui;
-            } else if (token.devAddr) {
-              client.devAddr = token.devAddr;
-            } else if (token.appEui) {
-              client.appEui = token.appEui;
-            }
-          }
-          logger.publish(4, 'broker', 'Authenticate:res', {username, auth});
-          app.emit(
-            'publish',
-            `${token.userId}/Auth/POST`,
-            auth.toString(),
-            false,
-            1,
-          );
+      return app.models.accessToken.findById(password.toString(), (err, token) => {
+        if (err || !token) {
+          auth = false;
+          logger.publish(4, 'broker', 'Authenticate:res', 'invalid token');
           cb(null, auth);
           return auth;
-        },
-      );
+        }
+        if (token && token.userId && token.userId.toString() === username) {
+          auth = true;
+          client.user = username;
+          if (token.devEui) {
+            client.devEui = token.devEui;
+          } else if (token.devAddr) {
+            client.devAddr = token.devAddr;
+          } else if (token.appEui) {
+            client.appEui = token.appEui;
+          }
+        }
+        logger.publish(4, 'broker', 'Authenticate:res', { username, auth });
+        app.emit('publish', `${token.userId}/Auth/POST`, auth.toString(), false, 1);
+        cb(null, auth);
+        return auth;
+      });
     } catch (error) {
       logger.publish(4, 'broker', 'Authenticate:err', error);
       cb(null, false);
@@ -94,8 +95,6 @@ broker.start = app => {
   };
 
   const authorizePublish = (client, topic, payload, cb) => {
-    console.log('topic', topic);
-
     const topicParts = topic.split('/');
     let auth = false;
     if (client.user) {
@@ -126,7 +125,7 @@ broker.start = app => {
       }
       // if (client.admin) auth = true
     }
-    logger.publish(3, 'broker', 'authorizePublish:res', {topic, auth});
+    logger.publish(3, 'broker', 'authorizePublish:res', { topic, auth });
     cb(null, auth);
   };
 
@@ -156,7 +155,7 @@ broker.start = app => {
         auth = true;
       }
     }
-    logger.publish(3, 'broker', 'authorizeSubscribe:res', {topic, auth});
+    logger.publish(3, 'broker', 'authorizeSubscribe:res', { topic, auth });
     cb(null, auth);
   };
 
@@ -179,69 +178,84 @@ broker.start = app => {
   });
 
   app.broker.on('clientConnected', async client => {
-    //  if (!Object.prototype.hasOwnProperty.call(client, "id")) return null;
-    logger.publish(4, 'broker', 'clientConnected:req', client.id);
-    if (client.user) {
-      if (
-        (client.devEui && client.devEui !== null) ||
-        (client.devAddr && client.devAddr !== null)
-      ) {
-        // todo : check that client.id contains device.devEui || client.devEui
-        const device = await app.models.Device.findById(client.user);
-        if (device && device !== null) {
-          return device.updateAttribute('status', true);
-        }
-      } else if (client.appEui && client.appEui !== null) {
-        // todo : check that client.id contains externalApp.appEui || client.appEui
-        const externalApp = await app.models.Application.findById(client.user);
-        if (externalApp && externalApp !== null) {
-          return externalApp.updateAttribute('status', true);
+    try {
+      //  if (!Object.prototype.hasOwnProperty.call(client, "id")) return null;
+      logger.publish(4, 'broker', 'clientConnected:req', client.id);
+      if (client.user) {
+        if (client.devEui && client.devEui !== null && client.id.startsWith(client.devEui)) {
+          const device = await app.models.Device.findById(client.user);
+          if (device && device !== null) {
+            return device.updateAttribute('status', true);
+          }
+        } else if (
+          client.devAddr &&
+          client.devAddr !== null &&
+          client.id.startsWith(client.devAddr)
+        ) {
+          const device = await app.models.Device.findById(client.user);
+          if (device && device !== null) {
+            return device.updateAttribute('status', true);
+          }
+        } else if (client.appEui && client.appEui !== null) {
+          // todo : check that client.id contains externalApp.appEui || client.appEui
+          const externalApp = await app.models.Application.findById(client.user);
+          if (externalApp && externalApp !== null) {
+            return externalApp.updateAttribute('status', true);
+          }
         }
       }
+      return null;
+    } catch (error) {
+      return error;
     }
-    return null;
   });
 
   app.broker.on('clientDisconnected', async client => {
-    logger.publish(4, 'broker', 'clientDisconnected:req', client.id);
-    if (client.user) {
-      if (
-        (client.devEui && client.devEui !== null) ||
-        (client.devAddr && client.devAddr !== null)
-      ) {
-        const device = await app.models.Device.findById(client.user);
-        // todo : check that client.id contains device.devEui || client.devEui
-        if (device && device !== null) {
-          return device.updateAttributes({frameCounter: 0, status: false});
-        }
-      } else if (client.appEui && client.appEui !== null) {
-        const externalApp = await app.models.Application.findById(client.user);
-        if (externalApp && externalApp !== null) {
-          // todo : check that client.id contains externalApp.appEui || client.appEui
-          // todo : update every device belonging to this app
-          return externalApp.updateAttributes({frameCounter: 0, status: false});
+    try {
+      logger.publish(4, 'broker', 'clientDisconnected:req', client.id);
+      if (client.user) {
+        if (client.devEui && client.devEui !== null && client.id.startsWith(client.devEui)) {
+          const device = await app.models.Device.findById(client.user);
+          if (device && device !== null) {
+            return device.updateAttributes({ frameCounter: 0, status: false });
+          }
+        } else if (
+          client.devAddr &&
+          client.devAddr !== null &&
+          client.id.startsWith(client.devAddr)
+        ) {
+          const device = await app.models.Device.findById(client.user);
+          if (device && device !== null) {
+            return device.updateAttributes({ frameCounter: 0, status: false });
+          }
+        } else if (client.appEui && client.appEui !== null) {
+          const externalApp = await app.models.Application.findById(client.user);
+          if (externalApp && externalApp !== null) {
+            // todo : check that client.id contains externalApp.appEui || client.appEui
+            // todo : update every device belonging to this app
+            return externalApp.updateAttributes({ frameCounter: 0, status: false });
+          }
         }
       }
+      return null;
+    } catch (error) {
+      return error;
     }
-    return null;
-  });
-
-  app.on('closed', () => {
-    app.broker.close();
   });
 
   const externalAppDetector = async (packet, client) => {
     try {
       // const pattern = {name: 'empty', params: null};
       if (packet.topic.split('/')[0] === '$SYS') return null;
+      if (!client.appEui) return null;
       logger.publish(4, 'broker', 'externalAppDetector:req', packet.topic);
       const externalApplication = await app.models.Application.findOne({
-        where: {appEui: client.appEui},
+        where: { appEui: client.appEui },
       });
       if (!externalApplication || externalApplication === null) {
         throw new Error('No application found');
       }
-      console.log('externalAppDetector', externalApplication);
+      //  console.log('externalAppDetector', externalApplication);
       const pattern = iotAgent.appPatternDetector(packet, externalApplication);
       logger.publish(4, 'broker', 'externalAppDetector:res', pattern);
       return pattern;
@@ -252,11 +266,19 @@ broker.start = app => {
   };
 
   app.on('publish', (topic, payload, retain, qos) => {
-    //  logger.publish(5, 'broker', 'publish', {topic});
-    if (typeof payload !== 'string') {
+    if (typeof payload === 'boolean') {
+      payload = payload.toString();
+    } else if (typeof payload === 'number') {
+      payload = payload.toString();
+    } else if (typeof payload === 'object') {
+      //  console.log('publish buffer ?', payload instanceof Buffer);
       payload = JSON.stringify(payload);
+      // if (!(payload instanceof Buffer)) {
+      // }
     }
-    //  console.log('topic2', topic);
+    //  topic = `$ALOES/${topic}`;
+    //  logger.publish(4, 'broker', 'publish:topic', topic);
+    //  logger.publish(4, 'broker', 'publish:payload', payload);
     app.broker.publish({
       topic,
       payload,
@@ -269,34 +291,46 @@ broker.start = app => {
     try {
       let pattern = null;
       let serviceName = null;
-      logger.publish(4, 'broker', 'publish', packet.topic);
-      //  if (!client || !client.user) throw new Error('Client unauthenticated');
-      if (!client || !client.user) return null;
-      console.log('client user', client.user);
-      if (client.appEui && client.appEui !== null) {
-        console.log('client appEui', client.appEui);
+      if (packet.topic.startsWith('$SYS')) {
+        return null;
+      }
+      logger.publish(4, 'broker', 'on-published:topic', packet.topic);
+      //  logger.publish(4, 'broker', 'on-published:payload', packet.payload.toString());
+      //  if (!client || client.user) {
+      // if (packet.topic.startsWith('$ALOES')) {
+      //   let parts = packet.topic.split('/');
+      //   parts = parts.slice(1, parts.length);
+      //   packet.topic = parts.join('/');
+      //   console.log('client topic', packet.topic);
+      //   pattern = await iotAgent.patternDetector(packet);
+      // }
+      if (client && client.user) {
+        pattern = await iotAgent.patternDetector(packet);
+      } else if (client && client.appEui && client.appEui !== null) {
         pattern = await externalAppDetector(packet, client);
-      } else {
+      } else if (!client) {
         pattern = await iotAgent.patternDetector(packet);
       }
       if (
         !pattern ||
         pattern === null ||
+        !pattern.name ||
         pattern.name === 'empty' ||
         !pattern.params
       ) {
         throw new Error('invalid pattern');
       }
-
-      logger.publish(2, 'broker', 'onPublish:res1', pattern);
+      //  logger.publish(2, 'broker', 'onPublish:pattern', pattern);
+      logger.publish(4, 'broker', 'onPublished:pattern', pattern.name);
       switch (pattern.name.toLowerCase()) {
         case 'aloesclient':
           // next, use pattern.direction , tx || rx
           if (pattern.subType === 'iot') {
             //  const method = pattern.params.method;
             const newPacket = await iotAgent.decode(packet, pattern.params);
-            if (newPacket && newPacket.topic && newPacket.payload) {
-              return app.publish(newPacket.topic, newPacket.payload, false, 0);
+            logger.publish(2, 'broker', 'onPublished:decode', newPacket);
+            if (newPacket && newPacket.topic) {
+              return app.emit('publish', newPacket.topic, newPacket.payload, false, 0);
             }
             // if (method === 'POST' || method === 'PUT') {
             return null;
@@ -316,9 +350,6 @@ broker.start = app => {
             //   }
             // }
           }
-          // else if (pattern.subType === 'web') {
-          //   serviceName = 'Device';
-          // }
           break;
         case 'aloeslight':
           serviceName = 'Device';
@@ -333,7 +364,6 @@ broker.start = app => {
           serviceName = 'Application';
       }
       if (serviceName === null) throw new Error('protocol not supported');
-      logger.publish(2, 'broker', 'onPublish:res', serviceName);
       return app.models[serviceName].onPublish(pattern, packet, client);
     } catch (error) {
       if (!error) {
