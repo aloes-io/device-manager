@@ -5,6 +5,7 @@ module.exports = {
     usernameField: 'email',
     passwordField: 'password',
     domain: process.env.DOMAIN,
+    //    clientID: '12212',
     authPath: `${process.env.REST_API_ROOT}/auth/login`,
     //    callbackPath: `/api/auth/login`,
     //    successRedirect: '/auth/account',

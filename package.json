@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "npx eslint --ext js .",
     "start": "babel-node ./index.js",
-    "start:dev": "cp deploy/.env_dev .env && NODE_ENV=development nodemon --exec babel-node ./index.js",
+    "start:dev": "cp deploy/.env_development .env && NODE_ENV=development nodemon --exec babel-node ./index.js",
     "start:local": "cp deploy/.env_local .env && NODE_ENV=local nodemon --exec babel-node ./index.js",
     "start:stage": "cp deploy/.env_staging .env && NODE_ENV=staging nodemon --exec babel-node ./index.js",
     "docs:models": "jsdoc2md ./src/models/* > ./docs/api/README.md",
@@ -25,7 +25,7 @@
     "deploy:prod": "pm2 startOrRestart ecosystem.config.js --env production --update-env"
   },
   "dependencies": {
-    "aloes-handlers": "^1.2.0",
+    "aloes-handlers": "^1.2.1",
     "body-parser": "^1.18.3",
     "colors": "^1.3.3",
     "compression": "^1.0.3",
@@ -41,7 +41,7 @@
     "express-session": "^1.15.6",
     "helmet": "^3.13.0",
     "http-server": "^0.11.1",
-    "iot-agent": "^1.0.3",
+    "iot-agent": "^1.0.4",
     "loopback": "^3.16.2",
     "loopback-boot": "github:klarkc/loopback-boot#master",
     "loopback-component-explorer": "^6.3.1",
@@ -55,6 +55,7 @@
     "moment-recur": "^1.0.7",
     "mosca": "^2.8.3",
     "mqtt-pattern": "^1.2.0",
+    "node-cleanup": "^2.1.2",
     "node-geocoder": "^3.22.0",
     "oma-json": "^1.0.6",
     "passport": "^0.4.0",
@@ -64,7 +65,6 @@
     "redis-delete-pattern": "^0.1.0",
     "request": "^2.88.0",
     "shuffle": "^0.2.2",
-    "stripe": "^6.13.0",
     "strong-error-handler": "^2.0.0",
     "text-table": "^0.2.0",
     "uid": "0.0.2",
@@ -140,7 +140,8 @@
       "prettier"
     ],
     "plugins": [
-      "babel"
+      "babel",
+      "prettier"
     ],
     "parserOptions": {
       "ecmaVersion": 2018,
@@ -151,7 +152,8 @@
       "import/extensions": "off",
       "import/prefer-default-export": "off",
       "no-param-reassign": "off",
-      "one-var-declaration-per-line": "off"
+      "one-var-declaration-per-line": "off",
+      "prettier/prettier": "error"
     },
     "globals": {
       "require": true
@@ -163,9 +165,12 @@
     "/node_modules/"
   ],
   "prettier": {
-    "bracketSpacing": false,
+    "bracketSpacing": true,
     "singleQuote": true,
-    "printWidth": 80,
+    "printWidth": 100,
+    "tabWidth": 2,
+    "useTabs": false,
+    "jsxBracketSameLine": true,
     "trailingComma": "all"
   },
   "repository": {

@@ -1,9 +1,9 @@
-import handlers from "aloes-handlers";
+import handlers from 'aloes-handlers';
 
 module.exports = function(Team) {
-  const collectionName = "Team";
+  const collectionName = 'Team';
 
-  Team.observe("after save", async (ctx) => {
+  Team.observe('after save', async ctx => {
     console.log(`[${collectionName.toUpperCase()}]  after save : ${JSON.stringify(ctx.options)}`);
     if (Team.app.brocker !== undefined) {
       if (ctx.isNewInstance) {
@@ -11,8 +11,8 @@ module.exports = function(Team) {
           userId: ctx.options.accessToken.userId,
           collectionName,
           data: ctx.instance,
-          method: "POST",
-          pattern: "aloesClient",
+          method: 'POST',
+          pattern: 'aloesClient',
         });
         if (result && result.topic && result.payload) {
           await Team.app.publish(result.topic, result.payload);
@@ -23,17 +23,17 @@ module.exports = function(Team) {
     return null;
   });
 
-  Team.observe("before delete", async (ctx) => {
+  Team.observe('before delete', async ctx => {
     try {
       const instance = await ctx.Model.findById(ctx.where.id);
-      console.log("before delete ", instance);
+      console.log('before delete ', instance);
       if (instance && Team.app.brocker) {
         const result = await handlers.publish({
           userId: ctx.options.accessToken.userId,
           collectionName,
           data: instance,
-          method: "DELETE",
-          pattern: "aloesClient",
+          method: 'DELETE',
+          pattern: 'aloesClient',
         });
         if (result && result.topic && result.payload) {
           await Team.app.publish(result.topic, result.payload);

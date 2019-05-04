@@ -4,11 +4,11 @@
  * This script creates weighted random load on the sample server.
  */
 
-import request from "request";
-import table from "text-table";
-import weighted from "weighted";
+import request from 'request';
+import table from 'text-table';
+import weighted from 'weighted';
 
-const shuffle = require("shuffle").shuffle;
+const shuffle = require('shuffle').shuffle;
 
 // If false, non-GET requests are enabled. Not recommended for shared (e.g. C9)
 // servers.
@@ -19,7 +19,7 @@ const safeMode = true;
  * otherwise.
  */
 function toJSON(body) {
-  if (typeof body !== "string") {
+  if (typeof body !== 'string') {
     return body;
   }
 
@@ -32,7 +32,7 @@ function toJSON(body) {
 function randomHalf(arr) {
   const size = Math.ceil(arr.length / 2);
 
-  return shuffle({deck: arr}).draw(size);
+  return shuffle({ deck: arr }).draw(size);
 }
 
 /**
@@ -41,17 +41,14 @@ function randomHalf(arr) {
  */
 function toWeightTable(choices) {
   return table(
-    [["Route", "Weight"], ["-----", "-----"]].concat(
-      Object.keys(choices).map((key) => [
-        key,
-        `${Math.round(choices[key] * 10000) / 100}%`,
-      ]),
+    [['Route', 'Weight'], ['-----', '-----']].concat(
+      Object.keys(choices).map(key => [key, `${Math.round(choices[key] * 10000) / 100}%`]),
     ),
   );
 }
 
 function getBaseURL() {
-  const ip = process.env.HOST || process.env.VCAP_APP_PORT || "127.0.0.1";
+  const ip = process.env.HOST || process.env.VCAP_APP_PORT || '127.0.0.1';
   const port = process.env.PORT || 3000;
   const baseURL = `http://${ip}:${port}${process.env.REST_API_ROOT}`;
   return baseURL;
@@ -63,15 +60,15 @@ function getBaseURL() {
  */
 function distillRoutes(routes) {
   return routes
-    .filter((route) => {
-      if (safeMode && route.verb.toUpperCase() !== "GET") {
+    .filter(route => {
+      if (safeMode && route.verb.toUpperCase() !== 'GET') {
         return false;
       }
 
       return true;
     })
     .map(
-      (route) =>
+      route =>
         // TODO(schoon) - Handle the `accepts` in a meaningful way.
         `${route.verb.toUpperCase()} ${route.path}`,
     );
@@ -90,7 +87,7 @@ function weighChoices(routes) {
   }, {});
 
   // For simplicity, we normalize the weights to add up to 1.
-  Object.keys(choices).forEach((key) => {
+  Object.keys(choices).forEach(key => {
     choices[key] /= total;
   });
 
@@ -102,14 +99,14 @@ function weighChoices(routes) {
  */
 function hit(choices) {
   const route = weighted(choices);
-  const parts = route.split(" ");
+  const parts = route.split(' ');
   let verb = parts[0].toLowerCase();
   let path = parts[1];
   // We replace any :id path fragments with 1, which we hope exists.
   //  path = path.replace(/\:id/g, 1);
   path = path.replace(/id/g, 1);
-  if (verb === "all") {
-    verb = "post";
+  if (verb === 'all') {
+    verb = 'post';
   }
   // Make the request.
   request[verb](
@@ -119,7 +116,7 @@ function hit(choices) {
     },
     (err /* , response, body */) => {
       if (err) {
-        console.error("Request error with %s: %s", route, err);
+        console.error('Request error with %s: %s', route, err);
         return err;
       }
       return null;
@@ -146,7 +143,7 @@ function start() {
     const choices = weighChoices(routes);
     // We print out the choice table so the user can compare the weighted load
     // to analytics and monitoring data.
-    console.log("Hitting routes with the following weights:");
+    console.log('Hitting routes with the following weights:');
     console.log(toWeightTable(choices));
     // Go!
     hit(choices);

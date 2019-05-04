@@ -1,4 +1,4 @@
-import {updateAloesSensors} from 'aloes-handlers';
+import { updateAloesSensors } from 'aloes-handlers';
 import logger from '../services/logger';
 
 /**
@@ -31,9 +31,7 @@ module.exports = Application => {
           logger.publish(2, collectionName, 'afterSave:res1', token);
           await ctx.instance.updateAttribute('apiKey', token.id.toString());
         }
-        const token = await Application.app.models.accessToken.findById(
-          ctx.instance.apiKey,
-        );
+        const token = await Application.app.models.accessToken.findById(ctx.instance.apiKey);
         token.updateAttribute('appEui', ctx.instance.appEui);
         return null;
       }
@@ -60,9 +58,7 @@ module.exports = Application => {
       logger.publish(4, `${collectionName}`, 'refreshToken:req', applicationId);
       const application = await Application.findById(applicationId);
       if (application && application !== null) {
-        await Application.app.models.accessToken.destroyById(
-          application.apiKey,
-        );
+        await Application.app.models.accessToken.destroyById(application.apiKey);
         const token = await application.accessTokens.create({
           appEui: application.appEui,
           //  userId: applicationId,
@@ -89,7 +85,7 @@ module.exports = Application => {
       const params = pattern.params;
       if (message.node) {
         const device = message.node;
-        console.log('findDeviceByPattern:req', {device});
+        console.log('findDeviceByPattern:req', { device });
         filter = {
           where: {
             and: [
@@ -98,21 +94,21 @@ module.exports = Application => {
                   like: new RegExp(`.*${params.transportProtocol}.*`, 'i'),
                 },
               },
-              {appEui: {like: new RegExp(`.*${params.appEui}.*`, 'i')}},
+              { appEui: { like: new RegExp(`.*${params.appEui}.*`, 'i') } },
             ],
           },
         };
         if (device.id && device.id !== null) {
-          filter.where.and.push({id: device.id});
+          filter.where.and.push({ id: device.id });
         }
         if (device.devEui && device.devEui !== null) {
           filter.where.and.push({
-            devEui: {like: new RegExp(`.*${device.devEui}.*`, 'i')},
+            devEui: { like: new RegExp(`.*${device.devEui}.*`, 'i') },
           });
         }
         if (device.devAddr && device.devAddr !== null) {
           filter.where.and.push({
-            devAddr: {like: new RegExp(`.*${device.devAddr}.*`, 'i')},
+            devAddr: { like: new RegExp(`.*${device.devAddr}.*`, 'i') },
           });
         }
       } else if (message.sensor) {
@@ -129,7 +125,7 @@ module.exports = Application => {
                   like: new RegExp(`.*${params.transportProtocol}.*`, 'i'),
                 },
               },
-              {appEui: {like: new RegExp(`.*${params.appEui}.*`, 'i')}},
+              { appEui: { like: new RegExp(`.*${params.appEui}.*`, 'i') } },
             ],
           },
           include: {
@@ -140,7 +136,7 @@ module.exports = Application => {
                   {
                     nativeSensorId: sensor.nativeSensorId.toString(),
                   },
-                  {type: sensor.type},
+                  { type: sensor.type },
                 ],
               },
               limit: 1,
@@ -148,16 +144,16 @@ module.exports = Application => {
           },
         };
         if (sensor.deviceId && sensor.deviceId !== null) {
-          filter.where.and.push({id: sensor.deviceId});
+          filter.where.and.push({ id: sensor.deviceId });
         }
         if (sensor.devEui && sensor.devEui !== null) {
           filter.where.and.push({
-            devEui: {like: new RegExp(`.*${sensor.devEui}.*`, 'i')},
+            devEui: { like: new RegExp(`.*${sensor.devEui}.*`, 'i') },
           });
         }
         if (sensor.devAddr && sensor.devAddr !== null) {
           filter.where.and.push({
-            devAddr: {like: new RegExp(`.*${sensor.devAddr}.*`, 'i')},
+            devAddr: { like: new RegExp(`.*${sensor.devAddr}.*`, 'i') },
           });
         }
       }
@@ -230,10 +226,7 @@ module.exports = Application => {
       const params = pattern.params;
       let tempSensor = {};
       const sensor = message.sensor;
-      if (
-        (!device.sensors()[0] || device.sensors()[0] === null) &&
-        sensor.type
-      ) {
+      if ((!device.sensors()[0] || device.sensors()[0] === null) && sensor.type) {
         //  return null;
         tempSensor = await device.sensors.create({
           ...sensor,
@@ -252,9 +245,7 @@ module.exports = Application => {
         tempSensor.messageProtocol = device.messageProtocol;
         tempSensor.messageProtocolVersion = device.messageProtocolVersion;
       } else {
-        throw new Error(
-          'No sensor found and no known type to register a new one',
-        );
+        throw new Error('No sensor found and no known type to register a new one');
       }
 
       console.log(' tempSensor:', tempSensor);
@@ -268,11 +259,7 @@ module.exports = Application => {
         return Application.app.publish(topic, message);
       } else if (params.method === 'POST' || params.method === 'PUT') {
         if (sensor.value && sensor.resource) {
-          tempSensor = await updateAloesSensors(
-            tempSensor,
-            Number(sensor.resource),
-            sensor.value,
-          );
+          tempSensor = await updateAloesSensors(tempSensor, Number(sensor.resource), sensor.value);
           tempSensor.frameCounter += 1;
         }
         console.log(' sensor value:', tempSensor.value);
@@ -293,12 +280,7 @@ module.exports = Application => {
    */
   const parseApplicationMessage = async (packet, pattern) => {
     try {
-      logger.publish(
-        4,
-        `${collectionName}`,
-        'parseApplicationMessage:req',
-        packet.topic,
-      );
+      logger.publish(4, `${collectionName}`, 'parseApplicationMessage:req', packet.topic);
       if (!pattern.params.method) {
         // todo find equivalent property to assign param.method
         pattern.params.method = 'POST';

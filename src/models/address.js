@@ -24,28 +24,18 @@ module.exports = function(Address) {
     console.log('options', ctx.options);
     //  logger.publish(3, `${collectionName}`, 'afterSave:req', ctx.req);
     if (!ctx.options.accessToken) return null;
-    else if (
-      ctx.instance.city &&
-      ctx.instance.street &&
-      ctx.instance.postalCode
-    ) {
+    else if (ctx.instance.city && ctx.instance.street && ctx.instance.postalCode) {
       if (Object.prototype.hasOwnProperty.call(ctx.instance, 'deviceId')) {
-        const device = await Address.app.models.Device.findById(
-          ctx.instance.deviceId,
-        );
-        device.fullAddress = `${ctx.instance.street} ${
-          ctx.instance.postalCode
-        } ${ctx.instance.city}`;
+        const device = await Address.app.models.Device.findById(ctx.instance.deviceId);
+        device.fullAddress = `${ctx.instance.street} ${ctx.instance.postalCode} ${
+          ctx.instance.city
+        }`;
         await device.save();
         logger.publish(3, `${collectionName}`, 'afterSave:res', device);
         return ctx.instance;
       }
-      const user = await Address.app.models.user.findById(
-        ctx.options.accessToken.userId,
-      );
-      user.fullAddress = `${ctx.instance.street} ${ctx.instance.postalCode} ${
-        ctx.instance.city
-      }`;
+      const user = await Address.app.models.user.findById(ctx.options.accessToken.userId);
+      user.fullAddress = `${ctx.instance.street} ${ctx.instance.postalCode} ${ctx.instance.city}`;
       await user.save();
       logger.publish(3, `${collectionName}`, 'afterSave:res', user);
       return ctx.instance;
@@ -63,10 +53,8 @@ module.exports = function(Address) {
         zipcode: address.postalCode,
       })
       .then(res => {
-        result.streetNumber =
-          Number(res[0].streetNumber) || Number(res[1].streetNumber);
-        result.streetName =
-          res[0].streetName || res[1].streetName || res[2].streetName;
+        result.streetNumber = Number(res[0].streetNumber) || Number(res[1].streetNumber);
+        result.streetName = res[0].streetName || res[1].streetName || res[2].streetName;
         result.city = res[0].city || res[1].city || res[2].city;
         result.postalCode = res[0].zipcode || res[1].zipcode || res[2].zipcode;
         result.coordinates = {

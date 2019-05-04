@@ -1,18 +1,18 @@
-import logger from "../services/logger";
+import logger from '../services/logger';
 
 export default function roleResolver(server) {
   const Role = server.models.Role;
 
-  Role.registerResolver("teamMember", async (role, context) => {
+  Role.registerResolver('teamMember', async (role, context) => {
     try {
-      logger.publish(4, "loopback", "boot:roleResolver:res", role);
+      logger.publish(4, 'loopback', 'boot:roleResolver:res', role);
       // function reject() {
       //   process.nextTick(() => {
       //     cb(null, false);
       //     // return false
       //   });
       // }
-      if (context.modelName !== "VirtualObject") {
+      if (context.modelName !== 'VirtualObject') {
         //  return reject();
         return false;
       }
@@ -28,9 +28,9 @@ export default function roleResolver(server) {
       const count = await Team.count({
         ownerId: virtualObject.ownerId,
         memberId: userId,
-        role: "viewer",
+        role: 'viewer',
       });
-      console.log("[BOOT] roleResolver:res", count);
+      console.log('[BOOT] roleResolver:res', count);
       if (count > 0) {
         //  return cb(null, true);
         return true;
@@ -38,15 +38,15 @@ export default function roleResolver(server) {
       //  return cb(null, false);
       return false;
     } catch (error) {
-      logger.publish(4, "loopback", "boot:roleResolver:err", error);
+      logger.publish(4, 'loopback', 'boot:roleResolver:err', error);
       return error;
     }
   });
 
-  Role.registerResolver("editor", async (role, context) => {
+  Role.registerResolver('editor', async (role, context) => {
     try {
-      console.log("[BOOT] roleResolver", role);
-      if (context.modelName !== "VirtualObject") {
+      console.log('[BOOT] roleResolver', role);
+      if (context.modelName !== 'VirtualObject') {
         return false;
       }
       const userId = context.accessToken.userId;
@@ -60,15 +60,15 @@ export default function roleResolver(server) {
       const count = await Team.count({
         ownerId: virtualObject.ownerId,
         memberId: userId,
-        role: "editor",
+        role: 'editor',
       });
-      console.log("[BOOT] roleResolver:res", count);
+      console.log('[BOOT] roleResolver:res', count);
       if (count > 0) {
         return true;
       }
       return false;
     } catch (error) {
-      logger.publish(4, "loopback", "boot:roleResolver:err", error);
+      logger.publish(4, 'loopback', 'boot:roleResolver:err', error);
       return error;
     }
   });

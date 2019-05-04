@@ -1,17 +1,17 @@
 module.exports = {
   db: {
-    name: "db",
-    connector: "memory",
+    name: 'db',
+    connector: 'memory',
     maxDepthOfQuery: 12,
     maxDepthOfData: 32,
     // file: './log/session.json',
   },
   email: {
-    name: "email",
-    connector: "mail",
+    name: 'email',
+    connector: 'mail',
     transports: [
       {
-        type: "smtp",
+        type: 'smtp',
         host: process.env.SMTP_HOST,
         secure: process.env.SMTP_SECURE,
         port: Number(process.env.SMTP_PORT),
@@ -31,11 +31,11 @@ module.exports = {
   //   password: process.env.REDIS_PASS || '',
   // },
   storage: {
-    name: "storage",
-    connector: "loopback-component-storage",
-    provider: "filesystem",
-    root: process.env.FS_PATH || "./storage",
-    nameConflict: "makeUnique",
-    maxFileSize: "10428800",
+    name: 'storage',
+    connector: 'loopback-component-storage',
+    provider: 'filesystem',
+    root: process.env.FS_PATH || './storage',
+    nameConflict: 'makeUnique',
+    maxFileSize: '10428800',
   },
 };

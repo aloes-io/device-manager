@@ -14,7 +14,7 @@ const baseConf = {
   to: '',
   from: emailFrom,
   text: '',
-  headers: {'Mime-Version': '1.0'},
+  headers: { 'Mime-Version': '1.0' },
   host: `${process.env.HOST}`,
   port: process.env.PORT,
   restApiRoot: process.env.REST_API_ROOT,
@@ -47,9 +47,7 @@ const config = {
 
 const sendMail = updatedOptions =>
   new Promise((resolve, reject) => {
-    server.models.Email.send(updatedOptions, (err, res) =>
-      err ? reject(err) : resolve(res),
-    );
+    server.models.Email.send(updatedOptions, (err, res) => (err ? reject(err) : resolve(res)));
   });
 
 mails.send = async options => {
@@ -65,7 +63,7 @@ mails.send = async options => {
       const mailError = utils.buildError('INVALID_EMAIL', 'email was rejected');
       return mailError;
     }
-    result = {message: 'email sent'};
+    result = { message: 'email sent' };
     return result;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'send:err', error);
@@ -79,11 +77,9 @@ mails.verifyEmail = async user => {
   const options = {
     ...config.verifyOptions,
     to: user.email,
-    verifyHref: `${process.env.HTTP_SERVER_URL}${
-      process.env.REST_API_ROOT
-    }/users/confirm?uid=${user.id}&redirect=${
-      process.env.HTTP_CLIENT_URL
-    }/login`,
+    verifyHref: `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/users/confirm?uid=${
+      user.id
+    }&redirect=${process.env.HTTP_CLIENT_URL}/login`,
     user,
     text: `Please confirm account creation by opening this link`,
   };
@@ -137,9 +133,9 @@ mails.sendMailInvite = async (ctx, options) => {
     to: options.email,
     guestName: options.email,
     url: `${process.env.HTTP_CLIENT_URL}`,
-    text: `${options.profile.firstName} ${
-      options.profile.lastName
-    } invited you on ${process.env.APP_NAME}`,
+    text: `${options.profile.firstName} ${options.profile.lastName} invited you on ${
+      process.env.APP_NAME
+    }`,
   };
   return mails.send(newOptions);
 };

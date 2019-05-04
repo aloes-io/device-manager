@@ -1,10 +1,10 @@
-import fallback from 'express-history-api-fallback';
-import path from 'path';
 import bodyParser from 'body-parser';
 //  import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
-//  import session from 'express-session';
+import fallback from 'express-history-api-fallback';
 import flash from 'express-flash';
+import path from 'path';
+//  import session from 'express-session';
 import app from './src/server';
 import logger from './src/services/logger';
 
@@ -15,20 +15,18 @@ if (result.error) {
 
 const client = path.resolve(__dirname, 'client');
 
-const unless = function(paths, middleware) {
-  return function(req, res, next) {
-    if (paths.some(p => req.path.indexOf(p) > -1)) {
-      return next();
-    }
-    return middleware(req, res, next);
-  };
+const unless = (paths, middleware) => (req, res, next) => {
+  if (paths.some(p => req.path.indexOf(p) > -1)) {
+    return next();
+  }
+  return middleware(req, res, next);
 };
 
 // enable redirect urls to index
 app.use(
   unless(
     [process.env.REST_API_ROOT, '/auth', '/explorer', '/components'],
-    fallback('index.html', {root: client}),
+    fallback('index.html', { root: client }),
   ),
 );
 
@@ -38,7 +36,6 @@ app.set('port', Number(result.parsed.PORT));
 app.set('view engine', 'ejs');
 app.set('json spaces', 2); // format json responses for easier viewing
 app.set('views', path.join(__dirname, 'views'));
-
 //  app.set('cookieSecret', result.parsed.COOKIE_SECRET);
 
 app.use(flash());
@@ -75,42 +72,15 @@ app.middleware(
 //   }),
 // );
 
-// start app
 app.on('started', () => {
-  // for pm2 graceful start mode
-  //  process.send('ready');
-  //  console.log(`[SETUP] config : host ${app.get('host')} | port ${app.get('port')}`);
   const baseUrl = app.get('url').replace(/\/$/, '');
-  console.log(`[LOOPBACK] setup:Browse ${process.env.APP_NAME} at ${baseUrl}`);
-
+  logger.publish(4, 'loopback', 'Setup', `Browse ${process.env.APP_NAME} API @: ${baseUrl}`);
   if (app.get('loopback-component-explorer')) {
     const explorerPath = app.get('loopback-component-explorer').mountPath;
-    logger.publish(
-      4,
-      'loopback',
-      'Setup',
-      `Browse REST API @: ${baseUrl}${explorerPath}`,
-    );
+    logger.publish(4, 'loopback', 'Setup', `Explore REST API @: ${baseUrl}${explorerPath}`);
   }
+  //  process.send('ready');
 });
-
-// process.on('SIGINT', () => {
-//   console.info('SIGINT signal received.');
-//   broker.close(() => {
-//     console.log('Mosca connection disconnected');
-//   });
-//   // Stops the server from accepting new connections and finishes existing connections.
-//   app.close((err) => {
-//     if (err) {
-//       console.error(err);
-//       process.exit(1);
-//     }
-//     // app.broker.close(() => {
-//     //   console.log('Mosca connection disconnected');
-//     //   process.exit(0);
-//     // });
-//   });
-// });
 
 if (require.main === module) {
   app.start();

@@ -27,7 +27,7 @@ module.exports = function(User) {
   //  User.validatesAbsenceOf('deleted', {unless: 'admin'});
   User.validatesLengthOf('password', {
     min: 5,
-    message: {min: 'User password is too short'},
+    message: { min: 'User password is too short' },
   });
   // User.validatesPresenceOf('type', {
   //   message: 'User must contain type value',
@@ -114,9 +114,7 @@ module.exports = function(User) {
       return utils
         .mkDirByPathSync(`${process.env.FS_PATH}/${ctx.args.uid}`)
         .then(res => {
-          console.log(
-            `[${collectionName.toUpperCase()}] container Check : ${res}`,
-          );
+          console.log(`[${collectionName.toUpperCase()}] container Check : ${res}`);
           return res;
         })
         .catch(err => err);
@@ -177,7 +175,7 @@ module.exports = function(User) {
   User.findByEmail = async email => {
     try {
       logger.publish(4, `${collectionName}`, 'findByEmail:req', email);
-      const user = await User.findOne({where: {email}});
+      const user = await User.findOne({ where: { email } });
       if (!user || user === null) {
         return new Error("user doesn't exist");
       }
@@ -250,12 +248,7 @@ module.exports = function(User) {
   });
 
   User.updatePasswordFromToken = async (accessToken, newPassword) => {
-    logger.publish(
-      3,
-      `${collectionName}`,
-      'updatePasswordFromToken:req',
-      accessToken,
-    );
+    logger.publish(3, `${collectionName}`, 'updatePasswordFromToken:req', accessToken);
     let error;
 
     if (!accessToken) {

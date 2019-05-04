@@ -2,7 +2,7 @@ import path from 'path';
 
 const app = path.resolve(__dirname, '../server/server');
 const db = app.datasources.db;
-db.autoupdate('Account', (err) => {
+db.autoupdate('Account', err => {
   if (err) throw err;
 
   const accounts = [
@@ -18,7 +18,7 @@ db.autoupdate('Account', (err) => {
     },
   ];
   let count = accounts.length;
-  accounts.forEach((account) => {
+  accounts.forEach(account => {
     app.models.Account.create(account, (e, model) => {
       if (e) throw e;
       console.log('Created:', model);

@@ -1,13 +1,13 @@
 module.exports = {
   db: {
-    name: "db",
-    connector: "mongodb",
-    database: process.env.MONGO_COLLECTION || "ymc_stage",
-    host: process.env.MONGO_HOST || "localhost",
+    name: 'db',
+    connector: 'mongodb',
+    database: process.env.MONGO_COLLECTION || 'ymc_stage',
+    host: process.env.MONGO_HOST || 'localhost',
     port: Number(process.env.MONGO_PORT) || 27017,
     auth: {
-      user: process.env.MONGO_USER || "",
-      password: process.env.MONGO_PASS || "",
+      user: process.env.MONGO_USER || '',
+      password: process.env.MONGO_PASS || '',
     },
     useNewUrlParser: true,
     lazyConnect: false,
@@ -17,11 +17,11 @@ module.exports = {
     enableGeoIndexing: true,
   },
   email: {
-    name: "email",
-    connector: "mail",
+    name: 'email',
+    connector: 'mail',
     transports: [
       {
-        type: "smtp",
+        type: 'smtp',
         host: process.env.SMTP_HOST,
         secure: process.env.SMTP_SECURE,
         port: Number(process.env.SMTP_PORT),
@@ -33,11 +33,11 @@ module.exports = {
     ],
   },
   storage: {
-    name: "storage",
-    connector: "loopback-component-storage",
-    provider: "filesystem",
-    root: process.env.FS_PATH || "./storage",
-    nameConflict: "makeUnique",
-    maxFileSize: "10428800",
+    name: 'storage',
+    connector: 'loopback-component-storage',
+    provider: 'filesystem',
+    root: process.env.FS_PATH || './storage',
+    nameConflict: 'makeUnique',
+    maxFileSize: '10428800',
   },
 };
