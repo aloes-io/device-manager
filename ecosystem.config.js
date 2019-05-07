@@ -11,16 +11,16 @@ module.exports = {
   apps: [
     {
       name: `${result.parsed.NODE_NAME}-${result.parsed.NODE_ENV}`,
-      script: './index.js',
-      interpreter: './node_modules/@babel/node/bin/babel-node.js',
+      script: './dist/index.js',
+      interpreter: 'node',
       output: `./log/${result.parsed.NODE_NAME}.out.log`,
       error: `./log/${result.parsed.NODE_NAME}.error.log`,
       max_memory_restart: '1G',
       restart_delay: 500,
-      wait_ready: true,
+      wait_ready: false,
       listen_timeout: 3000,
       env: {
-        NODE_ENV: 'development',
+        NODE_ENV: result.parsed.NODE_ENV,
       },
       env_staging: {
         NODE_ENV: 'staging',

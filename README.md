@@ -7,6 +7,7 @@
 - Modelling sensors with OMA schemas
 
 [Swagger Explorer](https://api.aloes.io/explorer)
+
 [Full Docs](https://aloes.frama.io/device-manager/)
 
 REST API Server build upon :

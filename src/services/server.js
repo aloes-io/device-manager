@@ -20,18 +20,19 @@ const app = loopback();
  */
 app.init = config => {
   try {
+    logger.publish(2, 'loopback', 'Init', `${config.NODE_NAME} / ${config.NODE_ENV}`);
     const options = {
       appRootDir: config.appRootDir,
       // File Extensions for jest (strongloop/loopback#3204)
       scriptExtensions: config.scriptExtensions,
     };
-    return boot(app, options, err => {
+    boot(app, options, err => {
       if (err) throw err;
-      // if (require.main === module) {
-      //   app.start(config);
-      // }
-      app.start(config);
+      //  if (require.main === module) {
+      //  app.start(config);
+      //  }
     });
+    return app.start(config);
   } catch (error) {
     return error;
   }
@@ -99,6 +100,8 @@ app.start = async config => {
     //   }),
     // );
 
+    logger.publish(2, 'loopback', 'Start', `config : ${app.get('host')}:${app.get('port')}`);
+
     if (config.TUNNEL_URL) {
       await tunnel.init(app, config);
       logger.publish(2, 'tunnel', 'opened', app.tunnel);
@@ -106,8 +109,6 @@ app.start = async config => {
 
     httpServer = app.listen(() => {
       app.emit('started');
-      logger.publish(2, 'loopback', 'Setup', `${config.NODE_NAME} / ${config.NODE_ENV}`);
-      logger.publish(2, 'loopback', 'Setup', `config : ${app.get('host')}:${app.get('port')}`);
       const baseUrl = app.get('url').replace(/\/$/, '');
       logger.publish(2, 'loopback', 'Setup', `Express API server listening @: ${baseUrl}/api`);
 

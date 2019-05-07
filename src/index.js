@@ -4,8 +4,8 @@ import fallback from 'express-history-api-fallback';
 import flash from 'express-flash';
 import nodeCleanup from 'node-cleanup';
 import path from 'path';
-import app from './src/services/server';
-import logger from './src/services/logger';
+import app from './services/server';
+import logger from './services/logger';
 
 const client = path.resolve(__dirname, 'client');
 
@@ -61,12 +61,11 @@ if (require.main === module) {
   }
   const config = {
     ...result.parsed,
-    appRootDir: `${__dirname}/src`,
+    appRootDir: __dirname,
     // File Extensions for jest (strongloop/loopback#3204)
     scriptExtensions: ['.js', '.json', '.node', '.ejs'],
   };
   app.init(config);
-  //  app.start(config);
 }
 
 nodeCleanup((exitCode, signal) => {
