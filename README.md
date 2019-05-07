@@ -1,12 +1,13 @@
 # Aloes - Device Manager
 
-- Handle devices and sensors CRUD
 - Authentification by access token for accounts / devices / external apps
+- Handle devices and sensors CRUD
 - MQTT flow triggered by HTTP operations hooks
 - Dispatch MQTT payload from several protocol sources
 - Modelling sensors with OMA schemas
 
 [Swagger Explorer](https://api.aloes.io/explorer)
+[Full Docs](https://aloes.frama.io/device-manager/)
 
 REST API Server build upon :
 - [NodeJS](https://nodejs.org/en/)

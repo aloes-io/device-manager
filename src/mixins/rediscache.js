@@ -1,9 +1,14 @@
 import redis from 'redis';
 import { promisify } from 'util';
-import app from '../server';
+//  import app from '../services/server';
 
+/**
+ * @module RedisCache
+ */
 module.exports = (Model, options) => {
   let clientSettings;
+  const app = Model.app;
+
   if (options.client) {
     clientSettings = options.client;
   } else {

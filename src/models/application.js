@@ -329,4 +329,38 @@ module.exports = Application => {
       return error;
     }
   };
+
+  /**
+   * Create new token, and update Device instance
+   * @method module:Device.refreshToken
+   * @param {object} device - Device instance
+   * @returns {functions} device.updateAttributes
+   */
+  Application.refreshToken = async (ctx, application) => {
+    try {
+      logger.publish(4, `${collectionName}`, 'refreshToken:req', application.id);
+      if (!ctx.req.accessToken) throw new Error('missing token');
+      if (!application.id) throw new Error('missing application.id');
+      if (ctx.req.accessToken.userId.toString() !== application.userId.toString()) {
+        throw new Error('Invalid user');
+      }
+      application = await Application.findById(application.id);
+
+      if (application && application !== null) {
+        await Application.app.models.accessToken.destroyById(application.apiKey);
+        const token = await application.accessTokens.create({
+          appEui: application.appEui,
+          userId: application.id,
+          ttl: -1,
+        });
+        // publish new apiKey to target application ?
+        await application.updateAttribute('apiKey', token.id.toString());
+        return application;
+      }
+      throw new Error('Missing Application instance');
+    } catch (error) {
+      logger.publish(4, `${collectionName}`, 'refreshToken:err', error);
+      return error;
+    }
+  };
 };

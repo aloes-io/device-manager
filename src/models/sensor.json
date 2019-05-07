@@ -193,5 +193,29 @@
       ]
     }
   ],
-  "methods": {}
+  "methods": {
+    "compose": {
+      "description": ["Compose a valid sensor instance from parsed device payload"],
+      "accepts": [
+        {
+          "arg": "device",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "encoded",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "sensor",
+        "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/compose"
+      }
+    }
+  }
 }

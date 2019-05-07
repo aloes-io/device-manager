@@ -1,4 +1,4 @@
-import server from '../server';
+import app from './server';
 import utils from './utils';
 import logger from './logger';
 
@@ -47,7 +47,7 @@ const config = {
 
 const sendMail = updatedOptions =>
   new Promise((resolve, reject) => {
-    server.models.Email.send(updatedOptions, (err, res) => (err ? reject(err) : resolve(res)));
+    app.models.Email.send(updatedOptions, (err, res) => (err ? reject(err) : resolve(res)));
   });
 
 mails.send = async options => {

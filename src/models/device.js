@@ -1,5 +1,4 @@
 import iotAgent from 'iot-agent';
-import { updateAloesSensors } from 'aloes-handlers';
 import logger from '../services/logger';
 import utils from '../services/utils';
 
@@ -65,6 +64,8 @@ module.exports = function(Device) {
   Device.validate('type', typeValidator, {
     message: 'Wrong device type',
   });
+
+  Device.validatesPresenceOf('ownerId');
 
   Device.validatesUniquenessOf('devEui', { scopedTo: ['ownerId'] });
   // Device.validatesDateOf("lastSignal", {message: "lastSignal is not a date"});
@@ -159,6 +160,12 @@ module.exports = function(Device) {
     }
   });
 
+  /**
+   * Token creation helper
+   * @method module:Device~createToken
+   * @param {object} device - Device instance
+   * returns {object} token
+   */
   const createToken = async device => {
     try {
       let token;
@@ -183,6 +190,13 @@ module.exports = function(Device) {
     }
   };
 
+  /**
+   * Init device depencies ( token, address )
+   * @method module:Device~createDeviceProps
+   * @param {object} ctx - Application context
+   * @param {object} ctx.req - HTTP request
+   * @param {object} ctx.res - HTTP response
+   */
   const createDeviceProps = async ctx => {
     try {
       await ctx.instance.deviceAddress.create({
@@ -215,6 +229,13 @@ module.exports = function(Device) {
     }
   };
 
+  /**
+   * Update device depencies ( token, sensors )
+   * @method module:Device~updateDeviceProps
+   * @param {object} ctx - Application context
+   * @param {object} ctx.req - HTTP request
+   * @param {object} ctx.res - HTTP response
+   */
   const updateDeviceProps = async ctx => {
     try {
       const token = await ctx.instance.accessTokens.findById(ctx.instance.apiKey);
@@ -301,11 +322,11 @@ module.exports = function(Device) {
 
   /**
    * Event reporting that a device instance will be deleted.
-   * @event before save
+   * @event before delete
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @param {object} ctx.instance - Device instance
+   * @param {object} ctx.where.id - Device instance
    */
   Device.observe('before delete', async ctx => {
     try {
@@ -340,11 +361,12 @@ module.exports = function(Device) {
 
   /**
    * Find device related to incoming MQTT packet
+   * @method module:Device.findByPattern
    * @param {object} pattern - IotAgent parsed pattern
    * @param {object} encoded - IotAgent parsed message
    * @returns {object} device
    */
-  const findDeviceByPattern = async (pattern, encoded) => {
+  Device.findByPattern = async (pattern, encoded) => {
     try {
       const transportProtocol = {
         like: new RegExp(`.*${pattern.name}.*`, 'i'),
@@ -405,177 +427,8 @@ module.exports = function(Device) {
   };
 
   /**
-   * When device found, create or update sensor instance
-   * @param {object} device - found device instance
-   * @param {object} encoded - IotAgent parsed message
-   * @returns {object} sensor
-   */
-  const composeSensor = (device, encoded) => {
-    try {
-      let sensor = {};
-      if ((!device.sensors() || !device.sensors()[0]) && encoded.type) {
-        sensor = {
-          //  ...encoded,
-          name: encoded.name || null,
-          type: encoded.type,
-          resources: encoded.resources,
-          icons: encoded.icons,
-          colors: encoded.colors,
-          nativeType: encoded.nativeType,
-          nativeResource: encoded.nativeResource,
-          nativeSensorId: encoded.nativeSensorId,
-          nativeNodeId: encoded.nativeNodeId || null,
-          frameCounter: encoded.frameCounter || 0,
-          inPrefix: encoded.inPrefix || null,
-          outPrefix: encoded.outPrefix || null,
-          inputPath: encoded.inputPath || null,
-          outputPath: encoded.outputPath || null,
-          transportProtocol: device.transportProtocol,
-          transportProtocolVersion: device.transportProtocolVersion,
-          messageProtocol: device.messageProtocol,
-          messageProtocolVersion: device.messageProtocolVersion,
-          devEui: device.devEui,
-          devAddr: device.devAddr,
-          ownerId: device.ownerId,
-          isNewInstance: true,
-        };
-        logger.publish(4, `${collectionName}`, 'composeSensor:new', {
-          sensor,
-        });
-        return sensor;
-      } else if (device.sensors()[0] && device.sensors()[0].id) {
-        sensor = device.sensors()[0];
-        logger.publish(4, `${collectionName}`, 'composeSensor:update', {
-          sensor,
-        });
-        sensor.isNewInstance = false;
-        //  sensor.name = encoded.name;
-        //  sensor.resource = encoded.resource;
-        sensor.description = encoded.description;
-        sensor.inPrefix = encoded.inPrefix || null;
-        sensor.outPrefix = encoded.outPrefix || null;
-        sensor.inputPath = encoded.inputPath || null;
-        sensor.outputPath = encoded.outputPath || null;
-        sensor.devEui = device.devEui;
-        sensor.devAddr = device.devAddr;
-        sensor.transportProtocol = device.transportProtocol;
-        sensor.transportProtocolVersion = device.transportProtocolVersion;
-        sensor.messageProtocol = device.messageProtocol;
-        sensor.messageProtocolVersion = device.messageProtocolVersion;
-        return sensor;
-      }
-      throw new Error('no sensor found and no known type to register a new one');
-    } catch (error) {
-      return error;
-    }
-  };
-
-  /**
-   * When GET method detected, find and publish instance
-   * @param {object} pattern - IotAgent detected pattern
-   * @param {object} sensor - Incoming sensor instance
-   * @returns {object} sensor
-   * @returns {function} app.publish
-   */
-  const getInstance = async (pattern, sensor) => {
-    try {
-      let packet = {
-        topic: `${sensor.ownerId}/IoTAgent/GET`,
-        payload: JSON.stringify(sensor),
-      };
-      if (pattern.name.toLowerCase() !== 'aloesclient') {
-        packet = await iotAgent.decode(packet, pattern.params);
-      }
-      if (packet.payload && packet.payload !== null) {
-        //  console.log('getInstance res:', topic, payload);
-        return Device.app.publish(packet.topic, packet.payload, false, 0);
-      }
-      throw new Error('no packet payload to publish');
-    } catch (error) {
-      return error;
-    }
-  };
-
-  /**
-   * When HEAD detected, validate sensor.resource and value, then save sensor instance
-   * @param {object} device - found device instance
-   * @param {object} sensor - Incoming sensor instance
-   * @param {object} encoded - IotAgent parsed message
-   * @returns {function} sensor.create
-   * @returns {function} sensor.updateAttributes
-   */
-  const handleSensorPresentation = async (device, sensor, encoded) => {
-    try {
-      logger.publish(4, `${collectionName}`, 'handleSensorPresentation:req', {
-        deviceId: device.id,
-      });
-      sensor.frameCounter = 0;
-      if (encoded.resource) {
-        sensor.resource = Number(encoded.resource);
-      }
-      if (sensor.isNewInstance && sensor.icons) {
-        sensor.method = 'HEAD';
-        return device.sensors.create(sensor);
-      } else if (sensor.id) {
-        const updatedSensor = await device.sensors.findById(sensor.id);
-        if (!updatedSensor) throw new Error('Sensor not found');
-        delete sensor.id;
-        updatedSensor.method = 'HEAD';
-        if (!updatedSensor.resource) {
-          updatedSensor.resource = sensor.resource;
-        }
-        return updatedSensor.save();
-      }
-      throw new Error('no valid sensor to register');
-    } catch (error) {
-      return error;
-    }
-  };
-
-  /**
-   * When POST or PUT method detected, validate sensor.resource and value, then save sensor instance
-   * @param {object} device - found device instance
-   * @param {object} sensor - Incoming sensor instance
-   * @param {object} encoded - IotAgent parsed message
-   * @returns {function} sensor.create
-   * @returns {function} sensor.updateAttributes
-   */
-  const createOrUpdateSensor = async (device, sensor, encoded) => {
-    try {
-      logger.publish(4, `${collectionName}`, 'createOrUpdateSensor:req', {
-        sensorId: sensor.id,
-      });
-      if (sensor.isNewInstance) throw new Error('Sensor not created yet');
-      sensor.frameCounter += 1;
-      if (sensor.id) {
-        const updatedSensor = await device.sensors.findById(sensor.id);
-        if (encoded.value && encoded.resource) {
-          sensor = await updateAloesSensors(sensor, Number(encoded.resource), encoded.value);
-          sensor.method = encoded.method;
-          // await updatedSensor.measurements.create({
-          //   date: sensor.lastSignal,
-          //   type: typeof sensor.resources[resource],
-          //   omaObjectId: sensor.type,
-          //   omaResourceId: sensor.resource,
-          //   deviceId: sensor.deviceId,
-          //   value: sensor.value,
-          // });
-        }
-        logger.publish(4, `${collectionName}`, 'createOrUpdateSensor:res', {
-          inType: typeof encoded.value,
-          outType: typeof sensor.value,
-        });
-        delete sensor.id;
-        return updatedSensor.updateAttributes(sensor);
-      }
-      throw new Error('no valid sensor to update');
-    } catch (error) {
-      return error;
-    }
-  };
-
-  /**
    * Find properties and dispatch to the right function
+   * @method module:Device~parseMessage
    * @param {object} pattern - Pattern detected by IotAgent
    * @param {object} encoded - IotAgent parsed message
    * @returns {functions} getInstance
@@ -591,16 +444,20 @@ module.exports = function(Device) {
         encoded.nativeSensorId &&
         (encoded.type || encoded.resource)
       ) {
-        const device = await findDeviceByPattern(pattern, encoded);
+        const device = await Device.findByPattern(pattern, encoded);
         if (!device || device === null) return null;
-        const tempSensor = await composeSensor(device, encoded);
+        const Sensor = Device.app.models.Sensor;
+        const tempSensor = await Sensor.compose(
+          device,
+          encoded,
+        );
         //  console.log('sensor nativeId:', tempSensor.nativeSensorId);
         if (encoded.method === 'GET') {
-          return getInstance(tempSensor);
+          return Sensor.getInstance(tempSensor);
         } else if (encoded.method === 'HEAD') {
-          return handleSensorPresentation(device, tempSensor, encoded);
+          return Sensor.handlePresentation(device, tempSensor, encoded);
         } else if (encoded.method === 'POST' || encoded.method === 'PUT') {
-          return createOrUpdateSensor(device, tempSensor, encoded);
+          return Sensor.createOrUpdate(device, tempSensor, encoded);
           // await device.updateAttributes({
           //   frameCounter: device.frameCounter + 1 || 1,
           //   lastSignal: encoded.lastSignal || new Date(),
@@ -653,10 +510,14 @@ module.exports = function(Device) {
    * @param {object} device - Device instance
    * @returns {functions} device.updateAttributes
    */
-  Device.refreshToken = async device => {
+  Device.refreshToken = async (ctx, device) => {
     try {
       logger.publish(4, `${collectionName}`, 'refreshToken:req', device.id);
+      if (!ctx.req.accessToken) throw new Error('missing token');
       if (!device.id) throw new Error('missing device.id');
+      if (ctx.req.accessToken.userId.toString() !== device.ownerId.toString()) {
+        throw new Error('Invalid user');
+      }
       device = await Device.findById(device.id);
       if (device && device !== null) {
         await Device.app.models.accessToken.destroyById(device.apiKey);
@@ -677,11 +538,15 @@ module.exports = function(Device) {
     }
   };
 
+  /**
+   * Helper for device search
+   * @method module:Device~findDevice
+   * @param {object} whereFilter - Device filter
+   * @returns {promise} Device.find
+   */
   const findDevice = async whereFilter =>
     new Promise((resolve, reject) => {
-      Device.app.models.find(whereFilter, (err, profiles) =>
-        err ? reject(err) : resolve(profiles),
-      );
+      Device.find(whereFilter, (err, profiles) => (err ? reject(err) : resolve(profiles)));
     });
 
   /**
@@ -719,6 +584,12 @@ module.exports = function(Device) {
     }
   };
 
+  /**
+   * Helper for reverse geocoding
+   * @method module:Device~findAddresses
+   * @param {object} filter - Device location filter
+   * @returns {promise} Device.app.models.Address.find
+   */
   const findAddresses = async filter =>
     new Promise((resolve, reject) => {
       Device.app.models.Address.find(
