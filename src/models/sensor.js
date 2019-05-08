@@ -84,7 +84,8 @@ module.exports = function(Sensor) {
             collectionName,
             data: ctx.instance,
             modelId: ctx.instance.id,
-            method: ctx.instance.method || 'PUT',
+            //  method: ctx.instance.method || 'PUT',
+            method: 'PUT',
             pattern: 'aloesClient',
           });
         }

@@ -14,7 +14,7 @@ module.exports = function passportConfig(server) {
   });
   Object.keys(providers).forEach(provider => {
     const c = providers[provider];
-    if (provider.startsWith('github') && !providers[provider].clientId) {
+    if (!c.clientId) {
       return null;
     }
     c.session = c.session !== false;

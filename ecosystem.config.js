@@ -5,7 +5,6 @@ const result = dotenv.config();
 if (result.error) {
   throw result.error;
 }
-//  console.log("[PM2] Parsing dotenv config : ", result.parsed);
 
 module.exports = {
   apps: [
