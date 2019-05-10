@@ -9,66 +9,6 @@ import logger from './logger';
 const broker = {};
 
 /**
- * Init MQTT Broker with new Mosca instance
- * @method module:Broker.init
- * @param {object} app - Loopback app
- * @param {object} httpServer - HTTP server to attach
- * @returns {function} broker.start
- */
-broker.init = (app, httpServer) => {
-  try {
-    const brokerConfig = {
-      port: Number(process.env.MQTT_BROKER_PORT),
-      //  backend: ascoltatore,
-      // interfaces: [
-      //   {type: "mqtt", port: Number(process.env.MQTT_BROKER_PORT)},
-      //   //  { type: "mqtts", port: brokerPortSecure, credentials: { keyPath: privateKeyPath, certPath: certificatePath } },
-      // ],
-      // persistence: {
-      //   factory: mosca.persistence.Redis,
-      //   host: process.env.REDIS_HOST,
-      //   port: Number(process.env.REDIS_PORT),
-      //   password: process.env.REDIS_PASS,
-      //   //  channel: "moscaSync",
-      //   //  ttl: {subscriptions: 3600 * 1000, packets: 3600 * 1000},
-      // },
-    };
-
-    app.broker = new mosca.Server(brokerConfig);
-    app.broker.attachHttpServer(httpServer);
-    return broker.start(app);
-  } catch (error) {
-    return error;
-  }
-  // const ascoltatore = {
-  //   type: 'redis',
-  //   redis,
-  //   db: Number(process.env.REDIS_MQTT_COLLECTION) || 2,
-  //   host: process.env.REDIS_HOST,
-  //   port: Number(process.env.REDIS_PORT),
-  //   password: process.env.REDIS_PASS,
-  //   //  return_buffers: true, // to handle binary payloads
-  // };
-};
-
-/**
- * Stop broker functions and update models status
- * @method module:Broker.stop
- * @param {object} app - Loopback app
- * @returns {boolean}
- */
-broker.close = async app => {
-  try {
-    app.broker.close();
-    await app.models.Device.updateAll({ status: true }, { status: false });
-    //  return app.broker.close();
-    return true;
-  } catch (error) {
-    return error;
-  }
-};
-
-/**
  * Setup broker functions
  * @method module:Broker.start
  * @param {object} app - Loopback app
@@ -76,6 +16,11 @@ broker.close = async app => {
  */
 broker.start = app => {
   try {
+    logger.publish(2, 'broker', 'Start', `${process.env.MQTT_BROKER_URL}`);
+    if (process.env.MQTTS_BROKER_URL) {
+      logger.publish(2, 'broker', 'Start', `${process.env.MQTTS_BROKER_URL}`);
+    }
+
     /**
      * Mosca authentification callback
      * @method module:Broker~authenticate
@@ -228,14 +173,6 @@ broker.start = app => {
     };
 
     app.broker.on('ready', setup);
-
-    app.broker.on('error', err => {
-      logger.publish(4, 'broker', 'error', err);
-    });
-
-    app.broker.on('close', () => {
-      logger.publish(4, 'broker', 'close', process.env.MQTT_BROKER_URL);
-    });
 
     /**
      * Update device status from MQTT conection status
@@ -518,6 +455,86 @@ broker.start = app => {
     // });
     return app.broker;
   } catch (error) {
+    logger.publish(2, 'broker', 'Start:err', error);
+    return error;
+  }
+};
+
+/**
+ * Stop broker functions and update models status
+ * @method module:Broker.stop
+ * @param {object} app - Loopback app
+ * @returns {boolean}
+ */
+broker.stop = async app => {
+  try {
+    logger.publish(2, 'broker', 'Stop', `${process.env.MQTT_BROKER_URL}`);
+    app.broker.close();
+    await app.models.Device.updateAll({ status: true }, { status: false });
+    return true;
+  } catch (error) {
+    logger.publish(2, 'broker', 'Stop:err', error);
+    return error;
+  }
+};
+
+/**
+ * Init MQTT Broker with new Mosca instance
+ * @method module:Broker.init
+ * @param {object} app - Loopback app
+ * @param {object} httpServer - HTTP server to attach for websockets support
+ * @param {object} conf - Env varirables
+ * @returns {function} broker.start
+ */
+broker.init = (app, httpServer, config) => {
+  try {
+    // const ascoltatore = {
+    //   type: 'redis',
+    //   redis,
+    //   db: Number(process.env.REDIS_MQTT_COLLECTION) || 2,
+    //   host: process.env.REDIS_HOST,
+    //   port: Number(process.env.REDIS_PORT),
+    //   password: process.env.REDIS_PASS,
+    //   //  return_buffers: true, // to handle binary payloads
+    // };
+    const brokerConfig = {
+      port: Number(config.MQTT_BROKER_PORT),
+      //  backend: ascoltatore,
+      // persistence: {
+      //   factory: mosca.persistence.Redis,
+      //   host: process.env.REDIS_HOST,
+      //   port: Number(process.env.REDIS_PORT),
+      //   password: process.env.REDIS_PASS,
+      //   //  channel: "moscaSync",
+      //   //  ttl: {subscriptions: 3600 * 1000, packets: 3600 * 1000},
+      // },
+    };
+
+    if (config.MQTTS_BROKER_URL) {
+      // todo if fs.exists
+      brokerConfig.secure = {
+        port: Number(config.MQTTS_BROKER_PORT),
+        keyPath: `${__dirname}/../../deploy/${config.MQTTS_BROKER_KEY}`,
+        certPath: `${__dirname}/../../deploy/${config.MQTTS_BROKER_CERT}`,
+      };
+    }
+
+    logger.publish(2, 'broker', 'Init', brokerConfig);
+
+    app.broker = new mosca.Server(brokerConfig);
+    app.broker.attachHttpServer(httpServer);
+
+    app.broker.on('error', err => {
+      logger.publish(4, 'broker', 'error', err);
+    });
+
+    app.broker.on('close', () => {
+      logger.publish(4, 'broker', 'closed');
+    });
+
+    return broker.start(app);
+  } catch (error) {
+    logger.publish(2, 'broker', 'Init:err', error);
     return error;
   }
 };

@@ -10,7 +10,7 @@ module.exports = {
       password: process.env.MONGO_PASS || '',
     },
     useNewUrlParser: true,
-    lazyConnect: false,
+    lazyConnect: true,
     maxDepthOfQuery: 12,
     maxDepthOfData: 32,
     allowExtendedOperators: true,

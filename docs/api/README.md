@@ -134,7 +134,7 @@ Event reporting that an application instance has been created or updated.
         * [~findAddresses(filter)](#module_Device..findAddresses) ⇒ <code>promise</code>
         * ["before save" (ctx)](#event_before save)
         * ["after save" (ctx)](#event_after save)
-        * ["before delete"](#event_before delete)
+        * ["before delete" (ctx)](#event_before delete)
 
 <a name="module_Device.refreshToken"></a>
 
@@ -314,18 +314,17 @@ Event reporting that a device instance has been created or updated.
 
 <a name="event_before delete"></a>
 
-### "before delete"
+### "before delete" (ctx)
 Event reporting that a device instance will be deleted.
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
-**Properties**
 
-| Name | Type | Description |
+| Param | Type | Description |
 | --- | --- | --- |
 | ctx | <code>object</code> | Express context. |
 | ctx.req | <code>object</code> | Request |
 | ctx.res | <code>object</code> | Response |
-| ctx.where.id | <code>object</code> | Device id |
+| ctx.where.id | <code>object</code> | Device instance |
 
 <a name="module_Files"></a>
 

@@ -9,6 +9,7 @@ colors.setTheme({
   VIRTUALOBJECT: ['white', 'bold', 'bgYellow'],
   LOOPBACK: ['cyan', 'bold'],
   BROKER: ['blue', 'bold'],
+  TUNNEL: ['yellow', 'bold'],
   CACHE: ['red', 'bold'],
   TRACKER: ['yellow', 'bold'],
   DEFAULT: 'white',
@@ -39,6 +40,9 @@ logger.publish = (priority, collectionName, command, content) => {
     switch (collectionName.toUpperCase()) {
       case 'BROKER':
         console.log(`${fullContent}`.BROKER);
+        break;
+      case 'TUNNEL':
+        console.log(`${fullContent}`.TUNNEL);
         break;
       case 'LOOPBACK':
         console.log(`${fullContent}`.LOOPBACK);

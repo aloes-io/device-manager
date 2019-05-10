@@ -14,61 +14,6 @@ let httpServer;
 const app = loopback();
 
 /**
- * Bootstrap the application, configure models, datasources and middleware.
- * @method module:Server.init
- * @param {object} config - Parsed env variables
- */
-app.init = config => {
-  try {
-    logger.publish(2, 'loopback', 'Init', `${config.NODE_NAME} / ${config.NODE_ENV}`);
-    const options = {
-      appRootDir: config.appRootDir,
-      // File Extensions for jest (strongloop/loopback#3204)
-      scriptExtensions: config.scriptExtensions,
-    };
-    boot(app, options, err => {
-      if (err) throw err;
-      //  if (require.main === module) {
-      //  app.start(config);
-      //  }
-    });
-    return app.start(config);
-  } catch (error) {
-    return error;
-  }
-};
-
-/**
- * Close the app and services
- * @method module:Server.stop
- */
-app.close = async () => {
-  try {
-    logger.publish(2, 'loopback', 'Close', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
-    if (app.broker) {
-      await broker.close(app);
-    }
-    if (app.tunnel) {
-      await tunnel.close(app);
-    }
-    if (httpServer) {
-      await httpServer.close();
-    }
-    return app.emit('closed');
-  } catch (error) {
-    return error;
-  }
-};
-
-/**
- * Emit publish event
- * @method module:Server.publish
- */
-app.publish = (topic, payload, qos, retain) => {
-  app.emit('publish', topic, payload, qos, retain);
-};
-
-/**
  * Init HTTP server with new Loopback instance
  *
  * Init external services ( MQTT broker, tunnel )
@@ -83,6 +28,7 @@ app.start = async config => {
     app.set('host', config.HOST);
     app.set('port', Number(config.PORT));
     //  app.set('cookieSecret', config.COOKIE_SECRET);
+    logger.publish(2, 'loopback', 'Start', `${app.get('host')}:${app.get('port')}`);
 
     // app.middleware('session:before', cookieParser(app.get('cookieSecret')));
     // app.middleware(
@@ -100,8 +46,6 @@ app.start = async config => {
     //   }),
     // );
 
-    logger.publish(2, 'loopback', 'Start', `config : ${app.get('host')}:${app.get('port')}`);
-
     if (config.TUNNEL_URL) {
       await tunnel.init(app, config);
       logger.publish(2, 'tunnel', 'opened', app.tunnel);
@@ -109,8 +53,6 @@ app.start = async config => {
 
     httpServer = app.listen(() => {
       app.emit('started');
-      const baseUrl = app.get('url').replace(/\/$/, '');
-      logger.publish(2, 'loopback', 'Setup', `Express API server listening @: ${baseUrl}/api`);
 
       //  app.get('/auth/account', ensureLoggedIn('/login'), (req, res, next) => {
       app.get('/auth/account', (req, res, next) => {
@@ -143,11 +85,67 @@ app.start = async config => {
     });
 
     if (config.MQTT_BROKER_URL) {
-      await broker.init(app, httpServer);
+      await broker.init(app, httpServer, config);
     }
 
     return httpServer;
   } catch (error) {
+    logger.publish(2, 'loopback', 'Start:err', error);
+    return error;
+  }
+};
+
+/**
+ * Close the app and services
+ * @method module:Server.stop
+ */
+app.stop = async () => {
+  try {
+    logger.publish(2, 'loopback', 'Stop', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
+    let exit = await broker.stop(app);
+    app.emit('stopped');
+    if (app.tunnel) {
+      exit = await tunnel.stop(app);
+    }
+    console.log('exit', exit);
+    httpServer.close();
+    return true;
+  } catch (error) {
+    logger.publish(2, 'loopback', 'Stop:err', error);
+    return error;
+  }
+};
+
+/**
+ * Emit publish event
+ * @method module:Server.publish
+ */
+app.publish = (topic, payload, qos, retain) => {
+  app.emit('publish', topic, payload, qos, retain);
+};
+
+/**
+ * Bootstrap the application, configure models, datasources and middleware.
+ * @method module:Server.init
+ * @param {object} config - Parsed env variables
+ */
+app.init = config => {
+  try {
+    logger.publish(2, 'loopback', 'Init', `${config.NODE_NAME} / ${config.NODE_ENV}`);
+    const options = {
+      appRootDir: config.appRootDir,
+      // File Extensions for jest (strongloop/loopback#3204)
+      scriptExtensions: config.scriptExtensions,
+    };
+    boot(app, options, err => {
+      if (err) throw err;
+      //  if (require.main === module) {
+      //  app.start(config);
+      //  }
+    });
+    return app.start(config);
+  } catch (error) {
+    logger.publish(2, 'loopback', 'Init:err', error);
     return error;
   }
 };

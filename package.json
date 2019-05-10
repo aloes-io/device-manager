@@ -59,7 +59,6 @@
     "moment": "^2.22.2",
     "moment-recur": "^1.0.7",
     "mosca": "^2.8.3",
-    "mqtt-pattern": "^1.2.0",
     "node-cleanup": "^2.1.2",
     "node-geocoder": "^3.22.0",
     "oma-json": "^1.0.6",
@@ -67,7 +66,6 @@
     "passport-github": "^1.1.0",
     "passport-local": "^1.0.0",
     "redis": "^2.8.0",
-    "redis-delete-pattern": "^0.1.0",
     "request": "^2.88.0",
     "shuffle": "^0.2.2",
     "strong-error-handler": "^2.0.0",
@@ -168,6 +166,7 @@
   },
   "eslintIgnore": [
     "/public/",
+    "/dist/",
     "/docs/",
     "/node_modules/"
   ],

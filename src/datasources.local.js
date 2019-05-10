@@ -6,7 +6,7 @@ module.exports = {
     host: process.env.MONGO_HOST,
     port: Number(process.env.MONGO_PORT) || 27017,
     useNewUrlParser: true,
-    lazyConnect: false,
+    lazyConnect: true,
     maxDepthOfQuery: 12,
     maxDepthOfData: 32,
     allowExtendedOperators: true,

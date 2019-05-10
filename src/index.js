@@ -7,7 +7,7 @@ import path from 'path';
 import app from './services/server';
 import logger from './services/logger';
 
-const client = path.resolve(__dirname, 'client');
+const client = path.resolve(__dirname, '/../client');
 
 const unless = (paths, middleware) => (req, res, next) => {
   if (paths.some(p => req.path.indexOf(p) > -1)) {
@@ -54,6 +54,11 @@ app.on('started', () => {
   //  process.send('ready');
 });
 
+app.on('stopped', () => {
+  logger.publish(4, 'loopback', 'stopped', true);
+  setTimeout(() => process.exit(0), 1000);
+});
+
 if (require.main === module) {
   const result = dotenv.config();
   if (result.error) {
@@ -69,13 +74,22 @@ if (require.main === module) {
 }
 
 nodeCleanup((exitCode, signal) => {
-  if (signal) {
-    app.close(err => {
-      console.log('close app : ', exitCode, signal, err);
-      process.kill(process.pid, signal);
-    });
-    nodeCleanup.uninstall(); // don't call cleanup handler again
-    return false;
+  try {
+    if (signal && signal !== null) {
+      logger.publish(4, 'process', 'Exit:req', { exitCode, signal, pid: process.pid });
+      app.stop(err => {
+        if (err) throw err;
+        logger.publish(4, 'process', 'Exit:res', true);
+        process.kill(process.pid, signal);
+      });
+      nodeCleanup.uninstall(); // don't call cleanup handler again
+      return false;
+    }
+    return true;
+  } catch (error) {
+    logger.publish(4, 'process', 'Exit:err', error);
+    process.exit(1);
+    return error;
   }
 });
 

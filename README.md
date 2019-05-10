@@ -119,3 +119,14 @@ Be sure to commit your changes on the right branch before each setup and update:
   $  git commit .
   $  git push
 ```
+
+## To deploy with your own TLS / SSL certificates
+
+Read https://nodejs.org/api/tls.html#tls_tls_ssl
+
+
+## To deploy with Localtunnel 
+
+Install your own instance :  https://github.com/localtunnel/server
+
+And then install wildcards certificates with : https://certbot.eff.org/
