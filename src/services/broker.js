@@ -16,9 +16,9 @@ const broker = {};
  */
 broker.start = app => {
   try {
-    logger.publish(2, 'broker', 'Start', `${process.env.MQTT_BROKER_URL}`);
+    logger.publish(2, 'broker', 'start', `${process.env.MQTT_BROKER_URL}`);
     if (process.env.MQTTS_BROKER_URL) {
-      logger.publish(2, 'broker', 'Start', `${process.env.MQTTS_BROKER_URL}`);
+      logger.publish(2, 'broker', 'start', `${process.env.MQTTS_BROKER_URL}`);
     }
 
     /**
@@ -455,7 +455,7 @@ broker.start = app => {
     // });
     return app.broker;
   } catch (error) {
-    logger.publish(2, 'broker', 'Start:err', error);
+    logger.publish(2, 'broker', 'start:err', error);
     return error;
   }
 };
@@ -468,12 +468,15 @@ broker.start = app => {
  */
 broker.stop = async app => {
   try {
-    logger.publish(2, 'broker', 'Stop', `${process.env.MQTT_BROKER_URL}`);
-    app.broker.close();
+    logger.publish(2, 'broker', 'stop', `${process.env.MQTT_BROKER_URL}`);
     await app.models.Device.updateAll({ status: true }, { status: false });
+    app.broker.close(err => {
+      if (err) throw err;
+      logger.publish(4, 'broker', 'stopped', '');
+    });
     return true;
   } catch (error) {
-    logger.publish(2, 'broker', 'Stop:err', error);
+    logger.publish(2, 'broker', 'stop:err', error);
     return error;
   }
 };
@@ -519,7 +522,7 @@ broker.init = (app, httpServer, config) => {
       };
     }
 
-    logger.publish(2, 'broker', 'Init', brokerConfig);
+    logger.publish(2, 'broker', 'init', brokerConfig);
 
     app.broker = new mosca.Server(brokerConfig);
     app.broker.attachHttpServer(httpServer);
@@ -528,13 +531,13 @@ broker.init = (app, httpServer, config) => {
       logger.publish(4, 'broker', 'error', err);
     });
 
-    app.broker.on('close', () => {
-      logger.publish(4, 'broker', 'closed');
-    });
+    // app.broker.on('close', () => {
+    //   logger.publish(4, 'broker', 'closed');
+    // });
 
     return broker.start(app);
   } catch (error) {
-    logger.publish(2, 'broker', 'Init:err', error);
+    logger.publish(2, 'broker', 'init:err', error);
     return error;
   }
 };

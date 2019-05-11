@@ -42,12 +42,12 @@ tunnel.start = async app => {
  */
 tunnel.stop = async app => {
   try {
-    logger.publish(2, 'tunnel', 'Stop', `${process.env.TUNNEL_URL}`);
+    logger.publish(2, 'tunnel', 'stop', `${process.env.TUNNEL_URL}`);
     //  app.set('url', app.get('originUrl'));
     app.tunnel.close();
     return true;
   } catch (error) {
-    logger.publish(2, 'tunnel', 'Stop:err', error);
+    logger.publish(2, 'tunnel', 'stop:err', error);
     return error;
   }
 };
@@ -63,7 +63,7 @@ tunnel.stop = async app => {
 tunnel.init = async (app, conf) => {
   try {
     const options = { host: conf.TUNNEL_URL, subdomain: `${conf.NODE_NAME}-${conf.NODE_ENV}` };
-    logger.publish(2, 'tunnel', 'Init', options);
+    logger.publish(2, 'tunnel', 'init', options);
     if (app.tunnel && app.tunnel.url) {
       return app.tunnel;
       //  app.tunnel.close();
@@ -83,7 +83,7 @@ tunnel.init = async (app, conf) => {
       return tunnel.start(app);
     });
   } catch (error) {
-    logger.publish(2, 'tunnel', 'Init:err', error);
+    logger.publish(2, 'tunnel', 'init:err', error);
     return error;
   }
 };

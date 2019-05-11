@@ -28,7 +28,7 @@ app.start = async config => {
     app.set('host', config.HOST);
     app.set('port', Number(config.PORT));
     //  app.set('cookieSecret', config.COOKIE_SECRET);
-    logger.publish(2, 'loopback', 'Start', `${app.get('host')}:${app.get('port')}`);
+    logger.publish(2, 'loopback', 'start', `${app.get('host')}:${app.get('port')}`);
 
     // app.middleware('session:before', cookieParser(app.get('cookieSecret')));
     // app.middleware(
@@ -45,11 +45,6 @@ app.start = async config => {
     //     },
     //   }),
     // );
-
-    if (config.TUNNEL_URL) {
-      await tunnel.init(app, config);
-      logger.publish(2, 'tunnel', 'opened', app.tunnel);
-    }
 
     httpServer = app.listen(() => {
       app.emit('started');
@@ -84,13 +79,17 @@ app.start = async config => {
       });
     });
 
+    if (config.TUNNEL_URL) {
+      await tunnel.init(app, config);
+    }
+
     if (config.MQTT_BROKER_URL) {
       await broker.init(app, httpServer, config);
     }
 
     return httpServer;
   } catch (error) {
-    logger.publish(2, 'loopback', 'Start:err', error);
+    logger.publish(2, 'loopback', 'start:err', error);
     return error;
   }
 };
@@ -99,19 +98,22 @@ app.start = async config => {
  * Close the app and services
  * @method module:Server.stop
  */
-app.stop = async () => {
+app.stop = async signal => {
   try {
-    logger.publish(2, 'loopback', 'Stop', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
-    let exit = await broker.stop(app);
-    app.emit('stopped');
+    logger.publish(2, 'loopback', 'stop', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
+    await broker.stop(app);
     if (app.tunnel) {
-      exit = await tunnel.stop(app);
+      await tunnel.stop(app);
     }
-    console.log('exit', exit);
-    httpServer.close();
-    return true;
+    return setTimeout(() => {
+      app.emit('stopped', signal);
+      httpServer.close(err => {
+        if (err) throw err;
+      });
+      return true;
+    }, 2000);
   } catch (error) {
-    logger.publish(2, 'loopback', 'Stop:err', error);
+    logger.publish(2, 'loopback', 'stop:err', error);
     return error;
   }
 };
@@ -131,7 +133,7 @@ app.publish = (topic, payload, qos, retain) => {
  */
 app.init = config => {
   try {
-    logger.publish(2, 'loopback', 'Init', `${config.NODE_NAME} / ${config.NODE_ENV}`);
+    logger.publish(2, 'loopback', 'init', `${config.NODE_NAME} / ${config.NODE_ENV}`);
     const options = {
       appRootDir: config.appRootDir,
       // File Extensions for jest (strongloop/loopback#3204)
@@ -145,7 +147,7 @@ app.init = config => {
     });
     return app.start(config);
   } catch (error) {
-    logger.publish(2, 'loopback', 'Init:err', error);
+    logger.publish(2, 'loopback', 'init:err', error);
     return error;
   }
 };

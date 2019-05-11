@@ -54,9 +54,9 @@ app.on('started', () => {
   //  process.send('ready');
 });
 
-app.on('stopped', () => {
-  logger.publish(4, 'loopback', 'stopped', true);
-  setTimeout(() => process.exit(0), 1000);
+app.on('stopped', signal => {
+  logger.publish(4, 'loopback', 'stopped', signal);
+  setTimeout(() => process.exit(0), 5000);
 });
 
 if (require.main === module) {
@@ -73,21 +73,23 @@ if (require.main === module) {
   app.init(config);
 }
 
+process.on('exit', exitCode => {
+  logger.publish(4, 'process', 'exited', exitCode);
+});
+
 nodeCleanup((exitCode, signal) => {
   try {
     if (signal && signal !== null) {
-      logger.publish(4, 'process', 'Exit:req', { exitCode, signal, pid: process.pid });
-      app.stop(err => {
+      logger.publish(4, 'process', 'exit:req', { exitCode, signal, pid: process.pid });
+      app.stop(signal, err => {
         if (err) throw err;
-        logger.publish(4, 'process', 'Exit:res', true);
-        process.kill(process.pid, signal);
       });
       nodeCleanup.uninstall(); // don't call cleanup handler again
       return false;
     }
     return true;
   } catch (error) {
-    logger.publish(4, 'process', 'Exit:err', error);
+    logger.publish(4, 'process', 'exit:err', error);
     process.exit(1);
     return error;
   }

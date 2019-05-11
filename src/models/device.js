@@ -122,36 +122,38 @@ module.exports = function(Device) {
         }
       }
       //  logger.publish(3, `${collectionName}`, "beforeSave:res1", device);
-
-      switch (device.type) {
-        case 'bot':
-          //  device.icons[0] = `${process.env.HTTP_CLIENT_URL}/icons/aloes/bot.png`;
-          device.icons[0] = `/icons/aloes/bot.png`;
-          device.icons[1] = `/icons/aloes/bot-white.png`;
-          break;
-        case 'browser':
-          device.icons[0] = `/icons/aloes/browser.png`;
-          device.icons[1] = `/icons/aloes/browser-white.png`;
-          break;
-        case 'camera':
-          device.icons[0] = `/icons/aloes/camera.png`;
-          device.icons[1] = `/icons/aloes/camera-white.png`;
-          break;
-        case 'gateway':
-          device.icons[0] = `/icons/aloes/gateway.png`;
-          device.icons[1] = `/icons/aloes/gateway-white.png`;
-          break;
-        case 'node':
-          device.icons[0] = `/icons/aloes/node.png`;
-          device.icons[1] = `/icons/aloes/node-white.png`;
-          break;
-        case 'phone':
-          device.icons[0] = `/icons/aloes/phone.png`;
-          device.icons[1] = `/icons/aloes/phone-white.png`;
-          break;
-        default:
-          console.log(device.type);
+      if (device.type && device.type !== null) {
+        switch (device.type) {
+          case 'bot':
+            //  device.icons[0] = `${process.env.HTTP_CLIENT_URL}/icons/aloes/bot.png`;
+            device.icons[0] = `/icons/aloes/bot.png`;
+            device.icons[1] = `/icons/aloes/bot-white.png`;
+            break;
+          case 'browser':
+            device.icons[0] = `/icons/aloes/browser.png`;
+            device.icons[1] = `/icons/aloes/browser-white.png`;
+            break;
+          case 'camera':
+            device.icons[0] = `/icons/aloes/camera.png`;
+            device.icons[1] = `/icons/aloes/camera-white.png`;
+            break;
+          case 'gateway':
+            device.icons[0] = `/icons/aloes/gateway.png`;
+            device.icons[1] = `/icons/aloes/gateway-white.png`;
+            break;
+          case 'node':
+            device.icons[0] = `/icons/aloes/node.png`;
+            device.icons[1] = `/icons/aloes/node-white.png`;
+            break;
+          case 'phone':
+            device.icons[0] = `/icons/aloes/phone.png`;
+            device.icons[1] = `/icons/aloes/phone-white.png`;
+            break;
+          default:
+            console.log(device.type);
+        }
       }
+
       logger.publish(4, collectionName, 'beforeSave:res', device);
       return device;
     } catch (error) {
@@ -306,6 +308,7 @@ module.exports = function(Device) {
    */
   Device.observe('after save', async ctx => {
     try {
+      // if (ctx.data)
       if (ctx.instance && Device.app) {
         logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
         if (ctx.isNewInstance) {
