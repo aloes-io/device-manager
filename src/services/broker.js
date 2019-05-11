@@ -501,8 +501,8 @@ broker.init = (app, httpServer, config) => {
     //   //  return_buffers: true, // to handle binary payloads
     // };
     const brokerConfig = {
-      port: Number(config.MQTT_BROKER_PORT),
       //  backend: ascoltatore,
+      interfaces: [{ type: 'mqtt', port: Number(config.MQTT_BROKER_PORT) }],
       // persistence: {
       //   factory: mosca.persistence.Redis,
       //   host: process.env.REDIS_HOST,
@@ -515,10 +515,13 @@ broker.init = (app, httpServer, config) => {
 
     if (config.MQTTS_BROKER_URL) {
       // todo if fs.exists
-      brokerConfig.secure = {
+      brokerConfig.interfaces[1] = {
+        type: 'mqtts',
         port: Number(config.MQTTS_BROKER_PORT),
-        keyPath: `${__dirname}/../../deploy/${config.MQTTS_BROKER_KEY}`,
-        certPath: `${__dirname}/../../deploy/${config.MQTTS_BROKER_CERT}`,
+        credentials: {
+          keyPath: `${__dirname}/../../deploy/${config.MQTTS_BROKER_KEY}`,
+          certPath: `${__dirname}/../../deploy/${config.MQTTS_BROKER_CERT}`,
+        },
       };
     }
 
