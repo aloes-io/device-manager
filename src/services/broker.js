@@ -403,7 +403,7 @@ broker.start = app => {
               if (newPacket && newPacket.topic) {
                 return app.emit('publish', newPacket.topic, newPacket.payload, false, 0);
               }
-              return null;
+              throw new Error('Internal Aloes Client API');
             }
             break;
           case 'aloeslight':

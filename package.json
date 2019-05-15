@@ -23,7 +23,7 @@
     "setup:prod": "cp deploy/.env_staging .env ; pm2 deploy ecosystem.config.js production setup",
     "update:stage": "cp deploy/.env_production .env ; pm2 deploy ecosystem.config.js staging update",
     "update:prod": "cp deploy/.env_production .env ; pm2 deploy ecosystem.config.js production update",
-    "deploy:local": "npm run build ; cp deploy/.env_local .env ; pm2 startOrRestart ecosystem.config.js --update-env",
+    "deploy:local": "cp deploy/.env_local .env ; npm run build ;  pm2 startOrRestart ecosystem.config.js --update-env",
     "deploy:stage": "pm2 startOrRestart ecosystem.config.js --env staging --update-env",
     "deploy:prod": "pm2 startOrRestart ecosystem.config.js --env production --update-env"
   },

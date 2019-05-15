@@ -137,6 +137,7 @@
         "exists",
         "find",
         "findById",
+        "setNewPassword",
         "__create__profileAddress",
         "__get__profileAddress",
         "__update__profileAddress",
@@ -180,6 +181,7 @@
         "findById",
         "find",
         "verifyAddress",
+        "setNewPassword",
         "sendInvite",
         "__create__profileAddress",
         "__get__profileAddress",
@@ -288,8 +290,38 @@
           "required": true
         }
       ],
-      "returns": {"type": "boolean", "arg": "passwordChanged"},
-      "http": {"path": "/update-password-from-token", "verb": "post"}
+      "returns": { "type": "boolean", "arg": "passwordChanged" },
+      "http": { "path": "/update-password-from-token", "verb": "post" }
+    },
+    "setNewPassword": {
+      "description": ["set new password for user"],
+      "accepts": [
+        {
+          "arg": "ctx",
+          "type": "object",
+          "http": {
+            "source": "context"
+          }
+        },
+        {
+          "arg": "oldPassword",
+          "type": "string",
+          "required": true
+        },
+        {
+          "arg": "newPassword",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "user",
+        "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/set-new-password"
+      }
     },
     "sendContactForm": {
       "description": ["send an email via contact form"],
