@@ -125,7 +125,6 @@ module.exports = function(Device) {
       if (device.type && device.type !== null) {
         switch (device.type) {
           case 'bot':
-            //  device.icons[0] = `${process.env.HTTP_CLIENT_URL}/icons/aloes/bot.png`;
             device.icons[0] = `/icons/aloes/bot.png`;
             device.icons[1] = `/icons/aloes/bot-white.png`;
             break;
@@ -170,22 +169,17 @@ module.exports = function(Device) {
    */
   const createToken = async device => {
     try {
-      let token;
+      let idProp;
       if (device.devEui && device.devEui !== null) {
-        token = await device.accessTokens.create({
-          devEui: device.devEui,
-          //  userId: device.id,
-          ttl: -1,
-        });
+        idProp = 'devEui';
       } else if (device.devAddr && device.devAddr !== null) {
-        token = await device.accessTokens.create({
-          devAddr: device.devAddr,
-          //  userId: device.id,
-          ttl: -1,
-        });
-      } else {
-        throw new Error('no DevEui and no DevAddr');
+        idProp = 'devAddr';
       }
+      if (!idProp) throw new Error('Device hardware id not found');
+      const token = await device.accessTokens.create({
+        [idProp]: device[idProp],
+        ttl: -1,
+      });
       return token;
     } catch (error) {
       return error;
@@ -242,45 +236,31 @@ module.exports = function(Device) {
     try {
       const token = await ctx.instance.accessTokens.findById(ctx.instance.apiKey);
       if (!token || token === null) throw new Error('Device API key not found');
-      //  if (!token || token === null) token = await createToken(ctx.instance);
-      if (ctx.instance.devEui !== null) {
-        token.updateAttribute('devEui', ctx.instance.devEui);
-        const sensors = ctx.instance.sensors();
-        if (sensors && sensors !== null) {
-          await Device.app.models.Sensor.updateAll(
-            { deviceId: ctx.instance.id },
-            {
-              devEui: ctx.instance.devEui,
-              transportProtocol: ctx.instance.transportProtocol,
-              transportProtocolVersion: ctx.instance.transportProtocolVersion,
-              messageProtocol: ctx.instance.messageProtocol,
-              messageProtocolVersion: ctx.instance.messageProtocolVersion,
-            },
-          );
-        }
-        logger.publish(4, `${collectionName}`, 'updateDeviceProps:res', {
-          token,
-        });
+      let idProp;
+      if (ctx.instance.devEui && ctx.instance.devEui !== null) {
+        idProp = 'devEui';
+      } else if (ctx.instance.devAddr && ctx.instance.devAddr !== null) {
+        idProp = 'devAddr';
       }
-      if (ctx.instance.devAddr !== null) {
-        token.updateAttribute('devAddr', ctx.instance.devAddr);
-        const sensors = ctx.instance.sensors();
-        if (sensors && sensors !== null && sensors.length > 0) {
-          await Device.app.models.Sensor.updateAll(
-            { deviceId: ctx.instance.id },
-            {
-              devAddr: ctx.instance.devAddr,
-              transportProtocol: ctx.instance.transportProtocol,
-              transportProtocolVersion: ctx.instance.transportProtocolVersion,
-              messageProtocol: ctx.instance.messageProtocol,
-              messageProtocolVersion: ctx.instance.messageProtocolVersion,
-            },
-          );
-        }
-        logger.publish(4, `${collectionName}`, 'updateDeviceProps:res', {
-          token,
-        });
+      if (!idProp) throw new Error('Device hardware id not found');
+      token.updateAttribute(idProp, ctx.instance[idProp]);
+      const sensors = await ctx.instance.sensors.find();
+      if (sensors && sensors !== null) {
+        await Device.app.models.Sensor.updateAll(
+          { deviceId: ctx.instance.id },
+          {
+            [idProp]: ctx.instance[idProp],
+            transportProtocol: ctx.instance.transportProtocol,
+            transportProtocolVersion: ctx.instance.transportProtocolVersion,
+            messageProtocol: ctx.instance.messageProtocol,
+            messageProtocolVersion: ctx.instance.messageProtocolVersion,
+          },
+        );
       }
+      logger.publish(4, `${collectionName}`, 'updateDeviceProps:res', {
+        idProp,
+        token,
+      });
       const packet = await iotAgent.publish({
         userId: ctx.instance.ownerId,
         collectionName,
@@ -421,6 +401,7 @@ module.exports = function(Device) {
         throw new Error('no device found');
       }
       logger.publish(4, `${collectionName}`, 'findDeviceByPattern:res', {
+        deviceName: device.name,
         deviceId: device.id,
       });
       return device;
@@ -633,7 +614,6 @@ module.exports = function(Device) {
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'geoLocate:err', error);
       return error;
-      //  next(error);
     }
   };
 

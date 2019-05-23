@@ -130,3 +130,11 @@ Read https://nodejs.org/api/tls.html#tls_tls_ssl
 Install your own instance :  https://github.com/localtunnel/server
 
 And then install wildcards certificates with : https://certbot.eff.org/
+
+## TODO
+
+- Migrate  to Loopback v4
+- Replace loopback-component-storage by Mongo Gridfs
+- Improve Application model
+- Integrate caching with redis before access to Device and Sensor instances
+- Add user(s) in a team to easily share devices access

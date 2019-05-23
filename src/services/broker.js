@@ -398,13 +398,15 @@ broker.start = app => {
           case 'aloesclient':
             // next, use pattern.direction , tx || rx
             if (pattern.subType === 'iot') {
+              serviceName = null;
               //  const method = pattern.params.method;
               const newPacket = await iotAgent.decode(packet, pattern.params);
               if (newPacket && newPacket.topic) {
-                return app.emit('publish', newPacket.topic, newPacket.payload, false, 0);
+                app.emit('publish', newPacket.topic, newPacket.payload, false, 0);
               }
-              throw new Error('Internal Aloes Client API');
+              //  throw new Error('Internal Aloes Client API');
             }
+            serviceName = null;
             break;
           case 'aloeslight':
             serviceName = 'Device';
@@ -418,7 +420,7 @@ broker.start = app => {
           default:
             serviceName = 'Application';
         }
-        if (serviceName === null) throw new Error('protocol not supported');
+        //  if (serviceName === null) throw new Error('protocol not supported');
         return serviceName;
       } catch (error) {
         return error;
