@@ -84,8 +84,8 @@ module.exports = function(Sensor) {
             collectionName,
             data: ctx.instance,
             modelId: ctx.instance.id,
-            //  method: ctx.instance.method || 'PUT',
-            method: 'PUT',
+            method: ctx.instance.method || 'PUT',
+            // method: 'PUT',
             pattern: 'aloesClient',
           });
         }
@@ -226,6 +226,7 @@ module.exports = function(Sensor) {
         const updatedSensor = await device.sensors.findById(sensor.id);
         if (!updatedSensor) throw new Error('Sensor not found');
         delete sensor.id;
+        //  updatedSensor.method = 'POST';
         updatedSensor.method = 'HEAD';
         if (!updatedSensor.resource) {
           updatedSensor.resource = sensor.resource;
