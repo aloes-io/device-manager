@@ -17,10 +17,11 @@ module.exports = function(Device) {
 
   function transportProtocolValidator(err) {
     if (
-      this.transportProtocol.toLowerCase() === 'aloesclient' ||
-      this.transportProtocol.toLowerCase() === 'aloeslight' ||
-      this.transportProtocol.toLowerCase() === 'mysensors' ||
-      this.transportProtocol.toLowerCase() === 'lorawan'
+      this.transportProtocol &&
+      (this.transportProtocol.toLowerCase() === 'aloesclient' ||
+        this.transportProtocol.toLowerCase() === 'aloeslight' ||
+        this.transportProtocol.toLowerCase() === 'mysensors' ||
+        this.transportProtocol.toLowerCase() === 'lorawan')
     ) {
       return;
     }
@@ -29,10 +30,11 @@ module.exports = function(Device) {
 
   function messageProtocolValidator(err) {
     if (
-      this.messageProtocol.toLowerCase() === 'aloesclient' ||
-      this.messageProtocol.toLowerCase() === 'aloeslight' ||
-      this.messageProtocol.toLowerCase() === 'mysensors' ||
-      this.messageProtocol.toLowerCase() === 'cayennelpp'
+      this.messageProtocol &&
+      (this.messageProtocol.toLowerCase() === 'aloesclient' ||
+        this.messageProtocol.toLowerCase() === 'aloeslight' ||
+        this.messageProtocol.toLowerCase() === 'mysensors' ||
+        this.messageProtocol.toLowerCase() === 'cayennelpp')
     ) {
       return;
     }
@@ -41,12 +43,21 @@ module.exports = function(Device) {
 
   function typeValidator(err) {
     if (
-      this.type.toLowerCase() === 'gateway' ||
-      this.type.toLowerCase() === 'node' ||
-      this.type.toLowerCase() === 'phone' ||
-      this.type.toLowerCase() === 'camera' ||
-      this.type.toLowerCase() === 'browser' ||
-      this.type.toLowerCase() === 'bot'
+      this.type &&
+      (this.type.toLowerCase() === 'audio-input' ||
+        this.type.toLowerCase() === 'audio-output' ||
+        this.type.toLowerCase() === 'bot' ||
+        this.type.toLowerCase() === 'browser' ||
+        this.type.toLowerCase() === 'camera' ||
+        this.type.toLowerCase() === 'gateway' ||
+        this.type.toLowerCase() === 'light-output' ||
+        this.type.toLowerCase() === 'midi-input' ||
+        this.type.toLowerCase() === 'midi-output' ||
+        this.type.toLowerCase() === 'node' ||
+        this.type.toLowerCase() === 'phone' ||
+        this.type.toLowerCase() === 'rfid' ||
+        this.type.toLowerCase() === 'switch-input' ||
+        this.type.toLowerCase() === 'switch-output')
     ) {
       return;
     }
@@ -71,6 +82,120 @@ module.exports = function(Device) {
   // Device.validatesDateOf("lastSignal", {message: "lastSignal is not a date"});
 
   /**
+   * Set device QRcode access based on declared protocol and access point url
+   * @method module:Device~setDeviceQRCode
+   * @param {object} device - Device instance
+   * returns {object} device
+   */
+  const setDeviceQRCode = device => {
+    try {
+      switch (device.transportProtocol.toLowerCase()) {
+        case 'mysensors':
+          if (device.accessPointUrl.endsWith('/#!1')) {
+            device.qrCode = `${device.accessPointUrl}`;
+          } else if (device.accessPointUrl) {
+            device.qrCode = `${device.accessPointUrl}/wifi?server=${
+              process.env.MQTT_BROKER_HOST
+            }&port=${process.env.MQTT_BROKER_PORT}&client=${device.devEui}&user=${
+              device.id
+            }&password=${device.apiKey}`;
+          }
+          break;
+        case 'aloeslight':
+          if (device.accessPointUrl.endsWith('/#!1')) {
+            device.qrCode = `${device.accessPointUrl}`;
+          } else if (device.accessPointUrl) {
+            device.qrCode = `${device.accessPointUrl}/wifi?server=${
+              process.env.MQTT_BROKER_HOST
+            }&port=${process.env.MQTT_BROKER_PORT}&client=${device.devEui}&user=${
+              device.id
+            }&password=${device.apiKey}`;
+          }
+          break;
+        default:
+        //  console.log(device);
+      }
+      return device;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  /**
+   * Set device icons ( urls ) based on its type
+   * @method module:Device~setDeviceIcons
+   * @param {object} device - Device instance
+   * returns {object} device
+   */
+  const setDeviceIcons = device => {
+    try {
+      switch (device.type) {
+        case 'audio-input':
+          device.icons[0] = `/icons/aloes/audio-input.png`;
+          device.icons[1] = `/icons/aloes/audio-input-white.png`;
+          break;
+        case 'audio-output':
+          device.icons[0] = `/icons/aloes/audio-output.png`;
+          device.icons[1] = `/icons/aloes/audio-output-white.png`;
+          break;
+        case 'bot':
+          device.icons[0] = `/icons/aloes/bot.png`;
+          device.icons[1] = `/icons/aloes/bot-white.png`;
+          break;
+        case 'browser':
+          device.icons[0] = `/icons/aloes/browser.png`;
+          device.icons[1] = `/icons/aloes/browser-white.png`;
+          break;
+        case 'camera':
+          device.icons[0] = `/icons/aloes/camera.png`;
+          device.icons[1] = `/icons/aloes/camera-white.png`;
+          break;
+        case 'gateway':
+          device.icons[0] = `/icons/aloes/gateway.png`;
+          device.icons[1] = `/icons/aloes/gateway-white.png`;
+          break;
+        case 'light-output':
+          device.icons[0] = `/icons/aloes/light-output.png`;
+          device.icons[1] = `/icons/aloes/light-output-white.png`;
+          break;
+        case 'midi-input':
+          device.icons[0] = `/icons/aloes/midi-input.png`;
+          device.icons[1] = `/icons/aloes/midi-input-white.png`;
+          break;
+        case 'midi-output':
+          device.icons[0] = `/icons/aloes/midi-output.png`;
+          device.icons[1] = `/icons/aloes/midi-output-white.png`;
+          break;
+        case 'node':
+          device.icons[0] = `/icons/aloes/node.png`;
+          device.icons[1] = `/icons/aloes/node-white.png`;
+          break;
+        case 'phone':
+          device.icons[0] = `/icons/aloes/phone.png`;
+          device.icons[1] = `/icons/aloes/phone-white.png`;
+          break;
+        case 'rfid':
+          device.icons[0] = `/icons/aloes/rfid.png`;
+          device.icons[1] = `/icons/aloes/rfid-white.png`;
+          break;
+        case 'switch-input':
+          device.icons[0] = `/icons/aloes/switch-input.png`;
+          device.icons[1] = `/icons/aloes/switch-input-white.png`;
+          break;
+        case 'switch-output':
+          device.icons[0] = `/icons/aloes/switch-output.png`;
+          device.icons[1] = `/icons/aloes/switch-output-white.png`;
+          break;
+        default:
+        //  console.log(device.type);
+      }
+      return device;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  /**
    * Event reporting that a device instance will be created or updated.
    * @event before save
    * @param {object} ctx - Express context.
@@ -79,8 +204,8 @@ module.exports = function(Device) {
    * @param {object} ctx.instance - Device instance
    */
   Device.observe('before save', async ctx => {
-    logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.instance);
-    logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.data);
+    //  logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.instance);
+    //  logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.data);
     try {
       let device;
       if (ctx.data) {
@@ -88,71 +213,22 @@ module.exports = function(Device) {
       } else if (ctx.instance) {
         device = ctx.instance;
       }
+      if (device.children) {
+        delete device.children;
+      }
       // else if (ctx.currentInstance) {
       //   device = ctx.currentInstance;
       // }
       //  make a list properties to watch =>
       //  todo update sensor properties when they exists (ex:transportProtocol )
       if (device.transportProtocol && device.transportProtocol !== null) {
-        switch (device.transportProtocol.toLowerCase()) {
-          case 'mysensors':
-            if (device.accessPointUrl.endsWith('/#!1')) {
-              device.qrCode = `${device.accessPointUrl}`;
-            } else if (device.accessPointUrl) {
-              device.qrCode = `${device.accessPointUrl}/wifi?server=${
-                process.env.MQTT_BROKER_HOST
-              }&port=${process.env.MQTT_BROKER_PORT}&client=${device.devEui}&user=${
-                device.id
-              }&password=${device.apiKey}`;
-            }
-            break;
-          case 'aloeslight':
-            if (device.accessPointUrl.endsWith('/#!1')) {
-              device.qrCode = `${device.accessPointUrl}`;
-            } else if (device.accessPointUrl) {
-              device.qrCode = `${device.accessPointUrl}/wifi?server=${
-                process.env.MQTT_BROKER_HOST
-              }&port=${process.env.MQTT_BROKER_PORT}&client=${device.devEui}&user=${
-                device.id
-              }&password=${device.apiKey}`;
-            }
-            break;
-          default:
-            console.log(device);
-        }
+        await setDeviceQRCode(device);
       }
       //  logger.publish(3, `${collectionName}`, "beforeSave:res1", device);
       if (device.type && device.type !== null) {
-        switch (device.type) {
-          case 'bot':
-            device.icons[0] = `/icons/aloes/bot.png`;
-            device.icons[1] = `/icons/aloes/bot-white.png`;
-            break;
-          case 'browser':
-            device.icons[0] = `/icons/aloes/browser.png`;
-            device.icons[1] = `/icons/aloes/browser-white.png`;
-            break;
-          case 'camera':
-            device.icons[0] = `/icons/aloes/camera.png`;
-            device.icons[1] = `/icons/aloes/camera-white.png`;
-            break;
-          case 'gateway':
-            device.icons[0] = `/icons/aloes/gateway.png`;
-            device.icons[1] = `/icons/aloes/gateway-white.png`;
-            break;
-          case 'node':
-            device.icons[0] = `/icons/aloes/node.png`;
-            device.icons[1] = `/icons/aloes/node-white.png`;
-            break;
-          case 'phone':
-            device.icons[0] = `/icons/aloes/phone.png`;
-            device.icons[1] = `/icons/aloes/phone-white.png`;
-            break;
-          default:
-            console.log(device.type);
-        }
+        await setDeviceIcons(device);
       }
-
+      console.log('device : ', device);
       logger.publish(4, collectionName, 'beforeSave:res', device);
       return device;
     } catch (error) {
@@ -530,7 +606,7 @@ module.exports = function(Device) {
    */
   const findDevice = async whereFilter =>
     new Promise((resolve, reject) => {
-      Device.find(whereFilter, (err, profiles) => (err ? reject(err) : resolve(profiles)));
+      Device.find(whereFilter, (err, devices) => (err ? reject(err) : resolve(devices)));
     });
 
   /**
@@ -543,7 +619,7 @@ module.exports = function(Device) {
     logger.publish(4, `${collectionName}`, 'search:req', filter);
     try {
       //  if (process.env.NODE_ENV.toString() === "development") return null;
-      if (!ctx.req.accessToken.userId || (!filter.name && !filter.place)) {
+      if (!ctx.req.accessToken.userId || !filter.place) {
         throw new Error('Invalid request');
       }
       let whereFilter;
@@ -605,12 +681,13 @@ module.exports = function(Device) {
       if (!addresses) {
         throw new Error('No match found');
       }
-      let deviceAddresses = await addresses.filter(address => address.deviceId);
+      const deviceAddresses = await addresses.filter(address => address.deviceId);
+      let devices = [];
       logger.publish(4, `${collectionName}`, 'geoLocate:res', deviceAddresses);
       if (deviceAddresses.length > 0) {
-        deviceAddresses = await utils.composeGeoLocateResult(collectionName, addresses);
+        devices = await utils.composeGeoLocateResult(collectionName, deviceAddresses);
       }
-      return deviceAddresses;
+      return devices;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'geoLocate:err', error);
       return error;

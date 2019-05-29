@@ -247,7 +247,7 @@
         }
       ],
       "returns": {
-        "arg": "result",
+        "arg": "devices",
         "type": "array"
       },
       "http": {
