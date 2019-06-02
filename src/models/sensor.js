@@ -239,7 +239,7 @@ module.exports = function(Sensor) {
           ownerId: device.ownerId,
           isNewInstance: true,
         };
-        logger.publish(4, `${collectionName}`, 'compose:new', {
+        logger.publish(5, `${collectionName}`, 'compose:new', {
           sensor,
         });
         return sensor;
@@ -259,7 +259,7 @@ module.exports = function(Sensor) {
         sensor.transportProtocolVersion = device.transportProtocolVersion;
         sensor.messageProtocol = device.messageProtocol;
         sensor.messageProtocolVersion = device.messageProtocolVersion;
-        logger.publish(4, `${collectionName}`, 'compose:update', {
+        logger.publish(5, `${collectionName}`, 'compose:update', {
           sensor,
         });
         return sensor;
@@ -366,15 +366,17 @@ module.exports = function(Sensor) {
           //   value: sensor.value,
           // });
         }
-        logger.publish(4, `${collectionName}`, 'createOrUpdate:res', {
+        logger.publish(5, `${collectionName}`, 'createOrUpdate:res', {
           inType: typeof encoded.value,
           outType: typeof sensor.value,
         });
         updatedSensor.method = encoded.method;
         updatedSensor.frameCounter += 1;
         await SensorResource.set(resourceKey, JSON.stringify(updatedSensor));
-        delete updatedSensor.id;
-        await sensor.updateAttributes(updatedSensor);
+        if (updatedSensor.frameCounter % 10 === 0) {
+          delete updatedSensor.id;
+          updatedSensor = await sensor.updateAttributes(updatedSensor);
+        }
         return publish(updatedSensor, encoded.method);
       }
       throw new Error('no valid sensor to update');
@@ -399,7 +401,9 @@ module.exports = function(Sensor) {
       if (!instance) {
         instance = await Sensor.findById(sensor.id);
       }
-      console.log('getInstance', instance);
+      logger.publish(5, `${collectionName}`, 'getInstance:res', {
+        instance,
+      });
       if (!instance) throw new Error('Sensor not found');
       let packet = await iotAgent.publish({
         userId: instance.ownerId,

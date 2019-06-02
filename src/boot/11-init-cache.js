@@ -25,6 +25,7 @@ module.exports = async function initCache(app) {
       }
     };
 
+    if (!devices || devices.length < 1) return null;
     const promises = await devices.map(setCache);
     const res = await Promise.all(promises);
     //  console.log('result cache', res);
