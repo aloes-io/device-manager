@@ -424,13 +424,26 @@ module.exports = function(Device) {
         ctx.method.name.indexOf('__get') !== -1 ||
         ctx.method.name.indexOf('get') !== -1
       ) {
-        logger.publish(4, `${collectionName}`, 'beforeFind:req', {
+        logger.publish(5, `${collectionName}`, 'beforeFind:req', {
           query: ctx.req.query,
-          param: ctx.req.param,
+          params: ctx.req.params,
         });
 
         let getSensors = false;
         let result;
+
+        if (ctx.method.name.startsWith('__get')) {
+          const methodParts = ctx.method.name.split('__');
+          const modelName = methodParts[2];
+          const params = ctx.req.params;
+          //  console.log('[DEVICE] beforeRemote get:req', modelName, params);
+          if (modelName === 'sensors' && params && params.id) {
+            getSensors = true;
+            const id = params.id;
+            const device = await Device.findById(id);
+            result = [JSON.parse(JSON.stringify(device))];
+          }
+        }
 
         if (ctx.req.query.filter) {
           const whereFilter = JSON.parse(ctx.req.query.filter);
@@ -465,18 +478,16 @@ module.exports = function(Device) {
             const devices = await Device.find(whereFilter);
             result = JSON.parse(JSON.stringify(devices));
           }
-
-          if (getSensors) {
-            result = await result.map(addCachedSensors);
-            const devices = await Promise.all(result);
-            //  ctx.result = await Promise.all(result);
-            ctx.result = devices;
-          } else {
-            ctx.result = result;
-          }
-          logger.publish(4, `${collectionName}`, 'beforeFind:res', ctx.result.length);
-          return ctx;
         }
+
+        if (result && getSensors) {
+          //  console.log('[DEVICE] beforeRemote getSensors', getSensors);
+          result = await result.map(addCachedSensors);
+          ctx.result = await Promise.all(result);
+        } else if (result) {
+          ctx.result = result;
+        }
+        //  logger.publish(4, `${collectionName}`, 'beforeFind:res', ctx.result.length);
         return ctx;
       }
       return ctx;
@@ -818,6 +829,23 @@ module.exports = function(Device) {
       return devices;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'geoLocate:err', error);
+      return error;
+    }
+  };
+
+  Device.syncCache = async () => {
+    try {
+      logger.publish(4, `${collectionName}`, 'syncCache:req', '');
+      const devices = await Device.find();
+      if (devices && devices !== null) {
+        const promises = await devices.map(async device =>
+          Device.app.models.Sensor.syncCache(device),
+        );
+        const result = await Promise.all(promises);
+        return result;
+      }
+      return null;
+    } catch (error) {
       return error;
     }
   };

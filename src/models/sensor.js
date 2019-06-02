@@ -40,22 +40,6 @@ module.exports = function(Sensor) {
     err();
   }
 
-  const findInCache = async deviceId => {
-    try {
-      const SensorResource = Sensor.app.models.SensorResource;
-      const sensorsKeys = await SensorResource.keys({
-        match: `deviceId-${deviceId}-sensorId-*`,
-      });
-      const promises = await sensorsKeys.map(async key =>
-        JSON.parse(await SensorResource.get(key)),
-      );
-      const sensors = await Promise.all(promises);
-      return sensors;
-    } catch (err) {
-      throw err;
-    }
-  };
-
   Sensor.validatesPresenceOf('deviceId');
 
   Sensor.validatesPresenceOf('ownerId');
@@ -88,52 +72,6 @@ module.exports = function(Sensor) {
       }
       return null;
       //  throw new Error('Invalid Sensor instance');
-    } catch (error) {
-      return error;
-    }
-  });
-
-  Sensor.beforeRemote('**', async ctx => {
-    try {
-      if (
-        ctx.method.name.indexOf('find') !== -1 ||
-        ctx.method.name.indexOf('__get') !== -1 ||
-        ctx.method.name.indexOf('get') !== -1
-      ) {
-        logger.publish(4, `${collectionName}`, 'beforeFind:req', {
-          query: ctx.req.query,
-          param: ctx.req.param,
-        });
-
-        let result;
-
-        if (ctx.req.query.filter) {
-          const whereFilter = JSON.parse(ctx.req.query.filter);
-          //  console.log('[DEVICE] beforeRemote get:req', whereFilter);
-
-          if (whereFilter && whereFilter.id) {
-            const id = whereFilter.where.id;
-            const sensor = await Sensor.findById(id);
-            result = [JSON.parse(JSON.stringify(sensor))];
-          } else if (whereFilter.where && whereFilter.where.ownerId) {
-            const sensors = await Sensor.find(whereFilter);
-            result = JSON.parse(JSON.stringify(sensors));
-          } else if (whereFilter.where && whereFilter.where.deviceId) {
-            let sensors = await findInCache(whereFilter.where.deviceId);
-            if (!sensors) {
-              sensors = await Sensor.find(whereFilter);
-            }
-            // sensors = sensors.filter(sensor => sensor.nativeSensorId === encoded.nativeSensorId);
-            result = JSON.parse(JSON.stringify(sensors));
-          }
-          if (result) {
-            ctx.result = result;
-          }
-          return ctx;
-        }
-        return ctx;
-      }
-      return ctx;
     } catch (error) {
       return error;
     }
@@ -175,12 +113,7 @@ module.exports = function(Sensor) {
   Sensor.compose = async (device, encoded) => {
     try {
       let sensor = {};
-      // let sensors = await findInCache(deviceId);
-      // sensors = sensors.filter(sensor => sensor.nativeSensorId === encoded.nativeSensorId);
-      // console.log('parseMessage:res2 :', sensors[0]);
-
       if ((!device.sensors() || !device.sensors()[0]) && encoded.type) {
-        //  if ((!sensor || sensor === null) && encoded.type) {
         sensor = {
           //  ...encoded,
           name: encoded.name || null,
@@ -264,7 +197,6 @@ module.exports = function(Sensor) {
         //   return Sensor.app.publish(packet.topic, packet.payload);
       }
       throw new Error('Invalid MQTT Packet encoding');
-      //  return null;
     } catch (error) {
       return error;
     }
@@ -288,7 +220,7 @@ module.exports = function(Sensor) {
       }
       const SensorResource = Sensor.app.models.SensorResource;
       if (sensor.isNewInstance && sensor.icons) {
-        //  sensor.method = 'HEAD';
+        sensor.method = 'HEAD';
         const newSensor = await device.sensors.create(sensor);
         const resourceKey = `deviceId-${device.id}-sensorId-${sensor.id}`;
         // await Sensor.app.models.SensorResource.set(resourceKey, JSON.stringify(newSensor), {
@@ -304,9 +236,7 @@ module.exports = function(Sensor) {
           updatedSensor = await Sensor.findById(sensor.id);
         }
         if (!updatedSensor) throw new Error('Sensor not found');
-        //  delete sensor.id;
-        //  updatedSensor.method = 'POST';
-        //  updatedSensor.method = 'HEAD';
+        updatedSensor.method = 'HEAD';
         if (!updatedSensor.resource) {
           updatedSensor.resource = sensor.resource;
         }
@@ -364,7 +294,7 @@ module.exports = function(Sensor) {
         }
         logger.publish(5, `${collectionName}`, 'createOrUpdate:res', {
           inType: typeof encoded.value,
-          outType: typeof sensor.value,
+          outType: typeof updatedSensor.value,
         });
         updatedSensor.method = encoded.method;
         updatedSensor.frameCounter += 1;
@@ -429,7 +359,6 @@ module.exports = function(Sensor) {
         packet = await iotAgent.decode(packet, pattern.params);
       }
       if (packet.payload && packet.payload !== null) {
-        //  console.log('getInstance res:', topic, payload);
         return Sensor.app.emit('publish', packet.topic, packet.payload, false, 0);
       }
       throw new Error('no packet payload to publish');
@@ -437,6 +366,22 @@ module.exports = function(Sensor) {
       return error;
     }
   };
+
+  // const findInCache = async deviceId => {
+  //   try {
+  //     const SensorResource = Sensor.app.models.SensorResource;
+  //     const sensorsKeys = await SensorResource.keys({
+  //       match: `deviceId-${deviceId}-sensorId-*`,
+  //     });
+  //     const promises = await sensorsKeys.map(async key =>
+  //       JSON.parse(await SensorResource.get(key)),
+  //     );
+  //     const sensors = await Promise.all(promises);
+  //     return sensors;
+  //   } catch (err) {
+  //     throw err;
+  //   }
+  // };
 
   Sensor.syncCache = async device => {
     try {

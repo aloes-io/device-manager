@@ -105,6 +105,7 @@ app.stop = async signal => {
     if (app.tunnel) {
       await tunnel.stop(app);
     }
+    await app.models.Device.syncCache();
     return setTimeout(() => {
       app.emit('stopped', signal);
       httpServer.close(err => {

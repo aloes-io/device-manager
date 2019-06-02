@@ -95,7 +95,7 @@
   },
   "Sensor": {
     "dataSource": "db",
-    "public": true
+    "public": false
   },
   "SensorResource": {
     "dataSource": "cache",
