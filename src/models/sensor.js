@@ -349,12 +349,14 @@ module.exports = function(Sensor) {
 
         //  const updatedSensor = await device.sensors.findById(sensor.id);
         if (encoded.value && encoded.resource) {
-          sensor = await updateAloesSensors(sensor, Number(encoded.resource), encoded.value);
-          //  sensor.method = encoded.method;
-          updatedSensor.value = sensor.value;
-          updatedSensor.resource = sensor.resource;
-          updatedSensor.resources = { ...updatedSensor.resources, ...sensor.resources };
-
+          updatedSensor = await updateAloesSensors(
+            updatedSensor,
+            Number(encoded.resource),
+            encoded.value,
+          );
+          // updatedSensor.value = sensor.value;
+          // updatedSensor.resource = sensor.resource;
+          // updatedSensor.resources = { ...updatedSensor.resources, ...sensor.resources };
           // await updatedSensor.measurements.create({
           //   date: sensor.lastSignal,
           //   type: typeof sensor.resources[resource],
@@ -371,10 +373,9 @@ module.exports = function(Sensor) {
         updatedSensor.method = encoded.method;
         updatedSensor.frameCounter += 1;
         await SensorResource.set(resourceKey, JSON.stringify(updatedSensor));
-        await updatedSensor.save();
+        delete updatedSensor.id;
+        await sensor.updateAttributes(updatedSensor);
         return publish(updatedSensor, encoded.method);
-        //  delete sensor.id;
-        //  return updatedSensor.updateAttributes(sensor);
       }
       throw new Error('no valid sensor to update');
     } catch (error) {
