@@ -371,6 +371,7 @@ module.exports = function(Sensor) {
         updatedSensor.method = encoded.method;
         updatedSensor.frameCounter += 1;
         await SensorResource.set(resourceKey, JSON.stringify(updatedSensor));
+        await updatedSensor.save();
         return publish(updatedSensor, encoded.method);
         //  delete sensor.id;
         //  return updatedSensor.updateAttributes(sensor);

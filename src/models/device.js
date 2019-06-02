@@ -603,10 +603,10 @@ module.exports = function(Device) {
         } else if (encoded.method === 'HEAD') {
           return Sensor.handlePresentation(device, tempSensor, encoded);
         } else if (encoded.method === 'POST' || encoded.method === 'PUT') {
-          await device.updateAttributes({
-            frameCounter: device.frameCounter + 1 || 1,
-            lastSignal: encoded.lastSignal || new Date(),
-          });
+          // await device.updateAttributes({
+          //   frameCounter: device.frameCounter + 1 || 1,
+          //   lastSignal: encoded.lastSignal || new Date(),
+          // });
 
           return Sensor.createOrUpdate(device, tempSensor, encoded);
         } else if (encoded.method === 'STREAM') {
@@ -706,26 +706,27 @@ module.exports = function(Device) {
       }
       if (!idProp) return null;
       const device = await Device.findById(client.user);
-      console.log('Device.updateStatus', device.id);
+      //  console.log('Device.updateStatus', device.id);
       if (device && device !== null) {
         if (status) {
-          await device.updateAttribute('status', true);
+          //  await device.updateAttribute('status', true);
+          await device.updateAttributes({ frameCounter: 1, status: true, lastSignal: new Date() });
         } else {
-          await device.updateAttributes({ frameCounter: 0, status: false });
-        }
-        const sensors = await device.sensors.find();
-        // sync redis with mongo
-        if (sensors && sensors !== null) {
-          sensors.forEach(async sensor => {
-            const cacheKey = `deviceId-${device.id}-sensorId-${sensor.id}`;
-            const cachedSensor = JSON.parse(await Device.app.models.SensorResource.get(cacheKey));
-            if (cachedSensor && cachedSensor !== null) {
-              delete cachedSensor.id;
-              //  console.log('sensor sync 3', cachedSensor.id, sensor.id);
-              return sensor.updateAttributes(cachedSensor);
-            }
-            return null;
-          });
+          await device.updateAttributes({ frameCounter: 0, status: false, lastSignal: new Date() });
+          // const sensors = await device.sensors.find();
+          // // sync redis with mongo
+          // if (sensors && sensors !== null) {
+          //   sensors.forEach(async sensor => {
+          //     const cacheKey = `deviceId-${device.id}-sensorId-${sensor.id}`;
+          //     const cachedSensor = JSON.parse(await Device.app.models.SensorResource.get(cacheKey));
+          //     if (cachedSensor && cachedSensor !== null) {
+          //       delete cachedSensor.id;
+          //       //  console.log('sensor sync 3', cachedSensor.id, sensor.id);
+          //       return sensor.updateAttributes(cachedSensor);
+          //     }
+          //     return null;
+          //   });
+          // }
         }
       }
       return null;
