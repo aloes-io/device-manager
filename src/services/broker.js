@@ -193,31 +193,31 @@ broker.start = app => {
      * @param {boolean} status - MQTT conection status
      * @returns {function}
      */
-    const updateDeviceStatus = async (client, status) => {
-      try {
-        let idProp;
-        if (client.devEui && client.devEui !== null && client.id.startsWith(client.devEui)) {
-          idProp = 'devEui';
-        } else if (
-          client.devAddr &&
-          client.devAddr !== null &&
-          client.id.startsWith(client.devAddr)
-        ) {
-          idProp = 'devAddr';
-        }
-        if (!idProp) return null;
-        const device = await app.models.Device.findById(client.user);
-        if (device && device !== null) {
-          if (status) {
-            return device.updateAttribute('status', true);
-          }
-          return device.updateAttributes({ frameCounter: 0, status: false });
-        }
-        return null;
-      } catch (error) {
-        return error;
-      }
-    };
+    // const updateDeviceStatus = async (client, status) => {
+    //   try {
+    //     let idProp;
+    //     if (client.devEui && client.devEui !== null && client.id.startsWith(client.devEui)) {
+    //       idProp = 'devEui';
+    //     } else if (
+    //       client.devAddr &&
+    //       client.devAddr !== null &&
+    //       client.id.startsWith(client.devAddr)
+    //     ) {
+    //       idProp = 'devAddr';
+    //     }
+    //     if (!idProp) return null;
+    //     const device = await app.models.Device.findById(client.user);
+    //     if (device && device !== null) {
+    //       if (status) {
+    //         return device.updateAttribute('status', true);
+    //       }
+    //       return device.updateAttributes({ frameCounter: 0, status: false });
+    //     }
+    //     return null;
+    //   } catch (error) {
+    //     return error;
+    //   }
+    // };
 
     /**
      * Update application status from MQTT conection status
@@ -256,7 +256,7 @@ broker.start = app => {
       try {
         //  console.log('updateModelsStatus', status);
         if (client.user) {
-          await updateDeviceStatus(client, status);
+          await app.models.Device.updateStatus(client, status);
           await updateApplicationStatus(client, status);
         }
         return null;
@@ -375,7 +375,7 @@ broker.start = app => {
         if (packet.topic.startsWith('$SYS')) {
           return null;
         }
-        logger.publish(4, 'broker', 'findPattern:req', packet.topic);
+        logger.publish(5, 'broker', 'findPattern:req', packet.topic);
         //  logger.publish(4, 'broker', 'on-published:payload', packet.payload.toString());
         if (client && client.user) {
           pattern = await iotAgent.patternDetector(packet);
@@ -457,13 +457,13 @@ broker.start = app => {
         }
         logger.publish(4, 'broker', 'onPublished:pattern', pattern.name);
         const serviceName = await redirectMessage(packet, pattern);
-        logger.publish(4, 'broker', 'onPublished:service', serviceName);
+        logger.publish(5, 'broker', 'onPublished:service', serviceName);
         if (!serviceName || serviceName === null || serviceName instanceof Error) {
           throw new Error('no service redirection');
         }
         return app.models[serviceName].onPublish(pattern, packet, client);
       } catch (error) {
-        logger.publish(2, 'broker', 'onPublish:err', error);
+        //  logger.publish(2, 'broker', 'onPublish:err', error);
         return error;
       }
     });
@@ -474,7 +474,7 @@ broker.start = app => {
 
     return app.broker;
   } catch (error) {
-    logger.publish(2, 'broker', 'start:err', error);
+    //  logger.publish(2, 'broker', 'start:err', error);
     return error;
   }
 };
@@ -546,9 +546,15 @@ broker.init = (app, httpServer, config) => {
       };
     }
 
-    logger.publish(2, 'broker', 'init', brokerConfig);
+    const aedesConf = {
+      //  mq,
+      //  persistence,
+      concurrency: 100,
+      heartbeatInterval: 60000,
+      connectTimeout: 40000,
+    };
 
-    app.broker = new aedes.Server();
+    app.broker = new aedes.Server(aedesConf);
 
     const mqttBroker = net.createServer(app.broker.handle);
     mqttBroker.listen(brokerConfig.interfaces[0].port, () => {
@@ -556,7 +562,7 @@ broker.init = (app, httpServer, config) => {
         2,
         'broker',
         'Setup',
-        `Mosca broker ready, up and running @: ${brokerConfig.interfaces[0].port}`,
+        `MQTT broker ready, up and running @: ${config.MQTT_BROKER_URL}`,
       );
     });
 
@@ -577,7 +583,7 @@ broker.init = (app, httpServer, config) => {
           2,
           'broker',
           'Setup',
-          `Mosca broker ready, up and running @: ${brokerConfig.interfaces[1].port}`,
+          `MQTT broker ready, up and running @: ${config.MQTTS_BROKER_URL}`,
         );
       });
     }

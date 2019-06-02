@@ -134,10 +134,8 @@ And then install wildcards certificates with : https://certbot.eff.org/
 ## TODO
 
 - Update / improve search engine
-- Add more device types ( + icons )
 - Finish account linking with github
 - Improve Application model
-- Integrate [cache](https://github.com/strongloop/loopback-example-kv-connectors) read/write with redis  ( for Device and Sensor instances )
 - Add user(s) in a team to easily share devices access
 - Data exports ( all content related to an account )
 - Store data related to MQTT traffic ( in Device model ? )

@@ -151,19 +151,12 @@
         "create",
         "find",
         "findById",
-        "replaceById",
-        "replaceOrCreate",
-        "updateById",
-        "updateAttributes",
-        "upsert",
         "exists",
         "search",
         "geoLocate",
-        "refreshToken",
-        "createAuthLink",
         "__create__deviceAddress",
         "__get__deviceAddress",
-        "__update__deviceAddress"
+        "__get__sensors"
       ]
     },
     {
@@ -184,11 +177,12 @@
         "find",
         "findById",
         "__get__deviceAddress",
+        "__create__deviceAddress",
         "__update__deviceAddress",
         "__destroy__deviceAddress",
+        "__get__sensors",
         "__updateById__sensors",
-        "__destroyById__sensors",
-        "__get__sensors"
+        "__destroyById__sensors"
       ]
     }
   ],
