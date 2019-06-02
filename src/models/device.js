@@ -207,30 +207,30 @@ module.exports = function(Device) {
     try {
       let device;
       if (ctx.data) {
-        logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.data);
-        device = ctx.data;
+        logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.data);
+        //  device = ctx.data;
         ctx.hookState.updateData = ctx.data;
         return ctx;
       }
       if (ctx.instance) {
-        logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.instance);
-        device = ctx.instance;
+        logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.instance);
+        //  device = ctx.instance;
       }
       // else if (ctx.currentInstance) {
       //   device = ctx.currentInstance;
       // }
-      if (device.children) {
-        delete device.children;
+      if (ctx.instance.children) {
+        delete ctx.instance.children;
       }
-      if (device.transportProtocol && device.transportProtocol !== null) {
-        await setDeviceQRCode(device);
+      if (ctx.instance.transportProtocol && ctx.instance.transportProtocol !== null) {
+        await setDeviceQRCode(ctx.instance);
       }
       //  logger.publish(3, `${collectionName}`, "beforeSave:res1", device);
-      if (device.type && device.type !== null) {
-        await setDeviceIcons(device);
+      if (ctx.instance.type && device.type !== null) {
+        await setDeviceIcons(ctx.instance);
       }
-      logger.publish(4, collectionName, 'beforeSave:res', device);
-      return device;
+      logger.publish(5, collectionName, 'beforeSave:res', ctx.instance);
+      return ctx;
     } catch (error) {
       logger.publish(3, `${collectionName}`, 'beforeSave:err', error);
       return error;
@@ -620,10 +620,10 @@ module.exports = function(Device) {
       ) {
         const device = await Device.findByPattern(pattern, encoded);
         if (!device || device === null) return null;
-        await device.updateAttributes({
-          frameCounter: device.frameCounter + 1 || 1,
-          lastSignal: encoded.lastSignal || new Date(),
-        });
+        // await device.updateAttributes({
+        //   frameCounter: device.frameCounter + 1 || 1,
+        //   lastSignal: encoded.lastSignal || new Date(),
+        // });
         const Sensor = Device.app.models.Sensor;
         const tempSensor = await Sensor.compose(
           device,
