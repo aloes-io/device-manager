@@ -243,14 +243,14 @@ broker.start = app => {
      * @param {object} client - MQTT client
      * @returns {functions} updateModelsStatus
      */
-    app.broker.on('keepaliveTimeout', async client => {
-      try {
-        logger.publish(4, 'broker', 'keepaliveTimeout:req', client.id);
-        return updateModelsStatus(client, false);
-      } catch (error) {
-        return error;
-      }
-    });
+    // app.broker.on('keepaliveTimeout', async client => {
+    //   try {
+    //     logger.publish(4, 'broker', 'keepaliveTimeout:req', client.id);
+    //     return updateModelsStatus(client, false);
+    //   } catch (error) {
+    //     return error;
+    //   }
+    // });
 
     /**
      * Detect application known pattern and load the application instance

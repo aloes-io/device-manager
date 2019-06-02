@@ -299,7 +299,7 @@ module.exports = function(Device) {
       const sensorsKeys = await SensorResource.keys({
         match: `deviceId-${device.id}-sensorId-*`,
       });
-      logger.publish(4, `${collectionName}`, 'addCachedSensors:req', sensorsKeys);
+      logger.publish(5, `${collectionName}`, 'addCachedSensors:req', sensorsKeys);
       const promises = await sensorsKeys.map(async key =>
         JSON.parse(await SensorResource.get(key)),
       );
@@ -386,6 +386,7 @@ module.exports = function(Device) {
       // if (ctx.data)
       if (ctx.hookState.updateData) {
         logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
+        return publish(ctx.instance, 'PUT');
       } else if (ctx.instance && Device.app) {
         logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
         if (ctx.isNewInstance) {
