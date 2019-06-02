@@ -126,6 +126,8 @@ Event reporting that an application instance has been created or updated.
         * [.search(filter)](#module_Device.search) ⇒ <code>array</code>
         * [.geoLocate(filter)](#module_Device.geoLocate) ⇒ <code>array</code>
     * _inner_
+        * [~setDeviceQRCode(device)](#module_Device..setDeviceQRCode)
+        * [~setDeviceIcons(device)](#module_Device..setDeviceIcons)
         * [~createToken(device)](#module_Device..createToken)
         * [~createDeviceProps(ctx)](#module_Device..createDeviceProps)
         * [~updateDeviceProps(ctx)](#module_Device..updateDeviceProps)
@@ -209,6 +211,28 @@ Search device by location ( GPS coordinates )
 | Param | Type | Description |
 | --- | --- | --- |
 | filter | <code>object</code> | Requested filter |
+
+<a name="module_Device..setDeviceQRCode"></a>
+
+### Device~setDeviceQRCode(device)
+Set device QRcode access based on declared protocol and access point url
+
+**Kind**: inner method of [<code>Device</code>](#module_Device)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| device | <code>object</code> | Device instance returns {object} device |
+
+<a name="module_Device..setDeviceIcons"></a>
+
+### Device~setDeviceIcons(device)
+Set device icons ( urls ) based on its type
+
+**Kind**: inner method of [<code>Device</code>](#module_Device)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| device | <code>object</code> | Device instance returns {object} device |
 
 <a name="module_Device..createToken"></a>
 

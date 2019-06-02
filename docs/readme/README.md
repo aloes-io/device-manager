@@ -133,9 +133,10 @@ And then install wildcards certificates with : https://certbot.eff.org/
 
 ## TODO
 
-- Migrate  to Loopback v4
-- Replace loopback-component-storage by Mongo Gridfs
+- Update / improve search engine
+- Finish account linking with github
 - Improve Application model
-- Integrate caching with redis before access to Device and Sensor instances
 - Add user(s) in a team to easily share devices access
 - Data exports ( all content related to an account )
+- Store data related to MQTT traffic ( in Device model ? )
+- Migrate  to Loopback v4

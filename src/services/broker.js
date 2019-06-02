@@ -187,65 +187,6 @@ broker.start = app => {
     };
 
     /**
-     * Update device status from MQTT conection status
-     * @method module:Broker~updateDeviceStatus
-     * @param {object} client - MQTT client
-     * @param {boolean} status - MQTT conection status
-     * @returns {function}
-     */
-    // const updateDeviceStatus = async (client, status) => {
-    //   try {
-    //     let idProp;
-    //     if (client.devEui && client.devEui !== null && client.id.startsWith(client.devEui)) {
-    //       idProp = 'devEui';
-    //     } else if (
-    //       client.devAddr &&
-    //       client.devAddr !== null &&
-    //       client.id.startsWith(client.devAddr)
-    //     ) {
-    //       idProp = 'devAddr';
-    //     }
-    //     if (!idProp) return null;
-    //     const device = await app.models.Device.findById(client.user);
-    //     if (device && device !== null) {
-    //       if (status) {
-    //         return device.updateAttribute('status', true);
-    //       }
-    //       return device.updateAttributes({ frameCounter: 0, status: false });
-    //     }
-    //     return null;
-    //   } catch (error) {
-    //     return error;
-    //   }
-    // };
-
-    /**
-     * Update application status from MQTT conection status
-     * @method module:Broker~updateApplicationStatus
-     * @param {object} client - MQTT client
-     * @param {boolean} status - MQTT conection status
-     * @returns {function}
-     */
-    const updateApplicationStatus = async (client, status) => {
-      try {
-        if (client.appEui && client.appEui !== null) {
-          const externalApp = await app.models.Application.findById(client.user);
-          if (externalApp && externalApp !== null) {
-            if (status) {
-              return externalApp.updateAttribute('status', true);
-            }
-            // todo : check that client.id contains externalApp.appEui || client.appEui
-            // todo : update every device belonging to this app
-            return externalApp.updateAttributes({ frameCounter: 0, status: false });
-          }
-        }
-        return null;
-      } catch (error) {
-        return error;
-      }
-    };
-
-    /**
      * Update models status from MQTT conection status and client properties
      * @method module:Broker~updateModelsStatus
      * @param {object} client - MQTT client
@@ -257,7 +198,7 @@ broker.start = app => {
         //  console.log('updateModelsStatus', status);
         if (client.user) {
           await app.models.Device.updateStatus(client, status);
-          await updateApplicationStatus(client, status);
+          await app.models.Application.updateStatus(client, status);
         }
         return null;
       } catch (error) {
@@ -348,8 +289,6 @@ broker.start = app => {
       } else if (typeof payload === 'object') {
         //  console.log('publish buffer ?', payload instanceof Buffer);
         payload = JSON.stringify(payload);
-        // if (!(payload instanceof Buffer)) {
-        // }
       }
       logger.publish(5, 'broker', 'publish:topic', topic);
       logger.publish(5, 'broker', 'publish:payload', payload);
@@ -510,15 +449,6 @@ broker.stop = async app => {
  */
 broker.init = (app, httpServer, config) => {
   try {
-    // const ascoltatore = {
-    //   type: 'redis',
-    //   redis,
-    //   db: Number(process.env.REDIS_MQTT_COLLECTION) || 2,
-    //   host: process.env.REDIS_HOST,
-    //   port: Number(process.env.REDIS_PORT),
-    //   password: process.env.REDIS_PASS,
-    //   //  return_buffers: true, // to handle binary payloads
-    // };
     const brokerConfig = {
       //  backend: ascoltatore,
       interfaces: [{ type: 'mqtt', port: Number(config.MQTT_BROKER_PORT) }],
@@ -540,8 +470,6 @@ broker.init = (app, httpServer, config) => {
         credentials: {
           key: fs.readFileSync(`${__dirname}/../../deploy/${config.MQTTS_BROKER_KEY}`),
           cert: fs.readFileSync(`${__dirname}/../../deploy/${config.MQTTS_BROKER_CERT}`),
-          //  keyPath: `${__dirname}/../../deploy/${config.MQTTS_BROKER_KEY}`,
-          //  certPath: `${__dirname}/../../deploy/${config.MQTTS_BROKER_CERT}`,
         },
       };
     }

@@ -209,6 +209,79 @@
         "verb": "post",
         "path": "/compose"
       }
+    },
+    "handlePresentations": {
+      "description": [
+        "When HEAD method detected after parsing MQTT packet, save in cache and publish via MQTT"
+      ],
+      "accepts": [
+        {
+          "arg": "device",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "sensor",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "encoded",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "http": {
+        "verb": "post",
+        "path": "/handle-presentations"
+      }
+    },
+    "createOrUpdate": {
+      "description": [
+        "When POST || PUT method detected after parsing MQTT packet, save in cache and publish via MQTT"
+      ],
+      "accepts": [
+        {
+          "arg": "device",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "sensor",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "encoded",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "http": {
+        "verb": "post",
+        "path": "/create-or-update"
+      }
+    },
+    "getInstance": {
+      "description": [
+        "When GET method detected after parsing MQTT packet, find in cache and publish via MQTT"
+      ],
+      "accepts": [
+        {
+          "arg": "pattern",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "sensor",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "http": {
+        "verb": "post",
+        "path": "/get-instance"
+      }
     }
   }
 }
