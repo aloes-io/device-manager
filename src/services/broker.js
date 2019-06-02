@@ -48,15 +48,15 @@ broker.start = app => {
           error.returnCode = 4;
           logger.publish(4, 'broker', 'Authenticate:res', 'missing credentials');
           auth = false;
-          cb(error, auth);
-          return auth;
+          return cb(error, auth);
+          //  return auth;
         }
         if (!app.models.accessToken) {
           const error = new Error('Auth error');
           error.returnCode = 3;
           auth = false;
-          cb(error, auth);
-          return auth;
+          return cb(error, auth);
+          //  return auth;
         }
         return app.models.accessToken.findById(password.toString(), (err, token) => {
           if (err || !token) {
@@ -80,13 +80,13 @@ broker.start = app => {
           }
           logger.publish(4, 'broker', 'Authenticate:res', { username, auth });
           app.emit('publish', `${token.userId}/Auth/POST`, auth.toString(), false, 1);
-          cb(null, auth);
-          return auth;
+          return cb(null, auth);
+          //  return auth;
         });
       } catch (error) {
         logger.publish(4, 'broker', 'Authenticate:err', error);
-        cb(null, false);
-        return false;
+        return cb(null, false);
+        //  return false;
       }
     };
 
@@ -105,25 +105,25 @@ broker.start = app => {
         let auth = false;
         if (client.user) {
           if (topicParts[0].startsWith(client.user)) {
-            logger.publish(4, 'broker', 'authorizePublish:req', {
+            logger.publish(5, 'broker', 'authorizePublish:req', {
               user: client.user,
               topic: topicParts,
             });
             auth = true;
           } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
-            logger.publish(4, 'broker', 'authorizePublish:req', {
+            logger.publish(5, 'broker', 'authorizePublish:req', {
               device: client.devEui,
               topic: topicParts,
             });
             auth = true;
           } else if (client.devAddr && topicParts[0].startsWith(client.devAddr)) {
-            logger.publish(4, 'broker', 'authorizePublish:req', {
+            logger.publish(5, 'broker', 'authorizePublish:req', {
               device: client.devAddr,
               topic: topicParts,
             });
             auth = true;
           } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
-            logger.publish(4, 'broker', 'authorizePublish:req', {
+            logger.publish(5, 'broker', 'authorizePublish:req', {
               application: client.appEui,
               topic: topicParts,
             });
@@ -402,7 +402,7 @@ broker.start = app => {
           return null;
           //  throw new Error('no pattern found');
         }
-        logger.publish(4, 'broker', 'onPublished:pattern', pattern.name);
+        logger.publish(5, 'broker', 'onPublished:pattern', pattern.name);
         const serviceName = await redirectMessage(packet, pattern);
         logger.publish(5, 'broker', 'onPublished:service', serviceName);
         if (!serviceName || serviceName === null || serviceName instanceof Error) {

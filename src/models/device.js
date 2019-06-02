@@ -64,6 +64,23 @@ module.exports = function(Device) {
     err();
   }
 
+  Device.validate('transportProtocol', transportProtocolValidator, {
+    message: 'Wrong transport protocol name',
+  });
+
+  Device.validate('messageProtocol', messageProtocolValidator, {
+    message: 'Wrong application protocol name',
+  });
+
+  Device.validate('type', typeValidator, {
+    message: 'Wrong device type',
+  });
+
+  Device.validatesPresenceOf('ownerId');
+
+  Device.validatesUniquenessOf('devEui', { scopedTo: ['ownerId'] });
+  // Device.validatesDateOf("lastSignal", {message: "lastSignal is not a date"});
+
   /**
    * Set device QRcode access based on declared protocol and access point url
    * @method module:Device~setDeviceQRCode
@@ -178,14 +195,56 @@ module.exports = function(Device) {
     }
   };
 
-  const publish = async (device, method) => {
+  /**
+   * Event reporting that a device instance will be created or updated.
+   * @event before save
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @param {object} ctx.instance - Device instance
+   */
+  Device.observe('before save', async ctx => {
+    try {
+      let device;
+      if (ctx.data) {
+        logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.data);
+        device = ctx.data;
+        ctx.hookState.updateData = ctx.data;
+        return ctx;
+      }
+      if (ctx.instance) {
+        logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.instance);
+        device = ctx.instance;
+      }
+      // else if (ctx.currentInstance) {
+      //   device = ctx.currentInstance;
+      // }
+      if (device.children) {
+        delete device.children;
+      }
+      if (device.transportProtocol && device.transportProtocol !== null) {
+        await setDeviceQRCode(device);
+      }
+      //  logger.publish(3, `${collectionName}`, "beforeSave:res1", device);
+      if (device.type && device.type !== null) {
+        await setDeviceIcons(device);
+      }
+      logger.publish(4, collectionName, 'beforeSave:res', device);
+      return device;
+    } catch (error) {
+      logger.publish(3, `${collectionName}`, 'beforeSave:err', error);
+      return error;
+    }
+  });
+
+  Device.publish = async (device, method) => {
     try {
       const packet = await iotAgent.publish({
         userId: device.ownerId,
         collectionName,
         data: device,
         modelId: device.id,
-        method: device.method || method,
+        method: method || device.method,
         pattern: 'aloesClient',
       });
       if (packet && packet.topic && packet.payload) {
@@ -245,7 +304,7 @@ module.exports = function(Device) {
         throw new Error('no device address');
       }
       await ctx.instance.updateAttribute('apiKey', token.id.toString());
-      return publish(ctx.instance, 'POST');
+      return Device.publish(ctx.instance, 'POST');
     } catch (error) {
       return error;
     }
@@ -287,12 +346,48 @@ module.exports = function(Device) {
         idProp,
         token,
       });
-      return publish(ctx.instance, 'PUT');
+      return Device.publish(ctx.instance, 'PUT');
     } catch (error) {
       return error;
     }
   };
 
+  /**
+   * Event reporting that a device instance has been created or updated.
+   * @event after save
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @param {object} ctx.instance - Device instance
+   */
+  Device.observe('after save', async ctx => {
+    try {
+      // if (ctx.data)
+      if (ctx.hookState.updateData) {
+        logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
+        const updatedProps = Object.keys(ctx.hookState.updateData);
+        if (updatedProps.some(prop => prop === 'status')) {
+          return Device.publish(ctx.instance, 'PUT');
+        }
+      } else if (ctx.instance && Device.app) {
+        logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
+        if (ctx.isNewInstance) {
+          return createDeviceProps(ctx);
+        }
+        return updateDeviceProps(ctx);
+      }
+      return ctx;
+    } catch (error) {
+      logger.publish(3, `${collectionName}`, 'afterSave:err', error);
+      return error;
+    }
+  });
+
+  /**
+   * Find sensors in the cache and add to device instance
+   * @method module:Device~addCachedSensors
+   * @param {object} device - device instance
+   */
   const addCachedSensors = async device => {
     try {
       const SensorResource = Device.app.models.SensorResource;
@@ -314,65 +409,6 @@ module.exports = function(Device) {
     }
   };
 
-  Device.validate('transportProtocol', transportProtocolValidator, {
-    message: 'Wrong transport protocol name',
-  });
-
-  Device.validate('messageProtocol', messageProtocolValidator, {
-    message: 'Wrong application protocol name',
-  });
-
-  Device.validate('type', typeValidator, {
-    message: 'Wrong device type',
-  });
-
-  Device.validatesPresenceOf('ownerId');
-
-  Device.validatesUniquenessOf('devEui', { scopedTo: ['ownerId'] });
-  // Device.validatesDateOf("lastSignal", {message: "lastSignal is not a date"});
-
-  /**
-   * Event reporting that a device instance will be created or updated.
-   * @event before save
-   * @param {object} ctx - Express context.
-   * @param {object} ctx.req - Request
-   * @param {object} ctx.res - Response
-   * @param {object} ctx.instance - Device instance
-   */
-  Device.observe('before save', async ctx => {
-    try {
-      let device;
-      if (ctx.data) {
-        logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.data);
-        device = ctx.data;
-        ctx.hookState.updateData = ctx.data;
-        return ctx;
-      }
-      if (ctx.instance) {
-        logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.instance);
-        device = ctx.instance;
-      }
-      // else if (ctx.currentInstance) {
-      //   device = ctx.currentInstance;
-      // }
-      if (device.children) {
-        delete device.children;
-      }
-      if (device.transportProtocol && device.transportProtocol !== null) {
-        await setDeviceQRCode(device);
-      }
-      //  logger.publish(3, `${collectionName}`, "beforeSave:res1", device);
-      if (device.type && device.type !== null) {
-        await setDeviceIcons(device);
-      }
-      logger.publish(4, collectionName, 'beforeSave:res', device);
-      return device;
-    } catch (error) {
-      logger.publish(3, `${collectionName}`, 'beforeSave:err', error);
-      return error;
-    }
-  });
-
   /**
    * Event reporting that a device instance has been created or updated.
    * @event after save
@@ -381,26 +417,6 @@ module.exports = function(Device) {
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Device instance
    */
-  Device.observe('after save', async ctx => {
-    try {
-      // if (ctx.data)
-      if (ctx.hookState.updateData) {
-        logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
-        return publish(ctx.instance, 'PUT');
-      } else if (ctx.instance && Device.app) {
-        logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
-        if (ctx.isNewInstance) {
-          return createDeviceProps(ctx);
-        }
-        return updateDeviceProps(ctx);
-      }
-      return ctx;
-    } catch (error) {
-      logger.publish(3, `${collectionName}`, 'afterSave:err', error);
-      return error;
-    }
-  });
-
   Device.beforeRemote('**', async ctx => {
     try {
       if (
@@ -495,7 +511,7 @@ module.exports = function(Device) {
         // });
 
         if (instance && instance.ownerId && Device.app) {
-          await publish(instance, 'DELETE');
+          await Device.publish(instance, 'DELETE');
           return ctx;
         }
       }
@@ -593,6 +609,10 @@ module.exports = function(Device) {
       ) {
         const device = await Device.findByPattern(pattern, encoded);
         if (!device || device === null) return null;
+        await device.updateAttributes({
+          frameCounter: device.frameCounter + 1 || 1,
+          lastSignal: encoded.lastSignal || new Date(),
+        });
         const Sensor = Device.app.models.Sensor;
         const tempSensor = await Sensor.compose(
           device,
@@ -603,22 +623,9 @@ module.exports = function(Device) {
         } else if (encoded.method === 'HEAD') {
           return Sensor.handlePresentation(device, tempSensor, encoded);
         } else if (encoded.method === 'POST' || encoded.method === 'PUT') {
-          // await device.updateAttributes({
-          //   frameCounter: device.frameCounter + 1 || 1,
-          //   lastSignal: encoded.lastSignal || new Date(),
-          // });
-
           return Sensor.createOrUpdate(device, tempSensor, encoded);
         } else if (encoded.method === 'STREAM') {
-          //  console.log('streaming sensor:');
-          const stream = await iotAgent.publish({
-            userId: device.ownerId,
-            collectionName: 'Sensor',
-            data: tempSensor.value,
-            method: 'STREAM',
-            pattern: 'aloesClient',
-          });
-          return Device.app.publish(stream.topic, stream.payload);
+          return Sensor.publish(tempSensor, encoded.method);
         }
         throw new Error('Unsupported method');
       }
@@ -706,27 +713,12 @@ module.exports = function(Device) {
       }
       if (!idProp) return null;
       const device = await Device.findById(client.user);
-      //  console.log('Device.updateStatus', device.id);
       if (device && device !== null) {
         if (status) {
           //  await device.updateAttribute('status', true);
           await device.updateAttributes({ frameCounter: 1, status: true, lastSignal: new Date() });
         } else {
           await device.updateAttributes({ frameCounter: 0, status: false, lastSignal: new Date() });
-          // const sensors = await device.sensors.find();
-          // // sync redis with mongo
-          // if (sensors && sensors !== null) {
-          //   sensors.forEach(async sensor => {
-          //     const cacheKey = `deviceId-${device.id}-sensorId-${sensor.id}`;
-          //     const cachedSensor = JSON.parse(await Device.app.models.SensorResource.get(cacheKey));
-          //     if (cachedSensor && cachedSensor !== null) {
-          //       delete cachedSensor.id;
-          //       //  console.log('sensor sync 3', cachedSensor.id, sensor.id);
-          //       return sensor.updateAttributes(cachedSensor);
-          //     }
-          //     return null;
-          //   });
-          // }
         }
       }
       return null;
@@ -755,7 +747,6 @@ module.exports = function(Device) {
   Device.search = async (ctx, filter) => {
     logger.publish(4, `${collectionName}`, 'search:req', filter);
     try {
-      //  if (process.env.NODE_ENV.toString() === "development") return null;
       if (!ctx.req.accessToken.userId || !filter.place) {
         throw new Error('Invalid request');
       }

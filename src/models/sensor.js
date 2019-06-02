@@ -40,39 +40,6 @@ module.exports = function(Sensor) {
     err();
   }
 
-  const publish = async (sensor, method) => {
-    try {
-      let packet;
-      if (sensor.isNewInstance) {
-        packet = await iotAgent.publish({
-          userId: sensor.ownerId,
-          collectionName,
-          modelId: sensor.id,
-          data: sensor,
-          method: sensor.method || method,
-          pattern: 'aloesClient',
-        });
-      } else {
-        packet = await iotAgent.publish({
-          userId: sensor.ownerId,
-          collectionName,
-          data: sensor,
-          modelId: sensor.id,
-          method: sensor.method || method,
-          pattern: 'aloesClient',
-        });
-      }
-      if (packet && packet.topic && packet.payload) {
-        return Sensor.app.emit('publish', packet.topic, packet.payload, false, 0);
-        //   return Sensor.app.publish(packet.topic, packet.payload);
-      }
-      throw new Error('Invalid MQTT Packet encoding');
-      //  return null;
-    } catch (error) {
-      return error;
-    }
-  };
-
   const findInCache = async deviceId => {
     try {
       const SensorResource = Sensor.app.models.SensorResource;
@@ -190,7 +157,7 @@ module.exports = function(Sensor) {
         });
         const cacheKey = `deviceId-${instance.deviceId}-sensorId-${instance.id}`;
         await Sensor.app.models.SensorResource.set(cacheKey, null, { ttl: 1 });
-        return publish(instance, 'DELETE');
+        return Sensor.publish(instance, 'DELETE');
       }
       throw new Error('no instance to delete');
     } catch (error) {
@@ -270,6 +237,38 @@ module.exports = function(Sensor) {
     }
   };
 
+  Sensor.publish = async (sensor, method) => {
+    try {
+      let packet;
+      if (sensor.isNewInstance) {
+        packet = await iotAgent.publish({
+          userId: sensor.ownerId,
+          collectionName,
+          modelId: sensor.id,
+          data: sensor,
+          method: method || sensor.method,
+          pattern: 'aloesClient',
+        });
+      } else {
+        packet = await iotAgent.publish({
+          userId: sensor.ownerId,
+          collectionName,
+          data: sensor,
+          modelId: sensor.id,
+          method: method || sensor.method,
+          pattern: 'aloesClient',
+        });
+      }
+      if (packet && packet.topic && packet.payload) {
+        return Sensor.app.emit('publish', packet.topic, packet.payload, false, 0);
+        //   return Sensor.app.publish(packet.topic, packet.payload);
+      }
+      throw new Error('Invalid MQTT Packet encoding');
+      //  return null;
+    } catch (error) {
+      return error;
+    }
+  };
   /**
    * When HEAD detected, validate sensor.resource and value, then save sensor instance
    * @method module:Sensor.handlePresentation
@@ -289,14 +288,14 @@ module.exports = function(Sensor) {
       }
       const SensorResource = Sensor.app.models.SensorResource;
       if (sensor.isNewInstance && sensor.icons) {
-        sensor.method = 'HEAD';
+        //  sensor.method = 'HEAD';
         const newSensor = await device.sensors.create(sensor);
         const resourceKey = `deviceId-${device.id}-sensorId-${sensor.id}`;
         // await Sensor.app.models.SensorResource.set(resourceKey, JSON.stringify(newSensor), {
         //   ttl: 10000,
         // });
         await SensorResource.set(resourceKey, JSON.stringify(newSensor));
-        return publish(newSensor, 'HEAD');
+        return Sensor.publish(newSensor, 'HEAD');
       } else if (sensor.id) {
         const resourceKey = `deviceId-${device.id}-sensorId-${sensor.id}`;
         const cachedSensor = await SensorResource.get(resourceKey);
@@ -307,13 +306,13 @@ module.exports = function(Sensor) {
         if (!updatedSensor) throw new Error('Sensor not found');
         //  delete sensor.id;
         //  updatedSensor.method = 'POST';
-        updatedSensor.method = 'HEAD';
+        //  updatedSensor.method = 'HEAD';
         if (!updatedSensor.resource) {
           updatedSensor.resource = sensor.resource;
         }
         updatedSensor.frameCounter = 0;
         await SensorResource.set(resourceKey, JSON.stringify(updatedSensor));
-        return publish(updatedSensor, 'HEAD');
+        return Sensor.publish(updatedSensor, 'HEAD');
       }
       throw new Error('no valid sensor to register');
     } catch (error) {
@@ -344,19 +343,16 @@ module.exports = function(Sensor) {
         //  console.log('cached sensor', cachedSensor);
         if (!updatedSensor) {
           updatedSensor = await Sensor.findById(sensor.id);
+          // updatedSensor = await device.sensors.findById(sensor.id);
         }
         if (!updatedSensor) throw new Error('Sensor not found');
 
-        //  const updatedSensor = await device.sensors.findById(sensor.id);
         if (encoded.value && encoded.resource) {
           updatedSensor = await updateAloesSensors(
             updatedSensor,
             Number(encoded.resource),
             encoded.value,
           );
-          // updatedSensor.value = sensor.value;
-          // updatedSensor.resource = sensor.resource;
-          // updatedSensor.resources = { ...updatedSensor.resources, ...sensor.resources };
           // await updatedSensor.measurements.create({
           //   date: sensor.lastSignal,
           //   type: typeof sensor.resources[resource],
@@ -372,12 +368,27 @@ module.exports = function(Sensor) {
         });
         updatedSensor.method = encoded.method;
         updatedSensor.frameCounter += 1;
-        await SensorResource.set(resourceKey, JSON.stringify(updatedSensor));
-        if (updatedSensor.frameCounter % 10 === 0) {
+        const lastSignal = encoded.lastSignal.getTime();
+        // console.log(
+        //   'counter, last sync , last signal',
+        //   updatedSensor.frameCounter,
+        //   updatedSensor.lastSync,
+        //   lastSignal,
+        // );
+
+        if (updatedSensor.frameCounter % 25 === 0) {
+          updatedSensor.lastSync = lastSignal;
           delete updatedSensor.id;
           updatedSensor = await sensor.updateAttributes(updatedSensor);
+        } else if (lastSignal > updatedSensor.lastSync + 30 * 1000) {
+          updatedSensor.lastSync = lastSignal;
+          delete updatedSensor.id;
+          updatedSensor = await sensor.updateAttributes(updatedSensor);
+        } else if (!updatedSensor.lastSync) {
+          updatedSensor.lastSync = lastSignal;
         }
-        return publish(updatedSensor, encoded.method);
+        await SensorResource.set(resourceKey, JSON.stringify(updatedSensor));
+        return Sensor.publish(updatedSensor, 'PUT');
       }
       throw new Error('no valid sensor to update');
     } catch (error) {
@@ -422,6 +433,28 @@ module.exports = function(Sensor) {
         return Sensor.app.emit('publish', packet.topic, packet.payload, false, 0);
       }
       throw new Error('no packet payload to publish');
+    } catch (error) {
+      return error;
+    }
+  };
+
+  Sensor.syncCache = async device => {
+    try {
+      const sensors = await device.sensors.find();
+      // sync redis with mongo
+      if (sensors && sensors !== null) {
+        sensors.forEach(async sensor => {
+          const cacheKey = `deviceId-${device.id}-sensorId-${sensor.id}`;
+          const cachedSensor = JSON.parse(await Sensor.app.models.SensorResource.get(cacheKey));
+          if (cachedSensor && cachedSensor !== null) {
+            delete cachedSensor.id;
+            //  console.log('sensor sync 3', cachedSensor.id, sensor.id);
+            return sensor.updateAttributes(cachedSensor);
+          }
+          return null;
+        });
+      }
+      return null;
     } catch (error) {
       return error;
     }
