@@ -1,5 +1,4 @@
 import iotAgent from 'iot-agent';
-import { updateAloesSensors } from 'aloes-handlers';
 import logger from '../services/logger';
 import utils from '../services/utils';
 
@@ -18,10 +17,11 @@ module.exports = function(Device) {
 
   function transportProtocolValidator(err) {
     if (
-      this.transportProtocol.toLowerCase() === 'aloesclient' ||
-      this.transportProtocol.toLowerCase() === 'aloeslight' ||
-      this.transportProtocol.toLowerCase() === 'mysensors' ||
-      this.transportProtocol.toLowerCase() === 'lorawan'
+      this.transportProtocol &&
+      (this.transportProtocol.toLowerCase() === 'aloesclient' ||
+        this.transportProtocol.toLowerCase() === 'aloeslight' ||
+        this.transportProtocol.toLowerCase() === 'mysensors' ||
+        this.transportProtocol.toLowerCase() === 'lorawan')
     ) {
       return;
     }
@@ -30,10 +30,11 @@ module.exports = function(Device) {
 
   function messageProtocolValidator(err) {
     if (
-      this.messageProtocol.toLowerCase() === 'aloesclient' ||
-      this.messageProtocol.toLowerCase() === 'aloeslight' ||
-      this.messageProtocol.toLowerCase() === 'mysensors' ||
-      this.messageProtocol.toLowerCase() === 'cayennelpp'
+      this.messageProtocol &&
+      (this.messageProtocol.toLowerCase() === 'aloesclient' ||
+        this.messageProtocol.toLowerCase() === 'aloeslight' ||
+        this.messageProtocol.toLowerCase() === 'mysensors' ||
+        this.messageProtocol.toLowerCase() === 'cayennelpp')
     ) {
       return;
     }
@@ -42,12 +43,21 @@ module.exports = function(Device) {
 
   function typeValidator(err) {
     if (
-      this.type.toLowerCase() === 'gateway' ||
-      this.type.toLowerCase() === 'node' ||
-      this.type.toLowerCase() === 'phone' ||
-      this.type.toLowerCase() === 'camera' ||
-      this.type.toLowerCase() === 'browser' ||
-      this.type.toLowerCase() === 'bot'
+      this.type &&
+      (this.type.toLowerCase() === 'audio-input' ||
+        this.type.toLowerCase() === 'audio-output' ||
+        this.type.toLowerCase() === 'bot' ||
+        this.type.toLowerCase() === 'browser' ||
+        this.type.toLowerCase() === 'camera' ||
+        this.type.toLowerCase() === 'gateway' ||
+        this.type.toLowerCase() === 'light-output' ||
+        this.type.toLowerCase() === 'midi-input' ||
+        this.type.toLowerCase() === 'midi-output' ||
+        this.type.toLowerCase() === 'node' ||
+        this.type.toLowerCase() === 'phone' ||
+        this.type.toLowerCase() === 'rfid' ||
+        this.type.toLowerCase() === 'switch-input' ||
+        this.type.toLowerCase() === 'switch-output')
     ) {
       return;
     }
@@ -66,65 +76,69 @@ module.exports = function(Device) {
     message: 'Wrong device type',
   });
 
+  Device.validatesPresenceOf('ownerId');
+
   Device.validatesUniquenessOf('devEui', { scopedTo: ['ownerId'] });
   // Device.validatesDateOf("lastSignal", {message: "lastSignal is not a date"});
 
   /**
-   * Event reporting that a device instance will be created or updated.
-   * @event before save
-   * @param {object} ctx - Express context.
-   * @param {object} ctx.req - Request
-   * @param {object} ctx.res - Response
-   * @param {object} ctx.instance - Device instance
+   * Set device QRcode access based on declared protocol and access point url
+   * @method module:Device~setDeviceQRCode
+   * @param {object} device - Device instance
+   * returns {object} device
    */
-  Device.observe('before save', async ctx => {
-    logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.instance);
-    logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.data);
+  const setDeviceQRCode = device => {
     try {
-      let device;
-      if (ctx.data) {
-        device = ctx.data;
-      } else if (ctx.instance) {
-        device = ctx.instance;
+      switch (device.transportProtocol.toLowerCase()) {
+        case 'mysensors':
+          if (device.accessPointUrl.endsWith('/#!1')) {
+            device.qrCode = `${device.accessPointUrl}`;
+          } else if (device.accessPointUrl) {
+            device.qrCode = `${device.accessPointUrl}/wifi?server=${
+              process.env.MQTT_BROKER_HOST
+            }&port=${process.env.MQTT_BROKER_PORT}&client=${device.devEui}&user=${
+              device.id
+            }&password=${device.apiKey}`;
+          }
+          break;
+        case 'aloeslight':
+          if (device.accessPointUrl.endsWith('/#!1')) {
+            device.qrCode = `${device.accessPointUrl}`;
+          } else if (device.accessPointUrl) {
+            device.qrCode = `${device.accessPointUrl}/wifi?server=${
+              process.env.MQTT_BROKER_HOST
+            }&port=${process.env.MQTT_BROKER_PORT}&client=${device.devEui}&user=${
+              device.id
+            }&password=${device.apiKey}`;
+          }
+          break;
+        default:
+        //  console.log(device);
       }
-      // else if (ctx.currentInstance) {
-      //   device = ctx.currentInstance;
-      // }
-      //  make a list properties to watch =>
-      //  todo update sensor properties when they exists (ex:transportProtocol )
-      if (device.transportProtocol && device.transportProtocol !== null) {
-        switch (device.transportProtocol.toLowerCase()) {
-          case 'mysensors':
-            if (device.accessPointUrl.endsWith('/#!1')) {
-              device.qrCode = `${device.accessPointUrl}`;
-            } else if (device.accessPointUrl) {
-              device.qrCode = `${device.accessPointUrl}/wifi?server=${
-                process.env.MQTT_BROKER_HOST
-              }&port=${process.env.MQTT_BROKER_PORT}&client=${device.devEui}&user=${
-                device.id
-              }&password=${device.apiKey}`;
-            }
-            break;
-          case 'aloeslight':
-            if (device.accessPointUrl.endsWith('/#!1')) {
-              device.qrCode = `${device.accessPointUrl}`;
-            } else if (device.accessPointUrl) {
-              device.qrCode = `${device.accessPointUrl}/wifi?server=${
-                process.env.MQTT_BROKER_HOST
-              }&port=${process.env.MQTT_BROKER_PORT}&client=${device.devEui}&user=${
-                device.id
-              }&password=${device.apiKey}`;
-            }
-            break;
-          default:
-            console.log(device);
-        }
-      }
-      //  logger.publish(3, `${collectionName}`, "beforeSave:res1", device);
+      return device;
+    } catch (error) {
+      return error;
+    }
+  };
 
+  /**
+   * Set device icons ( urls ) based on its type
+   * @method module:Device~setDeviceIcons
+   * @param {object} device - Device instance
+   * returns {object} device
+   */
+  const setDeviceIcons = device => {
+    try {
       switch (device.type) {
+        case 'audio-input':
+          device.icons[0] = `/icons/aloes/audio-input.png`;
+          device.icons[1] = `/icons/aloes/audio-input-white.png`;
+          break;
+        case 'audio-output':
+          device.icons[0] = `/icons/aloes/audio-output.png`;
+          device.icons[1] = `/icons/aloes/audio-output-white.png`;
+          break;
         case 'bot':
-          //  device.icons[0] = `${process.env.HTTP_CLIENT_URL}/icons/aloes/bot.png`;
           device.icons[0] = `/icons/aloes/bot.png`;
           device.icons[1] = `/icons/aloes/bot-white.png`;
           break;
@@ -140,6 +154,18 @@ module.exports = function(Device) {
           device.icons[0] = `/icons/aloes/gateway.png`;
           device.icons[1] = `/icons/aloes/gateway-white.png`;
           break;
+        case 'light-output':
+          device.icons[0] = `/icons/aloes/light-output.png`;
+          device.icons[1] = `/icons/aloes/light-output-white.png`;
+          break;
+        case 'midi-input':
+          device.icons[0] = `/icons/aloes/midi-input.png`;
+          device.icons[1] = `/icons/aloes/midi-input-white.png`;
+          break;
+        case 'midi-output':
+          device.icons[0] = `/icons/aloes/midi-output.png`;
+          device.icons[1] = `/icons/aloes/midi-output-white.png`;
+          break;
         case 'node':
           device.icons[0] = `/icons/aloes/node.png`;
           device.icons[1] = `/icons/aloes/node-white.png`;
@@ -148,9 +174,61 @@ module.exports = function(Device) {
           device.icons[0] = `/icons/aloes/phone.png`;
           device.icons[1] = `/icons/aloes/phone-white.png`;
           break;
+        case 'rfid':
+          device.icons[0] = `/icons/aloes/rfid.png`;
+          device.icons[1] = `/icons/aloes/rfid-white.png`;
+          break;
+        case 'switch-input':
+          device.icons[0] = `/icons/aloes/switch-input.png`;
+          device.icons[1] = `/icons/aloes/switch-input-white.png`;
+          break;
+        case 'switch-output':
+          device.icons[0] = `/icons/aloes/switch-output.png`;
+          device.icons[1] = `/icons/aloes/switch-output-white.png`;
+          break;
         default:
-          console.log(device.type);
+        //  console.log(device.type);
       }
+      return device;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  /**
+   * Event reporting that a device instance will be created or updated.
+   * @event before save
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @param {object} ctx.instance - Device instance
+   */
+  Device.observe('before save', async ctx => {
+    //  logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.instance);
+    //  logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.data);
+    try {
+      let device;
+      if (ctx.data) {
+        device = ctx.data;
+      } else if (ctx.instance) {
+        device = ctx.instance;
+      }
+      if (device.children) {
+        delete device.children;
+      }
+      // else if (ctx.currentInstance) {
+      //   device = ctx.currentInstance;
+      // }
+      //  make a list properties to watch =>
+      //  todo update sensor properties when they exists (ex:transportProtocol )
+      if (device.transportProtocol && device.transportProtocol !== null) {
+        await setDeviceQRCode(device);
+      }
+      //  logger.publish(3, `${collectionName}`, "beforeSave:res1", device);
+      if (device.type && device.type !== null) {
+        await setDeviceIcons(device);
+      }
+      console.log('device : ', device);
       logger.publish(4, collectionName, 'beforeSave:res', device);
       return device;
     } catch (error) {
@@ -159,30 +237,38 @@ module.exports = function(Device) {
     }
   });
 
+  /**
+   * Token creation helper
+   * @method module:Device~createToken
+   * @param {object} device - Device instance
+   * returns {object} token
+   */
   const createToken = async device => {
     try {
-      let token;
+      let idProp;
       if (device.devEui && device.devEui !== null) {
-        token = await device.accessTokens.create({
-          devEui: device.devEui,
-          //  userId: device.id,
-          ttl: -1,
-        });
+        idProp = 'devEui';
       } else if (device.devAddr && device.devAddr !== null) {
-        token = await device.accessTokens.create({
-          devAddr: device.devAddr,
-          //  userId: device.id,
-          ttl: -1,
-        });
-      } else {
-        throw new Error('no DevEui and no DevAddr');
+        idProp = 'devAddr';
       }
+      if (!idProp) throw new Error('Device hardware id not found');
+      const token = await device.accessTokens.create({
+        [idProp]: device[idProp],
+        ttl: -1,
+      });
       return token;
     } catch (error) {
       return error;
     }
   };
 
+  /**
+   * Init device depencies ( token, address )
+   * @method module:Device~createDeviceProps
+   * @param {object} ctx - Application context
+   * @param {object} ctx.req - HTTP request
+   * @param {object} ctx.res - HTTP response
+   */
   const createDeviceProps = async ctx => {
     try {
       await ctx.instance.deviceAddress.create({
@@ -215,49 +301,42 @@ module.exports = function(Device) {
     }
   };
 
+  /**
+   * Update device depencies ( token, sensors )
+   * @method module:Device~updateDeviceProps
+   * @param {object} ctx - Application context
+   * @param {object} ctx.req - HTTP request
+   * @param {object} ctx.res - HTTP response
+   */
   const updateDeviceProps = async ctx => {
     try {
       const token = await ctx.instance.accessTokens.findById(ctx.instance.apiKey);
       if (!token || token === null) throw new Error('Device API key not found');
-      //  if (!token || token === null) token = await createToken(ctx.instance);
-      if (ctx.instance.devEui !== null) {
-        token.updateAttribute('devEui', ctx.instance.devEui);
-        const sensors = ctx.instance.sensors();
-        if (sensors && sensors !== null) {
-          await Device.app.models.Sensor.updateAll(
-            { deviceId: ctx.instance.id },
-            {
-              devEui: ctx.instance.devEui,
-              transportProtocol: ctx.instance.transportProtocol,
-              transportProtocolVersion: ctx.instance.transportProtocolVersion,
-              messageProtocol: ctx.instance.messageProtocol,
-              messageProtocolVersion: ctx.instance.messageProtocolVersion,
-            },
-          );
-        }
-        logger.publish(4, `${collectionName}`, 'updateDeviceProps:res', {
-          token,
-        });
+      let idProp;
+      if (ctx.instance.devEui && ctx.instance.devEui !== null) {
+        idProp = 'devEui';
+      } else if (ctx.instance.devAddr && ctx.instance.devAddr !== null) {
+        idProp = 'devAddr';
       }
-      if (ctx.instance.devAddr !== null) {
-        token.updateAttribute('devAddr', ctx.instance.devAddr);
-        const sensors = ctx.instance.sensors();
-        if (sensors && sensors !== null && sensors.length > 0) {
-          await Device.app.models.Sensor.updateAll(
-            { deviceId: ctx.instance.id },
-            {
-              devAddr: ctx.instance.devAddr,
-              transportProtocol: ctx.instance.transportProtocol,
-              transportProtocolVersion: ctx.instance.transportProtocolVersion,
-              messageProtocol: ctx.instance.messageProtocol,
-              messageProtocolVersion: ctx.instance.messageProtocolVersion,
-            },
-          );
-        }
-        logger.publish(4, `${collectionName}`, 'updateDeviceProps:res', {
-          token,
-        });
+      if (!idProp) throw new Error('Device hardware id not found');
+      token.updateAttribute(idProp, ctx.instance[idProp]);
+      const sensors = await ctx.instance.sensors.find();
+      if (sensors && sensors !== null) {
+        await Device.app.models.Sensor.updateAll(
+          { deviceId: ctx.instance.id },
+          {
+            [idProp]: ctx.instance[idProp],
+            transportProtocol: ctx.instance.transportProtocol,
+            transportProtocolVersion: ctx.instance.transportProtocolVersion,
+            messageProtocol: ctx.instance.messageProtocol,
+            messageProtocolVersion: ctx.instance.messageProtocolVersion,
+          },
+        );
       }
+      logger.publish(4, `${collectionName}`, 'updateDeviceProps:res', {
+        idProp,
+        token,
+      });
       const packet = await iotAgent.publish({
         userId: ctx.instance.ownerId,
         collectionName,
@@ -285,6 +364,7 @@ module.exports = function(Device) {
    */
   Device.observe('after save', async ctx => {
     try {
+      // if (ctx.data)
       if (ctx.instance && Device.app) {
         logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
         if (ctx.isNewInstance) {
@@ -301,11 +381,11 @@ module.exports = function(Device) {
 
   /**
    * Event reporting that a device instance will be deleted.
-   * @event before save
+   * @event before delete
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @param {object} ctx.instance - Device instance
+   * @param {object} ctx.where.id - Device instance
    */
   Device.observe('before delete', async ctx => {
     try {
@@ -340,11 +420,12 @@ module.exports = function(Device) {
 
   /**
    * Find device related to incoming MQTT packet
+   * @method module:Device.findByPattern
    * @param {object} pattern - IotAgent parsed pattern
    * @param {object} encoded - IotAgent parsed message
    * @returns {object} device
    */
-  const findDeviceByPattern = async (pattern, encoded) => {
+  Device.findByPattern = async (pattern, encoded) => {
     try {
       const transportProtocol = {
         like: new RegExp(`.*${pattern.name}.*`, 'i'),
@@ -396,6 +477,7 @@ module.exports = function(Device) {
         throw new Error('no device found');
       }
       logger.publish(4, `${collectionName}`, 'findDeviceByPattern:res', {
+        deviceName: device.name,
         deviceId: device.id,
       });
       return device;
@@ -405,177 +487,8 @@ module.exports = function(Device) {
   };
 
   /**
-   * When device found, create or update sensor instance
-   * @param {object} device - found device instance
-   * @param {object} encoded - IotAgent parsed message
-   * @returns {object} sensor
-   */
-  const composeSensor = (device, encoded) => {
-    try {
-      let sensor = {};
-      if ((!device.sensors() || !device.sensors()[0]) && encoded.type) {
-        sensor = {
-          //  ...encoded,
-          name: encoded.name || null,
-          type: encoded.type,
-          resources: encoded.resources,
-          icons: encoded.icons,
-          colors: encoded.colors,
-          nativeType: encoded.nativeType,
-          nativeResource: encoded.nativeResource,
-          nativeSensorId: encoded.nativeSensorId,
-          nativeNodeId: encoded.nativeNodeId || null,
-          frameCounter: encoded.frameCounter || 0,
-          inPrefix: encoded.inPrefix || null,
-          outPrefix: encoded.outPrefix || null,
-          inputPath: encoded.inputPath || null,
-          outputPath: encoded.outputPath || null,
-          transportProtocol: device.transportProtocol,
-          transportProtocolVersion: device.transportProtocolVersion,
-          messageProtocol: device.messageProtocol,
-          messageProtocolVersion: device.messageProtocolVersion,
-          devEui: device.devEui,
-          devAddr: device.devAddr,
-          ownerId: device.ownerId,
-          isNewInstance: true,
-        };
-        logger.publish(4, `${collectionName}`, 'composeSensor:new', {
-          sensor,
-        });
-        return sensor;
-      } else if (device.sensors()[0] && device.sensors()[0].id) {
-        sensor = device.sensors()[0];
-        logger.publish(4, `${collectionName}`, 'composeSensor:update', {
-          sensor,
-        });
-        sensor.isNewInstance = false;
-        //  sensor.name = encoded.name;
-        //  sensor.resource = encoded.resource;
-        sensor.description = encoded.description;
-        sensor.inPrefix = encoded.inPrefix || null;
-        sensor.outPrefix = encoded.outPrefix || null;
-        sensor.inputPath = encoded.inputPath || null;
-        sensor.outputPath = encoded.outputPath || null;
-        sensor.devEui = device.devEui;
-        sensor.devAddr = device.devAddr;
-        sensor.transportProtocol = device.transportProtocol;
-        sensor.transportProtocolVersion = device.transportProtocolVersion;
-        sensor.messageProtocol = device.messageProtocol;
-        sensor.messageProtocolVersion = device.messageProtocolVersion;
-        return sensor;
-      }
-      throw new Error('no sensor found and no known type to register a new one');
-    } catch (error) {
-      return error;
-    }
-  };
-
-  /**
-   * When GET method detected, find and publish instance
-   * @param {object} pattern - IotAgent detected pattern
-   * @param {object} sensor - Incoming sensor instance
-   * @returns {object} sensor
-   * @returns {function} app.publish
-   */
-  const getInstance = async (pattern, sensor) => {
-    try {
-      let packet = {
-        topic: `${sensor.ownerId}/IoTAgent/GET`,
-        payload: JSON.stringify(sensor),
-      };
-      if (pattern.name.toLowerCase() !== 'aloesclient') {
-        packet = await iotAgent.decode(packet, pattern.params);
-      }
-      if (packet.payload && packet.payload !== null) {
-        //  console.log('getInstance res:', topic, payload);
-        return Device.app.publish(packet.topic, packet.payload, false, 0);
-      }
-      throw new Error('no packet payload to publish');
-    } catch (error) {
-      return error;
-    }
-  };
-
-  /**
-   * When HEAD detected, validate sensor.resource and value, then save sensor instance
-   * @param {object} device - found device instance
-   * @param {object} sensor - Incoming sensor instance
-   * @param {object} encoded - IotAgent parsed message
-   * @returns {function} sensor.create
-   * @returns {function} sensor.updateAttributes
-   */
-  const handleSensorPresentation = async (device, sensor, encoded) => {
-    try {
-      logger.publish(4, `${collectionName}`, 'handleSensorPresentation:req', {
-        deviceId: device.id,
-      });
-      sensor.frameCounter = 0;
-      if (encoded.resource) {
-        sensor.resource = Number(encoded.resource);
-      }
-      if (sensor.isNewInstance && sensor.icons) {
-        sensor.method = 'HEAD';
-        return device.sensors.create(sensor);
-      } else if (sensor.id) {
-        const updatedSensor = await device.sensors.findById(sensor.id);
-        if (!updatedSensor) throw new Error('Sensor not found');
-        delete sensor.id;
-        updatedSensor.method = 'HEAD';
-        if (!updatedSensor.resource) {
-          updatedSensor.resource = sensor.resource;
-        }
-        return updatedSensor.save();
-      }
-      throw new Error('no valid sensor to register');
-    } catch (error) {
-      return error;
-    }
-  };
-
-  /**
-   * When POST or PUT method detected, validate sensor.resource and value, then save sensor instance
-   * @param {object} device - found device instance
-   * @param {object} sensor - Incoming sensor instance
-   * @param {object} encoded - IotAgent parsed message
-   * @returns {function} sensor.create
-   * @returns {function} sensor.updateAttributes
-   */
-  const createOrUpdateSensor = async (device, sensor, encoded) => {
-    try {
-      logger.publish(4, `${collectionName}`, 'createOrUpdateSensor:req', {
-        sensorId: sensor.id,
-      });
-      if (sensor.isNewInstance) throw new Error('Sensor not created yet');
-      sensor.frameCounter += 1;
-      if (sensor.id) {
-        const updatedSensor = await device.sensors.findById(sensor.id);
-        if (encoded.value && encoded.resource) {
-          sensor = await updateAloesSensors(sensor, Number(encoded.resource), encoded.value);
-          sensor.method = encoded.method;
-          // await updatedSensor.measurements.create({
-          //   date: sensor.lastSignal,
-          //   type: typeof sensor.resources[resource],
-          //   omaObjectId: sensor.type,
-          //   omaResourceId: sensor.resource,
-          //   deviceId: sensor.deviceId,
-          //   value: sensor.value,
-          // });
-        }
-        logger.publish(4, `${collectionName}`, 'createOrUpdateSensor:res', {
-          inType: typeof encoded.value,
-          outType: typeof sensor.value,
-        });
-        delete sensor.id;
-        return updatedSensor.updateAttributes(sensor);
-      }
-      throw new Error('no valid sensor to update');
-    } catch (error) {
-      return error;
-    }
-  };
-
-  /**
    * Find properties and dispatch to the right function
+   * @method module:Device~parseMessage
    * @param {object} pattern - Pattern detected by IotAgent
    * @param {object} encoded - IotAgent parsed message
    * @returns {functions} getInstance
@@ -591,16 +504,20 @@ module.exports = function(Device) {
         encoded.nativeSensorId &&
         (encoded.type || encoded.resource)
       ) {
-        const device = await findDeviceByPattern(pattern, encoded);
+        const device = await Device.findByPattern(pattern, encoded);
         if (!device || device === null) return null;
-        const tempSensor = await composeSensor(device, encoded);
+        const Sensor = Device.app.models.Sensor;
+        const tempSensor = await Sensor.compose(
+          device,
+          encoded,
+        );
         //  console.log('sensor nativeId:', tempSensor.nativeSensorId);
         if (encoded.method === 'GET') {
-          return getInstance(tempSensor);
+          return Sensor.getInstance(tempSensor);
         } else if (encoded.method === 'HEAD') {
-          return handleSensorPresentation(device, tempSensor, encoded);
+          return Sensor.handlePresentation(device, tempSensor, encoded);
         } else if (encoded.method === 'POST' || encoded.method === 'PUT') {
-          return createOrUpdateSensor(device, tempSensor, encoded);
+          return Sensor.createOrUpdate(device, tempSensor, encoded);
           // await device.updateAttributes({
           //   frameCounter: device.frameCounter + 1 || 1,
           //   lastSignal: encoded.lastSignal || new Date(),
@@ -653,10 +570,14 @@ module.exports = function(Device) {
    * @param {object} device - Device instance
    * @returns {functions} device.updateAttributes
    */
-  Device.refreshToken = async device => {
+  Device.refreshToken = async (ctx, device) => {
     try {
       logger.publish(4, `${collectionName}`, 'refreshToken:req', device.id);
+      if (!ctx.req.accessToken) throw new Error('missing token');
       if (!device.id) throw new Error('missing device.id');
+      if (ctx.req.accessToken.userId.toString() !== device.ownerId.toString()) {
+        throw new Error('Invalid user');
+      }
       device = await Device.findById(device.id);
       if (device && device !== null) {
         await Device.app.models.accessToken.destroyById(device.apiKey);
@@ -677,11 +598,15 @@ module.exports = function(Device) {
     }
   };
 
+  /**
+   * Helper for device search
+   * @method module:Device~findDevice
+   * @param {object} whereFilter - Device filter
+   * @returns {promise} Device.find
+   */
   const findDevice = async whereFilter =>
     new Promise((resolve, reject) => {
-      Device.app.models.find(whereFilter, (err, profiles) =>
-        err ? reject(err) : resolve(profiles),
-      );
+      Device.find(whereFilter, (err, devices) => (err ? reject(err) : resolve(devices)));
     });
 
   /**
@@ -694,7 +619,7 @@ module.exports = function(Device) {
     logger.publish(4, `${collectionName}`, 'search:req', filter);
     try {
       //  if (process.env.NODE_ENV.toString() === "development") return null;
-      if (!ctx.req.accessToken.userId || (!filter.name && !filter.place)) {
+      if (!ctx.req.accessToken.userId || !filter.place) {
         throw new Error('Invalid request');
       }
       let whereFilter;
@@ -719,6 +644,12 @@ module.exports = function(Device) {
     }
   };
 
+  /**
+   * Helper for reverse geocoding
+   * @method module:Device~findAddresses
+   * @param {object} filter - Device location filter
+   * @returns {promise} Device.app.models.Address.find
+   */
   const findAddresses = async filter =>
     new Promise((resolve, reject) => {
       Device.app.models.Address.find(
@@ -750,16 +681,16 @@ module.exports = function(Device) {
       if (!addresses) {
         throw new Error('No match found');
       }
-      let deviceAddresses = await addresses.filter(address => address.deviceId);
+      const deviceAddresses = await addresses.filter(address => address.deviceId);
+      let devices = [];
       logger.publish(4, `${collectionName}`, 'geoLocate:res', deviceAddresses);
       if (deviceAddresses.length > 0) {
-        deviceAddresses = await utils.composeGeoLocateResult(collectionName, addresses);
+        devices = await utils.composeGeoLocateResult(collectionName, deviceAddresses);
       }
-      return deviceAddresses;
+      return devices;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'geoLocate:err', error);
       return error;
-      //  next(error);
     }
   };
 

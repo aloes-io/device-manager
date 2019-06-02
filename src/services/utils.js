@@ -2,7 +2,7 @@
 import ejs from 'ejs';
 import * as fs from 'fs';
 import path from 'path';
-import server from '../server';
+import app from './server';
 import logger from './logger';
 //  import createVue from "./views/create-vue";
 
@@ -73,8 +73,8 @@ utils.roleResolver = async (user, subcribeType) => {
     logger.publish(4, `${collectionName}`, 'roleResolver:req', {
       subcribeType,
     });
-    const Role = server.models.Role;
-    const RoleMapping = server.models.RoleMapping;
+    const Role = app.models.Role;
+    const RoleMapping = app.models.RoleMapping;
     const adminRole = await Role.findOne({ where: { name: 'admin' } });
     const payload = await Role.find({ where: { name: subcribeType } })
       .then(role => ({ user, role: role[0] }))
@@ -119,7 +119,7 @@ utils.roleResolver = async (user, subcribeType) => {
 
 const findCollection = (filter, collectionIdsList) =>
   new Promise((resolve, reject) => {
-    server.models[filter.collectionType].find(
+    app.models[filter.collectionType].find(
       {
         where: { id: { inq: collectionIdsList } },
         include: {

@@ -1,6 +1,7 @@
 import logger from '../services/logger';
 
-const CONTAINERS_URL = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/files/`;
+//  const CONTAINERS_URL = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/files/`;
+const CONTAINERS_URL = `${process.env.REST_API_ROOT}/files/`;
 const collectionName = 'files';
 
 /**

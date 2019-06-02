@@ -159,6 +159,7 @@
         "exists",
         "search",
         "geoLocate",
+        "refreshToken",
         "createAuthLink",
         "__create__deviceAddress",
         "__get__deviceAddress",
@@ -246,7 +247,7 @@
         }
       ],
       "returns": {
-        "arg": "result",
+        "arg": "devices",
         "type": "array"
       },
       "http": {
@@ -258,6 +259,13 @@
       "description": ["Refresh or create API key"],
       "accepts": [
         {
+          "arg": "ctx",
+          "type": "object",
+          "http": {
+            "source": "context"
+          }
+        },
+        {
           "arg": "device",
           "type": "object",
           "required": true
@@ -266,6 +274,10 @@
       "returns": {
         "arg": "device",
         "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/refresh-token"
       }
     },
     "createAuthLink": {

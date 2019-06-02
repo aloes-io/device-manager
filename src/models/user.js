@@ -274,6 +274,21 @@ module.exports = function(User) {
     return true;
   };
 
+  User.setNewPassword = async (ctx, oldPassword, newPassword) => {
+    try {
+      if (!ctx.req.accessToken) throw new Error('missing token');
+      logger.publish(3, `${collectionName}`, 'setNewPassword:req', '');
+      const accessToken = ctx.req.accessToken;
+      const user = await User.findById(accessToken.userId);
+      if (!user || !user.id) throw new Error('no user found');
+      await User.changePassword(user.id, oldPassword, newPassword);
+      //  logger.publish(3, `${collectionName}`, 'setNewPassword:res', res);
+      return user;
+    } catch (error) {
+      return error;
+    }
+  };
+
   User.sendContactForm = async form => {
     logger.publish(4, `${collectionName}`, 'sendContactForm:req', form);
     try {
@@ -287,19 +302,13 @@ module.exports = function(User) {
   };
 
   User.sendInvite = async (ctx, options) => {
-    let result;
-    await mails
-      .sendMailInvite(ctx, options)
-      .then(res => {
-        logger.publish(4, collectionName, ' sendInvite:res', res);
-        result = true;
-      })
-      .catch(err => {
-        //  result = err;
-        logger.publish(4, collectionName, ' sendInvite:err', err);
-        result = false;
-        return Promise.reject(err);
-      });
-    return result;
+    try {
+      const result = await mails.sendMailInvite(ctx, options);
+      logger.publish(4, collectionName, ' sendInvite:res', result);
+      return result;
+    } catch (error) {
+      logger.publish(4, collectionName, ' sendInvite:err', error);
+      return error;
+    }
   };
 };

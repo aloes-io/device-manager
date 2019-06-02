@@ -21,26 +21,35 @@ module.exports = function(Address) {
   // });
 
   Address.observe('after save', async ctx => {
-    console.log('options', ctx.options);
-    //  logger.publish(3, `${collectionName}`, 'afterSave:req', ctx.req);
-    if (!ctx.options.accessToken) return null;
-    else if (ctx.instance.city && ctx.instance.street && ctx.instance.postalCode) {
-      if (Object.prototype.hasOwnProperty.call(ctx.instance, 'deviceId')) {
-        const device = await Address.app.models.Device.findById(ctx.instance.deviceId);
-        device.fullAddress = `${ctx.instance.street} ${ctx.instance.postalCode} ${
-          ctx.instance.city
-        }`;
-        await device.save();
-        logger.publish(3, `${collectionName}`, 'afterSave:res', device);
-        return ctx.instance;
+    try {
+      //  console.log('options', ctx.options);
+      //  logger.publish(3, `${collectionName}`, 'afterSave:req', ctx.req);
+      if (!ctx.options.accessToken) throw new Error('invalid access to address');
+      else if (ctx.instance.city && ctx.instance.street && ctx.instance.postalCode) {
+        //  if (Object.prototype.hasOwnProperty.call(ctx.instance, 'deviceId')) {
+        if (ctx.instance.deviceId) {
+          // const device = await Address.app.models.Device.findById(ctx.instance.deviceId);
+          // device.fullAddress = `${ctx.instance.street} ${ctx.instance.postalCode} ${
+          //   ctx.instance.city
+          // }`;
+          // await device.save();
+          // logger.publish(3, `${collectionName}`, 'afterSave:res', device);
+          return ctx.instance;
+        } else if (ctx.instance.userId) {
+          const user = await Address.app.models.user.findById(ctx.options.accessToken.userId);
+          user.fullAddress = `${ctx.instance.street} ${ctx.instance.postalCode} ${
+            ctx.instance.city
+          }`;
+          await user.save();
+          logger.publish(3, `${collectionName}`, 'afterSave:res', user);
+          return ctx.instance;
+        }
+        throw new Error('no address owner found');
       }
-      const user = await Address.app.models.user.findById(ctx.options.accessToken.userId);
-      user.fullAddress = `${ctx.instance.street} ${ctx.instance.postalCode} ${ctx.instance.city}`;
-      await user.save();
-      logger.publish(3, `${collectionName}`, 'afterSave:res', user);
-      return ctx.instance;
+      throw new Error('invalid address instance');
+    } catch (error) {
+      return error;
     }
-    return null;
   });
 
   Address.verifyAddress = async address => {

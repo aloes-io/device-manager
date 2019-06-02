@@ -1,12 +1,14 @@
 # Aloes - Device Manager
 
-- Handle devices and sensors CRUD
 - Authentification by access token for accounts / devices / external apps
+- Handle devices and sensors CRUD
 - MQTT flow triggered by HTTP operations hooks
 - Dispatch MQTT payload from several protocol sources
 - Modelling sensors with OMA schemas
 
 [Swagger Explorer](https://api.aloes.io/explorer)
+
+[Full Docs](https://aloes.frama.io/device-manager/)
 
 REST API Server build upon :
 - [NodeJS](https://nodejs.org/en/)
@@ -117,3 +119,26 @@ Be sure to commit your changes on the right branch before each setup and update:
   $  git commit .
   $  git push
 ```
+
+## To deploy with your own TLS / SSL certificates
+
+Read https://nodejs.org/api/tls.html#tls_tls_ssl
+
+
+## To deploy with Localtunnel 
+
+Install your own instance :  https://github.com/localtunnel/server
+
+And then install wildcards certificates with : https://certbot.eff.org/
+
+## TODO
+
+- Update / improve search engine
+- Add more device types ( + icons )
+- Finish account linking with github
+- Improve Application model
+- Integrate [cache](https://github.com/strongloop/loopback-example-kv-connectors) read/write with redis  ( for Device and Sensor instances )
+- Add user(s) in a team to easily share devices access
+- Data exports ( all content related to an account )
+- Store data related to MQTT traffic ( in Device model ? )
+- Migrate  to Loopback v4

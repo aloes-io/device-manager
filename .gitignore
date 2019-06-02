@@ -22,3 +22,5 @@ npm-debug.log
 #config files
 .env
 .env.local
+#build files
+dist

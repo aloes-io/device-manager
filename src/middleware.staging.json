@@ -1,7 +1,7 @@
 {
   "initial": {
     "./middleware/tracker": {
-      "params": {"enabled": true}
+      "params": {"enabled": false}
     }
   },
   "final:after": {

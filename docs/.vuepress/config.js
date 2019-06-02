@@ -8,7 +8,7 @@ module.exports = {
     repoLabel: 'Git',
     docsDir: 'docs',
     nav: [{text: 'Readme', link: '/readme/'}, {text: 'API', link: '/api/'}],
-    sidebar: [['/readme/', 'Readme'], ['/api/', 'API']],
+    sidebar: [['/readme/', 'Readme'], ['/api/', 'API'], ['/services/', 'Services']],
     serviceWorker: {
       updatePopup: true, // Boolean | Object, default to undefined.
       // If set to true, the default text config will be:

@@ -106,7 +106,8 @@
         "findById",
         "replaceById",
         "replaceOrCreate",
-        "exists"
+        "exists",
+        "refreshToken"
       ]
     },
     {
@@ -153,14 +154,25 @@
       "description": ["Refresh or create API key"],
       "accepts": [
         {
-          "arg": "applicationId",
-          "type": "string",
+          "arg": "ctx",
+          "type": "object",
+          "http": {
+            "source": "context"
+          }
+        },
+        {
+          "arg": "application",
+          "type": "object",
           "required": true
         }
       ],
       "returns": {
-        "arg": "result",
+        "arg": "application",
         "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/refresh-token"
       }
     }
   }
