@@ -34,9 +34,9 @@ broker.start = app => {
      * @param {function} cb - callback
      * @returns {function}
      */
-    app.broker.authenticate = (client, username, password, cb) => {
+    app.broker.authenticate = async (client, username, password, cb) => {
       try {
-        logger.publish(4, 'broker', 'Authenticate:req', {
+        logger.publish(5, 'broker', 'Authenticate:req', {
           client: client.id,
           username,
           password,
@@ -98,46 +98,50 @@ broker.start = app => {
      * @param {function} cb - callback
      * @returns {function}
      */
-    app.broker.authorizePublish = (client, packet, cb) => {
-      const topic = packet.topic;
-      const topicParts = topic.split('/');
-      let auth = false;
-      if (client.user) {
-        if (topicParts[0].startsWith(client.user)) {
-          logger.publish(4, 'broker', 'authorizePublish:req', {
-            user: client.user,
-            topic: topicParts,
-          });
-          auth = true;
-        } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
-          logger.publish(4, 'broker', 'authorizePublish:req', {
-            device: client.devEui,
-            topic: topicParts,
-          });
-          auth = true;
-        } else if (client.devAddr && topicParts[0].startsWith(client.devAddr)) {
-          logger.publish(4, 'broker', 'authorizePublish:req', {
-            device: client.devAddr,
-            topic: topicParts,
-          });
-          auth = true;
-        } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
-          logger.publish(4, 'broker', 'authorizePublish:req', {
-            application: client.appEui,
-            topic: topicParts,
-          });
-          auth = true;
+    app.broker.authorizePublish = async (client, packet, cb) => {
+      try {
+        const topic = packet.topic;
+        const topicParts = topic.split('/');
+        let auth = false;
+        if (client.user) {
+          if (topicParts[0].startsWith(client.user)) {
+            logger.publish(4, 'broker', 'authorizePublish:req', {
+              user: client.user,
+              topic: topicParts,
+            });
+            auth = true;
+          } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
+            logger.publish(4, 'broker', 'authorizePublish:req', {
+              device: client.devEui,
+              topic: topicParts,
+            });
+            auth = true;
+          } else if (client.devAddr && topicParts[0].startsWith(client.devAddr)) {
+            logger.publish(4, 'broker', 'authorizePublish:req', {
+              device: client.devAddr,
+              topic: topicParts,
+            });
+            auth = true;
+          } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
+            logger.publish(4, 'broker', 'authorizePublish:req', {
+              application: client.appEui,
+              topic: topicParts,
+            });
+            auth = true;
+          }
+          // if (client.admin) auth = true
         }
-        // if (client.admin) auth = true
+        if (auth === false) {
+          const error = new Error('authorizePublish error');
+          error.returnCode = 3;
+          return cb(error);
+        }
+        logger.publish(3, 'broker', 'authorizePublish:res', { topic, auth });
+        return cb(null);
+      } catch (error) {
+        cb(error, null);
+        return error;
       }
-      if (auth === false) {
-        const error = new Error('authorizePublish error');
-        error.returnCode = 3;
-        auth = false;
-        cb(error);
-      }
-      logger.publish(3, 'broker', 'authorizePublish:res', { topic, auth });
-      cb(null);
     };
 
     /**
@@ -148,42 +152,46 @@ broker.start = app => {
      * @param {function} cb - callback
      * @returns {function}
      */
-    app.broker.authorizeSubscribe = (client, sub, cb) => {
-      const topic = sub.topic;
-      const topicParts = topic.split('/');
-      let auth = false;
-      if (client.user) {
-        if (topicParts[0].startsWith(client.user)) {
-          logger.publish(5, 'broker', 'authorizeSubscribe:req', {
-            user: client.user,
-          });
-          auth = true;
-        } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
-          logger.publish(5, 'broker', 'authorizeSubscribe:req', {
-            device: client.devEui,
-          });
-          auth = true;
-        } else if (client.devAddr && topicParts[0].startsWith(client.devAddr)) {
-          logger.publish(5, 'broker', 'authorizeSubscribe:req', {
-            device: client.devAddr,
-          });
-          auth = true;
-        } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
-          logger.publish(5, 'broker', 'authorizeSubscribe:req', {
-            application: client.appEui,
-          });
-          auth = true;
-          //  sub.qos = sub.qos + 2
+    app.broker.authorizeSubscribe = async (client, sub, cb) => {
+      try {
+        const topic = sub.topic;
+        const topicParts = topic.split('/');
+        let auth = false;
+        if (client.user) {
+          if (topicParts[0].startsWith(client.user)) {
+            logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+              user: client.user,
+            });
+            auth = true;
+          } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
+            logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+              device: client.devEui,
+            });
+            auth = true;
+          } else if (client.devAddr && topicParts[0].startsWith(client.devAddr)) {
+            logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+              device: client.devAddr,
+            });
+            auth = true;
+          } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
+            logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+              application: client.appEui,
+            });
+            auth = true;
+            //  sub.qos = sub.qos + 2
+          }
         }
-      }
-      if (auth === false) {
-        const error = new Error('authorizeSubscribe error');
-        //  error.returnCode = 3;
-        auth = false;
+        if (auth === false) {
+          const error = new Error('authorizeSubscribe error');
+          //  error.returnCode = 3;
+          return cb(error, null);
+        }
+        logger.publish(3, 'broker', 'authorizeSubscribe:res', { topic, auth });
+        return cb(null, sub);
+      } catch (error) {
         cb(error, null);
+        return error;
       }
-      logger.publish(3, 'broker', 'authorizeSubscribe:res', { topic, auth });
-      cb(null, sub);
     };
 
     /**
