@@ -205,31 +205,29 @@ module.exports = function(Device) {
    */
   Device.observe('before save', async ctx => {
     try {
-      let device;
       if (ctx.data) {
         logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.data);
-        //  device = ctx.data;
         ctx.hookState.updateData = ctx.data;
         return ctx;
       }
       if (ctx.instance) {
         logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.instance);
-        //  device = ctx.instance;
+        if (ctx.instance.children) {
+          delete ctx.instance.children;
+        }
+        if (ctx.instance.transportProtocol && ctx.instance.transportProtocol !== null) {
+          await setDeviceQRCode(ctx.instance);
+        }
+        //  logger.publish(3, `${collectionName}`, "beforeSave:res1", device);
+        if (ctx.instance.type && ctx.instance.type !== null) {
+          await setDeviceIcons(ctx.instance);
+        }
+        logger.publish(5, collectionName, 'beforeSave:res', ctx.instance);
+        return ctx;
       }
       // else if (ctx.currentInstance) {
       //   device = ctx.currentInstance;
       // }
-      if (ctx.instance.children) {
-        delete ctx.instance.children;
-      }
-      if (ctx.instance.transportProtocol && ctx.instance.transportProtocol !== null) {
-        await setDeviceQRCode(ctx.instance);
-      }
-      //  logger.publish(3, `${collectionName}`, "beforeSave:res1", device);
-      if (ctx.instance.type && device.type !== null) {
-        await setDeviceIcons(ctx.instance);
-      }
-      logger.publish(5, collectionName, 'beforeSave:res', ctx.instance);
       return ctx;
     } catch (error) {
       logger.publish(3, `${collectionName}`, 'beforeSave:err', error);
@@ -362,7 +360,6 @@ module.exports = function(Device) {
    */
   Device.observe('after save', async ctx => {
     try {
-      // if (ctx.data)
       if (ctx.hookState.updateData) {
         logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
         const updatedProps = Object.keys(ctx.hookState.updateData);
