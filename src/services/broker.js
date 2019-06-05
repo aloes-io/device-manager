@@ -365,7 +365,7 @@ broker.start = app => {
               //  const method = pattern.params.method;
               const newPacket = await iotAgent.decode(packet, pattern.params);
               if (newPacket && newPacket.topic) {
-                app.emit('publish', newPacket.topic, newPacket.payload, false, 0);
+                app.publish(newPacket.topic, newPacket.payload, false, 0);
               }
               //  throw new Error('Internal Aloes Client API');
             }
@@ -488,7 +488,7 @@ broker.init = (app, httpServer, config) => {
     const aedesConf = {
       mq,
       persistence,
-      concurrency: 100,
+      concurrency: 50,
       heartbeatInterval: 60000,
       connectTimeout: 60000,
     };

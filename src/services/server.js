@@ -123,8 +123,8 @@ app.stop = async signal => {
  * Emit publish event
  * @method module:Server.publish
  */
-app.publish = (topic, payload, qos, retain) => {
-  app.emit('publish', topic, payload, qos, retain);
+app.publish = (topic, payload, retain = false, qos = 0) => {
+  app.emit('publish', topic, payload, retain, qos);
 };
 
 /**

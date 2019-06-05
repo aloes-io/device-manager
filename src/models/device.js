@@ -249,7 +249,7 @@ module.exports = function(Device) {
         logger.publish(4, `${collectionName}`, 'publish:res', {
           topic: packet.topic,
         });
-        return Device.app.emit('publish', packet.topic, packet.payload, false, 0);
+        return Device.app.publish(packet.topic, packet.payload, false, 0);
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {

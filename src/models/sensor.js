@@ -196,8 +196,7 @@ module.exports = function(Sensor) {
         logger.publish(4, `${collectionName}`, 'publish:res', {
           topic: packet.topic,
         });
-        return Sensor.app.emit('publish', packet.topic, packet.payload, false, 0);
-        //   return Sensor.app.publish(packet.topic, packet.payload);
+        return Sensor.app.publish(packet.topic, packet.payload, false, 0);
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
@@ -361,7 +360,7 @@ module.exports = function(Sensor) {
         packet = await iotAgent.decode(packet, pattern.params);
       }
       if (packet.payload && packet.payload !== null) {
-        return Sensor.app.emit('publish', packet.topic, packet.payload, false, 0);
+        return Sensor.app.publish(packet.topic, packet.payload, false, 0);
       }
       throw new Error('no packet payload to publish');
     } catch (error) {
