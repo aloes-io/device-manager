@@ -137,6 +137,7 @@ And then install wildcards certificates with : https://certbot.eff.org/
 - Finish account linking with github
 - Improve Application model
 - Add user(s) in a team to easily share devices access
-- Data exports ( all content related to an account )
+- Data exports ( devices selection by filter )
+- Save measurements in the cache or straight in influx db ? Create a loopback connector ?
 - Store data related to MQTT traffic ( in Device model ? )
 - Migrate  to Loopback v4

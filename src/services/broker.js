@@ -1,5 +1,6 @@
 import iotAgent from 'iot-agent';
-//  import redis from 'redis';
+import MQEmitterRedis from 'mqemitter-redis';
+import aedesPersistenceRedis from 'aedes-persistence-redis';
 import aedes from 'aedes';
 import net from 'net';
 import tls from 'tls';
@@ -458,20 +459,41 @@ broker.stop = async app => {
 broker.init = (app, httpServer, config) => {
   try {
     const brokerConfig = {
-      //  backend: ascoltatore,
       interfaces: [{ type: 'mqtt', port: Number(config.MQTT_BROKER_PORT) }],
-      // persistence: {
-      //   factory: mosca.persistence.Redis,
-      //   host: process.env.REDIS_HOST,
-      //   port: Number(process.env.REDIS_PORT),
-      //   password: process.env.REDIS_PASS,
-      //   //  channel: "moscaSync",
-      //   //  ttl: {subscriptions: 3600 * 1000, packets: 3600 * 1000},
-      // },
+    };
+
+    const persistence = aedesPersistenceRedis({
+      port: Number(config.REDIS_PORT),
+      host: config.REDIS_HOST,
+      family: 4, // 4 (IPv4) or 6 (IPv6)
+      db: config.REDIS_MQTT_COLLECTION,
+      maxSessionDelivery: 100, //   maximum offline messages deliverable on client CONNECT, default is 1000
+      packetTTL(packet) {
+        //  offline message TTL ( in seconds ), default is disabled
+        return 10;
+      },
+    });
+
+    const mq = MQEmitterRedis({
+      host: config.REDIS_HOST,
+      port: Number(config.REDIS_PORT),
+      db: 5,
+    });
+
+    if (config.REDIS_PASS) {
+      persistence.password = config.REDIS_PASS;
+      mq.password = config.REDIS_PASS;
+    }
+
+    const aedesConf = {
+      mq,
+      persistence,
+      concurrency: 100,
+      heartbeatInterval: 60000,
+      connectTimeout: 60000,
     };
 
     if (config.MQTTS_BROKER_URL) {
-      // todo if fs.exists
       brokerConfig.interfaces[1] = {
         type: 'mqtts',
         port: Number(config.MQTTS_BROKER_PORT),
@@ -481,14 +503,6 @@ broker.init = (app, httpServer, config) => {
         },
       };
     }
-
-    const aedesConf = {
-      //  mq,
-      //  persistence,
-      concurrency: 100,
-      heartbeatInterval: 60000,
-      connectTimeout: 40000,
-    };
 
     app.broker = new aedes.Server(aedesConf);
 

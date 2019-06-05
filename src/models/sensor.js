@@ -193,6 +193,9 @@ module.exports = function(Sensor) {
         });
       }
       if (packet && packet.topic && packet.payload) {
+        logger.publish(4, `${collectionName}`, 'publish:res', {
+          topic: packet.topic,
+        });
         return Sensor.app.emit('publish', packet.topic, packet.payload, false, 0);
         //   return Sensor.app.publish(packet.topic, packet.payload);
       }
@@ -305,7 +308,6 @@ module.exports = function(Sensor) {
         //   updatedSensor.lastSync,
         //   lastSignal,
         // );
-
         if (updatedSensor.frameCounter % 25 === 0) {
           updatedSensor.lastSync = lastSignal;
           delete updatedSensor.id;

@@ -15,6 +15,8 @@ module.exports = {
       output: `./log/${result.parsed.NODE_NAME}.out.log`,
       error: `./log/${result.parsed.NODE_NAME}.error.log`,
       max_memory_restart: '1G',
+      instances: result.parsed.INSTANCES_COUNT || 1,
+      exec_mode: 'cluster',
       restart_delay: 500,
       wait_ready: false,
       listen_timeout: 3000,
