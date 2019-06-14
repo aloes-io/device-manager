@@ -7,6 +7,9 @@
 
 module.exports = {
   initial: {
+    './middleware/tracker': {
+      params: { enabled: true },
+    },
     compression: {},
     cors: {
       params: {

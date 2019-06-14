@@ -37,7 +37,7 @@ broker.start = app => {
      */
     app.broker.authenticate = async (client, username, password, cb) => {
       try {
-        logger.publish(5, 'broker', 'Authenticate:req', {
+        logger.publish(4, 'broker', 'Authenticate:req', {
           client: client.id,
           username,
           password,
@@ -60,6 +60,7 @@ broker.start = app => {
           //  return auth;
         }
         return app.models.accessToken.findById(password.toString(), (err, token) => {
+          //  console.log("token loaded ? error ? ", err, token)
           if (err || !token) {
             const error = new Error('Auth error');
             error.returnCode = 2;
@@ -80,6 +81,11 @@ broker.start = app => {
             }
           }
           logger.publish(4, 'broker', 'Authenticate:res', { username, auth });
+          // const topicList = [
+          //   { topic: `${client.user}/AUTH/#`, qos: 0 },
+          //   { topic: `${client.user}/DEVICE/#`, qos: 0 },
+          // ];
+          // client.subscribe(topicList)
           app.emit('publish', `${token.userId}/Auth/POST`, auth.toString(), false, 1);
           return cb(null, auth);
           //  return auth;
@@ -103,6 +109,8 @@ broker.start = app => {
       try {
         const topic = packet.topic;
         const topicParts = topic.split('/');
+        // todo leave minimum access with apikey
+        // allow max access with valid tls cert config
         let auth = false;
         if (client.user) {
           if (topicParts[0].startsWith(client.user)) {
@@ -158,6 +166,8 @@ broker.start = app => {
         const topic = sub.topic;
         const topicParts = topic.split('/');
         let auth = false;
+        // todo leave minimum access with apikey
+        // allow max access with valid tls cert config
         if (client.user) {
           if (topicParts[0].startsWith(client.user)) {
             logger.publish(5, 'broker', 'authorizeSubscribe:req', {
@@ -226,6 +236,8 @@ broker.start = app => {
         //  if (!Object.prototype.hasOwnProperty.call(client, "id")) return null;
         logger.publish(4, 'broker', 'clientConnected:req', client.id);
         return updateModelsStatus(client, true);
+        // todo : associate client.id with device.id
+        // in redis ?
       } catch (error) {
         return error;
       }
@@ -241,6 +253,8 @@ broker.start = app => {
       try {
         logger.publish(4, 'broker', 'clientDisconnect:req', client.id);
         return updateModelsStatus(client, false);
+        // todo : dessociate client.id from device.id
+        // in redis ?
       } catch (error) {
         return error;
       }
@@ -290,26 +304,6 @@ broker.start = app => {
       }
     };
 
-    app.on('publish', (topic, payload, retain, qos) => {
-      if (typeof payload === 'boolean') {
-        payload = payload.toString();
-      } else if (typeof payload === 'number') {
-        payload = payload.toString();
-      } else if (typeof payload === 'object') {
-        //  console.log('publish buffer ?', payload instanceof Buffer);
-        payload = JSON.stringify(payload);
-      }
-      logger.publish(5, 'broker', 'publish:topic', topic);
-      logger.publish(5, 'broker', 'publish:payload', payload);
-      if (!app.broker) return null;
-      return app.broker.publish({
-        topic,
-        payload,
-        retain,
-        qos,
-      });
-    });
-
     /**
      * Retrieve pattern from packet.topic
      * @method module:Broker~findPattern
@@ -355,7 +349,7 @@ broker.start = app => {
      * @param {object} pattern - IoTAgent retireved pattern
      * @returns {string} serviceName
      */
-    const redirectMessage = async (packet, pattern) => {
+    const redirectMessage = async (packet, client, pattern) => {
       try {
         let serviceName = null;
         switch (pattern.name.toLowerCase()) {
@@ -365,6 +359,26 @@ broker.start = app => {
               //  const method = pattern.params.method;
               const newPacket = await iotAgent.decode(packet, pattern.params);
               if (newPacket && newPacket.topic) {
+                // todo use client.publish instead ?
+                //   cmd: 'publish',
+                // messageId: 42,
+                // qos: 2,
+                // dup: false,
+                // topic: 'test',
+                // payload: new Buffer('test'),
+                // retain: false,
+                // properties: { // optional properties MQTT 5.0
+                //     payloadFormatIndicator: true,
+                //     messageExpiryInterval: 4321,
+                //     topicAlias: 100,
+                //     responseTopic: 'topic',
+                //     correlationData: Buffer.from([1, 2, 3, 4]),
+                //     userProperties: {
+                //       'test': 'test'
+                //     },
+                //     subscriptionIdentifier: 120,
+                //     contentType: 'test'
+                //  }
                 app.publish(newPacket.topic, newPacket.payload, false, 0);
               }
               //  throw new Error('Internal Aloes Client API');
@@ -404,7 +418,7 @@ broker.start = app => {
           //  throw new Error('no pattern found');
         }
         logger.publish(5, 'broker', 'onPublished:pattern', pattern.name);
-        const serviceName = await redirectMessage(packet, pattern);
+        const serviceName = await redirectMessage(packet, client, pattern);
         logger.publish(5, 'broker', 'onPublished:service', serviceName);
         if (!serviceName || serviceName === null || serviceName instanceof Error) {
           throw new Error('no service redirection');
@@ -470,6 +484,9 @@ broker.init = (app, httpServer, config) => {
       maxSessionDelivery: 100, //   maximum offline messages deliverable on client CONNECT, default is 1000
       packetTTL(packet) {
         //  offline message TTL ( in seconds ), default is disabled
+        if (packet.topic.search(/device/i) !== -1) {
+          return 1000;
+        }
         return 10;
       },
     });
@@ -488,9 +505,9 @@ broker.init = (app, httpServer, config) => {
     const aedesConf = {
       mq,
       persistence,
-      concurrency: 50,
+      concurrency: 100,
       heartbeatInterval: 60000,
-      connectTimeout: 60000,
+      connectTimeout: 30000,
     };
 
     if (config.MQTTS_BROKER_URL) {
@@ -528,6 +545,7 @@ broker.init = (app, httpServer, config) => {
         brokerConfig.interfaces[1].credentials,
         app.broker.handle,
       );
+
       mqttsBroker.listen(brokerConfig.interfaces[1].port, () => {
         logger.publish(
           2,

@@ -1,66 +1,55 @@
 import utils from '../services/utils';
 import logger from '../services/logger';
 
-// for each user in the db, create a unique file container
-//  export default async function initStorages(server) {
-
 module.exports = async function(server) {
-  let result;
-  const User = server.models.user;
-  const Storage = server.datasources.storage.settings.root;
+  try {
+    const User = server.models.user;
+    const Device = server.models.Device;
+    const Storage = server.datasources.storage.settings.root;
 
-  async function createContainers(accounts) {
-    await accounts.forEach(account => {
-      utils
-        .mkDirByPathSync(`${Storage}/${account.id}`)
-        .then(res => {
-          logger.publish(4, 'loopback', 'boot:createContainers:res', res);
-          result = { ...result, res };
-        })
-        .catch(err => {
-          logger.publish(2, 'loopback', 'boot:createContainers:err', err);
-          result = err;
-        });
-    });
-    return result;
-  }
-
-  await User.find()
-    .then(accounts => {
-      if (accounts.length < 1) {
-        return false;
+    const createContainers = async instances => {
+      try {
+        const promises = await instances.map(async instance =>
+          utils.mkDirByPathSync(`${Storage}/${instance.id}`),
+        );
+        const paths = await Promise.all(promises);
+        return paths;
+      } catch (error) {
+        console.log('create containers:err', error);
+        return error;
       }
-      return utils
-        .mkDirByPathSync(`${Storage}`)
-        .then(storage => {
-          logger.publish(4, 'loopback', 'boot:initStorages:res', storage);
-          result = storage;
-          createContainers(accounts)
-            .then(containers => {
-              result = { storage, containers };
-            })
-            .catch(err => {
-              result = err;
-            });
-        })
-        .catch(err => {
-          if (err.code === 'EEXIST') {
-            logger.publish(2, 'loopback', 'boot:initStorages:err', err.code);
-            createContainers(accounts)
-              .then(containers => {
-                result = { err, containers };
-              })
-              .catch(error => {
-                result = error;
-              });
-          }
-          logger.publish(2, 'loopback', 'boot:initStorages:err', err);
-          result = err;
-        });
-    })
-    .catch(err => {
-      logger.publish(2, 'loopback', 'boot:initStorages:err', err);
-      return err;
-    });
-  return result;
+    };
+
+    const accounts = await User.find();
+    const devices = await Device.find();
+    if (accounts.length < 1 && devices.length < 1) {
+      return false;
+    }
+    let mainStorage = false;
+
+    mainStorage = utils
+      .mkDirByPathSync(`${Storage}`)
+      .then(storage => {
+        logger.publish(4, 'loopback', 'boot:initStorages:res', storage);
+        return true;
+      })
+      .catch(err => {
+        if (err.code === 'EEXIST') {
+          logger.publish(2, 'loopback', 'boot:initStorages:err', err.code);
+          return true;
+        }
+        return false;
+      });
+
+    if (mainStorage) {
+      const accountsContainers = await createContainers(accounts);
+      logger.publish(5, 'loopback', 'boot:initAccountsStorages:res', accountsContainers);
+      const devicesContainers = await createContainers(devices);
+      logger.publish(5, 'loopback', 'boot:initDevicesStorages:res', devicesContainers);
+    }
+    return mainStorage;
+  } catch (error) {
+    logger.publish(2, 'loopback', 'boot:initStorages:err', error);
+    return error;
+  }
 };

@@ -127,6 +127,11 @@
       "options": {
         "nestRemoting": false
       }
+    },
+    "files": {
+      "type": "hasMany",
+      "model": "files",
+      "foreignKey": "ownerId"
     }
   },
   "acls": [
@@ -145,6 +150,13 @@
     {
       "accessType": "*",
       "principalType": "ROLE",
+      "principalId": "$everyone",
+      "permission": "ALLOW",
+      "property": ["getOTAUpdate"]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
       "principalId": "$authenticated",
       "permission": "ALLOW",
       "property": [
@@ -156,7 +168,9 @@
         "geoLocate",
         "__create__deviceAddress",
         "__get__deviceAddress",
-        "__get__sensors"
+        "__get__sensors",
+        "__get__files",
+        "__findById__files"
       ]
     },
     {
@@ -182,7 +196,12 @@
         "__destroy__deviceAddress",
         "__get__sensors",
         "__updateById__sensors",
-        "__destroyById__sensors"
+        "__destroyById__sensors",
+        "__get__files",
+        "__create__files",
+        "__findById__files",
+        "__updateById__files",
+        "__destroyById__files"
       ]
     }
   ],
@@ -272,6 +291,41 @@
       "http": {
         "verb": "post",
         "path": "/refresh-token"
+      }
+    },
+    "getOTAUpdate": {
+      "description": ["Generate a link to connect device to ambienz"],
+      "accepts": [
+        {
+          "arg": "ctx",
+          "type": "object",
+          "required": true,
+          "http": {
+            "source": "context"
+          }
+        },
+        {
+          "arg": "deviceId",
+          "type": "string",
+          "required": true
+        },
+        {
+          "arg": "version",
+          "type": "string"
+        }
+      ],
+      "returns": {
+        "type": "file",
+        "root": true,
+        "http": {
+          "pipe": {
+            "dest": "res"
+          }
+        }
+      },
+      "http": {
+        "verb": "get",
+        "path": "/get-ota-update/:deviceId"
       }
     },
     "createAuthLink": {

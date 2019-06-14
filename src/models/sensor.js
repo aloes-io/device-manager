@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 import iotAgent from 'iot-agent';
 import { updateAloesSensors } from 'aloes-handlers';
 import logger from '../services/logger';
@@ -8,6 +7,7 @@ import logger from '../services/logger';
  */
 module.exports = function(Sensor) {
   const collectionName = 'Sensor';
+  const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
 
   function typeValidator(err) {
     if (this.type.toString().length === 4) {
@@ -57,6 +57,30 @@ module.exports = function(Sensor) {
   });
 
   /**
+   * Event reporting that a sensor instance will be created or updated.
+   * @event before save
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @param {object} ctx.instance - Sensor instance
+   */
+  Sensor.observe('before save', async ctx => {
+    try {
+      if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
+      if (ctx.instance) {
+        const promises = await filteredProperties.map(async p => ctx.instance.unsetAttribute(p));
+        await Promise.all(promises);
+      } else {
+        const promises = await filteredProperties.map(p => delete ctx.data[p]);
+        await Promise.all(promises);
+      }
+      return ctx;
+    } catch (error) {
+      return error;
+    }
+  });
+
+  /**
    * Event reporting that a sensor instance has been created or updated.
    * @event after save
    * @param {object} ctx - Express context.
@@ -87,15 +111,16 @@ module.exports = function(Sensor) {
    */
   Sensor.observe('before delete', async ctx => {
     try {
+      logger.publish(4, `${collectionName}`, 'beforeDelete:req', ctx.where);
       if (ctx.where.id) {
         const instance = await ctx.Model.findById(ctx.where.id);
-        //  console.log('before delete ', instance);
         await Sensor.app.models.Measurement.destroyAll({
           sensorId: { like: new RegExp(`.*${ctx.where.id}.*`, 'i') },
         });
         const cacheKey = `deviceId-${instance.deviceId}-sensorId-${instance.id}`;
         await Sensor.app.models.SensorResource.set(cacheKey, null, { ttl: 1 });
-        return Sensor.publish(instance, 'DELETE');
+        await Sensor.publish(instance, 'DELETE');
+        return ctx;
       }
       throw new Error('no instance to delete');
     } catch (error) {
@@ -196,7 +221,7 @@ module.exports = function(Sensor) {
         logger.publish(4, `${collectionName}`, 'publish:res', {
           topic: packet.topic,
         });
-        return Sensor.app.publish(packet.topic, packet.payload, false, 0);
+        return Sensor.app.publish(packet.topic, packet.payload, false, 1);
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
@@ -343,26 +368,19 @@ module.exports = function(Sensor) {
       if (!instance) {
         instance = await Sensor.findById(sensor.id);
       }
-      logger.publish(5, `${collectionName}`, 'getInstance:res', {
-        instance,
+      logger.publish(4, `${collectionName}`, 'getInstance:res', {
+        pattern,
       });
       if (!instance) throw new Error('Sensor not found');
-      let packet = await iotAgent.publish({
-        userId: instance.ownerId,
-        collectionName: 'Sensor',
-        data: instance,
-        modelId: instance.id,
-        method: 'GET',
-        pattern: 'aloesClient',
-      });
-
-      if (pattern.name.toLowerCase() !== 'aloesclient') {
-        packet = await iotAgent.decode(packet, pattern.params);
-      }
-      if (packet.payload && packet.payload !== null) {
-        return Sensor.app.publish(packet.topic, packet.payload, false, 0);
-      }
-      throw new Error('no packet payload to publish');
+      // if (pattern.name.toLowerCase() !== 'aloesclient') {
+      //   let packet = { payload: JSON.stringify(instance) };
+      //   packet = await iotAgent.decode(packet, pattern.params);
+      //   if (packet.payload && packet.payload !== null) {
+      //     return Sensor.app.publish(packet.topic, packet.payload, false, 1);
+      //   }
+      //   throw new Error('no packet payload to publish');
+      // }
+      return Sensor.publish(instance, 'GET');
     } catch (error) {
       return error;
     }

@@ -3,6 +3,7 @@ import boot from 'loopback-boot';
 //  import cookieParser from 'cookie-parser';
 //  import {ensureLoggedIn} from 'connect-ensure-login';
 //  import session from 'express-session';
+//  import redistStore from 'connect-redis';
 import broker from './broker';
 import tunnel from './tunnel';
 import logger from './logger';
@@ -35,7 +36,7 @@ app.start = async config => {
     //   'session',
     //   session({
     //     //  secret: 'kitty',
-    //     //  store: initializeRedis(Session),
+    //     //  store: redistStore(session),
     //     saveUninitialized: true,
     //     resave: true,
     //     cookie: {
@@ -127,6 +128,28 @@ app.publish = (topic, payload, retain = false, qos = 0) => {
   app.emit('publish', topic, payload, retain, qos);
 };
 
+app.on('publish', async (topic, payload, retain, qos) => {
+  try {
+    if (typeof payload === 'boolean') {
+      payload = payload.toString();
+    } else if (typeof payload === 'number') {
+      payload = payload.toString();
+    } else if (typeof payload === 'object') {
+      //  console.log('publish buffer ?', payload instanceof Buffer);
+      payload = JSON.stringify(payload);
+    }
+    logger.publish(5, 'broker', 'publish:topic', topic);
+    if (!app.broker) return null;
+    return app.broker.publish({
+      topic,
+      payload,
+      retain,
+      qos,
+    });
+  } catch (error) {
+    return error;
+  }
+});
 /**
  * Bootstrap the application, configure models, datasources and middleware.
  * @method module:Server.init

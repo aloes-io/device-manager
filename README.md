@@ -6,7 +6,7 @@
 - Dispatch MQTT payload from several protocol sources
 - Modelling sensors with OMA schemas
 
-[Swagger Explorer](https://api.aloes.io/explorer)
+[Swagger Explorer](https://supervisor.aloes.io/explorer)
 
 [Full Docs](https://aloes.frama.io/device-manager/)
 
@@ -138,6 +138,6 @@ And then install wildcards certificates with : https://certbot.eff.org/
 - Improve Application model
 - Add user(s) in a team to easily share devices access
 - Data exports ( devices selection by filter )
-- Save measurements in the cache or straight in influx db ? Create a loopback connector ?
-- Store data related to MQTT traffic ( in Device model ? )
+- Save measurements in the cache or straight in influx db ?
+- Store data related to MQTT traffic ( via redis to the DeviceResource model ? )
 - Migrate  to Loopback v4
