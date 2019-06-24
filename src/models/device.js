@@ -1,7 +1,7 @@
 import iotAgent from 'iot-agent';
 import crypto from 'crypto';
 //  import { promisify } from 'util';
-import stream from 'stream';
+//  import stream from 'stream';
 import logger from '../services/logger';
 import utils from '../services/utils';
 
@@ -118,22 +118,30 @@ module.exports = function(Device) {
           if (device.accessPointUrl.endsWith('/#!1')) {
             device.qrCode = `${device.accessPointUrl}`;
           } else if (device.accessPointUrl) {
-            device.qrCode = `${device.accessPointUrl}/wifi?server=${
+            device.qrCode = `${device.accessPointUrl}/param?mqtt_server=${
               process.env.MQTT_BROKER_HOST
-            }&port=${process.env.MQTT_BROKER_PORT}&client=${device.devEui}&user=${
-              device.id
-            }&password=${device.apiKey}`;
+            }&mqtt_port=${process.env.MQTT_BROKER_PORT}&mqtt_secure=${
+              process.env.MQTT_SECURE
+            }&http_server=${process.env.HTTP_SERVER_HOST}&http_port=${
+              process.env.HTTP_SERVER_PORT
+            }&http_secure=${process.env.HTTP_SECURE}&device_id=${device.id}&apikey=${
+              device.apiKey
+            }`;
           }
           break;
         case 'aloeslight':
           if (device.accessPointUrl.endsWith('/#!1')) {
             device.qrCode = `${device.accessPointUrl}`;
           } else if (device.accessPointUrl) {
-            device.qrCode = `${device.accessPointUrl}/wifi?server=${
+            device.qrCode = `${device.accessPointUrl}/param?mqtt_server=${
               process.env.MQTT_BROKER_HOST
-            }&port=${process.env.MQTT_BROKER_PORT}&client=${device.devEui}&user=${
-              device.id
-            }&password=${device.apiKey}`;
+            }&mqtt_port=${process.env.MQTT_BROKER_PORT}&mqtt_secure=${
+              process.env.MQTT_SECURE
+            }&http_server=${process.env.HTTP_SERVER_HOST}&http_port=${
+              process.env.HTTP_SERVER_PORT
+            }&http_secure=${process.env.HTTP_SECURE}&device_id=${device.id}&apikey=${
+              device.apiKey
+            }`;
           }
           break;
         default:
@@ -276,6 +284,13 @@ module.exports = function(Device) {
         logger.publish(4, `${collectionName}`, 'publish:res', {
           topic: packet.topic,
         });
+        if (device.status) {
+          const nativePacket = { topic: `${device.devEui}-in/1/255/255/255`, payload: '1' };
+          if (nativePacket.payload && nativePacket.payload !== null) {
+            await Device.app.publish(nativePacket.topic, nativePacket.payload, false, 0);
+          }
+          console.log('nativePacket', nativePacket.topic);
+        }
         return Device.app.publish(packet.topic, packet.payload, false, 1);
       }
       throw new Error('Invalid MQTT Packet encoding');
@@ -299,6 +314,7 @@ module.exports = function(Device) {
         hwIdProp = 'devAddr';
       }
       if (!hwIdProp) throw new Error('Device hardware id not found');
+      //  const token = await Device.app.models.accessToken.create({
       const token = await device.accessTokens.create({
         [hwIdProp]: device[hwIdProp],
         ttl: -1,
@@ -379,22 +395,31 @@ module.exports = function(Device) {
    */
   const updateDeviceProps = async ctx => {
     try {
-      const token = await ctx.instance.accessTokens.findById(ctx.instance.apiKey);
-      if (!token || token === null) throw new Error('Device API key not found');
-      let hwIdProp;
-      if (ctx.instance.devEui && ctx.instance.devEui !== null) {
-        hwIdProp = 'devEui';
-      } else if (ctx.instance.devAddr && ctx.instance.devAddr !== null) {
-        hwIdProp = 'devAddr';
+      let token = await Device.app.models.accessToken.findById(ctx.instance.apiKey);
+      console.log('updateDeviceProps1', token);
+      //  let token = await ctx.instance.accessTokens.findById(ctx.instance.apiKey);
+      //  if (!token || token === null) throw new Error('Device API key not found');
+      if (!token || token === null) {
+        token = await createToken(ctx.instance);
+        await ctx.instance.updateAttribute('apiKey', token.id.toString());
+      } else {
+        let hwIdProp;
+        if (ctx.instance.devEui && ctx.instance.devEui !== null) {
+          hwIdProp = 'devEui';
+        } else if (ctx.instance.devAddr && ctx.instance.devAddr !== null) {
+          hwIdProp = 'devAddr';
+        }
+        if (!hwIdProp) throw new Error('Device hardware id not found');
+        await token.updateAttribute(hwIdProp, ctx.instance[hwIdProp]);
       }
-      if (!hwIdProp) throw new Error('Device hardware id not found');
-      await token.updateAttribute(hwIdProp, ctx.instance[hwIdProp]);
+
+      logger.publish(4, `${collectionName}`, 'updateDeviceProps:req', token.id);
+
       const sensorsCount = await ctx.instance.sensors.count();
       if (sensorsCount && sensorsCount > 0) {
         await updateCachedSensors(ctx.instance);
       }
       logger.publish(4, `${collectionName}`, 'updateDeviceProps:res', {
-        hwIdProp,
         token,
       });
       return Device.publish(ctx.instance, 'PUT');
@@ -421,6 +446,7 @@ module.exports = function(Device) {
         }
       } else if (ctx.instance && Device.app) {
         logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
+
         if (ctx.isNewInstance) {
           return createDeviceProps(ctx);
         }
@@ -903,9 +929,73 @@ module.exports = function(Device) {
   };
 
   /**
+   * Endpoint for device authentification with APIKey
+   * @method module:Device~authenticate
+   * @param {object} ctx - Loopback context
+   * @param {string} deviceId - Device instance id
+   * @returns {object} token
+   */
+  // Device.authenticate = async (ctx, deviceId, apiKey) => {
+  //   try {
+
+  //   } catch(error) {
+  //     return error
+  //   }
+
+  // };
+
+  /**
+   * Endpoint for device requesting their own state
+   * @method module:Device~getState
+   * @param {object} ctx - Loopback context
+   * @param {string} deviceId - Device instance id
+   * @returns {object}
+   */
+  Device.getState = async (ctx, deviceId) => {
+    try {
+      //  console.log('getstate, req : ', ctx.req.headers);
+      if (!ctx.req.headers || !ctx.req.headers.apikey) throw new Error('missing token');
+      if (!deviceId) throw new Error('missing device.id');
+      const tokenId = ctx.req.headers.apikey.trim();
+      logger.publish(4, `${collectionName}`, 'getState:req', { deviceId, tokenId });
+
+      const device = await Device.findById(deviceId, {
+        fields: {
+          id: true,
+          devEui: true,
+          devAddr: true,
+          apiKey: true,
+          frameCounter: true,
+          name: true,
+          state: true,
+        },
+      });
+
+      if (device && device !== null) {
+        const foundToken = await device.accessTokens.findById(tokenId);
+        //  console.log('getstate, token : ', tokenId, device.apiKey, foundToken);
+        if (foundToken && foundToken !== null) {
+          //  await addCachedSensors(device);
+          // const res = JSON.stringify(device);
+          // console.log('getstate, : ', res);
+          return device;
+          //  return JSON.stringify(device);
+        }
+        ctx.res.status(403);
+        return null;
+      }
+      ctx.res.status(404);
+      return null;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  /**
    * Update OTA if a firmware is available
    * @method module:Device~getOTAUpdate
    * @param {object} ctx - Loopback context
+   * @param {string} deviceId - Device instance id
    * @param {string} version - Firmware version requested
    * @returns {object}
    */
@@ -923,6 +1013,13 @@ module.exports = function(Device) {
         }
         return true;
       };
+
+      // const token = await device.accessTokens.findById(device.apiKey);
+      // // console.log('getstate, token : ', token);
+      // if (!token || token !== null) {
+      //   ctx.res.status(403);
+      //   throw new Error('No valid token found');
+      // }
 
       const headers = ctx.req.headers;
       console.log('headers', headers);
@@ -942,99 +1039,112 @@ module.exports = function(Device) {
           console.log('invalid ESP8266 header');
           throw new Error('invalid ESP8266 header');
         }
+        const devEui = headers['x-esp8266-sta-mac'].split(':').join('');
+        const filter = {
+          where: {
+            id: deviceId,
+            devEui: {
+              like: new RegExp(`.*${devEui}.*`, 'i'),
+            },
+          },
+        };
+        const device = await Device.findOne(filter);
+        //  const device = await Device.findById(deviceId);
+        //  console.log('#device ', device);
 
-        //  const filter = { where: { devEui: headers['HTTP_X_ESP8266_STA_MAC'].split(':').join('') } };
-        //  const device = await Device.findOne(filter);
+        if (!device || device === null) {
+          ctx.res.status(403);
+          throw new Error('No device found');
+        }
+        console.log('devEui', devEui, device.devEui);
+        if (devEui === device.devEui) {
+          ctx.res.set('Content-Type', `application/octet-stream`);
 
-        const device = await Device.findById(deviceId);
-        if (device && device !== null) {
-          const devEui = headers['x-esp8266-sta-mac'].split(':').join('');
-          //  console.log('devEui', devEui, device.devEui);
-          if (devEui === device.devEui) {
-            ctx.res.set('Content-Type', `application/octet-stream`);
+          // look for meta containing firmware tag ?
+          //  const fileFilter = { where: { role: {like: new RegExp(`.*firmware.*`, 'i')} } };
+          //  const fileFilter = { where: { originalName: {like: new RegExp(`.*${device.name}.*`, 'i')} } };
+          const fileFilter = { where: { name: { like: new RegExp(`.*bin.*`, 'i') } } };
+          if (version && version !== null) {
+            //  fileFilter.where.originalName = version;
+          }
 
-            // look for meta containing firmware tag ?
-            const filter = { where: { role: 'firmware' } };
-            if (version && version !== null) {
-              //  filter.where.originalName =
-            }
-            const fileMeta = await device.files.findOne(filter);
-            console.log('#fileMeta ', fileMeta);
-            ctx.res.set('Content-Disposition', `attachment; filename=${fileMeta.name}`);
-            //  const path = `./storage/${device.id}/${fileMeta.name}`;
-            //  const fd = fs.createReadStream(path);
-            const fd = Device.app.models.container.downloadStream(
-              device.id.toString(),
-              fileMeta.name,
-            );
-            const md5sum = crypto.createHash('md5');
+          const fileMeta = await device.files.findOne(fileFilter);
+          console.log('#fileMeta ', fileMeta);
 
-            const reportProgress = new stream.Transform({
-              transform(chunk, encoding, callback) {
-                process.stdout.write('.');
-                //  bodyChunks.push(chunk);
-                callback(null, chunk);
-              },
+          ctx.res.set('Content-Disposition', `attachment; filename=${fileMeta.name}`);
+          //  const path = `./storage/${device.id}/${fileMeta.name}`;
+          //  const fd = fs.createReadStream(path);
+          const fd = Device.app.models.container.downloadStream(
+            device.id.toString(),
+            fileMeta.name,
+          );
+          const md5sum = crypto.createHash('md5');
+
+          // const reportProgress = new stream.Transform({
+          //   transform(chunk, encoding, callback) {
+          //     process.stdout.write('.');
+          //     //  bodyChunks.push(chunk);
+          //     callback(null, chunk);
+          //   },
+          // });
+
+          //  let bodyChunks = [];
+          // const pushChunks = new stream.Transform({
+          //   transform(chunk, encoding, callback) {
+          //     bodyChunks.push(chunk);
+          //     callback(null, chunk);
+          //   },
+          // });
+          // const pipe = await pipeline(fd, crypto.createHash('md5'), ctx.res);
+          // // return fd;
+          // console.log('#pipe ', pipe);
+
+          // const endStream = new Promise((resolve, reject) => {
+          //   fd.pipe(crypto.createHash('md5'))
+          //     .pipe(pushChunks)
+          //     .on('finish', () => {
+          //       const hash = md5sum.digest('hex');
+          //       console.log('#hash ', hash, headers['x-esp8266-sketch-md5']);
+          //       const body = Buffer.concat(bodyChunks);
+          //       ctx.res.set('Content-Length', fd.bytesRead);
+          //       ctx.res.status(200);
+          //       ctx.res.set('x-MD5', hash);
+          //       //  console.log('file', file);
+          //       console.log('Done');
+          //       resolve(body);
+          //     })
+          //     //  .pipe(ctx.res)
+          //     .on('error', reject);
+          // });
+
+          const endStream = new Promise((resolve, reject) => {
+            const bodyChunks = [];
+            fd.on('data', d => {
+              bodyChunks.push(d);
+              md5sum.update(d);
             });
-
-            //  let bodyChunks = [];
-            // const pushChunks = new stream.Transform({
-            //   transform(chunk, encoding, callback) {
-            //     bodyChunks.push(chunk);
-            //     callback(null, chunk);
-            //   },
-            // });
-            // const pipe = await pipeline(fd, crypto.createHash('md5'), ctx.res);
-            // // return fd;
-            // console.log('#pipe ', pipe);
-
-            // const endStream = new Promise((resolve, reject) => {
-            //   fd.pipe(crypto.createHash('md5'))
-            //     .pipe(pushChunks)
-            //     .on('finish', () => {
-            //       const hash = md5sum.digest('hex');
-            //       console.log('#hash ', hash, headers['x-esp8266-sketch-md5']);
-            //       const body = Buffer.concat(bodyChunks);
-            //       ctx.res.set('Content-Length', fd.bytesRead);
-            //       ctx.res.status(200);
-            //       ctx.res.set('x-MD5', hash);
-            //       //  console.log('file', file);
-            //       console.log('Done');
-            //       resolve(body);
-            //     })
-            //     //  .pipe(ctx.res)
-            //     .on('error', reject);
-            // });
-
-            const endStream = new Promise((resolve, reject) => {
-              const bodyChunks = [];
-              fd.on('data', d => {
-                bodyChunks.push(d);
-                md5sum.update(d);
-              });
-              fd.on('end', () => {
-                const hash = md5sum.digest('hex');
-                const body = Buffer.concat(bodyChunks);
-                //  console.log('#hash ', hash, headers['x-esp8266-sketch-md5']);
-                // console.log('file', file);
-                ctx.res.set('Content-Length', fd.bytesRead);
-                ctx.res.status(200);
-                ctx.res.set('x-MD5', hash);
-                resolve(body);
-              });
-              fd.on('error', reject);
+            fd.on('end', () => {
+              const hash = md5sum.digest('hex');
+              const body = Buffer.concat(bodyChunks);
+              //  console.log('#hash ', hash, headers['x-esp8266-sketch-md5']);
+              // console.log('file', file);
+              ctx.res.set('Content-Length', fd.bytesRead);
+              ctx.res.status(200);
+              ctx.res.set('x-MD5', hash);
+              resolve(body);
             });
+            fd.on('error', reject);
+          });
 
-            const result = await endStream;
-            if (result && !(result instanceof Error)) {
-              return result;
-            }
-            ctx.res.status(304);
-            throw new Error('Error while reading stream');
+          const result = await endStream;
+          if (result && !(result instanceof Error)) {
+            return result;
           }
           ctx.res.status(304);
-          throw new Error('already up to date');
+          throw new Error('Error while reading stream');
         }
+        ctx.res.status(304);
+        throw new Error('already up to date');
       }
       ctx.res.status(403);
       throw new Error('only for ESP8266 updater');

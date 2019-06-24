@@ -221,7 +221,15 @@ module.exports = function(Sensor) {
         logger.publish(4, `${collectionName}`, 'publish:res', {
           topic: packet.topic,
         });
-        return Sensor.app.publish(packet.topic, packet.payload, false, 1);
+        const pattern = await iotAgent.patternDetector(packet);
+        //  console.log('pattern :', pattern);
+        let nativePacket = { topic: packet.topic, payload: JSON.stringify(sensor) };
+        nativePacket = await iotAgent.decode(nativePacket, pattern.params);
+        if (nativePacket.payload && nativePacket.payload !== null) {
+          //     await Device.app.publish(nativePacket.topic, nativePacket.payload, false, 1);
+        }
+        console.log('nativePacket', nativePacket.topic);
+        return Sensor.app.publish(packet.topic, packet.payload, false, 0);
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {

@@ -43,6 +43,19 @@ REST API Server build upon :
   - /views --> templates used for automatic mailing
 
 
+
+## HTTP API
+
+Pattern : +apiRoot/+modelPluralName/+path
+
+Access controlled by access tokens properties ( set in headers ), based on request URL.
+
+## MQTT API
+
+Pattern : +userId/+modelName/+method/[+modelId]
+
+Access controlled by mqtt password = apiKey = accessToken.id, based on pub/sub topic.
+
 ## Configuration
 
 Edit your config in .env_sample and save it as `.env`.

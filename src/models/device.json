@@ -107,7 +107,7 @@
       "model": "accessToken",
       "foreignKey": "userId",
       "options": {
-        "disableInclude": true
+        "disableInclude": false
       }
     },
     "deviceAddress": {
@@ -152,7 +152,7 @@
       "principalType": "ROLE",
       "principalId": "$everyone",
       "permission": "ALLOW",
-      "property": ["getOTAUpdate"]
+      "property": ["getState", "getOTAUpdate"]
     },
     {
       "accessType": "*",
@@ -293,8 +293,36 @@
         "path": "/refresh-token"
       }
     },
+    "getState": {
+      "description": ["End point for device requesting their own state"],
+      "accepts": [
+        {
+          "arg": "ctx",
+          "type": "object",
+          "required": true,
+          "http": {
+            "source": "context"
+          }
+        },
+        {
+          "arg": "deviceId",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "returns": {
+        "root": true,
+        "type": "string"
+      },
+      "http": {
+        "verb": "get",
+        "path": "/get-state/:deviceId"
+      }
+    },
     "getOTAUpdate": {
-      "description": ["Generate a link to connect device to ambienz"],
+      "description": [
+        "Endpoint for device able to receive OTA update (.bin file must be present in device container)"
+      ],
       "accepts": [
         {
           "arg": "ctx",

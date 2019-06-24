@@ -40,8 +40,12 @@ broker.start = app => {
         logger.publish(4, 'broker', 'Authenticate:req', {
           client: client.id,
           username,
-          password,
         });
+        // if (password) {
+        //   logger.publish(4, 'broker', 'Authenticate:req', {
+        //     password: password.toString(),
+        //   });
+        // }
         let auth = false;
         if (!password || password === null || !username || username === null) {
           //  client.user = 'guest';
@@ -109,7 +113,7 @@ broker.start = app => {
       try {
         const topic = packet.topic;
         const topicParts = topic.split('/');
-        // todo leave minimum access with apikey
+        // possible improvement :  leave minimum access with apikey
         // allow max access with valid tls cert config
         let auth = false;
         if (client.user) {
@@ -237,6 +241,7 @@ broker.start = app => {
         logger.publish(4, 'broker', 'clientConnected:req', client.id);
         return updateModelsStatus(client, true);
         // todo : associate client.id with device.id
+        // remove exisiting client.id with the same device.id
         // in redis ?
       } catch (error) {
         return error;
@@ -252,6 +257,7 @@ broker.start = app => {
     app.broker.on('clientDisconnect', async client => {
       try {
         logger.publish(4, 'broker', 'clientDisconnect:req', client.id);
+        // if no client connected  startsWith(client.id.split("-")[0])
         return updateModelsStatus(client, false);
         // todo : dessociate client.id from device.id
         // in redis ?

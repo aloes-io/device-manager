@@ -26,10 +26,16 @@ app.start = async config => {
   try {
     app.set('originUrl', config.HTTP_SERVER_URL);
     app.set('url', config.HTTP_SERVER_URL);
-    app.set('host', config.HOST);
-    app.set('port', Number(config.PORT));
+    app.set('host', config.HTTP_SERVER_HOST);
+    app.set('port', Number(config.HTTP_SERVER_PORT));
     //  app.set('cookieSecret', config.COOKIE_SECRET);
     logger.publish(2, 'loopback', 'start', `${app.get('host')}:${app.get('port')}`);
+
+    // app.use(
+    //   loopback.token({
+    //     model: app.models.accessToken,
+    //   }),
+    // );
 
     // app.middleware('session:before', cookieParser(app.get('cookieSecret')));
     // app.middleware(

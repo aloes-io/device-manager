@@ -10,7 +10,7 @@ module.exports = function(options) {
         const diff = process.hrtime(start);
         const ms = diff[0] * 1e3 + diff[1] * 1e-6;
         logger.publish(4, 'tracker', 'Response', `processing time is ${ms} ms`);
-        console.log('tracker', 'Request', req.headers);
+        //  console.log('tracker', 'Request', req.headers);
         return true;
       });
       next();
