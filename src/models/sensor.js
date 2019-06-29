@@ -66,6 +66,7 @@ module.exports = function(Sensor) {
    */
   Sensor.observe('before save', async ctx => {
     try {
+      console.log('before save sensor', ctx.options, ctx.instance, ctx.data);
       if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
       if (ctx.instance) {
         const promises = await filteredProperties.map(async p => ctx.instance.unsetAttribute(p));
@@ -308,10 +309,6 @@ module.exports = function(Sensor) {
         const cachedSensor = await SensorResource.get(resourceKey);
         let updatedSensor = JSON.parse(cachedSensor);
         //  console.log('cached sensor', cachedSensor);
-        if (!updatedSensor) {
-          //  updatedSensor = await Sensor.findById(sensor.id);
-          updatedSensor = await device.sensors.findById(sensor.id);
-        }
         if (!updatedSensor) throw new Error('Sensor not found');
         updatedSensor = { ...updatedSensor, ...JSON.parse(JSON.stringify(sensor)) };
 
