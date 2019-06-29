@@ -66,12 +66,14 @@ module.exports = function(Sensor) {
    */
   Sensor.observe('before save', async ctx => {
     try {
-      console.log('before save sensor', ctx.options, ctx.instance, ctx.data);
       if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
       if (ctx.instance) {
+        logger.publish(5, `${collectionName}`, 'beforeSave:req', '');
         const promises = await filteredProperties.map(async p => ctx.instance.unsetAttribute(p));
         await Promise.all(promises);
-      } else {
+      } else if (ctx.data) {
+        logger.publish(5, `${collectionName}`, 'beforePartialSave:req', '');
+        ctx.hookState.updateData = ctx.data;
         const promises = await filteredProperties.map(p => delete ctx.data[p]);
         await Promise.all(promises);
       }
@@ -91,12 +93,19 @@ module.exports = function(Sensor) {
    */
   Sensor.observe('after save', async ctx => {
     try {
-      logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance.id);
-      if (ctx.instance.id && ctx.instance.ownerId && Sensor.app.broker) {
-        //  await publish(ctx.instance);
+      logger.publish(4, `${collectionName}`, 'afterSave:req', '');
+      if (ctx.hookState.updateData) {
+        return ctx;
+      } else if (
+        ctx.instance.id &&
+        !ctx.isNewInstance &&
+        ctx.instance.ownerId &&
+        Sensor.app.broker
+      ) {
+        const resourceKey = `deviceId-${ctx.instance.deviceId}-sensorId-${ctx.instance.id}`;
+        await Sensor.app.models.SensorResource.set(resourceKey, JSON.stringify(ctx.instance));
       }
-      return null;
-      //  throw new Error('Invalid Sensor instance');
+      return ctx;
     } catch (error) {
       return error;
     }
@@ -171,7 +180,8 @@ module.exports = function(Sensor) {
         logger.publish(5, `${collectionName}`, 'compose:new', {
           sensor,
         });
-        const newSensor = await device.sensors.create(sensor);
+        let newSensor = await device.sensors.create(sensor);
+        newSensor = JSON.parse(JSON.stringify(newSensor));
         return newSensor;
       } else if (device.sensors()[0] && device.sensors()[0].id) {
         sensor = device.sensors()[0];
@@ -193,6 +203,7 @@ module.exports = function(Sensor) {
         logger.publish(5, `${collectionName}`, 'compose:update', {
           sensor,
         });
+        sensor = JSON.parse(JSON.stringify(sensor));
         return sensor;
       }
       throw new Error('no sensor found and no known type to register a new one');
@@ -227,14 +238,14 @@ module.exports = function(Sensor) {
         logger.publish(4, `${collectionName}`, 'publish:res', {
           topic: packet.topic,
         });
-        const pattern = await iotAgent.patternDetector(packet);
-        //  console.log('pattern :', pattern);
-        let nativePacket = { topic: packet.topic, payload: JSON.stringify(sensor) };
-        nativePacket = await iotAgent.decode(nativePacket, pattern.params);
-        if (nativePacket.payload && nativePacket.payload !== null) {
-          //     await Device.app.publish(nativePacket.topic, nativePacket.payload, false, 1);
-        }
-        console.log('nativePacket', nativePacket.topic);
+        // const pattern = await iotAgent.patternDetector(packet);
+        // //  console.log('pattern :', pattern);
+        // let nativePacket = { topic: packet.topic, payload: JSON.stringify(sensor) };
+        // nativePacket = await iotAgent.decode(nativePacket, pattern.params);
+        // if (nativePacket.payload && nativePacket.payload !== null) {
+        //   //     await Device.app.publish(nativePacket.topic, nativePacket.payload, false, 1);
+        // }
+        // console.log('sensor nativePacket (not published)', nativePacket.topic);
         return Sensor.app.publish(packet.topic, packet.payload, false, 0);
       }
       throw new Error('Invalid MQTT Packet encoding');
@@ -276,7 +287,7 @@ module.exports = function(Sensor) {
         //   updatedSensor = await Sensor.findById(sensor.id);
         // }
         if (!updatedSensor) throw new Error('Sensor not found');
-        updatedSensor = { ...updatedSensor, ...JSON.parse(JSON.stringify(sensor)) };
+        updatedSensor = { ...updatedSensor, ...sensor };
         updatedSensor.method = 'HEAD';
         updatedSensor.frameCounter = 0;
         await SensorResource.set(resourceKey, JSON.stringify(updatedSensor));
@@ -310,8 +321,7 @@ module.exports = function(Sensor) {
         let updatedSensor = JSON.parse(cachedSensor);
         //  console.log('cached sensor', cachedSensor);
         if (!updatedSensor) throw new Error('Sensor not found');
-        updatedSensor = { ...updatedSensor, ...JSON.parse(JSON.stringify(sensor)) };
-
+        updatedSensor = { ...updatedSensor, ...sensor };
         if (encoded.value && encoded.resource) {
           updatedSensor = await updateAloesSensors(
             updatedSensor,
@@ -340,18 +350,20 @@ module.exports = function(Sensor) {
         //   updatedSensor.lastSync,
         //   lastSignal,
         // );
+        if (!updatedSensor.lastSync) {
+          updatedSensor.lastSync = lastSignal;
+        }
         if (updatedSensor.frameCounter % 25 === 0) {
           updatedSensor.lastSync = lastSignal;
           delete updatedSensor.id;
-          updatedSensor = await sensor.updateAttributes(updatedSensor);
-        } else if (lastSignal > updatedSensor.lastSync + 30 * 1000) {
+          updatedSensor = await device.sensors.updateById(sensor.id, updatedSensor);
+        } else if (lastSignal > updatedSensor.lastSync + 5 * 1000) {
           updatedSensor.lastSync = lastSignal;
           delete updatedSensor.id;
-          updatedSensor = await sensor.updateAttributes(updatedSensor);
-        } else if (!updatedSensor.lastSync) {
-          updatedSensor.lastSync = lastSignal;
+          updatedSensor = await device.sensors.updateById(sensor.id, updatedSensor);
+        } else {
+          await SensorResource.set(resourceKey, JSON.stringify(updatedSensor));
         }
-        await SensorResource.set(resourceKey, JSON.stringify(updatedSensor));
         return Sensor.publish(updatedSensor, 'PUT');
       }
       throw new Error('no valid sensor to update');
@@ -394,26 +406,10 @@ module.exports = function(Sensor) {
     }
   };
 
-  // const findInCache = async deviceId => {
-  //   try {
-  //     const SensorResource = Sensor.app.models.SensorResource;
-  //     const sensorsKeys = await SensorResource.keys({
-  //       match: `deviceId-${deviceId}-sensorId-*`,
-  //     });
-  //     const promises = await sensorsKeys.map(async key =>
-  //       JSON.parse(await SensorResource.get(key)),
-  //     );
-  //     const sensors = await Promise.all(promises);
-  //     return sensors;
-  //   } catch (err) {
-  //     throw err;
-  //   }
-  // };
-
+  // sync redis with mongo
   Sensor.syncCache = async device => {
     try {
       const sensors = await device.sensors.find();
-      // sync redis with mongo
       if (sensors && sensors !== null) {
         sensors.forEach(async sensor => {
           const cacheKey = `deviceId-${device.id}-sensorId-${sensor.id}`;

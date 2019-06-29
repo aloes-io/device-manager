@@ -399,7 +399,6 @@ module.exports = function(Device) {
   const updateDeviceProps = async ctx => {
     try {
       let token = await Device.app.models.accessToken.findById(ctx.instance.apiKey);
-      console.log('updateDeviceProps1', token);
       //  let token = await ctx.instance.accessTokens.findById(ctx.instance.apiKey);
       //  if (!token || token === null) throw new Error('Device API key not found');
       if (!token || token === null) {
@@ -445,11 +444,11 @@ module.exports = function(Device) {
         logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
         const updatedProps = Object.keys(ctx.hookState.updateData);
         if (updatedProps.some(prop => prop === 'status')) {
-          return Device.publish(ctx.instance, 'PUT');
+          await Device.publish(ctx.instance, 'PUT');
         }
+        return ctx;
       } else if (ctx.instance && Device.app) {
         logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
-
         if (ctx.isNewInstance) {
           return createDeviceProps(ctx);
         }
@@ -680,6 +679,9 @@ module.exports = function(Device) {
 
   /**
    * Find properties and dispatch to the right function
+   *
+   * Adding device and sensor context to raw incoming data
+   *
    * @method module:Device~parseMessage
    * @param {object} pattern - Pattern detected by IotAgent
    * @param {object} encoded - IotAgent parsed message
