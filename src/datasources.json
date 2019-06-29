@@ -25,6 +25,12 @@
       }
     ]
   },
+  "cache": {
+    "host": "127.0.0.1",
+    "port": 6379,
+    "name": "cache",
+    "connector": "kv-redis"
+  },
   "storage": {
     "name": "storage",
     "connector": "loopback-component-storage",

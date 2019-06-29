@@ -32,6 +32,14 @@ module.exports = {
       },
     ],
   },
+  cache: {
+    db: process.env.REDIS_DEVICE_COLLECTION || '3',
+    host: process.env.REDIS_HOST || 'localhost',
+    port: Number(process.env.REDIS_PORT) || 6379,
+    name: 'cache',
+    connector: 'kv-redis',
+    pass: process.env.REDIS_PASS,
+  },
   storage: {
     name: 'storage',
     connector: 'loopback-component-storage',

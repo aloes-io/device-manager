@@ -52,8 +52,28 @@
       "principalType": "ROLE",
       "principalId": "$authenticated",
       "permission": "ALLOW",
-      "property": "upload"
+      "property": ["upload", "exists", "find", "findById"]
     },
+
+    {
+      "accessType": "EXECUTE",
+      "principalType": "ROLE",
+      "principalId": "$owner",
+      "permission": "ALLOW",
+      "property": [
+        "upload",
+        "exists",
+        "find",
+        "findById",
+        "replaceById",
+        "destroyById",
+        "replaceOrCreate",
+        "updateById",
+        "updateAttributes",
+        "delete"
+      ]
+    },
+
     {
       "accessType": "EXECUTE",
       "principalType": "ROLE",
@@ -76,7 +96,7 @@
         },
         {
           "arg": "userId",
-          "type": "String",
+          "type": "string",
           "required": true
         }
       ],
@@ -102,12 +122,12 @@
         },
         {
           "arg": "userId",
-          "type": "String",
+          "type": "string",
           "required": true
         },
         {
           "arg": "filePath",
-          "type": "String",
+          "type": "string",
           "required": true
         }
       ],

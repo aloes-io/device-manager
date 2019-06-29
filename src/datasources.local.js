@@ -28,10 +28,17 @@ module.exports = {
       },
     ],
   },
+  cache: {
+    db: process.env.REDIS_COLLECTION || '3',
+    host: process.env.REDIS_HOST || 'localhost',
+    port: Number(process.env.REDIS_PORT) || 6379,
+    name: 'cache',
+    connector: 'kv-redis',
+  },
   // redis: {
   //   name: 'redis',
   //   connector: 'redis',
-  //   db: process.env.REDIS_COLLECTION || 'aloes_local',
+  //   db: process.env.REDIS_COLLECTION || '1',
   //   host: process.env.REDIS_HOST || 'localhost',
   //   port: Number(process.env.REDIS_PORT) || 6379,
   // },

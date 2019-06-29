@@ -61,17 +61,13 @@
     {
       "accessType": "*",
       "principalType": "ROLE",
-      "principalId": "$everyone",
+      "principalId": "$authenticated",
       "permission": "ALLOW",
       "property": [
         "create",
         "find",
         "findById",
         "replaceById",
-        "replaceOrCreate",
-        "updateById",
-        "updateAttributes",
-        "upsert",
         "exists"
       ]
     },

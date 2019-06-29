@@ -22,26 +22,27 @@ module.exports = function(Address) {
 
   Address.observe('after save', async ctx => {
     try {
-      //  console.log('options', ctx.options);
-      //  logger.publish(3, `${collectionName}`, 'afterSave:req', ctx.req);
+      logger.publish(5, `${collectionName}`, 'afterSave:req', ctx.req);
       if (!ctx.options.accessToken) throw new Error('invalid access to address');
       else if (ctx.instance.city && ctx.instance.street && ctx.instance.postalCode) {
         //  if (Object.prototype.hasOwnProperty.call(ctx.instance, 'deviceId')) {
         if (ctx.instance.deviceId) {
-          // const device = await Address.app.models.Device.findById(ctx.instance.deviceId);
-          // device.fullAddress = `${ctx.instance.street} ${ctx.instance.postalCode} ${
+          // const fullAddress = `${ctx.instance.street} ${ctx.instance.postalCode} ${
           //   ctx.instance.city
           // }`;
-          // await device.save();
+          // const device = await Address.app.models.Device.findById(ctx.instance.deviceId);
+          // await device.updateAttribute({fullAddress: `${ctx.instance.street} ${ctx.instance.postalCode} ${ctx.instance.city }`});
           // logger.publish(3, `${collectionName}`, 'afterSave:res', device);
           return ctx.instance;
         } else if (ctx.instance.userId) {
-          const user = await Address.app.models.user.findById(ctx.options.accessToken.userId);
-          user.fullAddress = `${ctx.instance.street} ${ctx.instance.postalCode} ${
+          const fullAddress = `${ctx.instance.street} ${ctx.instance.postalCode} ${
             ctx.instance.city
           }`;
-          await user.save();
-          logger.publish(3, `${collectionName}`, 'afterSave:res', user);
+          const user = await Address.app.models.user.findById(ctx.options.accessToken.userId);
+          await user.updateAttribute({
+            fullAddress,
+          });
+          logger.publish(3, `${collectionName}`, 'afterSave:res', fullAddress);
           return ctx.instance;
         }
         throw new Error('no address owner found');
@@ -54,13 +55,17 @@ module.exports = function(Address) {
 
   Address.verifyAddress = async address => {
     let result = {};
+    logger.publish(4, `${collectionName}`, 'verifyAddress:req', address);
+    const geocodeReq = { countryCode: 'fr' };
+    if (address.street && address.city) {
+      geocodeReq.address = `${address.street} ${address.city}`;
+    }
+    if (address.postalCode && address.postalCode !== null) {
+      geocodeReq.zipCode = address.postalCode;
+    }
     const geocoder = NodeGeocoder(options);
     await geocoder
-      .geocode({
-        address: `${address.street} ${address.city}`,
-        countryCode: 'fr',
-        zipcode: address.postalCode,
-      })
+      .geocode(geocodeReq)
       .then(res => {
         result.streetNumber = Number(res[0].streetNumber) || Number(res[1].streetNumber);
         result.streetName = res[0].streetName || res[1].streetName || res[2].streetName;
@@ -72,14 +77,13 @@ module.exports = function(Address) {
         };
         result.countryCode = res[0].countryCode;
         result.public = address.public;
-        logger.publish(3, `${collectionName}`, 'verifyAddress:res2', result);
         if (!result.city || !result.postalCode) {
           result = {
             message: "Sorry, we couldn't verify this address",
           };
-        } else if (!result.streetName) {
+        } else if (!result.streetName && address.street) {
           result.street = `${address.street}`;
-        } else if (!result.streetNumber) {
+        } else if (!result.streetNumber && result.streetName) {
           result.street = `${result.streetName}`;
         } else {
           result.street = `${result.streetNumber} ${result.streetName}`;

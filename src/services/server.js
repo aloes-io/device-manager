@@ -3,6 +3,7 @@ import boot from 'loopback-boot';
 //  import cookieParser from 'cookie-parser';
 //  import {ensureLoggedIn} from 'connect-ensure-login';
 //  import session from 'express-session';
+//  import redistStore from 'connect-redis';
 import broker from './broker';
 import tunnel from './tunnel';
 import logger from './logger';
@@ -25,17 +26,23 @@ app.start = async config => {
   try {
     app.set('originUrl', config.HTTP_SERVER_URL);
     app.set('url', config.HTTP_SERVER_URL);
-    app.set('host', config.HOST);
-    app.set('port', Number(config.PORT));
+    app.set('host', config.HTTP_SERVER_HOST);
+    app.set('port', Number(config.HTTP_SERVER_PORT));
     //  app.set('cookieSecret', config.COOKIE_SECRET);
     logger.publish(2, 'loopback', 'start', `${app.get('host')}:${app.get('port')}`);
+
+    // app.use(
+    //   loopback.token({
+    //     model: app.models.accessToken,
+    //   }),
+    // );
 
     // app.middleware('session:before', cookieParser(app.get('cookieSecret')));
     // app.middleware(
     //   'session',
     //   session({
     //     //  secret: 'kitty',
-    //     //  store: initializeRedis(Session),
+    //     //  store: redistStore(session),
     //     saveUninitialized: true,
     //     resave: true,
     //     cookie: {
@@ -105,6 +112,7 @@ app.stop = async signal => {
     if (app.tunnel) {
       await tunnel.stop(app);
     }
+    await app.models.Device.syncCache();
     return setTimeout(() => {
       app.emit('stopped', signal);
       httpServer.close(err => {
@@ -122,10 +130,32 @@ app.stop = async signal => {
  * Emit publish event
  * @method module:Server.publish
  */
-app.publish = (topic, payload, qos, retain) => {
-  app.emit('publish', topic, payload, qos, retain);
+app.publish = (topic, payload, retain = false, qos = 0) => {
+  app.emit('publish', topic, payload, retain, qos);
 };
 
+app.on('publish', async (topic, payload, retain, qos) => {
+  try {
+    if (typeof payload === 'boolean') {
+      payload = payload.toString();
+    } else if (typeof payload === 'number') {
+      payload = payload.toString();
+    } else if (typeof payload === 'object') {
+      //  console.log('publish buffer ?', payload instanceof Buffer);
+      payload = JSON.stringify(payload);
+    }
+    logger.publish(5, 'broker', 'publish:topic', topic);
+    if (!app.broker) return null;
+    return app.broker.publish({
+      topic,
+      payload,
+      retain,
+      qos,
+    });
+  } catch (error) {
+    return error;
+  }
+});
 /**
  * Bootstrap the application, configure models, datasources and middleware.
  * @method module:Server.init

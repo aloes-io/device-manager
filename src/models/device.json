@@ -107,7 +107,7 @@
       "model": "accessToken",
       "foreignKey": "userId",
       "options": {
-        "disableInclude": true
+        "disableInclude": false
       }
     },
     "deviceAddress": {
@@ -127,6 +127,11 @@
       "options": {
         "nestRemoting": false
       }
+    },
+    "files": {
+      "type": "hasMany",
+      "model": "files",
+      "foreignKey": "ownerId"
     }
   },
   "acls": [
@@ -145,25 +150,28 @@
     {
       "accessType": "*",
       "principalType": "ROLE",
+      "principalId": "$everyone",
+      "permission": "ALLOW",
+      "property": ["getState", "getOTAUpdate"]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
       "principalId": "$authenticated",
       "permission": "ALLOW",
       "property": [
         "create",
         "find",
         "findById",
-        "replaceById",
-        "replaceOrCreate",
-        "updateById",
-        "updateAttributes",
-        "upsert",
         "exists",
         "search",
         "geoLocate",
-        "refreshToken",
-        "createAuthLink",
         "__create__deviceAddress",
         "__get__deviceAddress",
-        "__update__deviceAddress"
+        "__get__sensors",
+        "__findById__sensors",
+        "__get__files",
+        "__findById__files"
       ]
     },
     {
@@ -174,9 +182,11 @@
       "property": [
         "replaceById",
         "destroyById",
+        "deleteById",
         "replaceOrCreate",
         "updateById",
         "updateAttributes",
+        "patchAttributes",
         "upsert",
         "exists",
         "delete",
@@ -184,11 +194,18 @@
         "find",
         "findById",
         "__get__deviceAddress",
+        "__create__deviceAddress",
         "__update__deviceAddress",
         "__destroy__deviceAddress",
+        "__get__sensors",
+        "__findById__sensors",
         "__updateById__sensors",
         "__destroyById__sensors",
-        "__get__sensors"
+        "__get__files",
+        "__create__files",
+        "__findById__files",
+        "__updateById__files",
+        "__destroyById__files"
       ]
     }
   ],
@@ -278,6 +295,69 @@
       "http": {
         "verb": "post",
         "path": "/refresh-token"
+      }
+    },
+    "getState": {
+      "description": ["End point for device requesting their own state"],
+      "accepts": [
+        {
+          "arg": "ctx",
+          "type": "object",
+          "required": true,
+          "http": {
+            "source": "context"
+          }
+        },
+        {
+          "arg": "deviceId",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "returns": {
+        "root": true,
+        "type": "string"
+      },
+      "http": {
+        "verb": "get",
+        "path": "/get-state/:deviceId"
+      }
+    },
+    "getOTAUpdate": {
+      "description": [
+        "Endpoint for device able to receive OTA update (.bin file must be present in device container)"
+      ],
+      "accepts": [
+        {
+          "arg": "ctx",
+          "type": "object",
+          "required": true,
+          "http": {
+            "source": "context"
+          }
+        },
+        {
+          "arg": "deviceId",
+          "type": "string",
+          "required": true
+        },
+        {
+          "arg": "version",
+          "type": "string"
+        }
+      ],
+      "returns": {
+        "type": "file",
+        "root": true,
+        "http": {
+          "pipe": {
+            "dest": "res"
+          }
+        }
+      },
+      "http": {
+        "verb": "get",
+        "path": "/get-ota-update/:deviceId"
       }
     },
     "createAuthLink": {

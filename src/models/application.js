@@ -74,6 +74,32 @@ module.exports = Application => {
   };
 
   /**
+   * Update application status from MQTT conection status
+   * @method module:Broker~updateApplicationStatus
+   * @param {object} client - MQTT client
+   * @param {boolean} status - MQTT conection status
+   * @returns {function}
+   */
+  Application.updateStatus = async (client, status) => {
+    try {
+      if (client.appEui && client.appEui !== null) {
+        const externalApp = await Application.findById(client.user);
+        if (externalApp && externalApp !== null) {
+          if (status) {
+            return externalApp.updateAttribute('status', true);
+          }
+          // todo : check that client.id contains externalApp.appEui || client.appEui
+          // todo : update every device belonging to this app
+          return externalApp.updateAttributes({ frameCounter: 0, status: false });
+        }
+      }
+      return null;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  /**
    * Find device related to incoming MQTT packet
    * @param {object} pattern - IotAgent detected pattern
    * @param {object} message - Parsed external app message
