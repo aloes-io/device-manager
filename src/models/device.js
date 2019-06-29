@@ -103,6 +103,9 @@ module.exports = function(Device) {
   Device.validatesPresenceOf('ownerId');
 
   Device.validatesUniquenessOf('devEui', { scopedTo: ['ownerId'] });
+
+  Device.validatesUniquenessOf('name', { scopedTo: ['ownerId'] });
+
   // Device.validatesDateOf("lastSignal", {message: "lastSignal is not a date"});
 
   /**
@@ -596,7 +599,6 @@ module.exports = function(Device) {
         // await Device.app.models.Sensor.destroyAll({
         //   deviceId: instance.id,
         // });
-
         if (instance && instance.ownerId && Device.app) {
           await Device.publish(instance, 'DELETE');
           return ctx;

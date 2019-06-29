@@ -140,7 +140,7 @@
       "model": "Device",
       "foreignKey": "deviceId",
       "options": {
-        "nestRemoting": true
+        "nestRemoting": false
       }
     },
     "measurements": {
@@ -171,9 +171,11 @@
       "property": [
         "replaceById",
         "destroyById",
+        "deleteById",
         "replaceOrCreate",
         "updateById",
         "updateAttributes",
+        "patchAttributes",
         "upsert",
         "exists",
         "find",

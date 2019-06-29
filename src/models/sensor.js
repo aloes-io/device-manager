@@ -117,6 +117,9 @@ module.exports = function(Sensor) {
         await Sensor.app.models.Measurement.destroyAll({
           sensorId: { like: new RegExp(`.*${ctx.where.id}.*`, 'i') },
         });
+        if (!instance || instance == null) {
+          throw new Error('no instance to delete');
+        }
         const cacheKey = `deviceId-${instance.deviceId}-sensorId-${instance.id}`;
         await Sensor.app.models.SensorResource.set(cacheKey, null, { ttl: 1 });
         await Sensor.publish(instance, 'DELETE');
@@ -167,7 +170,8 @@ module.exports = function(Sensor) {
         logger.publish(5, `${collectionName}`, 'compose:new', {
           sensor,
         });
-        return sensor;
+        const newSensor = await device.sensors.create(sensor);
+        return newSensor;
       } else if (device.sensors()[0] && device.sensors()[0].id) {
         sensor = device.sensors()[0];
         sensor.isNewInstance = false;
@@ -184,6 +188,7 @@ module.exports = function(Sensor) {
         sensor.transportProtocolVersion = device.transportProtocolVersion;
         sensor.messageProtocol = device.messageProtocol;
         sensor.messageProtocolVersion = device.messageProtocolVersion;
+        sensor.ownerId = device.ownerId;
         logger.publish(5, `${collectionName}`, 'compose:update', {
           sensor,
         });
@@ -256,25 +261,22 @@ module.exports = function(Sensor) {
       const SensorResource = Sensor.app.models.SensorResource;
       if (sensor.isNewInstance && sensor.icons) {
         sensor.method = 'HEAD';
-        const newSensor = await device.sensors.create(sensor);
         const resourceKey = `deviceId-${device.id}-sensorId-${sensor.id}`;
         // await Sensor.app.models.SensorResource.set(resourceKey, JSON.stringify(newSensor), {
         //   ttl: 10000,
         // });
-        await SensorResource.set(resourceKey, JSON.stringify(newSensor));
-        return Sensor.publish(newSensor, 'HEAD');
-      } else if (sensor.id) {
+        await SensorResource.set(resourceKey, JSON.stringify(sensor));
+        return Sensor.publish(sensor, 'HEAD');
+      } else if (!sensor.isNewInstance && sensor.id) {
         const resourceKey = `deviceId-${device.id}-sensorId-${sensor.id}`;
         const cachedSensor = await SensorResource.get(resourceKey);
         let updatedSensor = JSON.parse(cachedSensor);
-        if (!updatedSensor) {
-          updatedSensor = await Sensor.findById(sensor.id);
-        }
+        // if (!updatedSensor) {
+        //   updatedSensor = await Sensor.findById(sensor.id);
+        // }
         if (!updatedSensor) throw new Error('Sensor not found');
+        updatedSensor = { ...updatedSensor, ...JSON.parse(JSON.stringify(sensor)) };
         updatedSensor.method = 'HEAD';
-        if (!updatedSensor.resource) {
-          updatedSensor.resource = sensor.resource;
-        }
         updatedSensor.frameCounter = 0;
         await SensorResource.set(resourceKey, JSON.stringify(updatedSensor));
         return Sensor.publish(updatedSensor, 'HEAD');
@@ -307,10 +309,11 @@ module.exports = function(Sensor) {
         let updatedSensor = JSON.parse(cachedSensor);
         //  console.log('cached sensor', cachedSensor);
         if (!updatedSensor) {
-          updatedSensor = await Sensor.findById(sensor.id);
-          // updatedSensor = await device.sensors.findById(sensor.id);
+          //  updatedSensor = await Sensor.findById(sensor.id);
+          updatedSensor = await device.sensors.findById(sensor.id);
         }
         if (!updatedSensor) throw new Error('Sensor not found');
+        updatedSensor = { ...updatedSensor, ...JSON.parse(JSON.stringify(sensor)) };
 
         if (encoded.value && encoded.resource) {
           updatedSensor = await updateAloesSensors(
@@ -321,8 +324,8 @@ module.exports = function(Sensor) {
           // await updatedSensor.measurements.create({
           //   date: sensor.lastSignal,
           //   type: typeof sensor.resources[resource],
-          //   omaObjectId: sensor.type,
-          //   omaResourceId: sensor.resource,
+          //   objectId: sensor.type,
+          //   resourceId: sensor.resource,
           //   deviceId: sensor.deviceId,
           //   value: sensor.value,
           // });

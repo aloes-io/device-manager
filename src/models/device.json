@@ -169,6 +169,7 @@
         "__create__deviceAddress",
         "__get__deviceAddress",
         "__get__sensors",
+        "__findById__sensors",
         "__get__files",
         "__findById__files"
       ]
@@ -181,9 +182,11 @@
       "property": [
         "replaceById",
         "destroyById",
+        "deleteById",
         "replaceOrCreate",
         "updateById",
         "updateAttributes",
+        "patchAttributes",
         "upsert",
         "exists",
         "delete",
@@ -195,6 +198,7 @@
         "__update__deviceAddress",
         "__destroy__deviceAddress",
         "__get__sensors",
+        "__findById__sensors",
         "__updateById__sensors",
         "__destroyById__sensors",
         "__get__files",
