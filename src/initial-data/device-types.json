@@ -1,0 +1,102 @@
+{
+  "audio-input": {
+    "name": "Audio recorder",
+    "icons": ["/icons/aloes/audio-input.png", "/icons/aloes/audio-input-white.png"]
+  },
+  "audio-output": {
+    "name": "Audio player",
+    "icons": ["/icons/aloes/audio-output.png", "/icons/aloes/audio-output-white.png"]
+  },
+  "bot": {
+    "name": "Assistant",
+    "icons": ["/icons/aloes/bot.png", "/icons/aloes/bot-white.png"]
+  },
+  "browser": {
+    "name": "Navigator",
+    "icons": ["/icons/aloes/browser.png", "/icons/aloes/browser-white.png"]
+  },
+  "camera": {
+    "name": "Camera",
+    "icons": ["/icons/aloes/camera.png", "/icons/aloes/camera-white.png"]
+  },
+  "clock": {
+    "name": "Clock",
+    "icons": ["/icons/aloes/clock.png", "/icons/aloes/clock-white.png"]
+  },
+  "coffee-machine": {
+    "name": "Coffee machine",
+    "icons": ["/icons/aloes/coffee-machine.png", "/icons/aloes/coffee-machine-white.png"]
+  },
+  "door": {
+    "name": "Door",
+    "icons": ["/icons/aloes/door.png", "/icons/aloes/door-white.png"]
+  },
+  "fan": {
+    "name": "Vents",
+    "icons": ["/icons/aloes/fan.png", "/icons/aloes/fan-white.png"]
+  },
+  "gateway": {
+    "name": "Gateway",
+    "icons": ["/icons/aloes/gateway.png", "/icons/aloes/gateway-white.png"]
+  },
+  "light-output": {
+    "name": "Light controller",
+    "icons": ["/icons/aloes/light-output.png", "/icons/aloes/light-output-white.png"]
+  },
+  "measurement": {
+    "name": "Measurement",
+    "icons": ["/icons/aloes/measurement.png", "/icons/aloes/measurement-white.png"]
+  },
+  "midi-input": {
+    "name": "MIDI recorder",
+    "icons": ["/icons/aloes/midi-input.png", "/icons/aloes/midi-input-white.png"]
+  },
+  "midi-output": {
+    "name": "MIDI player",
+    "icons": ["/icons/aloes/midi-output.png", "/icons/aloes/midi-output-white.png"]
+  },
+  "mcu": {
+    "name": "Micro computer",
+    "icons": ["/icons/aloes/mcu.png", "/icons/aloes/mcu-white.png"]
+  },
+  "node": {
+    "name": "Node",
+    "icons": ["/icons/aloes/node.png", "/icons/aloes/node-white.png"]
+  },
+  "phone": {
+    "name": "Phone",
+    "icons": ["/icons/aloes/phone.png", "/icons/aloes/phone-white.png"]
+  },
+  "pump": {
+    "name": "Pump",
+    "icons": ["/icons/aloes/pump.png", "/icons/aloes/pump-white.png"]
+  },
+  "scanner": {
+    "name": "Scanner",
+    "icons": ["/icons/aloes/scanner.png", "/icons/aloes/scanner-white.png"]
+  },
+  "screen": {
+    "name": "Screen",
+    "icons": ["/icons/aloes/screen.png", "/icons/aloes/screen-white.png"]
+  },
+  "switch-input": {
+    "name": "Switch input",
+    "icons": ["/icons/aloes/switch-input.png", "/icons/aloes/switch-input-white.png"]
+  },
+  "switch-output": {
+    "name": "Switch ouput",
+    "icons": ["/icons/aloes/switch-output.png", "/icons/aloes/switch-output-white.png"]
+  },
+  "tracker": {
+    "name": "Geolocator",
+    "icons": ["/icons/aloes/tracker.png", "/icons/aloes/tracker-white.png"]
+  },
+  "vehicle": {
+    "name": "Vehicle",
+    "icons": ["/icons/aloes/vehicle.png", "/icons/aloes/vehicle-white.png"]
+  },
+  "weather-station": {
+    "name": "Weather Station",
+    "icons": ["/icons/aloes/weather-station.png", "/icons/aloes/weather-station-white.png"]
+  }
+}

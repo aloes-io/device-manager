@@ -4,6 +4,7 @@ import crypto from 'crypto';
 //  import stream from 'stream';
 import logger from '../services/logger';
 import utils from '../services/utils';
+import deviceTypes from '../initial-data/device-types.json';
 
 /**
  * @module Device
@@ -33,11 +34,6 @@ module.exports = function(Device) {
   //   'deleted',
   // ];
   const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
-  // async function protocolNameValidator(err) {
-  //   const protocolPatternsKeys = Object.getOwnPropertyNames(handlers.protocolPatterns);
-  //   if (protocolPatternsKeys.find((key) => key === this.protocolName)) return;
-  //   err();
-  // }
 
   function transportProtocolValidator(err) {
     if (
@@ -66,23 +62,7 @@ module.exports = function(Device) {
   }
 
   function typeValidator(err) {
-    if (
-      this.type &&
-      (this.type.toLowerCase() === 'audio-input' ||
-        this.type.toLowerCase() === 'audio-output' ||
-        this.type.toLowerCase() === 'bot' ||
-        this.type.toLowerCase() === 'browser' ||
-        this.type.toLowerCase() === 'camera' ||
-        this.type.toLowerCase() === 'gateway' ||
-        this.type.toLowerCase() === 'light-output' ||
-        this.type.toLowerCase() === 'midi-input' ||
-        this.type.toLowerCase() === 'midi-output' ||
-        this.type.toLowerCase() === 'node' ||
-        this.type.toLowerCase() === 'phone' ||
-        this.type.toLowerCase() === 'rfid' ||
-        this.type.toLowerCase() === 'switch-input' ||
-        this.type.toLowerCase() === 'switch-output')
-    ) {
+    if (this.type && deviceTypes[this.type]) {
       return;
     }
     err();
@@ -164,65 +144,11 @@ module.exports = function(Device) {
    */
   const setDeviceIcons = device => {
     try {
-      switch (device.type) {
-        case 'audio-input':
-          device.icons[0] = `/icons/aloes/audio-input.png`;
-          device.icons[1] = `/icons/aloes/audio-input-white.png`;
-          break;
-        case 'audio-output':
-          device.icons[0] = `/icons/aloes/audio-output.png`;
-          device.icons[1] = `/icons/aloes/audio-output-white.png`;
-          break;
-        case 'bot':
-          device.icons[0] = `/icons/aloes/bot.png`;
-          device.icons[1] = `/icons/aloes/bot-white.png`;
-          break;
-        case 'browser':
-          device.icons[0] = `/icons/aloes/browser.png`;
-          device.icons[1] = `/icons/aloes/browser-white.png`;
-          break;
-        case 'camera':
-          device.icons[0] = `/icons/aloes/camera.png`;
-          device.icons[1] = `/icons/aloes/camera-white.png`;
-          break;
-        case 'gateway':
-          device.icons[0] = `/icons/aloes/gateway.png`;
-          device.icons[1] = `/icons/aloes/gateway-white.png`;
-          break;
-        case 'light-output':
-          device.icons[0] = `/icons/aloes/light-output.png`;
-          device.icons[1] = `/icons/aloes/light-output-white.png`;
-          break;
-        case 'midi-input':
-          device.icons[0] = `/icons/aloes/midi-input.png`;
-          device.icons[1] = `/icons/aloes/midi-input-white.png`;
-          break;
-        case 'midi-output':
-          device.icons[0] = `/icons/aloes/midi-output.png`;
-          device.icons[1] = `/icons/aloes/midi-output-white.png`;
-          break;
-        case 'node':
-          device.icons[0] = `/icons/aloes/node.png`;
-          device.icons[1] = `/icons/aloes/node-white.png`;
-          break;
-        case 'phone':
-          device.icons[0] = `/icons/aloes/phone.png`;
-          device.icons[1] = `/icons/aloes/phone-white.png`;
-          break;
-        case 'rfid':
-          device.icons[0] = `/icons/aloes/rfid.png`;
-          device.icons[1] = `/icons/aloes/rfid-white.png`;
-          break;
-        case 'switch-input':
-          device.icons[0] = `/icons/aloes/switch-input.png`;
-          device.icons[1] = `/icons/aloes/switch-input-white.png`;
-          break;
-        case 'switch-output':
-          device.icons[0] = `/icons/aloes/switch-output.png`;
-          device.icons[1] = `/icons/aloes/switch-output-white.png`;
-          break;
-        default:
-        //  console.log(device.type);
+      // if device.type is in the list  then
+      console.log('setDeviceIcons', deviceTypes[device.type]);
+      if (device.type && deviceTypes[device.type]) {
+        device.icons[0] = deviceTypes[device.type].icons[0];
+        device.icons[1] = deviceTypes[device.type].icons[1];
       }
       return device;
     } catch (error) {
