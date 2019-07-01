@@ -397,16 +397,21 @@ module.exports = function(Device) {
       const iterator = await SensorResource.iterateKeys({
         match: `deviceId-${device.id}-sensorId-*`,
       });
-      iterator.map(async it => {
-        try {
-          const key = await it.next();
-          const sensor = JSON.parse(await SensorResource.get(key));
-          device.sensor.push(sensor);
-          return sensor;
-        } catch (error) {
-          return error;
-        }
-      });
+      await Promise.resolve()
+        .then(() => iterator.next())
+        .then(async key => {
+          try {
+            if (key && key !== undefined) {
+              const sensor = JSON.parse(await SensorResource.get(key));
+              console.log('includeCache Sensor : ', sensor.name, sensor.type);
+              device.sensor.push(sensor);
+            }
+            return iterator.next();
+          } catch (error) {
+            return error;
+          }
+        });
+
       return device;
     } catch (err) {
       throw err;
@@ -485,7 +490,7 @@ module.exports = function(Device) {
         }
 
         if (result && getSensors) {
-          //  console.log('[DEVICE] beforeRemote getSensors', getSensors);
+          console.log('[DEVICE] beforeRemote getSensors', getSensors);
           result = await result.map(includeCachedSensors);
           ctx.result = await Promise.all(result);
         } else if (result) {

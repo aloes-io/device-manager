@@ -123,13 +123,33 @@ module.exports = function(Sensor) {
         sensor = JSON.stringify(sensor);
       }
       if (ttl && ttl !== null) {
-        await SensorResource.set(key, sensor, {
-          ttl,
-        });
+        await SensorResource.set(key, sensor, ttl);
       } else {
         await SensorResource.set(key, sensor);
       }
       return sensor;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  /**
+   * Set TTL for a sensor store in cache
+   * @method module:Sensor.expireCache
+   * @param {string} deviceId - Device Id owning the sensor
+   * @param {object} sensor - Sensor instance to save
+   * @param {number} [ttl] - Sensor instance Id
+   * @returns {object} sensor
+   */
+  Sensor.expireCache = async (deviceId, sensorId, ttl) => {
+    try {
+      const SensorResource = Sensor.app.models.SensorResource;
+      const key = `deviceId-${deviceId}-sensorId-${sensorId}`;
+      if (!ttl) {
+        ttl = 1;
+      }
+      await SensorResource.expire(key, ttl);
+      return true;
     } catch (error) {
       return error;
     }
@@ -151,7 +171,6 @@ module.exports = function(Sensor) {
             const cachedSensor = await Sensor.getCache(device.id, sensor.id);
             if (cachedSensor && cachedSensor !== null) {
               delete cachedSensor.id;
-              //  console.log('sensor sync 3', cachedSensor.id, sensor.id);
               return sensor.updateAttributes(cachedSensor);
             }
             return null;
@@ -164,6 +183,55 @@ module.exports = function(Sensor) {
         }
       }
       return null;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  /**
+   * Format packet and send it via MQTT broker
+   * @method module:Sensor~createToken
+   * @param {object} sensor - Sensor instance
+   * @param {string} [method] - MQTT method
+   * returns {function} Sensor.app.publish()
+   */
+  Sensor.publish = async (sensor, method) => {
+    try {
+      let packet;
+      if (sensor.isNewInstance) {
+        packet = await iotAgent.publish({
+          userId: sensor.ownerId,
+          collectionName,
+          modelId: sensor.id,
+          data: sensor,
+          method: method || sensor.method,
+          pattern: 'aloesClient',
+        });
+      } else {
+        packet = await iotAgent.publish({
+          userId: sensor.ownerId,
+          collectionName,
+          data: sensor,
+          modelId: sensor.id,
+          method: method || sensor.method,
+          pattern: 'aloesClient',
+        });
+      }
+      if (packet && packet.topic && packet.payload) {
+        logger.publish(4, `${collectionName}`, 'publish:res', {
+          topic: packet.topic,
+        });
+        // const pattern = await iotAgent.patternDetector(packet);
+        // //  console.log('pattern :', pattern);
+        // let nativePacket = { topic: packet.topic, payload: JSON.stringify(sensor) };
+        // nativePacket = await iotAgent.decode(nativePacket, pattern.params);
+        // if (nativePacket.payload && nativePacket.payload !== null) {
+        //   //     await Device.app.publish(nativePacket.topic, nativePacket.payload, false, 1);
+        // }
+        // console.log('sensor nativePacket (not published)', nativePacket.topic);
+        return Sensor.app.publish(packet.topic, packet.payload, false, 0);
+      }
+      throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
       return error;
     }
@@ -210,8 +278,9 @@ module.exports = function(Sensor) {
         if (!instance || instance == null) {
           throw new Error('no instance to delete');
         }
-        const cacheKey = `deviceId-${instance.deviceId}-sensorId-${instance.id}`;
-        await Sensor.app.models.SensorResource.set(cacheKey, null, { ttl: 1 });
+
+        await Sensor.expireCache(instance.deviceId, instance.id, 1);
+
         await Sensor.publish(instance, 'DELETE');
         return ctx;
       }
@@ -304,30 +373,34 @@ module.exports = function(Sensor) {
   Sensor.updateCache = async device => {
     try {
       const SensorResource = Sensor.app.models.SensorResource;
-
-      // TEST
+      const sensors = [];
       const iterator = await SensorResource.iterateKeys({
         match: `deviceId-${device.id}-sensorId-*`,
       });
-      const promises = iterator.map(async it => {
-        try {
-          const key = await it.next();
-          let sensor = JSON.parse(await SensorResource.get(key));
-          sensor = {
-            ...sensor,
-            devEui: device.devEui,
-            devAddr: device.devAddr,
-            transportProtocol: device.transportProtocol,
-            transportProtocolVersion: device.transportProtocolVersion,
-            messageProtocol: device.messageProtocol,
-            messageProtocolVersion: device.messageProtocolVersion,
-          };
-          await SensorResource.set(key, JSON.stringify(sensor));
-          return sensor;
-        } catch (error) {
-          return error;
-        }
-      });
+      await Promise.resolve()
+        .then(() => iterator.next())
+        .then(async key => {
+          try {
+            if (key && key !== undefined) {
+              let sensor = JSON.parse(await SensorResource.get(key));
+              console.log('updateCache Sensor : ', sensor.name, sensor.type);
+              sensor = {
+                ...sensor,
+                devEui: device.devEui,
+                devAddr: device.devAddr,
+                transportProtocol: device.transportProtocol,
+                transportProtocolVersion: device.transportProtocolVersion,
+                messageProtocol: device.messageProtocol,
+                messageProtocolVersion: device.messageProtocolVersion,
+              };
+              await Sensor.setCache(device.id, sensor);
+              sensors.push(sensor);
+            }
+            return iterator.next();
+          } catch (error) {
+            return error;
+          }
+        });
 
       // const sensorsKeys = await SensorResource.keys({
       //   match: `deviceId-${device.id}-sensorId-*`,
@@ -350,58 +423,8 @@ module.exports = function(Sensor) {
       //   return sensor;
       // });
 
-      const sensors = await Promise.all(promises);
-      //  await Sensor.syncCache(device);
+      //  const sensors = await Promise.all(promises);
       return sensors;
-    } catch (error) {
-      return error;
-    }
-  };
-
-  /**
-   * Format packet and send it via MQTT broker
-   * @method module:Sensor~createToken
-   * @param {object} sensor - Sensor instance
-   * @param {string} [method] - MQTT method
-   * returns {function} Sensor.app.publish()
-   */
-  Sensor.publish = async (sensor, method) => {
-    try {
-      let packet;
-      if (sensor.isNewInstance) {
-        packet = await iotAgent.publish({
-          userId: sensor.ownerId,
-          collectionName,
-          modelId: sensor.id,
-          data: sensor,
-          method: method || sensor.method,
-          pattern: 'aloesClient',
-        });
-      } else {
-        packet = await iotAgent.publish({
-          userId: sensor.ownerId,
-          collectionName,
-          data: sensor,
-          modelId: sensor.id,
-          method: method || sensor.method,
-          pattern: 'aloesClient',
-        });
-      }
-      if (packet && packet.topic && packet.payload) {
-        logger.publish(4, `${collectionName}`, 'publish:res', {
-          topic: packet.topic,
-        });
-        // const pattern = await iotAgent.patternDetector(packet);
-        // //  console.log('pattern :', pattern);
-        // let nativePacket = { topic: packet.topic, payload: JSON.stringify(sensor) };
-        // nativePacket = await iotAgent.decode(nativePacket, pattern.params);
-        // if (nativePacket.payload && nativePacket.payload !== null) {
-        //   //     await Device.app.publish(nativePacket.topic, nativePacket.payload, false, 1);
-        // }
-        // console.log('sensor nativePacket (not published)', nativePacket.topic);
-        return Sensor.app.publish(packet.topic, packet.payload, false, 0);
-      }
-      throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
       return error;
     }
