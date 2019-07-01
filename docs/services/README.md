@@ -22,8 +22,6 @@
         * [~authenticate(client, [username], [password], cb)](#module_Broker..authenticate) ⇒ <code>function</code>
         * [~authorizePublish(client, packet, cb)](#module_Broker..authorizePublish) ⇒ <code>function</code>
         * [~authorizeSubscribe(client, sub, cb)](#module_Broker..authorizeSubscribe) ⇒ <code>function</code>
-        * [~updateDeviceStatus(client, status)](#module_Broker..updateDeviceStatus) ⇒ <code>function</code>
-        * [~updateApplicationStatus(client, status)](#module_Broker..updateApplicationStatus) ⇒ <code>function</code>
         * [~updateModelsStatus(client, status)](#module_Broker..updateModelsStatus) ⇒ <code>function</code>
         * [~externalAppDetector(packet, client)](#module_Broker..externalAppDetector) ⇒ <code>object</code>
         * [~findPattern(packet, client)](#module_Broker..findPattern) ⇒ <code>object</code>
@@ -109,30 +107,6 @@ Aedes subscribe authorization callback
 | client | <code>object</code> | MQTT client |
 | sub | <code>object</code> | MQTT packet |
 | cb | <code>function</code> | callback |
-
-<a name="module_Broker..updateDeviceStatus"></a>
-
-### Broker~updateDeviceStatus(client, status) ⇒ <code>function</code>
-Update device status from MQTT conection status
-
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-| status | <code>boolean</code> | MQTT conection status |
-
-<a name="module_Broker..updateApplicationStatus"></a>
-
-### Broker~updateApplicationStatus(client, status) ⇒ <code>function</code>
-Update application status from MQTT conection status
-
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-| status | <code>boolean</code> | MQTT conection status |
 
 <a name="module_Broker..updateModelsStatus"></a>
 

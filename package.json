@@ -50,7 +50,7 @@
     "iot-agent": "^1.0.4",
     "localtunnel": "^1.9.2",
     "loopback": "^3.26.0",
-    "loopback-boot": "github:klarkc/loopback-boot#master",
+    "loopback-boot": "^3.3.1",
     "loopback-component-explorer": "^6.3.1",
     "loopback-component-passport": "^3.10.0",
     "loopback-component-storage": "^3.6.1",

@@ -125,16 +125,24 @@ Event reporting that an application instance has been created or updated.
         * [.refreshToken(device)](#module_Device.refreshToken) ⇒ <code>functions</code>
         * [.search(filter)](#module_Device.search) ⇒ <code>array</code>
         * [.geoLocate(filter)](#module_Device.geoLocate) ⇒ <code>array</code>
+        * [.syncCache([direction])](#module_Device.syncCache)
     * _inner_
         * [~setDeviceQRCode(device)](#module_Device..setDeviceQRCode)
         * [~setDeviceIcons(device)](#module_Device..setDeviceIcons)
         * [~createToken(device)](#module_Device..createToken)
+        * [~createToken(device)](#module_Device..createToken)
         * [~createDeviceProps(ctx)](#module_Device..createDeviceProps)
         * [~updateDeviceProps(ctx)](#module_Device..updateDeviceProps)
+        * [~includeCachedSensors(device)](#module_Device..includeCachedSensors)
         * [~parseMessage(pattern, encoded)](#module_Device..parseMessage) ⇒ <code>functions</code> \| <code>functions</code>
+        * [~updateDeviceStatus(client, status)](#module_Device..updateDeviceStatus) ⇒ <code>functions</code>
         * [~findDevice(whereFilter)](#module_Device..findDevice) ⇒ <code>promise</code>
         * [~findAddresses(filter)](#module_Device..findAddresses) ⇒ <code>promise</code>
+        * [~authenticate(ctx, deviceId)](#module_Device..authenticate) ⇒ <code>object</code>
+        * [~getState(ctx, deviceId)](#module_Device..getState) ⇒ <code>object</code>
+        * [~getOTAUpdate(ctx, deviceId, [version])](#module_Device..getOTAUpdate) ⇒ <code>object</code>
         * ["before save" (ctx)](#event_before save)
+        * ["after save" (ctx)](#event_after save)
         * ["after save" (ctx)](#event_after save)
         * ["before delete" (ctx)](#event_before delete)
 
@@ -212,6 +220,17 @@ Search device by location ( GPS coordinates )
 | --- | --- | --- |
 | filter | <code>object</code> | Requested filter |
 
+<a name="module_Device.syncCache"></a>
+
+### Device.syncCache([direction])
+Synchronize cache memory with database on disk
+
+**Kind**: static method of [<code>Device</code>](#module_Device)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| [direction] | <code>string</code> | UP to save on disk | DOWN to save on cache, |
+
 <a name="module_Device..setDeviceQRCode"></a>
 
 ### Device~setDeviceQRCode(device)
@@ -237,6 +256,17 @@ Set device icons ( urls ) based on its type
 <a name="module_Device..createToken"></a>
 
 ### Device~createToken(device)
+Format packet and send it via MQTT broker
+
+**Kind**: inner method of [<code>Device</code>](#module_Device)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| device | <code>object</code> | Device instance returns {function} Device.app.publish() |
+
+<a name="module_Device..createToken"></a>
+
+### Device~createToken(device)
 Token creation helper
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
@@ -256,7 +286,7 @@ Init device depencies ( token, address )
 | --- | --- | --- |
 | ctx | <code>object</code> | Application context |
 | ctx.req | <code>object</code> | HTTP request |
-| ctx.res | <code>object</code> | HTTP response |
+| ctx.res | <code>object</code> | HTTP response returns {function} module:Device.publish |
 
 <a name="module_Device..updateDeviceProps"></a>
 
@@ -271,10 +301,23 @@ Update device depencies ( token, sensors )
 | ctx.req | <code>object</code> | HTTP request |
 | ctx.res | <code>object</code> | HTTP response |
 
+<a name="module_Device..includeCachedSensors"></a>
+
+### Device~includeCachedSensors(device)
+Find sensors in the cache and add to device instance
+
+**Kind**: inner method of [<code>Device</code>](#module_Device)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| device | <code>object</code> | device instance |
+
 <a name="module_Device..parseMessage"></a>
 
 ### Device~parseMessage(pattern, encoded) ⇒ <code>functions</code> \| <code>functions</code>
 Find properties and dispatch to the right function
+
+Adding device and sensor context to raw incoming data
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
 **Returns**: <code>functions</code> - getInstance<code>functions</code> - createOrUpdateSensor  
@@ -283,6 +326,19 @@ Find properties and dispatch to the right function
 | --- | --- | --- |
 | pattern | <code>object</code> | Pattern detected by IotAgent |
 | encoded | <code>object</code> | IotAgent parsed message |
+
+<a name="module_Device..updateDeviceStatus"></a>
+
+### Device~updateDeviceStatus(client, status) ⇒ <code>functions</code>
+Update device status from MQTT connection status
+
+**Kind**: inner method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>functions</code> - device.updateAttributes  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| client | <code>object</code> | MQTT client |
+| status | <code>boolean</code> | MQTT connection status |
 
 <a name="module_Device..findDevice"></a>
 
@@ -308,10 +364,62 @@ Helper for reverse geocoding
 | --- | --- | --- |
 | filter | <code>object</code> | Device location filter |
 
+<a name="module_Device..authenticate"></a>
+
+### Device~authenticate(ctx, deviceId) ⇒ <code>object</code>
+Endpoint for device authentification with APIKey
+
+**Kind**: inner method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>object</code> - token  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+| deviceId | <code>string</code> | Device instance id |
+
+<a name="module_Device..getState"></a>
+
+### Device~getState(ctx, deviceId) ⇒ <code>object</code>
+Endpoint for device requesting their own state
+
+**Kind**: inner method of [<code>Device</code>](#module_Device)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+| deviceId | <code>string</code> | Device instance id |
+
+<a name="module_Device..getOTAUpdate"></a>
+
+### Device~getOTAUpdate(ctx, deviceId, [version]) ⇒ <code>object</code>
+Update OTA if a firmware is available
+
+**Kind**: inner method of [<code>Device</code>](#module_Device)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+| deviceId | <code>string</code> | Device instance id |
+| [version] | <code>string</code> | Firmware version requested |
+
 <a name="event_before save"></a>
 
 ### "before save" (ctx)
 Event reporting that a device instance will be created or updated.
+
+**Kind**: event emitted by [<code>Device</code>](#module_Device)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context. |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
+| ctx.instance | <code>object</code> | Device instance |
+
+<a name="event_after save"></a>
+
+### "after save" (ctx)
+Event reporting that a device instance has been created or updated.
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
 
@@ -359,13 +467,58 @@ Event reporting that a device instance will be deleted.
 
 * [Sensor](#module_Sensor)
     * _static_
+        * [.getCache(deviceId, sensorId)](#module_Sensor.getCache) ⇒ <code>object</code>
+        * [.setCache(deviceId, sensor, [ttl])](#module_Sensor.setCache) ⇒ <code>object</code>
+        * [.syncCache(device, [direction])](#module_Sensor.syncCache)
         * [.compose(device, encoded)](#module_Sensor.compose) ⇒ <code>object</code>
         * [.handlePresentation(device, sensor, encoded)](#module_Sensor.handlePresentation) ⇒ <code>function</code> \| <code>function</code>
         * [.createOrUpdate(device, sensor, encoded)](#module_Sensor.createOrUpdate) ⇒ <code>function</code> \| <code>function</code>
-        * [.getInstance(pattern, sensor)](#module_Sensor.getInstance) ⇒ <code>object</code> \| <code>function</code>
+        * [.getInstance(pattern, sensor)](#module_Sensor.getInstance) ⇒ <code>function</code>
     * _inner_
+        * [~updateCachedSensors(device)](#module_Sensor..updateCachedSensors)
+        * [~createToken(sensor, [method])](#module_Sensor..createToken)
+        * ["before save" (ctx)](#event_before save)
         * ["after save" (ctx)](#event_after save)
         * ["before delete" (ctx)](#event_before delete)
+
+<a name="module_Sensor.getCache"></a>
+
+### Sensor.getCache(deviceId, sensorId) ⇒ <code>object</code>
+Find Sensor instance from the cache
+
+**Kind**: static method of [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>object</code> - sensor  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| deviceId | <code>string</code> | Device Id owning the sensor |
+| sensorId | <code>string</code> | Sensor instance Id |
+
+<a name="module_Sensor.setCache"></a>
+
+### Sensor.setCache(deviceId, sensor, [ttl]) ⇒ <code>object</code>
+Create or update sensor instance into the cache memory
+
+**Kind**: static method of [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>object</code> - sensor  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| deviceId | <code>string</code> | Device Id owning the sensor |
+| sensor | <code>object</code> | Sensor instance to save |
+| [ttl] | <code>number</code> | Sensor instance Id |
+
+<a name="module_Sensor.syncCache"></a>
+
+### Sensor.syncCache(device, [direction])
+Synchronize cache memory with database on disk
+
+**Kind**: static method of [<code>Sensor</code>](#module_Sensor)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| device | <code>object</code> | Device Instance to sync |
+| [direction] | <code>string</code> | UP to save on disk | DOWN to save on cache, |
 
 <a name="module_Sensor.compose"></a>
 
@@ -410,16 +563,53 @@ When POST or PUT method detected, validate sensor.resource and value, then save 
 
 <a name="module_Sensor.getInstance"></a>
 
-### Sensor.getInstance(pattern, sensor) ⇒ <code>object</code> \| <code>function</code>
+### Sensor.getInstance(pattern, sensor) ⇒ <code>function</code>
 When GET method detected, find and publish instance
 
 **Kind**: static method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>object</code> - sensor<code>function</code> - app.publish  
+**Returns**: <code>function</code> - Sensor.publish  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | pattern | <code>object</code> | IotAgent detected pattern |
 | sensor | <code>object</code> | Incoming sensor instance |
+
+<a name="module_Sensor..updateCachedSensors"></a>
+
+### Sensor~updateCachedSensors(device)
+Update device's sensors stored in cache
+
+**Kind**: inner method of [<code>Sensor</code>](#module_Sensor)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| device | <code>object</code> | Device instance returns {array} sensor |
+
+<a name="module_Sensor..createToken"></a>
+
+### Sensor~createToken(sensor, [method])
+Format packet and send it via MQTT broker
+
+**Kind**: inner method of [<code>Sensor</code>](#module_Sensor)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| sensor | <code>object</code> | Sensor instance |
+| [method] | <code>string</code> | MQTT method returns {function} Sensor.app.publish() |
+
+<a name="event_before save"></a>
+
+### "before save" (ctx)
+Event reporting that a sensor instance will be created or updated.
+
+**Kind**: event emitted by [<code>Sensor</code>](#module_Sensor)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context. |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
+| ctx.instance | <code>object</code> | Sensor instance |
 
 <a name="event_after save"></a>
 

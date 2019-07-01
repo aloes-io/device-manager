@@ -132,9 +132,13 @@
         }
       ],
       "returns": {
-        "arg": "fileObject",
-        "type": "object",
-        "root": true
+        "type": "file",
+        "root": true,
+        "http": {
+          "pipe": {
+            "dest": "res"
+          }
+        }
       },
       "http": {
         "path": "/:userId/download/:filePath",

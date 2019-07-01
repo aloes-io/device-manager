@@ -1,10 +1,11 @@
 # Aloes - Device Manager
 
 - Authentification by access token for accounts / devices / external apps
-- Handle devices and sensors CRUD
+- Handle devices and sensors CRUD methods
 - MQTT flow triggered by HTTP operations hooks
 - Dispatch MQTT payload from several protocol sources
 - Modelling sensors with OMA schemas
+- Storage on MongoDB and sync with Redis
 
 [Swagger Explorer](https://supervisor.aloes.io/explorer)
 
@@ -13,7 +14,7 @@
 REST API Server build upon :
 - [NodeJS](https://nodejs.org/en/)
 - [Loopback](https://loopback.io/doc/en/lb3/)
-- [Mosca](https://mosca.io/)
+- [Aedes](https://github.com/mcollina/aedes)
 - [Open Mobile Alliance](http://www.openmobilealliance.org/wp/OMNA/LwM2M/LwM2MRegistry.html)
 - [Aloes-handlers](https://www.npmjs.com/package/aloes-handlers)
 

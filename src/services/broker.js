@@ -84,7 +84,7 @@ broker.start = app => {
               client.appEui = token.appEui;
             }
           }
-          logger.publish(4, 'broker', 'Authenticate:res', { username, auth });
+          logger.publish(4, 'broker', 'Authenticate:res', { auth, token });
           // const topicList = [
           //   { topic: `${client.user}/AUTH/#`, qos: 0 },
           //   { topic: `${client.user}/DEVICE/#`, qos: 0 },

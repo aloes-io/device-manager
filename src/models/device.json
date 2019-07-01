@@ -359,29 +359,6 @@
         "verb": "get",
         "path": "/get-ota-update/:deviceId"
       }
-    },
-    "createAuthLink": {
-      "description": ["Generate a link to connect device to ambienz"],
-      "accepts": [
-        {
-          "arg": "account",
-          "type": "object",
-          "required": true
-        },
-        {
-          "arg": "deviceId",
-          "type": "string",
-          "required": true
-        },
-        {
-          "arg": "method",
-          "type": "string"
-        }
-      ],
-      "returns": {
-        "arg": "link",
-        "type": "string"
-      }
     }
   }
 }

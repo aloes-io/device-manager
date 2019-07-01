@@ -77,11 +77,97 @@ module.exports = function(Sensor) {
         const promises = await filteredProperties.map(p => delete ctx.data[p]);
         await Promise.all(promises);
       }
+
       return ctx;
     } catch (error) {
       return error;
     }
   });
+
+  /**
+   * Find Sensor instance from the cache
+   * @method module:Sensor.getCache
+   * @param {string} deviceId - Device Id owning the sensor
+   * @param {string} sensorId - Sensor instance Id
+   * @returns {object} sensor
+   */
+  Sensor.getCache = async (deviceId, sensorId) => {
+    try {
+      const SensorResource = Sensor.app.models.SensorResource;
+      const resourceKey = `deviceId-${deviceId}-sensorId-${sensorId}`;
+      const cachedSensor = await SensorResource.get(resourceKey);
+      if (cachedSensor && cachedSensor !== null) {
+        return JSON.parse(cachedSensor);
+      }
+      throw new Error('No sensor found in cache');
+    } catch (error) {
+      return error;
+    }
+  };
+
+  /**
+   * Create or update sensor instance into the cache memory
+   * @method module:Sensor.setCache
+   * @param {string} deviceId - Device Id owning the sensor
+   * @param {object} sensor - Sensor instance to save
+   * @param {number} [ttl] - Sensor instance Id
+   * @returns {object} sensor
+   */
+  Sensor.setCache = async (deviceId, sensor, ttl) => {
+    try {
+      const SensorResource = Sensor.app.models.SensorResource;
+      const key = `deviceId-${deviceId}-sensorId-${sensor.id}`;
+      const promises = await filteredProperties.map(p => delete sensor[p]);
+      await Promise.all(promises);
+      if (typeof sensor !== 'string') {
+        sensor = JSON.stringify(sensor);
+      }
+      if (ttl && ttl !== null) {
+        await SensorResource.set(key, sensor, {
+          ttl,
+        });
+      } else {
+        await SensorResource.set(key, sensor);
+      }
+      return sensor;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  /**
+   * Synchronize cache memory with database on disk
+   * @method module:Sensor.syncCache
+   * @param {object} device - Device Instance to sync
+   * @param {string} [direction] - UP to save on disk | DOWN to save on cache,
+   */
+  Sensor.syncCache = async (device, direction = 'UP') => {
+    try {
+      const sensors = await device.sensors.find();
+      if (sensors && sensors !== null) {
+        if (direction === 'UP') {
+          // sync redis with mongo
+          const result = await sensors.map(async sensor => {
+            const cachedSensor = await Sensor.getCache(device.id, sensor.id);
+            if (cachedSensor && cachedSensor !== null) {
+              delete cachedSensor.id;
+              //  console.log('sensor sync 3', cachedSensor.id, sensor.id);
+              return sensor.updateAttributes(cachedSensor);
+            }
+            return null;
+          });
+          await Promise.all(result);
+        } else if (direction === 'DOWN') {
+          // sync mongo with redis
+          const result = await sensors.map(async sensor => Sensor.setCache(device.id, sensor));
+          await Promise.all(result);
+        }
+      }
+      return null;
+    } catch (error) {
+      return error;
+    }
+  };
 
   /**
    * Event reporting that a sensor instance has been created or updated.
@@ -96,14 +182,8 @@ module.exports = function(Sensor) {
       logger.publish(4, `${collectionName}`, 'afterSave:req', '');
       if (ctx.hookState.updateData) {
         return ctx;
-      } else if (
-        ctx.instance.id &&
-        !ctx.isNewInstance &&
-        ctx.instance.ownerId &&
-        Sensor.app.broker
-      ) {
-        const resourceKey = `deviceId-${ctx.instance.deviceId}-sensorId-${ctx.instance.id}`;
-        await Sensor.app.models.SensorResource.set(resourceKey, JSON.stringify(ctx.instance));
+      } else if (ctx.instance.id && !ctx.isNewInstance && ctx.instance.ownerId) {
+        await Sensor.setCache(ctx.instance.deviceId, ctx.instance);
       }
       return ctx;
     } catch (error) {
@@ -156,6 +236,7 @@ module.exports = function(Sensor) {
           //  ...encoded,
           name: encoded.name || null,
           type: encoded.type,
+          lastSignal: encoded.lastSignal,
           resources: encoded.resources,
           icons: encoded.icons,
           colors: encoded.colors,
@@ -188,6 +269,7 @@ module.exports = function(Sensor) {
         sensor.isNewInstance = false;
         //  sensor.name = encoded.name;
         //  sensor.resource = encoded.resource;
+        sensor.lastSignal = encoded.lastSignal;
         sensor.description = encoded.description;
         sensor.inPrefix = encoded.inPrefix || null;
         sensor.outPrefix = encoded.outPrefix || null;
@@ -212,6 +294,76 @@ module.exports = function(Sensor) {
     }
   };
 
+  /**
+   * Update device's sensors stored in cache
+   * @method module:Sensor~updateCachedSensors
+   * @param {object} device - Device instance
+   * returns {array} sensor
+   */
+  Sensor.updateCache = async device => {
+    try {
+      const SensorResource = Sensor.app.models.SensorResource;
+
+      // TEST
+      const iterator = await SensorResource.iterateKeys({
+        match: `deviceId-${device.id}-sensorId-*`,
+      });
+      const promises = iterator.map(async it => {
+        try {
+          const key = await it.next();
+          let sensor = JSON.parse(await SensorResource.get(key));
+          sensor = {
+            ...sensor,
+            devEui: device.devEui,
+            devAddr: device.devAddr,
+            transportProtocol: device.transportProtocol,
+            transportProtocolVersion: device.transportProtocolVersion,
+            messageProtocol: device.messageProtocol,
+            messageProtocolVersion: device.messageProtocolVersion,
+          };
+          await SensorResource.set(key, JSON.stringify(sensor));
+          return sensor;
+        } catch (error) {
+          return error;
+        }
+      });
+
+      // const sensorsKeys = await SensorResource.keys({
+      //   match: `deviceId-${device.id}-sensorId-*`,
+      // });
+      // const promises = await sensorsKeys.map(async key => {
+      //   // let sensor = JSON.parse(await SensorResource.get(key));
+      //   let sensor = await Sensor.getCache(device.id, sensorId);
+
+      //   sensor = {
+      //     ...sensor,
+      //     devEui: device.devEui,
+      //     devAddr: device.devAddr,
+      //     transportProtocol: device.transportProtocol,
+      //     transportProtocolVersion: device.transportProtocolVersion,
+      //     messageProtocol: device.messageProtocol,
+      //     messageProtocolVersion: device.messageProtocolVersion,
+      //   };
+      //   await SensorResource.set(key, JSON.stringify(sensor));
+      //   //  await Sensor.publish(sensor, 'HEAD');
+      //   return sensor;
+      // });
+
+      const sensors = await Promise.all(promises);
+      //  await Sensor.syncCache(device);
+      return sensors;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  /**
+   * Format packet and send it via MQTT broker
+   * @method module:Sensor~createToken
+   * @param {object} sensor - Sensor instance
+   * @param {string} [method] - MQTT method
+   * returns {function} Sensor.app.publish()
+   */
   Sensor.publish = async (sensor, method) => {
     try {
       let packet;
@@ -253,6 +405,7 @@ module.exports = function(Sensor) {
       return error;
     }
   };
+
   /**
    * When HEAD detected, validate sensor.resource and value, then save sensor instance
    * @method module:Sensor.handlePresentation
@@ -270,27 +423,17 @@ module.exports = function(Sensor) {
       if (encoded.resource) {
         sensor.resource = Number(encoded.resource);
       }
-      const SensorResource = Sensor.app.models.SensorResource;
       if (sensor.isNewInstance && sensor.icons) {
         sensor.method = 'HEAD';
-        const resourceKey = `deviceId-${device.id}-sensorId-${sensor.id}`;
-        // await Sensor.app.models.SensorResource.set(resourceKey, JSON.stringify(newSensor), {
-        //   ttl: 10000,
-        // });
-        await SensorResource.set(resourceKey, JSON.stringify(sensor));
+        await Sensor.setCache(device.id, sensor);
         return Sensor.publish(sensor, 'HEAD');
       } else if (!sensor.isNewInstance && sensor.id) {
-        const resourceKey = `deviceId-${device.id}-sensorId-${sensor.id}`;
-        const cachedSensor = await SensorResource.get(resourceKey);
-        let updatedSensor = JSON.parse(cachedSensor);
-        // if (!updatedSensor) {
-        //   updatedSensor = await Sensor.findById(sensor.id);
-        // }
+        let updatedSensor = await Sensor.getCache(device.id, sensor.id);
         if (!updatedSensor) throw new Error('Sensor not found');
         updatedSensor = { ...updatedSensor, ...sensor };
         updatedSensor.method = 'HEAD';
         updatedSensor.frameCounter = 0;
-        await SensorResource.set(resourceKey, JSON.stringify(updatedSensor));
+        await Sensor.setCache(device.id, updatedSensor);
         return Sensor.publish(updatedSensor, 'HEAD');
       }
       throw new Error('no valid sensor to register');
@@ -353,16 +496,18 @@ module.exports = function(Sensor) {
         if (!updatedSensor.lastSync) {
           updatedSensor.lastSync = lastSignal;
         }
+        // TODO : Define cache delay with env vars
         if (updatedSensor.frameCounter % 25 === 0) {
           updatedSensor.lastSync = lastSignal;
           delete updatedSensor.id;
           updatedSensor = await device.sensors.updateById(sensor.id, updatedSensor);
-        } else if (lastSignal > updatedSensor.lastSync + 5 * 1000) {
+        } else if (lastSignal > updatedSensor.lastSync + 30 * 1000) {
           updatedSensor.lastSync = lastSignal;
           delete updatedSensor.id;
           updatedSensor = await device.sensors.updateById(sensor.id, updatedSensor);
         } else {
-          await SensorResource.set(resourceKey, JSON.stringify(updatedSensor));
+          await Sensor.setCache(device.id, updatedSensor);
+          //  await SensorResource.set(resourceKey, JSON.stringify(updatedSensor));
         }
         return Sensor.publish(updatedSensor, 'PUT');
       }
@@ -377,14 +522,14 @@ module.exports = function(Sensor) {
    * @method module:Sensor.getInstance
    * @param {object} pattern - IotAgent detected pattern
    * @param {object} sensor - Incoming sensor instance
-   * @returns {object} sensor
-   * @returns {function} app.publish
+   * @returns {function} Sensor.publish
    */
   Sensor.getInstance = async (pattern, sensor) => {
     try {
-      const resourceKey = `deviceId-${sensor.deviceId}-sensorId-${sensor.id}`;
-      const cachedSensor = await Sensor.app.models.SensorResource.get(resourceKey);
-      let instance = JSON.parse(cachedSensor);
+      // const resourceKey = `deviceId-${sensor.deviceId}-sensorId-${sensor.id}`;
+      // const cachedSensor = await Sensor.app.models.SensorResource.get(resourceKey);
+      // let instance = JSON.parse(cachedSensor);
+      let instance = Sensor.getCache(sensor.deviceId, sensor.id);
       if (!instance) {
         instance = await Sensor.findById(sensor.id);
       }
@@ -401,28 +546,6 @@ module.exports = function(Sensor) {
       //   throw new Error('no packet payload to publish');
       // }
       return Sensor.publish(instance, 'GET');
-    } catch (error) {
-      return error;
-    }
-  };
-
-  // sync redis with mongo
-  Sensor.syncCache = async device => {
-    try {
-      const sensors = await device.sensors.find();
-      if (sensors && sensors !== null) {
-        sensors.forEach(async sensor => {
-          const cacheKey = `deviceId-${device.id}-sensorId-${sensor.id}`;
-          const cachedSensor = JSON.parse(await Sensor.app.models.SensorResource.get(cacheKey));
-          if (cachedSensor && cachedSensor !== null) {
-            delete cachedSensor.id;
-            //  console.log('sensor sync 3', cachedSensor.id, sensor.id);
-            return sensor.updateAttributes(cachedSensor);
-          }
-          return null;
-        });
-      }
-      return null;
     } catch (error) {
       return error;
     }

@@ -144,8 +144,6 @@ module.exports = function(Device) {
    */
   const setDeviceIcons = device => {
     try {
-      // if device.type is in the list  then
-      console.log('setDeviceIcons', deviceTypes[device.type]);
       if (device.type && deviceTypes[device.type]) {
         device.icons[0] = deviceTypes[device.type].icons[0];
         device.icons[1] = deviceTypes[device.type].icons[1];
@@ -199,6 +197,12 @@ module.exports = function(Device) {
     }
   });
 
+  /**
+   * Format packet and send it via MQTT broker
+   * @method module:Device~publish
+   * @param {object} device - Device instance
+   * returns {function} Device.app.publish()
+   */
   Device.publish = async (device, method) => {
     try {
       const packet = await iotAgent.publish({
@@ -260,6 +264,7 @@ module.exports = function(Device) {
    * @param {object} ctx - Application context
    * @param {object} ctx.req - HTTP request
    * @param {object} ctx.res - HTTP response
+   * returns {function} module:Device.publish
    */
   const createDeviceProps = async ctx => {
     try {
@@ -280,36 +285,6 @@ module.exports = function(Device) {
       await utils.mkDirByPathSync(`${process.env.FS_PATH}/${ctx.instance.id}`);
       //  logger.publish(4, `${collectionName}`, 'createDeviceProps:res', container);
       return Device.publish(ctx.instance, 'POST');
-    } catch (error) {
-      return error;
-    }
-  };
-
-  const updateCachedSensors = async device => {
-    try {
-      const Sensor = Device.app.models.Sensor;
-      const SensorResource = Device.app.models.SensorResource;
-      const sensorsKeys = await SensorResource.keys({
-        match: `deviceId-${device.id}-sensorId-*`,
-      });
-      const promises = await sensorsKeys.map(async key => {
-        let sensor = JSON.parse(await SensorResource.get(key));
-        sensor = {
-          ...sensor,
-          devEui: device.devEui,
-          devAddr: device.devAddr,
-          transportProtocol: device.transportProtocol,
-          transportProtocolVersion: device.transportProtocolVersion,
-          messageProtocol: device.messageProtocol,
-          messageProtocolVersion: device.messageProtocolVersion,
-        };
-        await SensorResource.set(key, JSON.stringify(sensor));
-        //  await Sensor.publish(sensor, 'HEAD');
-        return sensor;
-      });
-      const sensors = await Promise.all(promises);
-      await Sensor.syncCache(device);
-      return sensors;
     } catch (error) {
       return error;
     }
@@ -345,7 +320,8 @@ module.exports = function(Device) {
 
       const sensorsCount = await ctx.instance.sensors.count();
       if (sensorsCount && sensorsCount > 0) {
-        await updateCachedSensors(ctx.instance);
+        //  await updateCachedSensors(ctx.instance);
+        await Device.app.models.Sensor.updateCache(ctx.instance);
       }
       logger.publish(4, `${collectionName}`, 'updateDeviceProps:res', {
         token,
@@ -376,9 +352,10 @@ module.exports = function(Device) {
       } else if (ctx.instance && Device.app) {
         logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
         if (ctx.isNewInstance) {
-          return createDeviceProps(ctx);
+          await createDeviceProps(ctx);
+        } else {
+          await updateDeviceProps(ctx);
         }
-        return updateDeviceProps(ctx);
       }
       return ctx;
     } catch (error) {
@@ -388,25 +365,64 @@ module.exports = function(Device) {
   });
 
   /**
+   * Synchronize cache memory with database on disk
+   * @method module:Device.syncCache
+   * @param {string} [direction] - UP to save on disk | DOWN to save on cache,
+   */
+  Device.syncCache = async (direction = 'UP') => {
+    try {
+      logger.publish(4, `${collectionName}`, 'syncCache:req', '');
+      const devices = await Device.find();
+      if (devices && devices !== null) {
+        const promises = await devices.map(async device =>
+          Device.app.models.Sensor.syncCache(device, direction),
+        );
+        const result = await Promise.all(promises);
+        return result;
+      }
+      return null;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  /**
    * Find sensors in the cache and add to device instance
-   * @method module:Device~addCachedSensors
+   * @method module:Device~includeCachedSensors
    * @param {object} device - device instance
    */
-  const addCachedSensors = async device => {
+  const includeCachedSensors = async device => {
     try {
       const SensorResource = Device.app.models.SensorResource;
-      const sensorsKeys = await SensorResource.keys({
+
+      // TEST
+      const iterator = await SensorResource.iterateKeys({
         match: `deviceId-${device.id}-sensorId-*`,
       });
-      logger.publish(5, `${collectionName}`, 'addCachedSensors:req', sensorsKeys);
-      const promises = await sensorsKeys.map(async key =>
-        JSON.parse(await SensorResource.get(key)),
-      );
-      const sensors = await Promise.all(promises);
-      logger.publish(5, `${collectionName}`, 'addCachedSensors:res', sensors[0]);
-      if (sensors && sensors !== null) {
-        device.sensors = sensors;
-      }
+      iterator.map(async it => {
+        try {
+          const key = await it.next();
+          const sensor = JSON.parse(await SensorResource.get(key));
+          device.sensor.push(sensor);
+          return sensor;
+        } catch (error) {
+          return error;
+        }
+      });
+
+      // const sensorsKeys = await SensorResource.keys({
+      //   match: `deviceId-${device.id}-sensorId-*`,
+      // });
+      // logger.publish(5, `${collectionName}`, 'includeCachedSensors:req', sensorsKeys);
+      // const promises = await sensorsKeys.map(async key =>
+      //   JSON.parse(await SensorResource.get(key)),
+      // );
+      // const sensors = await Promise.all(promises);
+      // logger.publish(5, `${collectionName}`, 'includeCachedSensors:res', sensors[0]);
+      // if (sensors && sensors !== null) {
+      //   device.sensors = sensors;
+      // }
+
       return device;
     } catch (err) {
       throw err;
@@ -414,12 +430,12 @@ module.exports = function(Device) {
   };
 
   /**
-   * Event reporting that a device instance has been created or updated.
-   * @event after save
+   * Event reporting that a device instance / collection is requested
+   * @event before find
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @param {object} ctx.instance - Device instance
+   * @returns {object} ctx
    */
   Device.beforeRemote('**', async ctx => {
     try {
@@ -486,7 +502,7 @@ module.exports = function(Device) {
 
         if (result && getSensors) {
           //  console.log('[DEVICE] beforeRemote getSensors', getSensors);
-          result = await result.map(addCachedSensors);
+          result = await result.map(includeCachedSensors);
           ctx.result = await Promise.all(result);
         } else if (result) {
           ctx.result = result;
@@ -545,6 +561,7 @@ module.exports = function(Device) {
   Device.findByPattern = async (pattern, encoded) => {
     try {
       const transportProtocol = {
+        //  like: new RegExp(`.*${pattern.name}.*`, 'i').toString(),
         like: new RegExp(`.*${pattern.name}.*`, 'i'),
       };
       // const messageProtocol = {
@@ -712,11 +729,11 @@ module.exports = function(Device) {
   };
 
   /**
-   * Update device status from MQTT conection status
+   * Update device status from MQTT connection status
    * @method module:Device~updateDeviceStatus
    * @param {object} client - MQTT client
-   * @param {boolean} status - MQTT conection status
-   * @returns {function}
+   * @param {boolean} status - MQTT connection status
+   * @returns {functions} device.updateAttributes
    */
   Device.updateStatus = async (client, status) => {
     try {
@@ -735,6 +752,8 @@ module.exports = function(Device) {
       if (device && device !== null) {
         if (status) {
           //  await device.updateAttribute('status', true);
+          // check if cache exists for this devices and its sensors
+          // if it doesnt, create it
           await device.updateAttributes({ frameCounter: 1, status: true, lastSignal: new Date() });
         } else {
           await device.updateAttributes({ frameCounter: 0, status: false, lastSignal: new Date() });
@@ -841,23 +860,6 @@ module.exports = function(Device) {
     }
   };
 
-  Device.syncCache = async () => {
-    try {
-      logger.publish(4, `${collectionName}`, 'syncCache:req', '');
-      const devices = await Device.find();
-      if (devices && devices !== null) {
-        const promises = await devices.map(async device =>
-          Device.app.models.Sensor.syncCache(device),
-        );
-        const result = await Promise.all(promises);
-        return result;
-      }
-      return null;
-    } catch (error) {
-      return error;
-    }
-  };
-
   /**
    * Endpoint for device authentification with APIKey
    * @method module:Device~authenticate
@@ -905,11 +907,7 @@ module.exports = function(Device) {
         const foundToken = await device.accessTokens.findById(tokenId);
         //  console.log('getstate, token : ', tokenId, device.apiKey, foundToken);
         if (foundToken && foundToken !== null) {
-          //  await addCachedSensors(device);
-          // const res = JSON.stringify(device);
-          // console.log('getstate, : ', res);
           return device;
-          //  return JSON.stringify(device);
         }
         ctx.res.status(403);
         return null;
@@ -926,14 +924,11 @@ module.exports = function(Device) {
    * @method module:Device~getOTAUpdate
    * @param {object} ctx - Loopback context
    * @param {string} deviceId - Device instance id
-   * @param {string} version - Firmware version requested
+   * @param {string} [version] - Firmware version requested
    * @returns {object}
    */
   Device.getOTAUpdate = async (ctx, deviceId, version) => {
     try {
-      // todod add APIKey in request
-      //  const pipeline = promisify(stream.pipeline);
-
       const checkHeader = (headers, key, value = false) => {
         if (!headers[key]) {
           return false;
@@ -943,13 +938,6 @@ module.exports = function(Device) {
         }
         return true;
       };
-
-      // const token = await device.accessTokens.findById(device.apiKey);
-      // // console.log('getstate, token : ', token);
-      // if (!token || token !== null) {
-      //   ctx.res.status(403);
-      //   throw new Error('No valid token found');
-      // }
 
       const headers = ctx.req.headers;
       console.log('headers', headers);
@@ -969,112 +957,74 @@ module.exports = function(Device) {
           console.log('invalid ESP8266 header');
           throw new Error('invalid ESP8266 header');
         }
+
         const devEui = headers['x-esp8266-sta-mac'].split(':').join('');
         const filter = {
           where: {
-            id: deviceId,
-            devEui: {
-              like: new RegExp(`.*${devEui}.*`, 'i'),
-            },
+            or: [
+              { id: deviceId },
+              {
+                devEui: {
+                  like: new RegExp(`.*${devEui}.*`, 'i'),
+                },
+              },
+            ],
           },
         };
         const device = await Device.findOne(filter);
         //  const device = await Device.findById(deviceId);
         //  console.log('#device ', device);
-
         if (!device || device === null) {
           ctx.res.status(403);
           throw new Error('No device found');
         }
+        // const token = await device.accessTokens.findById(device.apiKey);
+        // // console.log('getstate, token : ', token);
+        // if (!token || token !== null) {
+        //   ctx.res.status(403);
+        //   throw new Error('No valid token found');
+        // }
         console.log('devEui', devEui, device.devEui);
-        if (devEui === device.devEui) {
-          ctx.res.set('Content-Type', `application/octet-stream`);
+        ctx.res.set('Content-Type', `application/octet-stream`);
+        // look for meta containing firmware tag ?
+        //  const fileFilter = { where: { role: {like: new RegExp(`.*firmware.*`, 'i')} } };
+        //  const fileFilter = { where: { originalName: {like: new RegExp(`.*${device.name}.*`, 'i')} } };
+        const fileFilter = { where: { name: { like: new RegExp(`.*bin.*`, 'i') } } };
+        const fileMeta = await device.files.findOne(fileFilter);
 
-          // look for meta containing firmware tag ?
-          //  const fileFilter = { where: { role: {like: new RegExp(`.*firmware.*`, 'i')} } };
-          //  const fileFilter = { where: { originalName: {like: new RegExp(`.*${device.name}.*`, 'i')} } };
-          const fileFilter = { where: { name: { like: new RegExp(`.*bin.*`, 'i') } } };
-          if (version && version !== null) {
-            //  fileFilter.where.originalName = version;
-          }
-
-          const fileMeta = await device.files.findOne(fileFilter);
-          console.log('#fileMeta ', fileMeta);
-
-          ctx.res.set('Content-Disposition', `attachment; filename=${fileMeta.name}`);
-          //  const path = `./storage/${device.id}/${fileMeta.name}`;
-          //  const fd = fs.createReadStream(path);
-          const fd = Device.app.models.container.downloadStream(
-            device.id.toString(),
-            fileMeta.name,
-          );
-          const md5sum = crypto.createHash('md5');
-
-          // const reportProgress = new stream.Transform({
-          //   transform(chunk, encoding, callback) {
-          //     process.stdout.write('.');
-          //     //  bodyChunks.push(chunk);
-          //     callback(null, chunk);
-          //   },
-          // });
-
-          //  let bodyChunks = [];
-          // const pushChunks = new stream.Transform({
-          //   transform(chunk, encoding, callback) {
-          //     bodyChunks.push(chunk);
-          //     callback(null, chunk);
-          //   },
-          // });
-          // const pipe = await pipeline(fd, crypto.createHash('md5'), ctx.res);
-          // // return fd;
-          // console.log('#pipe ', pipe);
-
-          // const endStream = new Promise((resolve, reject) => {
-          //   fd.pipe(crypto.createHash('md5'))
-          //     .pipe(pushChunks)
-          //     .on('finish', () => {
-          //       const hash = md5sum.digest('hex');
-          //       console.log('#hash ', hash, headers['x-esp8266-sketch-md5']);
-          //       const body = Buffer.concat(bodyChunks);
-          //       ctx.res.set('Content-Length', fd.bytesRead);
-          //       ctx.res.status(200);
-          //       ctx.res.set('x-MD5', hash);
-          //       //  console.log('file', file);
-          //       console.log('Done');
-          //       resolve(body);
-          //     })
-          //     //  .pipe(ctx.res)
-          //     .on('error', reject);
-          // });
-
-          const endStream = new Promise((resolve, reject) => {
-            const bodyChunks = [];
-            fd.on('data', d => {
-              bodyChunks.push(d);
-              md5sum.update(d);
-            });
-            fd.on('end', () => {
-              const hash = md5sum.digest('hex');
-              const body = Buffer.concat(bodyChunks);
-              //  console.log('#hash ', hash, headers['x-esp8266-sketch-md5']);
-              // console.log('file', file);
-              ctx.res.set('Content-Length', fd.bytesRead);
-              ctx.res.status(200);
-              ctx.res.set('x-MD5', hash);
-              resolve(body);
-            });
-            fd.on('error', reject);
-          });
-
-          const result = await endStream;
-          if (result && !(result instanceof Error)) {
-            return result;
-          }
+        if (version && fileMeta.version === version) {
           ctx.res.status(304);
-          throw new Error('Error while reading stream');
+          throw new Error('already up to date');
+        }
+        ctx.res.set('Content-Disposition', `attachment; filename=${fileMeta.name}`);
+
+        const fd = Device.app.models.container.downloadStream(device.id.toString(), fileMeta.name);
+        const md5sum = crypto.createHash('md5');
+        const endStream = new Promise((resolve, reject) => {
+          const bodyChunks = [];
+          fd.on('data', d => {
+            bodyChunks.push(d);
+            md5sum.update(d);
+          });
+          fd.on('end', () => {
+            const hash = md5sum.digest('hex');
+            const body = Buffer.concat(bodyChunks);
+            //  console.log('#hash ', hash, headers['x-esp8266-sketch-md5']);
+            // console.log('file', file);
+            ctx.res.set('Content-Length', fd.bytesRead);
+            ctx.res.status(200);
+            ctx.res.set('x-MD5', hash);
+            resolve(body);
+          });
+          fd.on('error', reject);
+        });
+
+        const result = await endStream;
+        if (result && !(result instanceof Error)) {
+          return result;
         }
         ctx.res.status(304);
-        throw new Error('already up to date');
+        throw new Error('Error while reading stream');
       }
       ctx.res.status(403);
       throw new Error('only for ESP8266 updater');
@@ -1082,13 +1032,4 @@ module.exports = function(Device) {
       return error;
     }
   };
-
-  //  Device.createAuthLink = (account, deviceId, method) => {
-  // check that this device is owned by account
-  // then get device.apiKey
-  // if method === "qrcode"
-  // generate a url
-  // if method === "nfc"
-  //
-  //  };
 };

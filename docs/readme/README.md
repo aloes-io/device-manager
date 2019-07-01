@@ -6,7 +6,7 @@
 - Dispatch MQTT payload from several protocol sources
 - Modelling sensors with OMA schemas
 
-[Swagger Explorer](https://api.aloes.io/explorer)
+[Swagger Explorer](https://supervisor.aloes.io/explorer)
 
 [Full Docs](https://aloes.frama.io/device-manager/)
 
@@ -42,6 +42,19 @@ REST API Server build upon :
   - /services --> external modules
   - /views --> templates used for automatic mailing
 
+
+
+## HTTP API
+
+Pattern : +apiRoot/+modelPluralName/+path
+
+Access controlled by access tokens properties ( set in headers ), based on request URL.
+
+## MQTT API
+
+Pattern : +userId/+modelName/+method/[+modelId]
+
+Access controlled by mqtt password = apiKey = accessToken.id, based on pub/sub topic.
 
 ## Configuration
 
@@ -137,6 +150,7 @@ And then install wildcards certificates with : https://certbot.eff.org/
 - Finish account linking with github
 - Improve Application model
 - Add user(s) in a team to easily share devices access
-- Data exports ( all content related to an account )
-- Store data related to MQTT traffic ( in Device model ? )
+- Data exports ( devices selection by filter )
+- Save measurements in the cache or straight in influx db ?
+- Store data related to MQTT traffic ( via redis to the DeviceResource model ? )
 - Migrate  to Loopback v4

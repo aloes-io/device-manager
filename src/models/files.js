@@ -53,13 +53,12 @@ module.exports = function(Files) {
       }
       let auth = false;
       const tokenUserId = ctx.req.accessToken.userId.toString();
-      const Device = Files.app.models.Device;
       if (tokenUserId === userId.toString()) {
         auth = true;
       } else {
+        const Device = Files.app.models.Device;
         const device = await Device.findById(userId);
         console.log('device', device);
-
         if (device && device.ownerId.toString() === tokenUserId) {
           auth = true;
         }
@@ -105,22 +104,31 @@ module.exports = function(Files) {
       //   auth = true;
       // }
       ctx.res.set('Access-Control-Allow-Origin', '*');
-      ctx.res.set('Content-Type', `application/octet-stream`);
-      ctx.res.set('Content-Disposition', `attachment; filename=${name}`);
       logger.publish(3, `${collectionName}`, 'download:req', userId);
       const fileStream = Files.app.models.container.downloadStream(userId.toString(), name);
-      //  ctx.res.set('Content-Length', fileStream.bytesRead);
-
       if (fileStream && fileStream !== null) {
-        //  console.log('found fileStream');
-        fileStream
-          .pipe(ctx.res)
-          .on('finish', () => {
-            ctx.res.end();
-          })
-          .on('error', err => {
-            throw err;
+        const endStream = new Promise((resolve, reject) => {
+          const bodyChunks = [];
+          fileStream.on('data', d => {
+            bodyChunks.push(d);
           });
+          fileStream.on('end', () => {
+            const body = Buffer.concat(bodyChunks);
+            ctx.res.set('Content-Type', `application/octet-stream`);
+            ctx.res.set('Content-Disposition', `attachment; filename=${name}`);
+            ctx.res.set('Content-Length', fileStream.bytesRead);
+            ctx.res.status(200);
+            resolve(body);
+          });
+          fileStream.on('error', reject);
+        });
+
+        const result = await endStream;
+        if (result && !(result instanceof Error)) {
+          return result;
+        }
+        ctx.res.status(304);
+        throw new Error('Error while reading stream');
       }
       throw new Error('no file found');
     } catch (error) {
