@@ -394,8 +394,6 @@ module.exports = function(Device) {
   const includeCachedSensors = async device => {
     try {
       const SensorResource = Device.app.models.SensorResource;
-
-      // TEST
       const iterator = await SensorResource.iterateKeys({
         match: `deviceId-${device.id}-sensorId-*`,
       });
@@ -409,20 +407,6 @@ module.exports = function(Device) {
           return error;
         }
       });
-
-      // const sensorsKeys = await SensorResource.keys({
-      //   match: `deviceId-${device.id}-sensorId-*`,
-      // });
-      // logger.publish(5, `${collectionName}`, 'includeCachedSensors:req', sensorsKeys);
-      // const promises = await sensorsKeys.map(async key =>
-      //   JSON.parse(await SensorResource.get(key)),
-      // );
-      // const sensors = await Promise.all(promises);
-      // logger.publish(5, `${collectionName}`, 'includeCachedSensors:res', sensors[0]);
-      // if (sensors && sensors !== null) {
-      //   device.sensors = sensors;
-      // }
-
       return device;
     } catch (err) {
       throw err;

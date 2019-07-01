@@ -267,7 +267,8 @@ module.exports = function(Sensor) {
       } else if (device.sensors()[0] && device.sensors()[0].id) {
         sensor = device.sensors()[0];
         sensor.isNewInstance = false;
-        //  sensor.name = encoded.name;
+        sensor.name = encoded.name;
+        sensor.type = encoded.type;
         //  sensor.resource = encoded.resource;
         sensor.lastSignal = encoded.lastSignal;
         sensor.description = encoded.description;
