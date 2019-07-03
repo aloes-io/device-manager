@@ -397,14 +397,14 @@ module.exports = function(Device) {
       const iterator = await SensorResource.iterateKeys({
         match: `deviceId-${device.id}-sensorId-*`,
       });
+      device.sensors = [];
       await Promise.resolve()
         .then(() => iterator.next())
         .then(async key => {
           try {
             if (key && key !== undefined) {
               const sensor = JSON.parse(await SensorResource.get(key));
-              console.log('includeCache Sensor : ', sensor.name, sensor.type);
-              device.sensor.push(sensor);
+              device.sensors.push(sensor);
             }
             return iterator.next();
           } catch (error) {
@@ -599,6 +599,9 @@ module.exports = function(Device) {
       if (!device || device === null || !device.id) {
         throw new Error('no device found');
       }
+      // find in cache the sensor copy and replace device.sensors[0]
+      // also  replace sensor when they share same nativeSensorId and nativeNodeId but type has changed ?
+
       logger.publish(4, `${collectionName}`, 'findByPattern:res', {
         deviceName: device.name,
         deviceId: device.id,

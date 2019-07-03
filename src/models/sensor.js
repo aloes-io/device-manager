@@ -366,7 +366,7 @@ module.exports = function(Sensor) {
 
   /**
    * Update device's sensors stored in cache
-   * @method module:Sensor~updateCachedSensors
+   * @method module:Sensor~updateCache
    * @param {object} device - Device instance
    * returns {array} sensor
    */
@@ -383,7 +383,6 @@ module.exports = function(Sensor) {
           try {
             if (key && key !== undefined) {
               let sensor = JSON.parse(await SensorResource.get(key));
-              console.log('updateCache Sensor : ', sensor.name, sensor.type);
               sensor = {
                 ...sensor,
                 devEui: device.devEui,
