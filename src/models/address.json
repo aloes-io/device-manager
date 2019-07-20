@@ -48,22 +48,15 @@
   },
   "indexes": {
     "geo_index": {
-      "keys": {"coordinates": "2dsphere"}
+      "keys": { "coordinates": "2dsphere" }
     }
   },
   "hidden": [],
   "validations": [],
   "relations": {
-    "user": {
+    "owner": {
       "type": "belongsTo",
-      "model": "user",
-      "options": {
-        "nestRemoting": false
-      }
-    },
-    "device": {
-      "type": "belongsTo",
-      "model": "Device",
+      "polymorphic": true,
       "options": {
         "nestRemoting": false
       }
@@ -91,8 +84,10 @@
         "updateAttributes",
         "upsert",
         "exists",
+        "get",
         "find",
         "findById",
+        "update",
         "replaceById",
         "replaceOrCreate",
         "upsertWithWhere"

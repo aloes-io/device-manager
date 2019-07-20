@@ -43,8 +43,8 @@ module.exports = {
       'pre-setup': '',
       'pre-deploy-local': `scp -P 22 deploy/.env_${result.parsed.NODE_ENV} ${
         result.parsed.VPS_USER
-      }@${result.parsed.VPS_HOST}:/home/${result.parsed.VPS_USER}/${
-        result.parsed.NODE_NAME
+      }@${result.parsed.VPS_HOST}:/home/${result.parsed.VPS_USER}/${result.parsed.NODE_NAME}-${
+        result.parsed.NODE_ENV
       }/source/.env`,
       'post-deploy': 'npm install && npm run deploy:stage',
     },

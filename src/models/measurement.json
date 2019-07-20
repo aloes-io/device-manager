@@ -2,38 +2,84 @@
   "name": "Measurement",
   "base": "PersistedModel",
   "plural": "Measurements",
-  "idInjection": true,
+  "idInjection": false,
   "options": {
     "validateUpsert": true
   },
   "properties": {
-    "type": {
-      "type": "number",
-      "required": true,
-      "default": 3300
-    },
-    "resource": {
-      "type": "number",
-      "required": true,
-      "default": 5700
-    },
-    "tag": {
+    "id": {
       "type": "string",
-      "required": false,
-      "default": null
+      "id": true,
+      "defaultFn": "uuidv4"
+    },
+    "strValue": {
+      "type": "string",
+      "schema": "field",
+      "required": false
     },
     "value": {
-      "type": "string",
+      "type": "number",
+      "schema": "field",
+      "index": true,
       "required": true
     },
-    "date": {
+    "timestamp": {
       "type": "date",
-      "required": true
+      "schema": "timestamp",
+      "required": false
+    },
+    "type": {
+      "type": "string",
+      "required": true,
+      "schema": "tag",
+      "default": "3300"
+    },
+    "resource": {
+      "type": "string",
+      "required": true,
+      "schema": "tag",
+      "default": "5700"
+    },
+    "nativeSensorId": {
+      "type": "string",
+      "required": true,
+      "schema": "tag",
+      "default": "0"
+    },
+    "nativeNodeId": {
+      "type": "string",
+      "required": false,
+      "schema": "tag",
+      "default": "0"
     }
   },
   "hidden": [],
   "validations": [],
+  "downSampling": [
+    {
+      "duration": "2h",
+      "properties": { "value": "mean" },
+      "group": [
+        "ownerId",
+        "deviceId",
+        "sensorId",
+        "nativeSensorId",
+        "nativeNodeId",
+        "type",
+        "resource",
+        "time(30m)"
+      ]
+    }
+  ],
   "relations": {
+    "user": {
+      "type": "belongsTo",
+      "model": "user",
+      "foreignKey": "ownerId",
+      "options": {
+        "nestRemoting": false
+      }
+    },
     "device": {
       "type": "belongsTo",
       "model": "Device",
@@ -55,8 +101,8 @@
     {
       "accessType": "*",
       "principalType": "ROLE",
-      "principalId": "admin",
-      "permission": "ALLOW"
+      "principalId": "$everyone",
+      "permission": "DENY"
     },
     {
       "accessType": "*",
@@ -64,11 +110,15 @@
       "principalId": "$authenticated",
       "permission": "ALLOW",
       "property": [
-        "create",
+        "exists",
         "find",
         "findById",
-        "replaceById",
-        "exists"
+        "create",
+        "updateById",
+        "updateAttributes",
+        "updateAll",
+        "delete",
+        "deleteWhere"
       ]
     },
     {
@@ -77,16 +127,34 @@
       "principalId": "$owner",
       "permission": "ALLOW",
       "property": [
-        "replaceById",
-        "replaceOrCreate",
-        "updateById",
-        "updateAttributes",
-        "upsert",
         "exists",
         "find",
-        "findById"
+        "findById",
+        "deleteById",
+        "updateAll",
+        "updateById",
+        "updateAttributes"
       ]
     }
   ],
-  "methods": {}
+  "methods": {
+    "deleteWhere": {
+      "accepts": [
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": true
+        },
+        { "arg": "options", "type": "object", "http": "optionsFromRequest" }
+      ],
+      "returns": {
+        "arg": "result",
+        "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/destroy-all"
+      }
+    }
+  }
 }

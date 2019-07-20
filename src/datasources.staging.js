@@ -2,7 +2,7 @@ module.exports = {
   db: {
     name: 'db',
     connector: 'mongodb',
-    database: process.env.MONGO_COLLECTION || 'ymc_stage',
+    database: process.env.MONGO_COLLECTION || 'aloes_stage',
     host: process.env.MONGO_HOST || 'localhost',
     port: Number(process.env.MONGO_PORT) || 27017,
     auth: {
@@ -33,12 +33,23 @@ module.exports = {
     ],
   },
   cache: {
-    db: process.env.REDIS_COLLECTION || '3',
+    db: process.env.REDIS_COLLECTIONS || '3',
     host: process.env.REDIS_HOST || 'localhost',
     port: Number(process.env.REDIS_PORT) || 6379,
     name: 'cache',
     connector: 'kv-redis',
     pass: process.env.REDIS_PASS,
+    lazyConnect: true,
+  },
+  points: {
+    name: 'points',
+    connector: 'influxdata',
+    username: process.env.INFLUX_USER || '',
+    password: process.env.INFLUX_PASS || '',
+    database: process.env.INFLUX_COLLECTION || 'aloes_stage',
+    host: process.env.INFLUX_HOST || 'localhost',
+    port: Number(process.env.INFLUX_PORT) || 8086,
+    protocol: process.env.INFLUX_PROTOCOL || 'http',
   },
   storage: {
     name: 'storage',

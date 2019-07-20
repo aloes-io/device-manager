@@ -66,6 +66,10 @@
     "dataSource": "storage",
     "public": false
   },
+  "Client": {
+    "dataSource": "cache",
+    "public": false
+  },
   "Device": {
     "dataSource": "db",
     "public": true
@@ -78,8 +82,8 @@
     "public": true
   },
   "Measurement": {
-    "dataSource": "db",
-    "public": false
+    "dataSource": "points",
+    "public": true
   },
   "OmaObject": {
     "dataSource": "db",

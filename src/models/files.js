@@ -1,14 +1,22 @@
+import fileType from 'file-type';
+import stream from 'stream';
 import logger from '../services/logger';
 
-//  const CONTAINERS_URL = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/files/`;
 const CONTAINERS_URL = `${process.env.REST_API_ROOT}/files/`;
-const collectionName = 'files';
 
 /**
  * @module Files
  */
-
 module.exports = function(Files) {
+  const collectionName = 'files';
+
+  Files.validatesPresenceOf('ownerId');
+
+  Files.disableRemoteMethodByName('count');
+  Files.disableRemoteMethodByName('upsertWithWhere');
+  Files.disableRemoteMethodByName('replaceOrCreate');
+  Files.disableRemoteMethodByName('createChangeStream');
+
   const uploadToContainer = (ctx, ownerId, options) =>
     new Promise((resolve, reject) =>
       Files.app.models.container.upload(ownerId, ctx.req, ctx.res, options, (err, fileObj) =>
@@ -16,111 +24,174 @@ module.exports = function(Files) {
       ),
     );
 
-  // const deleteFromContainer = (ctx, ownerId, name) =>
-  //   new Promise((resolve, reject) =>
-  //     Files.app.models.container.removeFile(
-  //       ownerId,
-  //       name,
-  //       ctx.req,
-  //       ctx.result,
-  //       (err, fileObj) => (err ? reject(err) : resolve(fileObj)),
-  //     ),
-  //   );
+  const uploadBufferToContainer = (buffer, ownerId, name) =>
+    new Promise((resolve, reject) => {
+      const bufferStream = new stream.PassThrough();
+      bufferStream.end(buffer);
+      const type = fileType(buffer);
+      if (!type || !type.ext) reject(new Error('File type information not found'));
+      const nameParts = name.split('.');
+      if (nameParts.length < 2) {
+        name = `${name}.${type.ext}`;
+      }
+      const writeStream = Files.app.models.container.uploadStream(ownerId, name);
+      bufferStream.pipe(writeStream);
+      writeStream.on('finish', () => {
+        resolve({
+          type,
+          path: writeStream.path,
+          size: writeStream.bytesWritten,
+          name,
+          //  originalFilename: `${name}`,
+        });
+      });
+      writeStream.on('error', reject);
+    });
 
-  // const infosFromContainer = (ctx, userId, name) =>
-  //   new Promise((resolve, reject) =>
-  //     Files.app.models.container.getFile(
-  //       userId,
-  //       name,
-  //       ctx.req,
-  //       ctx.result,
-  //       (err, infos) => (err ? reject(err) : resolve(infos)),
-  //     ),
-  //   );
+  const removeFromContainer = (ownerId, name) =>
+    new Promise((resolve, reject) =>
+      Files.app.models.container.removeFile(ownerId, name, (err, res) =>
+        err ? reject(err) : resolve(res),
+      ),
+    );
 
-  // const downloadFile = (ctx, userId, name) =>
-  //   new Promise((resolve, reject) =>
-  //     Files.app.models.container.download(userId, name, ctx.req, ctx.res, (err, fileObj) =>
-  //       err ? reject(err) : resolve(fileObj),
-  //     ),
-  //   );
-
-  Files.upload = async (ctx, userId) => {
+  /**
+   * Request to upload file in userId container via multipart/form data
+   * @method module:Files.upload
+   * @param {object} ctx - Loopback context
+   * @param {string} ownerId - Container owner and path
+   * @param {string} [name] - File name
+   * @returns {object} file
+   */
+  Files.upload = async (ctx, ownerId, name) => {
     try {
       const options = {};
-      if (!ctx.req.accessToken) {
-        throw new Error('no auth token');
-      }
-      let auth = false;
-      const tokenUserId = ctx.req.accessToken.userId.toString();
-      if (tokenUserId === userId.toString()) {
-        auth = true;
-      } else {
-        const Device = Files.app.models.Device;
-        const device = await Device.findById(userId);
-        console.log('device', device);
-        if (device && device.ownerId.toString() === tokenUserId) {
-          auth = true;
-        }
-      }
-      if (!auth) {
-        return null;
-      }
+
       //  ctx.res.set("Access-Control-Allow-Origin", "*")
-      // check if owner already have fileType ( avatar or header ) saved
-      // if no => Files.create
-      // else =>
-      //          Files.app.models.container.delete(userId,filename)
-      //          && Files.app.models.container.upload
-      //          && Files.update
-      const fileInfo = await uploadToContainer(ctx, userId, options);
-      //  console.log(`[${collectionName.toUpperCase()}] upload:res1`, fileInfo);
-      const file = await Files.findOrCreate(
-        {
-          //  where: { and: [{ name: fileInfo.name }, { ownerId: userId }] },
-          where: { and: [{ originalFilename: fileInfo.originalFilename }, { ownerId: userId }] },
+      const filter = {
+        where: {
+          and: [{ ownerId }],
         },
-        {
+      };
+
+      if (name && name !== null) {
+        options.name = name;
+        filter.where.and.push({
+          or: [
+            { name: { like: new RegExp(`.*${name}.*`, 'i') } },
+            { originalFilename: { like: new RegExp(`.*${name}.*`, 'i') } },
+          ],
+        });
+      }
+
+      let fileMeta = await Files.findOne(filter);
+      const fileInfo = await uploadToContainer(ctx, ownerId, options);
+      //  console.log('fileInfo Upload', fileInfo);
+
+      if (fileMeta) {
+        fileMeta.updateAttributes({
+          type: fileInfo.type,
+          //  size: fileInfo.size,
           name: fileInfo.name,
           originalFilename: fileInfo.originalFilename,
+          url: `${CONTAINERS_URL}${ownerId}/download/${fileInfo.name}`,
+        });
+      } else {
+        fileMeta = await Files.create({
+          name: fileInfo.name,
+          originalFilename: fileInfo.originalFilename,
+          //  size: fileStat.size,
           type: fileInfo.type,
-          ownerId: userId,
-          url: `${CONTAINERS_URL}${userId}/download/${fileInfo.name}`,
-        },
-      );
-      //  console.log(`[${collectionName.toUpperCase()}] upload:res`, file[0]);
+          ownerId,
+          url: `${CONTAINERS_URL}${ownerId}/download/${fileInfo.name}`,
+        });
+      }
+
+      // if (file[1])  await removeFromContainer(ownerId, name);
       logger.publish(3, `${collectionName}`, 'upload:res', fileInfo);
-      return file[0];
+      //  return fileInfo;
+      return fileMeta;
     } catch (err) {
       logger.publish(2, `${collectionName}`, 'upload:err', err);
       return err;
     }
   };
 
+  /**
+   * Request to upload file in userId container via raw buffer
+   * @method module:Files.uploadBuffer
+   * @param {buffer} buffer - Containing file data
+   * @param {string} ownerId - Container owner and path
+   * @param {string} name - File name
+   * @returns {object} fileMeta
+   */
+  Files.uploadBuffer = async (buffer, ownerId, name) => {
+    try {
+      logger.publish(3, `${collectionName}`, 'uploadBuffer:req', { ownerId, name });
+      let fileMeta = await Files.findOne({
+        where: {
+          and: [{ name: { like: new RegExp(`.*${name}.*`, 'i') } }, { ownerId }],
+        },
+      });
+      //  console.log('fileMeta : ', fileMeta);
+      const fileStat = await uploadBufferToContainer(buffer, ownerId, name);
+      logger.publish(5, `${collectionName}`, 'uploadBuffer:res1', { fileStat });
+      if (!fileStat || !fileStat.type) throw new Error('Failure while uploading stream');
+
+      if (fileMeta) {
+        fileMeta.updateAttributes({
+          type: fileStat.type.mime,
+          size: fileStat.size,
+          name: fileStat.name,
+          url: `${CONTAINERS_URL}${ownerId}/download/${fileStat.name}`,
+          //  originalFilename: fileStat.originalFilename,
+        });
+      } else {
+        fileMeta = await Files.create({
+          name: fileStat.name,
+          //  originalFilename: fileStat.originalFilename,
+          size: fileStat.size,
+          type: fileStat.type.mime,
+          ownerId,
+          url: `${CONTAINERS_URL}${ownerId}/download/${fileStat.name}`,
+        });
+      }
+      logger.publish(3, `${collectionName}`, 'uploadBuffer:res', fileMeta);
+      return fileMeta;
+    } catch (err) {
+      logger.publish(2, `${collectionName}`, 'upload:err', err);
+      return err;
+    }
+  };
+
+  /**
+   * Request to download file in userId container
+   * @method module:Files.download
+   * @param {string} ownerId - Container owner and path
+   * @param {string} name - File name
+   * @returns {object} fileMeta
+   */
   Files.download = async (ctx, userId, name) => {
     try {
       // let auth = false;
-      // if (tokenUserId === userId.toString()) {
-      //   auth = true;
-      // }
       ctx.res.set('Access-Control-Allow-Origin', '*');
       logger.publish(3, `${collectionName}`, 'download:req', userId);
-      const fileStream = Files.app.models.container.downloadStream(userId.toString(), name);
-      if (fileStream && fileStream !== null) {
+      const readStream = Files.app.models.container.downloadStream(userId, name);
+      if (readStream && readStream !== null) {
         const endStream = new Promise((resolve, reject) => {
           const bodyChunks = [];
-          fileStream.on('data', d => {
+          readStream.on('data', d => {
             bodyChunks.push(d);
           });
-          fileStream.on('end', () => {
+          readStream.on('end', () => {
             const body = Buffer.concat(bodyChunks);
             ctx.res.set('Content-Type', `application/octet-stream`);
             ctx.res.set('Content-Disposition', `attachment; filename=${name}`);
-            ctx.res.set('Content-Length', fileStream.bytesRead);
+            ctx.res.set('Content-Length', readStream.bytesRead);
             ctx.res.status(200);
             resolve(body);
           });
-          fileStream.on('error', reject);
+          readStream.on('error', reject);
         });
 
         const result = await endStream;
@@ -136,18 +207,53 @@ module.exports = function(Files) {
     }
   };
 
-  // Files.download = (ctx, userId, name, cb) => {
-  //   ctx.res.set('Access-Control-Allow-Origin', '*');
-  //   // console.log(`[${collectionName.toUpperCase()}] download:res`, file);
-  //   logger.publish(3, `${collectionName}`, 'download:req', userId);
-  //   // const file = await downlloadFile(ctx, userId, name);
-  //   Files.app.models.container.download(userId, name, ctx.req, ctx.res, (err, fileObj) => {
-  //     if (err) {
-  //       logger.publish(4, `${collectionName}`, 'download:err', err);
-  //       cb(err);
-  //     } else {
-  //       cb(null, fileObj);
-  //     }
-  //   });
-  // };
+  Files.remove = async (userId, name) => {
+    try {
+      await removeFromContainer(userId, name);
+      return true;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  /**
+   * On sensor update, if an OMA resource is of float or integer type
+   * @method Files:Measurement.compose
+   * @param {object} sensor - updated Sensor instance
+   * @returns {object} buffer
+   */
+  Files.compose = sensor => {
+    try {
+      if (
+        !sensor ||
+        !sensor.id ||
+        !sensor.deviceId ||
+        !sensor.resource ||
+        !sensor.resources ||
+        !sensor.type
+      ) {
+        throw new Error('Invalid sensor instance');
+      }
+      let buffer;
+      const resourceId = sensor.resource.toString();
+      const resource = sensor.resources[resourceId];
+      const resourceType = typeof resource;
+      logger.publish(3, `${collectionName}`, 'compose:req', { resourceType, resourceId });
+      if (resourceType === 'string') {
+        if (JSON.parse(resource)) {
+          buffer = Buffer.from(JSON.parse(resource.data));
+        } else {
+          buffer = Buffer.from(resource, 'base64');
+        }
+      } else if (resourceType === 'object' && resource.type) {
+        buffer = Buffer.from(resource.data);
+      } else if (Buffer.isBuffer(resource)) {
+        buffer = resource;
+      }
+      //  logger.publish(3, `${collectionName}`, 'compose:res', buffer);
+      return buffer;
+    } catch (error) {
+      return error;
+    }
+  };
 };

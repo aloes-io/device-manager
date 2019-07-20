@@ -9,9 +9,23 @@
   },
   "mixins": {},
   "properties": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "default": null
+    },
+    "type": {
+      "type": "string",
+      "required": true,
+      "default": null
+    },
+    "status": {
+      "type": "boolean",
+      "default": false
+    },
     "devEui": {
       "type": "string",
-      "required": false,
+      "required": true,
       "default": null,
       "unique": true
     },
@@ -24,19 +38,9 @@
       "type": "string",
       "required": false
     },
-    "name": {
+    "clientKey": {
       "type": "string",
-      "required": false,
-      "default": null
-    },
-    "type": {
-      "type": "string",
-      "required": false,
-      "default": null
-    },
-    "status": {
-      "type": "boolean",
-      "default": false
+      "required": false
     },
     "description": {
       "type": "string",
@@ -92,28 +96,40 @@
       "required": false,
       "default": null
     },
+    "firmware": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "firmwareVersion": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
     "deleted": {
       "type": "boolean",
       "default": false
+    },
+    "clients": {
+      "type": "array",
+      "description": "A list of client ids authentified as this device",
+      "default": []
     }
   },
   "indexes": {},
-  "protected": ["devEui", "appKey"],
+  "protected": ["devEui", "apiKey", "clients"],
   "hidden": ["deleted"],
   "validations": [],
   "relations": {
-    "accessTokens": {
-      "type": "hasMany",
-      "model": "accessToken",
-      "foreignKey": "userId",
-      "options": {
-        "disableInclude": false
-      }
-    },
-    "deviceAddress": {
+    "address": {
       "type": "hasOne",
       "model": "Address",
-      "foreignKey": "deviceId"
+      "polymorphic": {
+        "selector": "owner"
+      },
+      "options": {
+        "nestRemoting": true
+      }
     },
     "sensors": {
       "type": "hasMany",
@@ -128,10 +144,29 @@
         "nestRemoting": false
       }
     },
-    "files": {
-      "type": "hasMany",
-      "model": "files",
-      "foreignKey": "ownerId"
+    "collaborators": {
+      "type": "referencesMany",
+      "description": "A list of users ids who have permissions to use this device",
+      "model": "user",
+      "foreignKey": "userIds",
+      "options": {
+        "validate": true,
+        "forceId": false,
+        "persistent": true
+      },
+      "default": []
+    },
+    "applications": {
+      "type": "referencesMany",
+      "description": "A list of application ids who have rights to listen device events",
+      "model": "Application",
+      "foreignKey": "appIds",
+      "options": {
+        "validate": true,
+        "forceId": false,
+        "persistent": true
+      },
+      "default": []
     }
   },
   "acls": [
@@ -166,12 +201,27 @@
         "exists",
         "search",
         "geoLocate",
-        "__create__deviceAddress",
-        "__get__deviceAddress",
+        "__create__address",
+        "__get__address",
         "__get__sensors",
-        "__findById__sensors",
-        "__get__files",
-        "__findById__files"
+        "__findById__sensors"
+      ]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$collaborator",
+      "permission": "ALLOW",
+      "property": [
+        "create",
+        "find",
+        "findById",
+        "replaceById",
+        "replaceOrCreate",
+        "exists",
+        "__get__address",
+        "__get__sensors",
+        "__findById__sensors"
       ]
     },
     {
@@ -193,19 +243,26 @@
         "refreshToken",
         "find",
         "findById",
-        "__get__deviceAddress",
-        "__create__deviceAddress",
-        "__update__deviceAddress",
-        "__destroy__deviceAddress",
+        "__get__address",
+        "__create__address",
+        "__update__address",
+        "__destroy__address",
         "__get__sensors",
         "__findById__sensors",
         "__updateById__sensors",
         "__destroyById__sensors",
-        "__get__files",
-        "__create__files",
-        "__findById__files",
-        "__updateById__files",
-        "__destroyById__files"
+        "__get__collaborators",
+        "__create__collaborators",
+        "__add__collaborators",
+        "__findById__collaborators",
+        "__updateById__collaborators",
+        "__destroyById__collaborators",
+        "__get__applications",
+        "__create__applications",
+        "__add__applications",
+        "__findById__applications",
+        "__updateById__applications",
+        "__destroyById__applications"
       ]
     }
   ],
@@ -227,6 +284,10 @@
       "returns": {
         "arg": "result",
         "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/on-publish"
       }
     },
     "search": {
@@ -297,22 +358,38 @@
         "path": "/refresh-token"
       }
     },
-    "getState": {
-      "description": ["End point for device requesting their own state"],
+    "authenticate": {
+      "description": ["End point for device authentification with APIKey"],
       "accepts": [
-        {
-          "arg": "ctx",
-          "type": "object",
-          "required": true,
-          "http": {
-            "source": "context"
-          }
-        },
         {
           "arg": "deviceId",
           "type": "string",
           "required": true
+        },
+        {
+          "arg": "apiKey",
+          "type": "string",
+          "required": true
         }
+      ],
+      "returns": {
+        "root": true,
+        "type": "string"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/authenticate"
+      }
+    },
+    "getState": {
+      "description": ["End point for device requesting their own state"],
+      "accepts": [
+        {
+          "arg": "deviceId",
+          "type": "string",
+          "required": true
+        },
+        { "arg": "options", "type": "object", "http": "optionsFromRequest" }
       ],
       "returns": {
         "root": true,

@@ -1,6 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 import ejs from 'ejs';
 import * as fs from 'fs';
+import crypto from 'crypto';
 import stream from 'stream';
 import path from 'path';
 import app from './server';
@@ -193,6 +194,17 @@ utils.createLink = async (coinhive, user, url) => {
     return result;
   }
   return false;
+};
+
+utils.generateKey = (hmacKey, algorithm, encoding) => {
+  hmacKey = hmacKey || 'loopback';
+  algorithm = algorithm || 'sha1';
+  encoding = encoding || 'hex';
+  const hmac = crypto.createHmac(algorithm, hmacKey);
+  const buf = crypto.randomBytes(32);
+  hmac.update(buf);
+  const key = hmac.digest(encoding);
+  return key;
 };
 
 utils.liner = new stream.Transform({ objectMode: true });

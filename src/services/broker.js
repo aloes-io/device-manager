@@ -1,4 +1,3 @@
-import iotAgent from 'iot-agent';
 import MQEmitterRedis from 'mqemitter-redis';
 import aedesPersistenceRedis from 'aedes-persistence-redis';
 import aedes from 'aedes';
@@ -26,6 +25,8 @@ broker.start = app => {
       logger.publish(2, 'broker', 'start', `${process.env.MQTTS_BROKER_URL}`);
     }
 
+    const Client = app.models.Client;
+
     /**
      * Aedes authentification callback
      * @method module:Broker~authenticate
@@ -41,59 +42,93 @@ broker.start = app => {
           client: client.id,
           username,
         });
-        // if (password) {
-        //   logger.publish(4, 'broker', 'Authenticate:req', {
-        //     password: password.toString(),
-        //   });
-        // }
-        let auth = false;
+
+        let status = false;
         if (!password || password === null || !username || username === null) {
           //  client.user = 'guest';
           const error = new Error('Auth error');
           error.returnCode = 4;
           logger.publish(4, 'broker', 'Authenticate:res', 'missing credentials');
-          auth = false;
-          return cb(error, auth);
+          status = false;
+          return cb(error, status);
           //  return auth;
         }
-        if (!app.models.accessToken) {
-          const error = new Error('Auth error');
-          error.returnCode = 3;
-          auth = false;
-          return cb(error, auth);
-          //  return auth;
+        // todo : find a way to verify in auth request, against which model authenticate
+        //  console.log("client parser", client.parser)
+        let foundClient = JSON.parse(await Client.get(client.id));
+        if (!foundClient || !foundClient.id) {
+          foundClient = { id: client.id, type: 'MQTT' };
         }
-        return app.models.accessToken.findById(password.toString(), (err, token) => {
-          //  console.log("token loaded ? error ? ", err, token)
-          if (err || !token) {
-            const error = new Error('Auth error');
-            error.returnCode = 2;
-            auth = false;
-            logger.publish(4, 'broker', 'Authenticate:res', 'invalid token');
-            cb(error, auth);
-            return auth;
-          }
-          if (token && token.userId && token.userId.toString() === username) {
-            auth = true;
-            client.user = username;
-            if (token.devEui) {
-              client.devEui = token.devEui;
-            } else if (token.devAddr) {
-              client.devAddr = token.devAddr;
-            } else if (token.appEui) {
-              client.appEui = token.appEui;
+        const token = await app.models.accessToken.findById(password.toString());
+        if (token && token.userId && token.userId.toString() === username) {
+          status = true;
+          foundClient.model = 'User';
+          client.ownerId = token.userId;
+          foundClient.ownerId = token.userId;
+        }
+        let authentification;
+        let successPayload = status.toString();
+        if (!status) {
+          authentification = await app.models.Device.authenticate(username, password.toString());
+          if (authentification && authentification.device && authentification.keyType) {
+            const instance = authentification.device;
+            if (instance.devEui && instance.devEui !== null) {
+              status = true;
+              client.devEui = instance.devEui;
+              successPayload = instance;
+              foundClient.devEui = instance.devEui;
+              foundClient.model = 'Device';
+            } else if (instance.devAddr && instance.devAddr !== null) {
+              status = true;
+              client.devAddr = instance.devAddr;
+              successPayload = instance;
+              foundClient.devAddr = instance.devAddr;
+              foundClient.model = 'Device';
             }
           }
-          logger.publish(4, 'broker', 'Authenticate:res', { auth, token });
-          // const topicList = [
-          //   { topic: `${client.user}/AUTH/#`, qos: 0 },
-          //   { topic: `${client.user}/DEVICE/#`, qos: 0 },
-          // ];
-          // client.subscribe(topicList)
-          app.emit('publish', `${token.userId}/Auth/POST`, auth.toString(), false, 1);
-          return cb(null, auth);
-          //  return auth;
-        });
+        }
+
+        if (!status) {
+          authentification = await app.models.Application.authenticate(
+            username,
+            password.toString(),
+          );
+          if (authentification && authentification.application && authentification.keyType) {
+            const instance = authentification.application;
+            if (instance && instance.id) {
+              client.appId = instance.id;
+              foundClient.appId = instance.id;
+              foundClient.model = 'Application';
+              successPayload = instance;
+              status = true;
+              if (instance.appEui && instance.appEui !== null) {
+                client.appEui = instance.appEui;
+                foundClient.appEui = instance.appEui;
+              }
+            }
+          }
+        }
+
+        if (status) {
+          if (!successPayload) {
+            successPayload = status.toString();
+          }
+
+          const ttl = 1 * 60 * 60 * 1000;
+          client.user = username;
+          foundClient.user = username;
+          await Client.set(client.id, JSON.stringify(foundClient), ttl);
+          logger.publish(4, 'broker', 'Authenticate:res', { client: foundClient });
+          await app.publish(`${username}/${foundClient.model}/HEAD`, successPayload, true, 1);
+          return cb(null, status);
+        }
+
+        const error = new Error('Auth error');
+        error.returnCode = 2;
+        status = false;
+        logger.publish(4, 'broker', 'Authenticate:res', 'invalid token');
+        cb(error, status);
+        return status;
       } catch (error) {
         logger.publish(4, 'broker', 'Authenticate:err', error);
         return cb(null, false);
@@ -113,7 +148,6 @@ broker.start = app => {
       try {
         const topic = packet.topic;
         const topicParts = topic.split('/');
-        // possible improvement :  leave minimum access with apikey
         // allow max access with valid tls cert config
         let auth = false;
         if (client.user) {
@@ -124,14 +158,22 @@ broker.start = app => {
             });
             auth = true;
           } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
+            // todo limit access to device out prefix if any - / endsWith(device.outPrefix)
             logger.publish(5, 'broker', 'authorizePublish:req', {
               device: client.devEui,
               topic: topicParts,
             });
             auth = true;
           } else if (client.devAddr && topicParts[0].startsWith(client.devAddr)) {
+            // todo limit access to device out prefix if any
             logger.publish(5, 'broker', 'authorizePublish:req', {
               device: client.devAddr,
+              topic: topicParts,
+            });
+            auth = true;
+          } else if (client.appId && topicParts[0].startsWith(client.appId)) {
+            logger.publish(5, 'broker', 'authorizePublish:req', {
+              application: client.appId,
               topic: topicParts,
             });
             auth = true;
@@ -179,13 +221,21 @@ broker.start = app => {
             });
             auth = true;
           } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
+            // todo limit access to device in prefix if any
             logger.publish(5, 'broker', 'authorizeSubscribe:req', {
               device: client.devEui,
             });
             auth = true;
           } else if (client.devAddr && topicParts[0].startsWith(client.devAddr)) {
+            // todo limit access to device in prefix if any - endsWith(device.inPrefix)
             logger.publish(5, 'broker', 'authorizeSubscribe:req', {
               device: client.devAddr,
+            });
+            auth = true;
+          } else if (client.appId && topicParts[0].startsWith(client.appId)) {
+            logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+              application: client.appId,
+              topic: topicParts,
             });
             auth = true;
           } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
@@ -209,19 +259,21 @@ broker.start = app => {
       }
     };
 
+    // app.broker.published = async client => {
+
+    // };
+
     /**
      * Update models status from MQTT conection status and client properties
      * @method module:Broker~updateModelsStatus
      * @param {object} client - MQTT client
      * @param {boolean} status - MQTT conection status
-     * @returns {function}
      */
     const updateModelsStatus = async (client, status) => {
       try {
-        //  console.log('updateModelsStatus', status);
         if (client.user) {
-          await app.models.Device.updateStatus(client, status);
-          await app.models.Application.updateStatus(client, status);
+          await app.models.Device.emit('client', { client, status });
+          await app.models.Application.emit('client', { client, status });
         }
         return null;
       } catch (error) {
@@ -237,12 +289,8 @@ broker.start = app => {
      */
     app.broker.on('client', async client => {
       try {
-        //  if (!Object.prototype.hasOwnProperty.call(client, "id")) return null;
         logger.publish(4, 'broker', 'clientConnected:req', client.id);
         return updateModelsStatus(client, true);
-        // todo : associate client.id with device.id
-        // remove exisiting client.id with the same device.id
-        // in redis ?
       } catch (error) {
         return error;
       }
@@ -259,8 +307,6 @@ broker.start = app => {
         logger.publish(4, 'broker', 'clientDisconnect:req', client.id);
         // if no client connected  startsWith(client.id.split("-")[0])
         return updateModelsStatus(client, false);
-        // todo : dessociate client.id from device.id
-        // in redis ?
       } catch (error) {
         return error;
       }
@@ -272,43 +318,14 @@ broker.start = app => {
      * @param {object} client - MQTT client
      * @returns {functions} updateModelsStatus
      */
-    // app.broker.on('keepaliveTimeout', async client => {
-    //   try {
-    //     logger.publish(4, 'broker', 'keepaliveTimeout:req', client.id);
-    //     return updateModelsStatus(client, false);
-    //   } catch (error) {
-    //     return error;
-    //   }
-    // });
-
-    /**
-     * Detect application known pattern and load the application instance
-     * @method module:Broker~externalAppDetector
-     * @param {object} packet - MQTT packet
-     * @param {object} client - MQTT client
-     * @returns {object} pattern
-     */
-    const externalAppDetector = async (packet, client) => {
+    app.broker.on('keepaliveTimeout', async client => {
       try {
-        // const pattern = {name: 'empty', params: null};
-        if (packet.topic.split('/')[0] === '$SYS') return null;
-        if (!client.appEui) return null;
-        logger.publish(4, 'broker', 'externalAppDetector:req', packet.topic);
-        const externalApplication = await app.models.Application.findOne({
-          where: { appEui: client.appEui },
-        });
-        if (!externalApplication || externalApplication === null) {
-          throw new Error('No application found');
-        }
-        //  console.log('externalAppDetector', externalApplication);
-        const pattern = iotAgent.appPatternDetector(packet, externalApplication);
-        logger.publish(4, 'broker', 'externalAppDetector:res', pattern);
-        return pattern;
+        logger.publish(4, 'broker', 'keepaliveTimeout:req', client.id);
+        return updateModelsStatus(client, false);
       } catch (error) {
-        logger.publish(2, 'broker', 'externalAppDetector:err', error);
         return error;
       }
-    };
+    });
 
     /**
      * Retrieve pattern from packet.topic
@@ -320,18 +337,22 @@ broker.start = app => {
     const findPattern = async (packet, client) => {
       try {
         let pattern = null;
-        if (packet.topic.startsWith('$SYS')) {
-          return null;
-        }
         logger.publish(5, 'broker', 'findPattern:req', packet.topic);
-        //  logger.publish(4, 'broker', 'on-published:payload', packet.payload.toString());
-        if (client && client.user) {
-          pattern = await iotAgent.patternDetector(packet);
-        } else if (client && client.appEui && client.appEui !== null) {
-          pattern = await externalAppDetector(packet, client);
-        } else if (!client) {
-          pattern = await iotAgent.patternDetector(packet);
+        if (client && client.id) {
+          if (client.appId && client.appId !== null) {
+            pattern = await app.models.Application.detector(packet, client);
+          } else if (client.appEui && client.appEui !== null) {
+            pattern = await app.models.Application.detector(packet, client);
+          } else if (client.devEui && client.devEui !== null) {
+            pattern = await app.models.Device.detector(packet, client);
+          } else {
+            pattern = await app.models.Device.detector(packet, client);
+          }
+        } else {
+          pattern = await app.models.Device.detector(packet);
+          //  pattern = await aloesClientPatternDetector(packet);
         }
+        logger.publish(5, 'broker', 'findPattern:res', pattern);
         if (
           !pattern ||
           pattern === null ||
@@ -349,7 +370,7 @@ broker.start = app => {
     };
 
     /**
-     * Redirect parsed message to corresponding Loopback model
+     * Redirect parsed message to corresponding Loopback model || device
      * @method module:Broker~redirectMessage
      * @param {object} packet - MQTT packet
      * @param {object} pattern - IoTAgent retireved pattern
@@ -360,36 +381,18 @@ broker.start = app => {
         let serviceName = null;
         switch (pattern.name.toLowerCase()) {
           case 'aloesclient':
-            if (pattern.subType === 'iot') {
+            if (!client || client === null) {
               serviceName = null;
-              //  const method = pattern.params.method;
-              const newPacket = await iotAgent.decode(packet, pattern.params);
-              if (newPacket && newPacket.topic) {
-                // todo use client.publish instead ?
-                //   cmd: 'publish',
-                // messageId: 42,
-                // qos: 2,
-                // dup: false,
-                // topic: 'test',
-                // payload: new Buffer('test'),
-                // retain: false,
-                // properties: { // optional properties MQTT 5.0
-                //     payloadFormatIndicator: true,
-                //     messageExpiryInterval: 4321,
-                //     topicAlias: 100,
-                //     responseTopic: 'topic',
-                //     correlationData: Buffer.from([1, 2, 3, 4]),
-                //     userProperties: {
-                //       'test': 'test'
-                //     },
-                //     subscriptionIdentifier: 120,
-                //     contentType: 'test'
-                //  }
-                app.publish(newPacket.topic, newPacket.payload, false, 0);
-              }
-              //  throw new Error('Internal Aloes Client API');
+            } else if (client.devEui && client.devEui !== null) {
+              serviceName = 'Device';
+            } else if (client.appEui && client.appEui !== null) {
+              serviceName = 'Application';
+            } else if (client.appId && client.appId !== null) {
+              serviceName = 'Application';
+            } else if (client.ownerId && client.ownerId !== null) {
+              serviceName = 'Device';
             }
-            serviceName = null;
+
             break;
           case 'aloeslight':
             serviceName = 'Device';
@@ -403,7 +406,6 @@ broker.start = app => {
           default:
             serviceName = 'Application';
         }
-        //  if (serviceName === null) throw new Error('protocol not supported');
         return serviceName;
       } catch (error) {
         return error;
@@ -418,20 +420,20 @@ broker.start = app => {
      */
     app.broker.on('publish', async (packet, client) => {
       try {
+        logger.publish(5, 'broker', 'onPublished:topic', packet.topic);
         const pattern = await findPattern(packet, client);
         if (!pattern || !pattern.name || pattern instanceof Error) {
           return null;
           //  throw new Error('no pattern found');
         }
-        logger.publish(5, 'broker', 'onPublished:pattern', pattern.name);
         const serviceName = await redirectMessage(packet, client, pattern);
-        logger.publish(5, 'broker', 'onPublished:service', serviceName);
         if (!serviceName || serviceName === null || serviceName instanceof Error) {
           throw new Error('no service redirection');
         }
-        return app.models[serviceName].onPublish(pattern, packet, client);
+        logger.publish(4, 'broker', 'onPublished:service', serviceName);
+        return app.models[serviceName].emit('publish', { pattern, packet, client });
       } catch (error) {
-        //  logger.publish(2, 'broker', 'onPublish:err', error);
+        // logger.publish(2, 'broker', 'onPublish:err', error);
         return error;
       }
     });
@@ -448,19 +450,21 @@ broker.start = app => {
 };
 
 /**
- * Stop broker functions and update models status
+ * Stop broker and update models status
  * @method module:Broker.stop
  * @param {object} app - Loopback app
  * @returns {boolean}
  */
 broker.stop = async app => {
   try {
-    logger.publish(2, 'broker', 'stop', `${process.env.MQTT_BROKER_URL}`);
-    await app.models.Device.updateAll({ status: true }, { status: false });
-    app.broker.close(err => {
+    //  logger.publish(2, 'broker', 'stop', `${process.env.MQTT_BROKER_URL}`);
+    await app.broker.close(err => {
       if (err) throw err;
-      logger.publish(4, 'broker', 'stopped', '');
     });
+    logger.publish(4, 'broker', 'stopped', `${process.env.MQTT_BROKER_URL}`);
+    await app.models.Device.updateAll({ status: true }, { status: false, clients: [] });
+    await app.models.Application.updateAll({ status: true }, { status: false, clients: [] });
+    await app.models.Client.updateCache();
     return true;
   } catch (error) {
     logger.publish(2, 'broker', 'stop:err', error);
@@ -486,27 +490,35 @@ broker.init = (app, httpServer, config) => {
       port: Number(config.REDIS_PORT),
       host: config.REDIS_HOST,
       family: 4, // 4 (IPv4) or 6 (IPv6)
-      db: config.REDIS_MQTT_COLLECTION,
+      db: config.REDIS_MQTT_PERSISTENCE,
+      lazyConnect: false,
+      password: config.REDIS_PASS,
+      retryStrategy(times) {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
       maxSessionDelivery: 100, //   maximum offline messages deliverable on client CONNECT, default is 1000
       packetTTL(packet) {
-        //  offline message TTL ( in seconds ), default is disabled
+        //  offline message TTL ( in seconds )
+        const ttl = 1 * 60 * 60;
         if (packet.topic.search(/device/i) !== -1) {
-          return 1000;
+          return ttl;
         }
-        return 10;
+        return ttl / 2;
       },
     });
 
     const mq = MQEmitterRedis({
       host: config.REDIS_HOST,
       port: Number(config.REDIS_PORT),
-      db: 5,
+      db: config.REDIS_MQTT_EVENTS,
+      password: config.REDIS_PASS,
+      lazyConnect: false,
+      retryStrategy(times) {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
     });
-
-    if (config.REDIS_PASS) {
-      persistence.password = config.REDIS_PASS;
-      mq.password = config.REDIS_PASS;
-    }
 
     const aedesConf = {
       mq,
@@ -521,8 +533,9 @@ broker.init = (app, httpServer, config) => {
         type: 'mqtts',
         port: Number(config.MQTTS_BROKER_PORT),
         credentials: {
-          key: fs.readFileSync(`${__dirname}/../../deploy/${config.MQTTS_BROKER_KEY}`),
-          cert: fs.readFileSync(`${__dirname}/../../deploy/${config.MQTTS_BROKER_CERT}`),
+          //  key: fs.readFileSync(`${__dirname}/../../deploy/${config.MQTTS_BROKER_KEY}`),
+          key: fs.readFileSync(`${config.MQTTS_BROKER_KEY}`),
+          cert: fs.readFileSync(`${config.MQTTS_BROKER_CERT}`),
         },
       };
     }

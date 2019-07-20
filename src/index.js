@@ -1,4 +1,3 @@
-import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import fallback from 'express-history-api-fallback';
 import flash from 'express-flash';
@@ -28,22 +27,6 @@ app.use(
   ),
 );
 
-app.middleware(
-  'parse',
-  bodyParser.json({
-    verify: (req, res, buf) => {
-      req.rawBody = buf;
-    },
-  }),
-);
-
-app.middleware(
-  'parse',
-  bodyParser.urlencoded({
-    extended: true,
-  }),
-);
-
 app.on('started', () => {
   const baseUrl = app.get('url').replace(/\/$/, '');
   logger.publish(4, 'loopback', 'Setup', `Browse ${process.env.NODE_NAME} API @: ${baseUrl}`);
@@ -59,19 +42,31 @@ app.on('stopped', signal => {
   setTimeout(() => process.exit(0), 5000);
 });
 
-if (require.main === module) {
-  const result = dotenv.config();
-  if (result.error) {
-    throw result.error;
+const boot = async () => {
+  try {
+    if (require.main === module) {
+      const result = dotenv.config();
+      if (result.error) {
+        throw result.error;
+      }
+      const config = {
+        ...result.parsed,
+        appRootDir: __dirname,
+        // File Extensions for jest (strongloop/loopback#3204)
+        scriptExtensions: ['.js', '.json', '.node', '.ejs'],
+      };
+      const state = await app.init(config);
+      logger.publish(4, 'loopback', 'boot:res', state);
+      return state;
+    }
+    return app;
+  } catch (error) {
+    logger.publish(4, 'loopback', 'boot:error', error);
+    return error;
   }
-  const config = {
-    ...result.parsed,
-    appRootDir: __dirname,
-    // File Extensions for jest (strongloop/loopback#3204)
-    scriptExtensions: ['.js', '.json', '.node', '.ejs'],
-  };
-  app.init(config);
-}
+};
+
+boot();
 
 process.on('exit', exitCode => {
   logger.publish(4, 'process', 'exited', exitCode);

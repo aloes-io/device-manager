@@ -4,6 +4,7 @@ import logger from '../services/logger';
 module.exports = function createExternalApps(server) {
   const Application = server.models.Application;
 
+  // todo find account first to get ownerId
   return Application.find()
     .then(apps => {
       if (apps.length < externalAppsList.length) {

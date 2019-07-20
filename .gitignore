@@ -19,8 +19,10 @@ node_modules
 npm-debug.log
 /client
 /public/
+/dist/
+/build/
+/log/
 #config files
 .env
+/config/.env
 .env.local
-#build files
-dist

@@ -1,17 +1,40 @@
 [
   {
+    "name": "aloes-lorawan",
+    "description": null,
+    "icon": "/icons/image-placeholder.png",
+    "accessPointUrl": "192.168.1.63",
+    "transportProtocol": "loraWan",
+    "transportProtocolVersion": null,
+    "appEui": "IDYKS1CFDI73FWKLCTWSKJTBDD8GB7BD",
+    "apiKey": "gNZPxDQUtKC2mRBSRzjFBV61FDX6tjld3KS3DvKAaG38BcWOQCKgXpCAMoyGkwGc",
+    "public": false,
     "type": "IoTAgent",
-    "appEui": "virtualObjectManager",
-    "appKey": "",
-    "name": "virtualObjectManager",
     "status": false,
-    "pattern": "+appEui/+collectionName/+method/+modelId",
+    "pattern": "IDYKS1CFDI73FWKLCTWSKJTBDD8GB7BD/+collection/+method",
     "validators": {
-      "appEui": "string",
-      "collectionName": ["IoTAgent"],
-      "devEui": "string",
-      "methods": ["HEAD", "POST", "GET", "PUT", "DELETE"]
-    }
+      "collection": [
+        {
+          "field": "+collection",
+          "value": "application | device | sensor | iotagent",
+          "operation": "equals",
+          "transformation": "lowercase",
+          "registered": true
+        }
+      ],
+      "method": [
+        {
+          "field": "+method",
+          "value": "HEAD | GET | POST | PUT | DELETE | STREAM",
+          "transformation": "uppercase",
+          "operation": "includes",
+          "registered": true
+        }
+      ]
+    },
+    "ownerId": "5c96937cc08c0333b7958b6f",
+    "frameCounter": 0,
+    "clients": []
   },
   {
     "type": "IoTAgent",
@@ -48,16 +71,11 @@
         "PULL_ACK",
         "TX_ACK"
       ],
-      "collectionNames": [
-        "Application",
-        "Device",
-        "Sensor",
-        "VirtualObject",
-        "IoTAgent"
-      ],
+      "collectionNames": ["Application", "Device", "Sensor", "VirtualObject", "IoTAgent"],
       "modelId": "string",
       "methods": ["HEAD", "POST", "GET", "PUT", "DELETE", "STREAM"],
       "gatewayId": "string",
+      "ownerId": "5c96937cc08c0333b7958b6f",
       "device": ["devEui/devAddr", "cayenneType"],
       "devAddrLength": 8,
       "devEuiLength": 16

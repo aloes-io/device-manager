@@ -14,6 +14,10 @@
       "type": "string",
       "required": true
     },
+    "size": {
+      "type": "number",
+      "required": false
+    },
     "role": {
       "type": "string",
       "required": false
@@ -52,28 +56,27 @@
       "principalType": "ROLE",
       "principalId": "$authenticated",
       "permission": "ALLOW",
-      "property": ["upload", "exists", "find", "findById"]
+      "property": ["download", "upload", "uploadBuffer", "exists", "find", "findById"]
     },
-
     {
       "accessType": "EXECUTE",
       "principalType": "ROLE",
       "principalId": "$owner",
       "permission": "ALLOW",
       "property": [
+        "download",
         "upload",
+        "uploadBuffer",
+        "remove",
         "exists",
         "find",
         "findById",
         "replaceById",
-        "destroyById",
         "replaceOrCreate",
         "updateById",
-        "updateAttributes",
-        "delete"
+        "updateAttributes"
       ]
     },
-
     {
       "accessType": "EXECUTE",
       "principalType": "ROLE",
@@ -95,9 +98,14 @@
           }
         },
         {
-          "arg": "userId",
+          "arg": "fk",
           "type": "string",
           "required": true
+        },
+        {
+          "arg": "name",
+          "type": "string",
+          "required": false
         }
       ],
       "returns": {
@@ -106,7 +114,38 @@
         "root": true
       },
       "http": {
-        "path": "/:userId/upload",
+        "path": "/:fk/upload/:name",
+        "verb": "post"
+      }
+    },
+    "uploadBuffer": {
+      "description": ["Uploads a buffer to pipe on a writeStream"],
+      "accepts": [
+        {
+          "arg": "buffer",
+          "type": "object",
+          "required": true,
+          "http": {
+            "source": "body"
+          }
+        },
+        {
+          "arg": "fk",
+          "type": "string",
+          "required": true
+        },
+        {
+          "arg": "name",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "returns": {
+        "root": true,
+        "type": "object"
+      },
+      "http": {
+        "path": "/:fk/upload-buffer/:name/",
         "verb": "post"
       }
     },
@@ -121,12 +160,12 @@
           }
         },
         {
-          "arg": "userId",
+          "arg": "fk",
           "type": "string",
           "required": true
         },
         {
-          "arg": "filePath",
+          "arg": "name",
           "type": "string",
           "required": true
         }
@@ -141,8 +180,31 @@
         }
       },
       "http": {
-        "path": "/:userId/download/:filePath",
+        "path": "/:fk/download/:name",
         "verb": "get"
+      }
+    },
+    "remove": {
+      "description": ["Removes a file"],
+      "accepts": [
+        {
+          "arg": "fk",
+          "type": "string",
+          "required": true
+        },
+        {
+          "arg": "name",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "result",
+        "type": "boolean"
+      },
+      "http": {
+        "path": "/:fk/remove/:name",
+        "verb": "post"
       }
     }
   }

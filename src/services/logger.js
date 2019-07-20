@@ -1,12 +1,13 @@
 import colors from 'colors';
 import utils from './utils';
-//  import loopback from "./server";
+
 colors.setTheme({
   USER: ['grey', 'underline'],
+  APPLICATION: ['white', 'bold', 'bgCyan'],
   DEVICE: ['white', 'bold', 'bgBlue'],
   SENSOR: ['white', 'bold', 'bgGreen'],
-  MEASUREMENT: ['magenta', 'bold', 'bgWhite'],
-  VIRTUALOBJECT: ['white', 'bold', 'bgYellow'],
+  MEASUREMENT: ['white', 'bold', 'bgMagenta'],
+  FILES: ['grey', 'bold', 'bgYellow'],
   LOOPBACK: ['cyan', 'bold'],
   BROKER: ['blue', 'bold'],
   TUNNEL: ['yellow', 'bold'],
@@ -56,14 +57,17 @@ logger.publish = (priority, collectionName, command, content) => {
       case 'USER':
         console.log(`${fullContent}`.USER);
         break;
+      case 'APPLICATION':
+        console.log(`${fullContent}`.APPLICATION);
+        break;
       case 'DEVICE':
         console.log(`${fullContent}`.DEVICE);
         break;
       case 'SENSOR':
         console.log(`${fullContent}`.SENSOR);
         break;
-      case 'VIRTUALOBJECT':
-        console.log(`${fullContent}`.VIRTUALOBJECT);
+      case 'FILES':
+        console.log(`${fullContent}`.FILES);
         break;
       case 'MEASUREMENT':
         console.log(`${fullContent}`.MEASUREMENT);

@@ -1,3 +1,7 @@
+//  import cookieParser from 'cookie-parser';
+//  import session from 'express-session';
+//  import redistStore from 'connect-redis';
+
 // const domainsWhitelist = [
 //   'http://localhost:8000',
 //   /\.github\.com$/,
@@ -21,18 +25,24 @@ module.exports = {
       },
     },
   },
-  session: {},
+  //  'session:before': cookieParser(process.env.COOKIE_SECRET),
+  // session: session({
+  //   //  secret: process.env.SESSION_SECRET,
+  //   //  store: redistStore(session),
+  //   saveUninitialized: true,
+  //   resave: true,
+  //   cookie: {
+  //     path: '/',
+  //     domain: config.DOMAIN,
+  //     maxAge: 1000 * 60 * 24,
+  //   },
+  // }),
   auth: {},
-  // parse: {
-  //   'body-parser#urlencoded': {
-  //     params: {
-  //       extended: true,
-  //     },
-  //   },
-  //   'body-parser#json': {
-  //     verify: (req, res, buf) => {
-  //       req.rawBody = buf;
-  //     },
-  //   },
-  // },
+  parse: {
+    'body-parser#json': {
+      verify: (req, res, buf) => {
+        req.rawBody = buf;
+      },
+    },
+  },
 };
