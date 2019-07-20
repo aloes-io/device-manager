@@ -60,13 +60,13 @@ Application build upon :
 
 URL pattern : +apiRoot/+modelPluralName/+path
 
-Access controlled by JWT tokens properties ( set in headers ), based on request URL.
+Access controlled by Access tokens ( set in headers ) properties and roles for Users, and apiKey for Applications and Devices.
 
 ## MQTT API
 
 Topic pattern : +userId/+modelName/+method/[+modelId]
 
-Access controlled by mqtt password = apiKey = accessToken.id, based on pub/sub topic.
+Access controlled by ( set in mqtt password )  Access tokens for Users, and apiKey for Applications and Devices.
 
 ## Configuration
 
@@ -108,7 +108,7 @@ Please remember to update `.env` and / or `ecosystem.config.json` files to match
   $ npm run start
 ```
 
-### With pm2 :
+### With PM2 :
 
 - Access to server with SSH :
 
@@ -147,13 +147,13 @@ Remember to update `*.dockerfile` to match your enviroment.
 Creating environment :
 
 ```bash
-  $  docker-compose build
+  $  docker-compose --compatibility build
 ```
 
 Starting container :
 
 ```bash
-  $  docker-compose up
+  $  docker-compose --compatibility up
 ```
 
 ## To deploy with your own TLS / SSL certificates
@@ -174,4 +174,3 @@ And then install wildcards certificates with : https://certbot.eff.org/
 - Add user(s) in a team to easily share devices access ( via collaborators property )
 - Data exports ( devices selection by filter )
 - Catch and store data related to MQTT traffic ( via Specific sensor instance ? )
-- Migrate to Loopback v4

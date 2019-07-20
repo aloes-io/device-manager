@@ -5,7 +5,7 @@ services:
     env_file: .env
     build:
       context: .
-      dockerfile: device-manager-${NODE_ENV}.dockerfile
+      dockerfile: ${NODE_ENV}.dockerfile
     image: getlarge/${NODE_NAME}:0.5
     ports:
       - '${HTTP_SERVER_PORT}:${HTTP_SERVER_PORT}'
