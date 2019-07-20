@@ -29,9 +29,6 @@ module.exports = function(User) {
     min: 5,
     message: { min: 'User password is too short' },
   });
-  // User.validatesPresenceOf('type', {
-  //   message: 'User must contain type value',
-  // });
 
   // User.validate('subscribed', subscribeTypeValidator, {
   //   message: 'Wrong subcribe plan',
@@ -311,4 +308,116 @@ module.exports = function(User) {
       return error;
     }
   };
+
+  /**
+   * Event reporting that a user instance will be deleted.
+   * @event before delete
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @param {object} ctx.where.id - User instance id
+   */
+  User.observe('before delete', async ctx => {
+    try {
+      if (ctx.where.id) {
+        const instance = await ctx.Model.findById(ctx.where.id);
+        logger.publish(4, `${collectionName}`, 'beforeDelete:req', instance.id);
+        await User.app.models.Address.destroyAll({
+          userId: instance.id,
+        });
+        await instance.accessTokens.destroyAll();
+        if (await instance.devices.exists()) {
+          await instance.devices.destroyAll();
+        }
+        if (await instance.sensors.exists()) {
+          await instance.sensors.destroyAll();
+        }
+        if (await instance.files.exists()) {
+          // User.app.models.container.destroyContainer(instance.id)
+          await instance.files.destroyAll();
+        }
+      }
+      throw new Error('no instance to delete');
+    } catch (error) {
+      return error;
+    }
+  });
+
+  User.disableRemoteMethodByName('count');
+  User.disableRemoteMethodByName('upsertWithWhere');
+  User.disableRemoteMethodByName('replaceOrCreate');
+  User.disableRemoteMethodByName('createChangeStream');
+
+  User.disableRemoteMethodByName('prototype.__get__accessTokens');
+  User.disableRemoteMethodByName('prototype.__findById__accessTokens');
+  User.disableRemoteMethodByName('prototype.__count__accessTokens');
+  User.disableRemoteMethodByName('prototype.__exists__accessTokens');
+  User.disableRemoteMethodByName('prototype.__create__accessTokens');
+  User.disableRemoteMethodByName('prototype.__update__accessTokens');
+  User.disableRemoteMethodByName('prototype.__delete__accessTokens');
+  User.disableRemoteMethodByName('prototype.__destroy__accessTokens');
+  User.disableRemoteMethodByName('prototype.__updateById__accessTokens');
+  User.disableRemoteMethodByName('prototype.__destroyById__accessTokens');
+
+  User.disableRemoteMethodByName('prototype.__get__credentials');
+  User.disableRemoteMethodByName('prototype.__findById__credentials');
+  User.disableRemoteMethodByName('prototype.__count__credentials');
+  User.disableRemoteMethodByName('prototype.__exists__credentials');
+  User.disableRemoteMethodByName('prototype.__create__credentials');
+  User.disableRemoteMethodByName('prototype.__update__credentials');
+  User.disableRemoteMethodByName('prototype.__delete__credentials');
+  User.disableRemoteMethodByName('prototype.__destroy__credentials');
+  User.disableRemoteMethodByName('prototype.__updateById__credentials');
+  User.disableRemoteMethodByName('prototype.__destroyById__credentials');
+
+  User.disableRemoteMethodByName('prototype.__get__roleMapping');
+  User.disableRemoteMethodByName('prototype.__findById__roleMapping');
+  User.disableRemoteMethodByName('prototype.__count__roleMapping');
+  User.disableRemoteMethodByName('prototype.__exists__roleMapping');
+  User.disableRemoteMethodByName('prototype.__create__roleMapping');
+  User.disableRemoteMethodByName('prototype.__update__roleMapping');
+  User.disableRemoteMethodByName('prototype.__delete__roleMapping');
+  User.disableRemoteMethodByName('prototype.__destroy__roleMapping');
+  User.disableRemoteMethodByName('prototype.__updateById__roleMapping');
+  User.disableRemoteMethodByName('prototype.__destroyById__roleMapping');
+
+  User.disableRemoteMethodByName('prototype.__get__role');
+  User.disableRemoteMethodByName('prototype.__findById__role');
+  User.disableRemoteMethodByName('prototype.__count__role');
+  User.disableRemoteMethodByName('prototype.__exists__role');
+  User.disableRemoteMethodByName('prototype.__create__role');
+  User.disableRemoteMethodByName('prototype.__updateById__role');
+  User.disableRemoteMethodByName('prototype.__update__role');
+  User.disableRemoteMethodByName('prototype.__delete__role');
+  User.disableRemoteMethodByName('prototype.__destroyById__role');
+  User.disableRemoteMethodByName('prototype.__destroy__role');
+  User.disableRemoteMethodByName('prototype.__link__role');
+  User.disableRemoteMethodByName('prototype.__unlink__role');
+
+  User.disableRemoteMethodByName('prototype.__create__applications');
+  User.disableRemoteMethodByName('prototype.__count__applications');
+  User.disableRemoteMethodByName('prototype.__updateById__applications');
+  User.disableRemoteMethodByName('prototype.__delete__applications');
+  User.disableRemoteMethodByName('prototype.__deleteById__applications');
+  User.disableRemoteMethodByName('prototype.__destroyById__applications');
+  User.disableRemoteMethodByName('prototype.__link__applications');
+  User.disableRemoteMethodByName('prototype.__unlink__applications');
+
+  User.disableRemoteMethodByName('prototype.__create__devices');
+  User.disableRemoteMethodByName('prototype.__count__devices');
+  User.disableRemoteMethodByName('prototype.__updateById__devices');
+  User.disableRemoteMethodByName('prototype.__delete__devices');
+  User.disableRemoteMethodByName('prototype.__deleteById__devices');
+  User.disableRemoteMethodByName('prototype.__destroyById__devices');
+  User.disableRemoteMethodByName('prototype.__link__devices');
+  User.disableRemoteMethodByName('prototype.__unlink__devices');
+
+  User.disableRemoteMethodByName('prototype.__create__files');
+  User.disableRemoteMethodByName('prototype.__count__files');
+  User.disableRemoteMethodByName('prototype.__updateById__files');
+  User.disableRemoteMethodByName('prototype.__delete__files');
+  User.disableRemoteMethodByName('prototype.__deleteById__files');
+  User.disableRemoteMethodByName('prototype.__destroyById__files');
+  User.disableRemoteMethodByName('prototype.__link__files');
+  User.disableRemoteMethodByName('prototype.__unlink__files');
 };

@@ -23,6 +23,11 @@
       "default": null,
       "required": false
     },
+    "frameCounter": {
+      "type": "number",
+      "required": true,
+      "default": 0
+    },
     "accessPointUrl": {
       "type": "string",
       "default": null,
@@ -48,6 +53,10 @@
       "type": "string",
       "required": false
     },
+    "clientKey": {
+      "type": "string",
+      "required": false
+    },
     "pattern": {
       "type": "string",
       "required": false,
@@ -60,25 +69,34 @@
     "public": {
       "type": "boolean",
       "default": false
+    },
+    "clients": {
+      "type": "array",
+      "description": "A list of client ids authentified as this device",
+      "default": []
     }
   },
   "hidden": [],
+  "protected": ["appEui", "clientKey", "apiKey", "clients"],
   "validations": [],
   "relations": {
     "user": {
       "type": "belongsTo",
       "model": "user",
-      "foreignKey": "userId",
+      "foreignKey": "ownerId",
       "options": {
         "nestRemoting": false
       }
     },
-    "accessTokens": {
-      "type": "hasMany",
-      "model": "accessToken",
-      "foreignKey": "userId",
+    "collaborators": {
+      "type": "referencesMany",
+      "description": "A list of users ids who have permissions to use this device",
+      "model": "user",
+      "foreignKey": "userIds",
       "options": {
-        "disableInclude": true
+        "validate": true,
+        "forceId": false,
+        "persistent": true
       }
     }
   },
@@ -98,17 +116,23 @@
     {
       "accessType": "*",
       "principalType": "ROLE",
+      "principalId": "$everyone",
+      "permission": "ALLOW",
+      "property": ["getState"]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
       "principalId": "$authenticated",
       "permission": "ALLOW",
-      "property": [
-        "create",
-        "find",
-        "findById",
-        "replaceById",
-        "replaceOrCreate",
-        "exists",
-        "refreshToken"
-      ]
+      "property": ["create", "find", "findById", "exists"]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$collaborator",
+      "permission": "ALLOW",
+      "property": ["create", "find", "findById", "replaceById", "replaceOrCreate", "exists"]
     },
     {
       "accessType": "*",
@@ -126,7 +150,13 @@
         "delete",
         "find",
         "findById",
-        "refreshToken"
+        "refreshToken",
+        "__get__collaborators",
+        "__create__collaborators",
+        "__add__collaborators",
+        "__findById__collaborators",
+        "__updateById__collaborators",
+        "__destroyById__collaborators"
       ]
     }
   ],
@@ -148,6 +178,10 @@
       "returns": {
         "arg": "result",
         "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/on-publish"
       }
     },
     "refreshToken": {
@@ -173,6 +207,48 @@
       "http": {
         "verb": "post",
         "path": "/refresh-token"
+      }
+    },
+    "authenticate": {
+      "description": ["End point for application authentification with APIKey"],
+      "accepts": [
+        {
+          "arg": "appId",
+          "type": "string",
+          "required": true
+        },
+        {
+          "arg": "apiKey",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "returns": {
+        "root": true,
+        "type": "string"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/authenticate"
+      }
+    },
+    "getState": {
+      "description": ["End point for application requesting their own state"],
+      "accepts": [
+        {
+          "arg": "appId",
+          "type": "string",
+          "required": true
+        },
+        { "arg": "options", "type": "object", "http": "optionsFromRequest" }
+      ],
+      "returns": {
+        "root": true,
+        "type": "string"
+      },
+      "http": {
+        "verb": "get",
+        "path": "/get-state/:appId"
       }
     }
   }

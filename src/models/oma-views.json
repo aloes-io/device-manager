@@ -42,7 +42,7 @@
       "principalType": "ROLE",
       "principalId": "$everyone",
       "permission": "ALLOW",
-      "property": ["exists", "find", "findById"]
+      "property": ["exists", "find", "findOne", "findById", "count"]
     }
   ],
   "methods": {}

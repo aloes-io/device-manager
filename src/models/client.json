@@ -1,0 +1,49 @@
+{
+  "name": "Client",
+  "plural": "Clients",
+  "base": "KeyValueModel",
+  "idInjection": true,
+  "options": {
+    "validateUpsert": true
+  },
+  "properties": {
+    "id": {
+      "type": "string",
+      "id": true
+    },
+    "name": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "user": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "type": {
+      "type": "string",
+      "description": "Define transport protocol ( MQTT .. )",
+      "required": true,
+      "default": null
+    },
+    "model": {
+      "type": "string",
+      "description": "Name of the collection related",
+      "required": true,
+      "default": null
+    },
+    "status": {
+      "type": "boolean",
+      "default": false
+    },
+    "apiKey": {
+      "type": "string",
+      "required": false
+    }
+  },
+  "validations": [],
+  "relations": {},
+  "acls": [],
+  "methods": {}
+}

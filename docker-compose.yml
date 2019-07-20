@@ -1,0 +1,65 @@
+version: '3.7'
+
+services:
+  api:
+    env_file: .env
+    build:
+      context: .
+      dockerfile: device-manager-${NODE_ENV}.dockerfile
+    image: getlarge/${NODE_NAME}:0.5
+    ports:
+      - '${HTTP_SERVER_PORT}:${HTTP_SERVER_PORT}'
+      - '${MQTT_BROKER_PORT}:${MQTT_BROKER_PORT}'
+      - '${MQTTS_BROKER_PORT}:${MQTTS_BROKER_PORT}'
+    expose:
+      - '${HTTP_SERVER_PORT}'
+      - '${MQTT_BROKER_PORT}'
+      - '${MQTTS_BROKER_PORT}'
+    depends_on:
+      - mongo
+      - influxdb
+      - redis
+    volumes:
+      - /opt/device-manager-${NODE_ENV}-storage:/home/node/${NODE_NAME}/storage
+    links:
+      - mongo
+      - redis
+      - influxdb
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 500M
+        reservations:
+          memory: 200M
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100MB'
+        max-file: '3'
+
+  mongo:
+    image: mongo:4.1.13
+    restart: always
+    env_file: ./config/.env
+    volumes:
+      - ./config/mongo/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - mongovolume:/data/db
+
+  influxdb:
+    image: influxdb:1.7-alpine
+    env_file: ./config/.env
+    volumes:
+      - influxvolume:/var/lib/influxdb
+
+  redis:
+    image: redis:5-alpine
+    volumes:
+      - redisvolume:/data
+      # - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    # command: ['redis-server', '/usr/local/etc/redis/redis.conf']
+
+volumes:
+  mongovolume:
+  redisvolume:
+  influxvolume:

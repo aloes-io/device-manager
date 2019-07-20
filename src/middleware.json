@@ -1,11 +1,11 @@
 {
   "initial:before": {
-    "loopback#favicon": {"params": "$!../favicon.ico"}
+    "loopback#favicon": { "params": "$!../favicon.ico" }
   },
   "initial": {
     "compression": {},
     "./middleware/tracker": {
-      "params": {"enabled": false}
+      "params": { "enabled": false }
     },
     "cors": {
       "params": {
@@ -32,7 +32,20 @@
   },
   "session": {},
   "auth": {},
-  "parse": {},
+  "parse": {
+    "body-parser#urlencoded": {
+      "params": {
+        "extended": true
+      }
+    },
+    "body-parser#json": {
+      "verify": true
+    },
+    "body-parser#raw": {
+      "limit": "200kb",
+      "type": "*/*"
+    }
+  },
   "routes": {
     "loopback#rest": {
       "paths": ["${restApiRoot}"]
@@ -44,7 +57,7 @@
   },
   "final:after": {
     "./middleware/log-error": {
-      "params": {"enabled": false}
+      "params": { "enabled": false }
     },
     "strong-error-handler": {
       "params": {

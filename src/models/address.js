@@ -54,43 +54,47 @@ module.exports = function(Address) {
   });
 
   Address.verifyAddress = async address => {
-    let result = {};
-    logger.publish(4, `${collectionName}`, 'verifyAddress:req', address);
-    const geocodeReq = { countryCode: 'fr' };
-    if (address.street && address.city) {
-      geocodeReq.address = `${address.street} ${address.city}`;
-    }
-    if (address.postalCode && address.postalCode !== null) {
-      geocodeReq.zipCode = address.postalCode;
-    }
-    const geocoder = NodeGeocoder(options);
-    await geocoder
-      .geocode(geocodeReq)
-      .then(res => {
-        result.streetNumber = Number(res[0].streetNumber) || Number(res[1].streetNumber);
-        result.streetName = res[0].streetName || res[1].streetName || res[2].streetName;
-        result.city = res[0].city || res[1].city || res[2].city;
-        result.postalCode = res[0].zipcode || res[1].zipcode || res[2].zipcode;
-        result.coordinates = {
-          lat: Number(res[0].latitude) || Number(res[1].latitude),
-          lng: Number(res[0].longitude) || Number(res[1].longitude),
-        };
-        result.countryCode = res[0].countryCode;
-        result.public = address.public;
-        if (!result.city || !result.postalCode) {
-          result = {
-            message: "Sorry, we couldn't verify this address",
+    try {
+      let result = {};
+      logger.publish(4, `${collectionName}`, 'verifyAddress:req', address);
+      const geocodeReq = { countryCode: 'fr' };
+      if (address.street && address.city) {
+        geocodeReq.address = `${address.street} ${address.city}`;
+      }
+      if (address.postalCode && address.postalCode !== null) {
+        geocodeReq.zipCode = address.postalCode;
+      }
+      const geocoder = NodeGeocoder(options);
+      await geocoder
+        .geocode(geocodeReq)
+        .then(res => {
+          result.streetNumber = Number(res[0].streetNumber) || Number(res[1].streetNumber);
+          result.streetName = res[0].streetName || res[1].streetName || res[2].streetName;
+          result.city = res[0].city || res[1].city || res[2].city;
+          result.postalCode = res[0].zipcode || res[1].zipcode || res[2].zipcode;
+          result.coordinates = {
+            lat: Number(res[0].latitude) || Number(res[1].latitude),
+            lng: Number(res[0].longitude) || Number(res[1].longitude),
           };
-        } else if (!result.streetName && address.street) {
-          result.street = `${address.street}`;
-        } else if (!result.streetNumber && result.streetName) {
-          result.street = `${result.streetName}`;
-        } else {
-          result.street = `${result.streetNumber} ${result.streetName}`;
-        }
-      })
-      .catch(err => err);
-    logger.publish(3, `${collectionName}`, 'verifyAddress:res', result);
-    return result;
+          result.countryCode = res[0].countryCode;
+          result.public = address.public;
+          if (!result.city || !result.postalCode) {
+            result = {
+              message: "Sorry, we couldn't verify this address",
+            };
+          } else if (!result.streetName && address.street) {
+            result.street = `${address.street}`;
+          } else if (!result.streetNumber && result.streetName) {
+            result.street = `${result.streetName}`;
+          } else {
+            result.street = `${result.streetNumber} ${result.streetName}`;
+          }
+        })
+        .catch(err => err);
+      logger.publish(3, `${collectionName}`, 'verifyAddress:res', result);
+      return result;
+    } catch (error) {
+      return error;
+    }
   };
 };

@@ -8,17 +8,10 @@
     "user": {
       "type": "belongsTo",
       "model": "user",
-      "foreignKey": "userId"
-    },
-    "application": {
-      "type": "belongsTo",
-      "model": "Application",
-      "foreignKey": "userId"
-    },
-    "device": {
-      "type": "belongsTo",
-      "model": "Device",
-      "foreignKey": "userId"
+      "foreignKey": "userId",
+      "options": {
+        "nestRemoting": false
+      }
     }
   },
   "acls": [],

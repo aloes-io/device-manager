@@ -2,6 +2,7 @@
   "name": "user",
   "plural": "users",
   "base": "User",
+  "ownerRelations": true,
   "idInjection": true,
   "options": {
     "validateUpsert": true
@@ -56,17 +57,25 @@
     "accessTokens": {
       "type": "hasMany",
       "model": "accessToken",
-      "foreignKey": "userId"
+      "foreignKey": "userId",
+      "options": {
+        "disableInclude": false
+      }
     },
-    "profileAddress": {
+    "address": {
       "type": "hasOne",
       "model": "Address",
-      "foreignKey": "userId"
+      "polymorphic": {
+        "selector": "owner"
+      },
+      "options": {
+        "nestRemoting": true
+      }
     },
     "applications": {
       "type": "hasMany",
       "model": "Application",
-      "foreignKey": "userId"
+      "foreignKey": "ownerId"
     },
     "credentials": {
       "type": "hasMany",
@@ -103,11 +112,6 @@
       "type": "hasMany",
       "model": "Team",
       "foreignKey": "ownerId"
-    },
-    "virtualObjects": {
-      "type": "hasMany",
-      "model": "VirtualObject",
-      "foreignKey": "ownerId"
     }
   },
   "acls": [
@@ -138,10 +142,10 @@
         "find",
         "findById",
         "setNewPassword",
-        "__create__profileAddress",
-        "__get__profileAddress",
-        "__update__profileAddress",
-        "__destroy__profileAddress",
+        "__create__address",
+        "__get__address",
+        "__update__address",
+        "__destroy__address",
         "__get__devices",
         "__create__devices",
         "__findById__devices",
@@ -187,8 +191,8 @@
         "verifyAddress",
         "setNewPassword",
         "sendInvite",
-        "__create__profileAddress",
-        "__get__profileAddress",
+        "__create__address",
+        "__get__address",
         "__get__devices",
         "__create__devices",
         "__findById__devices",
@@ -372,7 +376,7 @@
       }
     },
     "verifyAddress": {
-      "description": ["Call the profileAddress model"],
+      "description": ["Call the address model"],
       "accepts": [
         {
           "arg": "address",

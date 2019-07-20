@@ -1,9 +1,6 @@
 import loopback from 'loopback';
 import boot from 'loopback-boot';
-//  import cookieParser from 'cookie-parser';
 //  import {ensureLoggedIn} from 'connect-ensure-login';
-//  import session from 'express-session';
-//  import redistStore from 'connect-redis';
 import broker from './broker';
 import tunnel from './tunnel';
 import logger from './logger';
@@ -20,6 +17,7 @@ const app = loopback();
  * Init external services ( MQTT broker, tunnel )
  * @method module:Server.start
  * @param {object} config - Parsed env variables
+ * @fires module:app.started
  * @returns {object} httpServer
  */
 app.start = async config => {
@@ -34,22 +32,6 @@ app.start = async config => {
     // app.use(
     //   loopback.token({
     //     model: app.models.accessToken,
-    //   }),
-    // );
-
-    // app.middleware('session:before', cookieParser(app.get('cookieSecret')));
-    // app.middleware(
-    //   'session',
-    //   session({
-    //     //  secret: 'kitty',
-    //     //  store: redistStore(session),
-    //     saveUninitialized: true,
-    //     resave: true,
-    //     cookie: {
-    //       path: '/',
-    //       domain: config.DOMAIN,
-    //       maxAge: 1000 * 60 * 24,
-    //     },
     //   }),
     // );
 
@@ -104,6 +86,7 @@ app.start = async config => {
 /**
  * Close the app and services
  * @method module:Server.stop
+ * @fires module:app.stopped
  */
 app.stop = async signal => {
   try {
@@ -129,10 +112,10 @@ app.stop = async signal => {
 /**
  * Emit publish event
  * @method module:Server.publish
+ * @fires module:app.publish
  */
-app.publish = (topic, payload, retain = false, qos = 0) => {
+app.publish = (topic, payload, retain = false, qos = 0) =>
   app.emit('publish', topic, payload, retain, qos);
-};
 
 app.on('publish', async (topic, payload, retain, qos) => {
   try {
@@ -145,7 +128,8 @@ app.on('publish', async (topic, payload, retain, qos) => {
       payload = JSON.stringify(payload);
     }
     logger.publish(5, 'broker', 'publish:topic', topic);
-    if (!app.broker) return null;
+    if (!app.broker) throw new Error('MQTT Broker unavailable');
+    // todo add messages to queue Collection ?
     return app.broker.publish({
       topic,
       payload,
@@ -156,12 +140,13 @@ app.on('publish', async (topic, payload, retain, qos) => {
     return error;
   }
 });
+
 /**
  * Bootstrap the application, configure models, datasources and middleware.
  * @method module:Server.init
  * @param {object} config - Parsed env variables
  */
-app.init = config => {
+app.init = async config => {
   try {
     logger.publish(2, 'loopback', 'init', `${config.NODE_NAME} / ${config.NODE_ENV}`);
     const options = {
@@ -169,12 +154,14 @@ app.init = config => {
       // File Extensions for jest (strongloop/loopback#3204)
       scriptExtensions: config.scriptExtensions,
     };
-    boot(app, options, err => {
-      if (err) throw err;
-      //  if (require.main === module) {
-      //  app.start(config);
-      //  }
-    });
+    // await boot(app, options, err => {
+    //   if (err) throw err;
+    // });
+    await boot(app, options);
+    //  logger.publish(4, 'loopback', 'init:res', state);
+    //  if (require.main === module) {
+    //  app.start(config);
+    //  }
     return app.start(config);
   } catch (error) {
     logger.publish(2, 'loopback', 'init:err', error);

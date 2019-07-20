@@ -4,7 +4,7 @@ import logger from '../services/logger';
 module.exports = async function(server) {
   try {
     const User = server.models.user;
-    const Device = server.models.Device;
+    //  const Application = server.models.Application;
     const Storage = server.datasources.storage.settings.root;
 
     const createContainers = async instances => {
@@ -21,8 +21,8 @@ module.exports = async function(server) {
     };
 
     const accounts = await User.find();
-    const devices = await Device.find();
-    if (accounts.length < 1 && devices.length < 1) {
+    //  const applications = await Application.find();
+    if (accounts.length < 1) {
       return false;
     }
     let mainStorage = false;
@@ -44,8 +44,8 @@ module.exports = async function(server) {
     if (mainStorage) {
       const accountsContainers = await createContainers(accounts);
       logger.publish(5, 'loopback', 'boot:initAccountsStorages:res', accountsContainers);
-      const devicesContainers = await createContainers(devices);
-      logger.publish(5, 'loopback', 'boot:initDevicesStorages:res', devicesContainers);
+      // const appContainers = await createContainers(applications);
+      // logger.publish(5, 'loopback', 'boot:initApplicationStorages:res', appContainers);
     }
     return mainStorage;
   } catch (error) {

@@ -19,11 +19,8 @@
     },
     "devEui": {
       "type": "string",
-      "required": false,
+      "required": true,
       "default": null
-    },
-    "hwEui": {
-      "type": "string"
     },
     "resources": {
       "type": "object",
