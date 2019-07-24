@@ -38,7 +38,7 @@ module.exports = {
     port: Number(process.env.REDIS_PORT) || 6379,
     name: 'cache',
     connector: 'kv-redis',
-    pass: process.env.REDIS_PASS,
+    password: process.env.REDIS_PASS,
     lazyConnect: true,
   },
   points: {

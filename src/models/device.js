@@ -191,6 +191,9 @@ module.exports = function(Device) {
           // todo : publish to client
           return null;
         }
+        // if (client && (client.ownerId || client.appId)) {
+        // }
+
         if (device.status) {
           const nativePacket = { topic: `${device.devEui}-in/1/255/255/255`, payload: '1' };
           if (nativePacket.payload && nativePacket.payload !== null) {
@@ -504,9 +507,10 @@ module.exports = function(Device) {
    * @method module:Device~parseMessage
    * @param {object} pattern - Pattern detected by IotAgent
    * @param {object} attributes - IotAgent parsed message
+   * @param {object} client - MQTT client
    * @fires module:Sensor~publish
    */
-  const parseMessage = async (pattern, attributes) => {
+  const parseMessage = async (pattern, attributes, client) => {
     try {
       logger.publish(4, `${collectionName}`, 'parseMessage:req', {
         nativeSensorId: attributes.nativeSensorId,
@@ -523,7 +527,7 @@ module.exports = function(Device) {
         //   lastSignal: attributes.lastSignal || new Date(),
         // });
         const Sensor = Device.app.models.Sensor;
-        return Sensor.emit('publish', { device, attributes });
+        return Sensor.emit('publish', { device, pattern, attributes, client });
       }
       throw new Error('Missing params');
     } catch (error) {
@@ -542,14 +546,44 @@ module.exports = function(Device) {
    */
   Device.onPublish = async (packet, client, pattern) => {
     try {
-      logger.publish(4, `${collectionName}`, 'onPublish:req', pattern);
       if (!pattern || !pattern.params || !pattern.name) {
         throw new Error('Missing argument');
       }
+      if (pattern.name.toLowerCase() === 'aloesclient') {
+        if (!client) return null;
+        if (pattern.subType === 'iot') {
+          const newPacket = await iotAgent.decode(packet, pattern.params);
+          if (newPacket && newPacket.topic) {
+            // todo use client.publish instead ?
+            //   cmd: 'publish',
+            // messageId: 42,
+            // qos: 2,
+            // dup: false,
+            // topic: 'test',
+            // payload: new Buffer('test'),
+            // retain: false,
+            // properties: { // optional properties MQTT 5.0
+            //     payloadFormatIndicator: true,
+            //     messageExpiryInterval: 4321,
+            //     topicAlias: 100,
+            //     responseTopic: 'topic',
+            //     correlationData: Buffer.from([1, 2, 3, 4]),
+            //     userProperties: {
+            //       'test': 'test'
+            //     },
+            //     subscriptionIdentifier: 120,
+            //     contentType: 'test'
+            //  }
+            logger.publish(4, `${collectionName}`, 'onPublish:redirect to', newPacket.topic);
+            return Device.app.publish(newPacket.topic, newPacket.payload, false, 1);
+          }
+        }
+      } else if (!client) return null;
       const attributes = await iotAgent.encode(packet, pattern);
       //  logger.publish(4, `${collectionName}`, 'onPublish:res', attributes);
       if (!attributes) throw new Error('No attributes result');
-      return parseMessage(pattern, attributes);
+      logger.publish(4, `${collectionName}`, 'onPublish:res', pattern);
+      return parseMessage(pattern, attributes, client);
     } catch (error) {
       logger.publish(4, `${collectionName}`, 'onPublish:err', error);
       return error;
@@ -650,7 +684,7 @@ module.exports = function(Device) {
             frameCounter: device.frameCounter,
             status: true,
           });
-          // todo set a timeout to check if device is still online after 5 minutes ?
+          // todo set a scheduler to check if device is still online after 5 minutes ?
           break;
         case 'GET':
           //  device = await Device.findById(device.id);
@@ -707,6 +741,7 @@ module.exports = function(Device) {
    * @param {object} message - Parsed MQTT message.
    * @property {object} message.packet - MQTT packet.
    * @property {object} message.pattern - Pattern detected by Iot-Agent
+   * @property {object} [message.client] - Found Device instance
    * @property {object} message.client - MQTT client
    */
   Device.on('publish', async message => {
@@ -720,36 +755,6 @@ module.exports = function(Device) {
       if (!packet || !pattern) throw new Error('Message missing properties');
       if (device && device !== null) {
         return Device.execute(device, pattern.params.method, client);
-      }
-      if (pattern.name.toLowerCase() === 'aloesclient') {
-        if (!client) return null;
-        if (pattern.subType === 'iot') {
-          const newPacket = await iotAgent.decode(packet, pattern.params);
-          if (newPacket && newPacket.topic) {
-            // todo use client.publish instead ?
-            //   cmd: 'publish',
-            // messageId: 42,
-            // qos: 2,
-            // dup: false,
-            // topic: 'test',
-            // payload: new Buffer('test'),
-            // retain: false,
-            // properties: { // optional properties MQTT 5.0
-            //     payloadFormatIndicator: true,
-            //     messageExpiryInterval: 4321,
-            //     topicAlias: 100,
-            //     responseTopic: 'topic',
-            //     correlationData: Buffer.from([1, 2, 3, 4]),
-            //     userProperties: {
-            //       'test': 'test'
-            //     },
-            //     subscriptionIdentifier: 120,
-            //     contentType: 'test'
-            //  }
-            logger.publish(4, `${collectionName}`, 'onPublish:redirect to', newPacket.topic);
-            return Device.app.publish(newPacket.topic, newPacket.payload, false, 1);
-          }
-        }
       }
       return Device.onPublish(packet, client, pattern);
     } catch (error) {

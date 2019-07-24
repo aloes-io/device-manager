@@ -8,8 +8,8 @@ RUN mkdir -p /home/node/$NODE_NAME
 COPY . /home/node/$NODE_NAME
 WORKDIR /home/node/$NODE_NAME
 
-RUN  npm install
-RUN  npm run build
+RUN npm install --silent
+RUN npm run build
 
 # TODO build TLS certificates for MQTT
 

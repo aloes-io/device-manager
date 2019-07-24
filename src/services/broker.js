@@ -164,13 +164,6 @@ broker.start = app => {
               topic: topicParts,
             });
             auth = true;
-          } else if (client.devAddr && topicParts[0].startsWith(client.devAddr)) {
-            // todo limit access to device out prefix if any
-            logger.publish(5, 'broker', 'authorizePublish:req', {
-              device: client.devAddr,
-              topic: topicParts,
-            });
-            auth = true;
           } else if (client.appId && topicParts[0].startsWith(client.appId)) {
             logger.publish(5, 'broker', 'authorizePublish:req', {
               application: client.appId,
@@ -392,7 +385,6 @@ broker.start = app => {
             } else if (client.ownerId && client.ownerId !== null) {
               serviceName = 'Device';
             }
-
             break;
           case 'aloeslight':
             serviceName = 'Device';
@@ -430,7 +422,7 @@ broker.start = app => {
         if (!serviceName || serviceName === null || serviceName instanceof Error) {
           throw new Error('no service redirection');
         }
-        logger.publish(4, 'broker', 'onPublished:service', serviceName);
+        logger.publish(5, 'broker', 'onPublished:service', serviceName);
         return app.models[serviceName].emit('publish', { pattern, packet, client });
       } catch (error) {
         // logger.publish(2, 'broker', 'onPublish:err', error);

@@ -16,7 +16,7 @@
     "docs:serve": "light-server -s public -p 7000 --servePrefix /device-manager/",
     "start": "babel-node ./src/index.js",
     "start:dev": "cp deploy/.env_development .env && NODE_ENV=development nodemon --exec babel-node ./src/index.js",
-    "start:local": "cp deploy/.env_local .env && NODE_ENV=local node ./nodemon.js",
+    "start:local": "cp deploy/.env_local .env && npm run build && NODE_ENV=local node ./nodemon.js",
     "start:stage": "cp deploy/.env_staging .env && NODE_ENV=staging nodemon --exec babel-node ./src/index.js",
     "start:docker": "docker-compose --compatibility up",
     "kill:docker": "docker-compose --compatibility down",
