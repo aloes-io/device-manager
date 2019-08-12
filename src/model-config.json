@@ -105,6 +105,10 @@
     "dataSource": "cache",
     "public": false
   },
+  "Scheduler": {
+    "dataSource": "cache",
+    "public": false
+  },
   "Team": {
     "dataSource": "db",
     "public": false

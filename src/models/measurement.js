@@ -105,7 +105,7 @@ module.exports = function(Measurement) {
   /**
    * Format packet and send it via MQTT broker
    * @method module:Measurement.publish
-   * @param {object} device - found device instance
+   * @param {object} device - found Device instance
    * @param {object} measurement - Measurement instance
    * @param {string} [method] - MQTT method
    * @param {object} [client] - MQTT client target
@@ -154,7 +154,7 @@ module.exports = function(Measurement) {
   Measurement.once('dataSourceAttached', Model => {
     const findMeasurement = async filter => {
       try {
-        const rp = 'rp_2h';
+        const rp = 'rp_forever'; // 'rp_2h';
         let query;
         const influxConnector = Model.app.datasources.points.connector;
         influxConnector.buildQuery(collectionName, filter, rp, (err, res) => {
@@ -173,10 +173,19 @@ module.exports = function(Measurement) {
     Model.findById = async (id, options) => {
       try {
         logger.publish(4, `${collectionName}`, 'find:req', { id });
-        if (!options.accessToken || !options.apikey) {
+        if (!options.accessToken && !options.apikey) {
           throw new Error('No token found in HTTP Options');
         }
-        const ownerId = options.accessToken.userId.toString();
+        let ownerId;
+        if (options.accessToken) {
+          ownerId = options.accessToken.userId.toString();
+        } else if (options.apiKey && options.appId) {
+          const application = await Model.app.models.Application.findById(options.appId);
+          ownerId = application.ownerId;
+        }
+        if (!ownerId) {
+          throw new Error('No ownerId retireved');
+        }
         const filter = { ownerId };
         filter.id = id;
         const result = await findMeasurement(filter);
@@ -189,11 +198,21 @@ module.exports = function(Measurement) {
     Model.find = async (filter, options) => {
       try {
         logger.publish(4, `${collectionName}`, 'find:req', { filter });
-        if (!options.accessToken || !options.apikey) {
+        //  console.log(`${collectionName}`, 'find:req', options);
+        if (!options.accessToken && !options.apikey) {
           throw new Error('No token found in HTTP Options');
         }
         if (!filter || filter === null) throw new Error('Missing filter in argument');
-        const ownerId = options.accessToken.userId.toString();
+        let ownerId;
+        if (options.accessToken) {
+          ownerId = options.accessToken.userId.toString();
+        } else if (options.apiKey && options.appId) {
+          const application = await Model.app.models.Application.findById(options.appId);
+          ownerId = application.ownerId;
+        }
+        if (!ownerId) {
+          throw new Error('No ownerId retireved');
+        }
         if (filter.where) {
           if (filter.where.and) {
             filter.where.and.push({ ownerId });
@@ -229,8 +248,16 @@ module.exports = function(Measurement) {
         if (!options.accessToken || !options.apikey) {
           throw new Error('No token found in HTTP Options');
         }
-        const ownerId = options.accessToken.userId.toString();
-        const filter = { ownerId };
+        const filter = {};
+        if (options.accessToken) {
+          filter.ownerId = options.accessToken.userId.toString();
+        } else if (options.apiKey && options.appId) {
+          const application = await Model.app.models.Application.findById(options.appId);
+          filter.ownerId = application.ownerId;
+        }
+        if (!filter.ownerId) {
+          throw new Error('No ownerId retireved');
+        }
         filter.id = id;
         const instance = await findMeasurement(filter);
         const result = await updateMeasurement(data, instance[0]);
@@ -274,7 +301,7 @@ module.exports = function(Measurement) {
       try {
         let query = `DELETE FROM "${collectionName}" `;
         const influxConnector = Model.app.datasources.points.connector;
-        const subQuery = influxConnector.buildWhere(filter, collectionName);
+        const subQuery = await influxConnector.buildWhere(filter, collectionName);
         query += `${subQuery} ;`;
         logger.publish(4, `${collectionName}`, 'deleteMeasurement:res', { query });
         const result = await influxConnector.client.query(query);
@@ -297,8 +324,16 @@ module.exports = function(Measurement) {
         logger.publish(4, `${collectionName}`, 'deleteById:req', { id });
         if (!options.accessToken || !options.apikey)
           throw new Error('No token found in HTTP Options');
-        const ownerId = options.accessToken.userId.toString();
-        const filter = { ownerId };
+        const filter = {};
+        if (options.accessToken) {
+          filter.ownerId = options.accessToken.userId.toString();
+        } else if (options.apiKey && options.appId) {
+          const application = await Model.app.models.Application.findById(options.appId);
+          filter.ownerId = application.ownerId;
+        }
+        if (!filter.ownerId) {
+          throw new Error('No ownerId retireved');
+        }
         filter.id = id;
         const result = await deleteMeasurement(filter);
         return result;
@@ -324,8 +359,15 @@ module.exports = function(Measurement) {
           throw new Error('No token found in HTTP Options');
         if (!filter || filter === null) throw new Error('Missing filter in argument');
         logger.publish(4, `${collectionName}`, 'deleteWhere:req', { filter });
-        const ownerId = options.accessToken.userId.toString();
-        filter.ownerId = ownerId;
+        if (options.accessToken) {
+          filter.ownerId = options.accessToken.userId.toString();
+        } else if (options.apiKey && options.appId) {
+          const application = await Model.app.models.Application.findById(options.appId);
+          filter.ownerId = application.ownerId;
+        }
+        if (!filter.ownerId) {
+          throw new Error('No ownerId retireved');
+        }
         if (filter.where) {
           delete filter.where;
         }

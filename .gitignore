@@ -26,3 +26,6 @@ npm-debug.log
 .env
 /config/.env
 .env.local
+
+#list of device names used on this instance
+device-names.json

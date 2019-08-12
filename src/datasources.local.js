@@ -5,10 +5,10 @@ module.exports = {
     database: process.env.MONGO_COLLECTION || 'aloes_local',
     host: process.env.MONGO_HOST || 'localhost',
     port: Number(process.env.MONGO_PORT) || 27017,
-    auth: {
-      user: process.env.MONGO_USER || '',
-      password: process.env.MONGO_PASS || '',
-    },
+    // auth: {
+    //   user: process.env.MONGO_USER,
+    //   password: process.env.MONGO_PASS,
+    // },
     useNewUrlParser: true,
     lazyConnect: true,
     maxDepthOfQuery: 12,
@@ -54,6 +54,63 @@ module.exports = {
     maxRetries: 5,
     timePrecision: 'ms',
   },
+  // timer: {
+  //   name: 'timer',
+  //   connector: 'rest',
+  //   baseURL: process.env.TIMER_BASE_URL || 'http://localhost:8002/timer',
+  //   debug: true,
+  //   options: {
+  //     headers: {
+  //       accept: 'application/json',
+  //       'content-type': 'application/json',
+  //       // apikey: process.env.APPLICATION_KEY,
+  //       // appId: process.env.APPLICATION_ID,
+  //     },
+  //     strictSSL: false,
+  //   },
+  //   operations: [
+  //     {
+  //       template: {
+  //         method: 'GET',
+  //         url: `${process.env.TIMER_BASE_URL}/{timerId}`,
+  //         headers: {
+  //           accept: 'application/json',
+  //           'content-type': 'application/json',
+  //         },
+  //       },
+  //       functions: {
+  //         getTimer: ['timerId'],
+  //       },
+  //     },
+  //     {
+  //       template: {
+  //         method: 'POST',
+  //         url: `${process.env.TIMER_BASE_URL}/{timerId}`,
+  //         headers: {
+  //           accept: 'application/json',
+  //           'content-type': 'application/json',
+  //         },
+  //       },
+  //       body: '{body}',
+  //       functions: {
+  //         createtimer: ['timerId', 'body'],
+  //       },
+  //     },
+  //     {
+  //       template: {
+  //         method: 'DELETE',
+  //         url: `${process.env.TIMER_BASE_URL}/{timerId}`,
+  //         headers: {
+  //           accept: 'application/json',
+  //           'content-type': 'application/json',
+  //         },
+  //       },
+  //       functions: {
+  //         deleteTimer: ['timerId'],
+  //       },
+  //     },
+  //   ],
+  // },
   storage: {
     name: 'storage',
     connector: 'loopback-component-storage',

@@ -87,6 +87,10 @@
     "name": "Switch ouput",
     "icons": ["/icons/aloes/switch-output.png", "/icons/aloes/switch-output-white.png"]
   },
+  "timer": {
+    "name": "Timer",
+    "icons": ["/icons/aloes/timer.png", "/icons/aloes/timer-white.png"]
+  },
   "tracker": {
     "name": "Geolocator",
     "icons": ["/icons/aloes/tracker.png", "/icons/aloes/tracker-white.png"]

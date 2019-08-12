@@ -53,6 +53,22 @@ utils.renderTemplate = options =>
     );
   });
 
+utils.readFile = (filePath, opts = 'utf8') =>
+  new Promise((resolve, reject) => {
+    fs.readFile(filePath, opts, (err, data) => {
+      if (err) reject(err);
+      else resolve(data);
+    });
+  });
+
+utils.writeFile = (filePath, data, opts = 'utf8') =>
+  new Promise((resolve, reject) => {
+    fs.appendFile(filePath, data, opts, err => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+
 // generate sensors and virtual object template ( .vue )
 // utils.renderVueTemplate = async (template, context) => {
 //   const app = createVue(context, options.template);

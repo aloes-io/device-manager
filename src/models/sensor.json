@@ -51,7 +51,7 @@
     },
     "icons": {
       "type": "array",
-      "required": false,
+      "required": true,
       "description": "url pointing to icon image"
     },
     "colors": {

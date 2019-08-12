@@ -191,12 +191,14 @@ module.exports = function(SensorResource) {
       logger.publish(5, `${collectionName}`, 'includeCache:req', { filter });
       device.sensors = [];
       for await (const key of SensorResource.cacheIterator(filter)) {
-        const sensor = JSON.parse(await SensorResource.get(key));
-        device.sensors.push(sensor);
+        if (key && key !== null) {
+          const sensor = JSON.parse(await SensorResource.get(key));
+          device.sensors.push(sensor);
+        }
       }
       return device;
     } catch (err) {
-      throw err;
+      return err;
     }
   };
 

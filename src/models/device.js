@@ -335,7 +335,7 @@ module.exports = function(Device) {
    */
   const createProps = async ctx => {
     try {
-      await ctx.instance.deviceAddress.create({
+      await ctx.instance.address.create({
         street: '',
         streetNumber: null,
         streetName: null,
@@ -345,12 +345,13 @@ module.exports = function(Device) {
       });
       const device = await createKeys(ctx.instance);
       // todo create a sensor 3310 to report event and request network load
-      if (!ctx.instance.deviceAddress || !device) {
+      if (!ctx.instance.address() || !device) {
         await Device.destroyById(ctx.instance.id);
         throw new Error('no device address');
       }
       return Device.publish(device, 'POST');
     } catch (error) {
+      console.log('create Propos: err', error);
       return error;
     }
   };
@@ -386,7 +387,9 @@ module.exports = function(Device) {
       });
       if (!device || device === null) throw new Error('Invalid device input');
       if (device.id && (await Device.exists(device.id))) {
-        device = await Device.replaceById(device.id, device);
+        const deviceId = device.id;
+        delete device.id;
+        device = await Device.replaceById(deviceId, device);
       } else {
         device = await Device.create(device);
       }
@@ -484,7 +487,6 @@ module.exports = function(Device) {
         });
       }
 
-      //  console.log('onPublish, filter device :', deviceFilter.where.and);
       const device = await Device.findOne(deviceFilter);
       if (!device || device === null || !device.id) {
         throw new Error('no device found');
@@ -512,14 +514,15 @@ module.exports = function(Device) {
    */
   const parseMessage = async (pattern, attributes, client) => {
     try {
-      logger.publish(4, `${collectionName}`, 'parseMessage:req', {
-        nativeSensorId: attributes.nativeSensorId,
-      });
+      if (!pattern || !pattern.params || !attributes) throw new Error('Missing pattern');
       if (
         attributes.devEui &&
         attributes.nativeSensorId &&
         (attributes.type || attributes.resource)
       ) {
+        logger.publish(4, `${collectionName}`, 'parseMessage:req', {
+          nativeSensorId: attributes.nativeSensorId,
+        });
         const device = await Device.findByPattern(pattern, attributes);
         if (!device || device === null || device instanceof Error) return null;
         // await device.updateAttributes({
@@ -529,7 +532,31 @@ module.exports = function(Device) {
         const Sensor = Device.app.models.Sensor;
         return Sensor.emit('publish', { device, pattern, attributes, client });
       }
-      throw new Error('Missing params');
+      if (
+        pattern.params.collection === 'Device' &&
+        attributes.devEui &&
+        attributes.status &&
+        attributes.apiKey
+      ) {
+        logger.publish(4, `${collectionName}`, 'parseMessage:req', {
+          devEui: attributes.devEui,
+        });
+        let device;
+        if (attributes.id) {
+          device = await Device.findById(attributes.id);
+        } else {
+          device = await Device.findByPattern(pattern, attributes);
+        }
+        if (!device || device === null || device instanceof Error) return null;
+        // await device.updateAttributes({
+        //   frameCounter: device.frameCounter + 1 || 1,
+        //   lastSignal: attributes.lastSignal || new Date(),
+        // });
+        device = JSON.parse(JSON.stringify(device));
+        device = { ...device, ...attributes };
+        return Device.emit('publish', { device, pattern, client });
+      }
+      throw new Error('Invalid pattern');
     } catch (error) {
       logger.publish(4, `${collectionName}`, 'parseMessage:err', error);
       return error;
@@ -580,7 +607,7 @@ module.exports = function(Device) {
         }
       } else if (!client) return null;
       const attributes = await iotAgent.encode(packet, pattern);
-      //  logger.publish(4, `${collectionName}`, 'onPublish:res', attributes);
+      //  logger.publish(4, `${collectionName}`, 'onPublish:attributes', attributes);
       if (!attributes) throw new Error('No attributes result');
       logger.publish(4, `${collectionName}`, 'onPublish:res', pattern);
       return parseMessage(pattern, attributes, client);
@@ -603,7 +630,7 @@ module.exports = function(Device) {
       if (packet.topic.split('/')[0] === '$SYS') return null;
       if (client && !client.ownerId && !client.devEui && !client.devAddr) return null;
       const pattern = await iotAgent.patternDetector(packet);
-      logger.publish(5, collectionName, 'detector:res', pattern);
+      logger.publish(5, collectionName, 'detector:res', { topic: packet.topic, pattern });
       return pattern;
     } catch (error) {
       logger.publish(2, collectionName, 'detector:err', error);
@@ -741,8 +768,8 @@ module.exports = function(Device) {
    * @param {object} message - Parsed MQTT message.
    * @property {object} message.packet - MQTT packet.
    * @property {object} message.pattern - Pattern detected by Iot-Agent
-   * @property {object} [message.client] - Found Device instance
-   * @property {object} message.client - MQTT client
+   * @property {object} message.device- Found Device instance
+   * @property {object}[message.client] - MQTT client
    */
   Device.on('publish', async message => {
     try {
@@ -751,11 +778,12 @@ module.exports = function(Device) {
       const client = message.client;
       const pattern = message.pattern;
       const device = message.device;
-      logger.publish(4, collectionName, 'on:publish', pattern.name);
-      if (!packet || !pattern) throw new Error('Message missing properties');
+      logger.publish(5, collectionName, 'on:publish', pattern.name);
+      if (!pattern) throw new Error('Message is missing pattern');
       if (device && device !== null) {
         return Device.execute(device, pattern.params.method, client);
       }
+      if (!packet) throw new Error('Message missing packet');
       return Device.onPublish(packet, client, pattern);
     } catch (error) {
       return error;
@@ -1025,7 +1053,7 @@ module.exports = function(Device) {
    */
   Device.getState = async (deviceId, options) => {
     try {
-      console.log('getstate, req : ', deviceId, options);
+      //  console.log('getstate, req : ', deviceId, options);
       if (!options || !options.apikey) throw new Error('missing token');
       if (!deviceId) throw new Error('missing device.id');
       const tokenId = options.apikey.trim();

@@ -1,6 +1,7 @@
 import MQEmitterRedis from 'mqemitter-redis';
 import aedesPersistenceRedis from 'aedes-persistence-redis';
 import aedes from 'aedes';
+import Redis from 'ioredis';
 import net from 'net';
 import tls from 'tls';
 import ws from 'websocket-stream';
@@ -345,7 +346,7 @@ broker.start = app => {
           pattern = await app.models.Device.detector(packet);
           //  pattern = await aloesClientPatternDetector(packet);
         }
-        logger.publish(5, 'broker', 'findPattern:res', pattern);
+        logger.publish(5, 'broker', 'findPattern:res', { topic: packet.topic, pattern });
         if (
           !pattern ||
           pattern === null ||
@@ -430,6 +431,16 @@ broker.start = app => {
       }
     });
 
+    app.broker.on('clientError', (client, err) => {
+      console.log('broker : client error', client.id, err.message);
+    });
+
+    app.broker.on('connectionError', (client, err) => {
+      console.log('broker : connection error', client.clean, err.message);
+      client.close();
+      //  console.log('broker : connection error', client, err.message, err.stack);
+    });
+
     // app.broker.on("delivered", (packet, client) => {
     //   console.log("Delivered", packet, client.id);
     // });
@@ -450,19 +461,57 @@ broker.start = app => {
 broker.stop = async app => {
   try {
     //  logger.publish(2, 'broker', 'stop', `${process.env.MQTT_BROKER_URL}`);
-    await app.broker.close(err => {
+    app.broker.close(err => {
       if (err) throw err;
     });
     logger.publish(4, 'broker', 'stopped', `${process.env.MQTT_BROKER_URL}`);
+    //  broker.redis.del("clients");
+    broker.redis.flushdb();
     await app.models.Device.updateAll({ status: true }, { status: false, clients: [] });
     await app.models.Application.updateAll({ status: true }, { status: false, clients: [] });
-    await app.models.Client.updateCache();
+    await app.models.Client.deleteAll();
     return true;
   } catch (error) {
     logger.publish(2, 'broker', 'stop:err', error);
     return error;
   }
 };
+
+const persistence = config =>
+  aedesPersistenceRedis({
+    port: Number(config.REDIS_PORT),
+    host: config.REDIS_HOST,
+    family: 4, // 4 (IPv4) or 6 (IPv6)
+    db: config.REDIS_MQTT_PERSISTENCE,
+    lazyConnect: false,
+    password: config.REDIS_PASS,
+    retryStrategy(times) {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+    maxSessionDelivery: 100, //   maximum offline messages deliverable on client CONNECT, default is 1000
+    packetTTL(packet) {
+      //  offline message TTL ( in seconds )
+      const ttl = 1 * 60 * 60;
+      if (packet && packet.topic.search(/device/i) !== -1) {
+        return ttl;
+      }
+      return ttl / 2;
+    },
+  });
+
+const emitter = config =>
+  MQEmitterRedis({
+    host: config.REDIS_HOST,
+    port: Number(config.REDIS_PORT),
+    db: config.REDIS_MQTT_EVENTS,
+    password: config.REDIS_PASS,
+    lazyConnect: false,
+    retryStrategy(times) {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+  });
 
 /**
  * Init MQTT Broker with new Aedes instance
@@ -477,35 +526,15 @@ broker.init = (app, httpServer, config) => {
     const brokerConfig = {
       interfaces: [{ type: 'mqtt', port: Number(config.MQTT_BROKER_PORT) }],
     };
+    broker.emitter = emitter(config);
+    broker.persistence = persistence(config);
 
-    const persistence = aedesPersistenceRedis({
-      port: Number(config.REDIS_PORT),
+    broker.redis = new Redis({
       host: config.REDIS_HOST,
-      family: 4, // 4 (IPv4) or 6 (IPv6)
+      port: Number(config.REDIS_PORT),
       db: config.REDIS_MQTT_PERSISTENCE,
-      lazyConnect: false,
       password: config.REDIS_PASS,
-      retryStrategy(times) {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      maxSessionDelivery: 100, //   maximum offline messages deliverable on client CONNECT, default is 1000
-      packetTTL(packet) {
-        //  offline message TTL ( in seconds )
-        const ttl = 1 * 60 * 60;
-        if (packet.topic.search(/device/i) !== -1) {
-          return ttl;
-        }
-        return ttl / 2;
-      },
-    });
-
-    const mq = MQEmitterRedis({
-      host: config.REDIS_HOST,
-      port: Number(config.REDIS_PORT),
-      db: config.REDIS_MQTT_EVENTS,
-      password: config.REDIS_PASS,
-      lazyConnect: false,
+      lazyConnect: true,
       retryStrategy(times) {
         const delay = Math.min(times * 50, 2000);
         return delay;
@@ -513,8 +542,8 @@ broker.init = (app, httpServer, config) => {
     });
 
     const aedesConf = {
-      mq,
-      persistence,
+      //  mq: broker.emitter,
+      //  persistence: broker.persistence,
       concurrency: 100,
       heartbeatInterval: 60000,
       connectTimeout: 30000,
@@ -567,16 +596,7 @@ broker.init = (app, httpServer, config) => {
       });
     }
 
-    app.broker.on('clientError', (client, err) => {
-      console.log('broker : client error', client.id, err.message);
-    });
-
-    app.broker.on('connectionError', (client, err) => {
-      console.log('broker : connection error', client.id, err.message);
-      //  console.log('broker : connection error', client, err.message, err.stack);
-    });
-
-    // app.broker.on('close', () => {
+    // app.broker.on('closed', () => {
     //   logger.publish(4, 'broker', 'closed');
     // });
 
