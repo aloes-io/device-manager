@@ -132,7 +132,7 @@ module.exports = function(SensorResource) {
       if (sensors && sensors !== null) {
         if (direction === 'UP') {
           // sync redis with mongo
-          const result = await sensors.map(async sensor => {
+          const promises = await sensors.map(async sensor => {
             const cachedSensor = await SensorResource.getCache(device.id, sensor.id);
             if (cachedSensor && cachedSensor !== null) {
               delete cachedSensor.id;
@@ -140,13 +140,13 @@ module.exports = function(SensorResource) {
             }
             return null;
           });
-          sensors = await Promise.all(result);
+          sensors = await Promise.all(promises);
         } else if (direction === 'DOWN') {
           // sync mongo with redis
-          const result = await sensors.map(async sensor =>
+          const promises = await sensors.map(async sensor =>
             SensorResource.setCache(device.id, sensor),
           );
-          sensors = await Promise.all(result);
+          sensors = await Promise.all(promises);
         }
       }
       return sensors;
@@ -220,7 +220,6 @@ module.exports = function(SensorResource) {
         sensor = {
           ...sensor,
           devEui: device.devEui,
-          devAddr: device.devAddr,
           transportProtocol: device.transportProtocol,
           transportProtocolVersion: device.transportProtocolVersion,
           messageProtocol: device.messageProtocol,

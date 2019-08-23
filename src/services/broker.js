@@ -437,7 +437,7 @@ broker.start = app => {
 
     app.broker.on('connectionError', (client, err) => {
       console.log('broker : connection error', client.clean, err.message);
-      client.close();
+      // client.close();
       //  console.log('broker : connection error', client, err.message, err.stack);
     });
 

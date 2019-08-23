@@ -168,6 +168,8 @@ And then install wildcards certificates with : https://certbot.eff.org/
 
 ## TODO
 
+- Optionnaly deploy a node-red instance per user ? (  userId.${aloesDomain} )
+- Use https://github.com/esatterwhite/skyring#master to replace DeltaTimer ( will be useful for Aloes clusters )
 - Improve file model access and backup
 - Update / improve device search engine
 - Finish account linking with github

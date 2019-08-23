@@ -86,7 +86,7 @@
     "nativeNodeId": {
       "type": "string",
       "required": false,
-      "default": null
+      "default": "0"
     },
     "nativeType": {
       "type": "number",

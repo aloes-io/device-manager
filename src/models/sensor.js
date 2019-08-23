@@ -191,7 +191,6 @@ module.exports = function(Sensor) {
       let sensor = {};
       // const schema = Sensor.definition.properties
       // todo improve composition with attributes validation based on schema types
-      // const keys = Object.keys(attributes)
       if ((!device.sensors() || !device.sensors()[0]) && attributes.type) {
         sensor = {
           //  ...attributes,
@@ -201,6 +200,7 @@ module.exports = function(Sensor) {
           lastSignal: attributes.lastSignal,
           resources: attributes.resources,
           resource: Number(attributes.resource),
+          // special check for key === value ?
           value: attributes.value,
           icons: attributes.icons,
           colors: attributes.colors,
@@ -231,18 +231,17 @@ module.exports = function(Sensor) {
       } else if (device.sensors()[0] && device.sensors()[0].id) {
         sensor = device.sensors()[0];
         sensor = JSON.parse(JSON.stringify(sensor));
+        const keys = Object.keys(attributes);
+        keys.forEach(key => {
+          // special check for key === value ?
+          if (key === 'resources') {
+            sensor[key] = { ...attributes[key], ...sensor[key] };
+          } else {
+            sensor[key] = attributes[key];
+          }
+          return sensor;
+        });
         sensor.isNewInstance = false;
-        sensor.name = attributes.name;
-        sensor.type = attributes.type;
-        sensor.method = attributes.method;
-        sensor.resource = Number(attributes.resource);
-        sensor.value = attributes.value;
-        sensor.lastSignal = attributes.lastSignal;
-        sensor.description = attributes.description;
-        sensor.inPrefix = attributes.inPrefix || null;
-        sensor.outPrefix = attributes.outPrefix || null;
-        sensor.inputPath = attributes.inputPath || null;
-        sensor.outputPath = attributes.outputPath || null;
         sensor.devEui = device.devEui;
         sensor.devAddr = device.devAddr;
         sensor.transportProtocol = device.transportProtocol;
@@ -274,12 +273,15 @@ module.exports = function(Sensor) {
     try {
       logger.publish(4, `${collectionName}`, 'handlePresentation:req', {
         deviceId: device.id,
+        deviceName: device.name,
+        sensorId: sensor.id,
+        sensorName: sensor.name,
       });
       const SensorResource = Sensor.app.models.SensorResource;
-
       if (sensor.isNewInstance && sensor.icons) {
         sensor.method = 'HEAD';
         await SensorResource.setCache(device.id, sensor);
+        //  await device.sensors.updateById(sensor.id, sensor);
         return Sensor.publish(device, sensor, 'HEAD', client);
       } else if (!sensor.isNewInstance && sensor.id) {
         let updatedSensor = await SensorResource.getCache(device.id, sensor.id);
@@ -288,10 +290,12 @@ module.exports = function(Sensor) {
         updatedSensor.method = 'HEAD';
         updatedSensor.frameCounter = 0;
         await SensorResource.setCache(device.id, updatedSensor);
+        await device.sensors.updateById(sensor.id, updatedSensor);
         return Sensor.publish(device, updatedSensor, 'HEAD', client);
       }
       throw new Error('no valid sensor to register');
     } catch (error) {
+      console.log('Presentation err:', error);
       return error;
     }
   };
@@ -344,7 +348,18 @@ module.exports = function(Sensor) {
       } else {
         switch (type.toLowerCase()) {
           case 'string':
-            saveMethod = 'log';
+            switch (resource) {
+              case 5514:
+                // latitude
+                saveMethod = 'location';
+                break;
+              case 5515:
+                // longitude
+                saveMethod = 'location';
+                break;
+              default:
+                saveMethod = 'log';
+            }
             break;
           case 'integer':
             switch (resource) {
@@ -486,6 +501,8 @@ module.exports = function(Sensor) {
       } else if (method === 'log') {
         // in the future add to elastic search db ?
         // todo save ( append ) resource in log file ( in device container ) then use utils.liner to access it later
+      } else if (method === 'location') {
+        // also update device.address with reverse geocoding ?
       } else if (method === 'buffer') {
         const Files = Sensor.app.models.Files;
         const buffer = await Files.compose(sensor);
@@ -523,23 +540,27 @@ module.exports = function(Sensor) {
       logger.publish(4, `${collectionName}`, 'createOrUpdate:req', {
         sensorId: sensor.id,
         resourceKey,
+        name: sensor.name,
       });
+
       if (sensor.isNewInstance) throw new Error('Sensor not created yet');
       if (resourceValue === undefined || resourceKey === undefined || resourceKey === null) {
         throw new Error('Missing Sensor key/value');
       }
       const SensorResource = Sensor.app.models.SensorResource;
-
       if (sensor.id) {
         let updatedSensor = await SensorResource.getCache(sensor.deviceId, sensor.id);
         if (!updatedSensor || !updatedSensor.id) throw new Error('Sensor not found');
+
+        // sensor.resources = { ...updatedSensor.resources, ...sensor.resources };
+        sensor.resources = { ...sensor.resources, ...updatedSensor.resources };
         updatedSensor = { ...updatedSensor, ...sensor };
 
         updatedSensor = await updateAloesSensors(updatedSensor, Number(resourceKey), resourceValue);
-        //  console.log('updatedSensor res:', updatedSensor);
-        logger.publish(5, `${collectionName}`, 'createOrUpdate:res', {
+        logger.publish(4, `${collectionName}`, 'createOrUpdate:res', {
           inType: typeof resourceValue,
-          outType: typeof updatedSensor.value,
+          outType: typeof updatedSensor.resources[updatedSensor.resource],
+          // outType: typeof updatedSensor.value,
         });
 
         updatedSensor.frameCounter += 1;
@@ -548,24 +569,20 @@ module.exports = function(Sensor) {
         if (!updatedSensor.lastSync) {
           updatedSensor.lastSync = lastSignal;
         }
-        // TODO : Define cache TTL with env vars
         const result = await persistingResource(device, updatedSensor, client);
         if (result && result.sensor) {
           updatedSensor = result.sensor;
         }
-        if (updatedSensor.frameCounter % 25 === 0) {
+        if (
+          updatedSensor.frameCounter % 25 === 0 ||
+          lastSignal > updatedSensor.lastSync + 30 * 1000
+        ) {
           updatedSensor.lastSync = lastSignal;
-          delete updatedSensor.id;
-          updatedSensor = await device.sensors.updateById(sensor.id, updatedSensor);
-        } else if (lastSignal > updatedSensor.lastSync + 30 * 1000) {
-          updatedSensor.lastSync = lastSignal;
-          delete updatedSensor.id;
-          //  updatedSensor = await Sensor.updateById(sensor.id, updatedSensor);
-          updatedSensor = await device.sensors.updateById(sensor.id, updatedSensor);
-        } else {
-          await SensorResource.setCache(device.id, updatedSensor);
+          // delete updatedSensor.id;
+          await device.sensors.updateById(sensor.id, updatedSensor);
         }
-
+        // TODO : Define cache TTL with env vars ?
+        await SensorResource.setCache(device.id, updatedSensor);
         await Sensor.publish(device, updatedSensor, 'PUT', client);
         return updatedSensor;
       }
@@ -770,9 +787,9 @@ module.exports = function(Sensor) {
         await Promise.all(promises);
       } else if (ctx.data) {
         logger.publish(5, `${collectionName}`, 'beforePartialSave:req', '');
-        ctx.hookState.updateData = ctx.data;
         const promises = await filteredProperties.map(p => delete ctx.data[p]);
         await Promise.all(promises);
+        ctx.hookState.updateData = ctx.data;
       }
       return ctx;
     } catch (error) {
@@ -790,10 +807,11 @@ module.exports = function(Sensor) {
    */
   Sensor.observe('after save', async ctx => {
     try {
-      logger.publish(4, `${collectionName}`, 'afterSave:req', '');
+      logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState);
       if (ctx.hookState.updateData) {
         return ctx;
-      } else if (ctx.instance.id && !ctx.isNewInstance && ctx.instance.ownerId) {
+        //  } else if (ctx.instance.id && !ctx.isNewInstance && ctx.instance.ownerId) {
+      } else if (ctx.instance.id && ctx.instance.ownerId) {
         await Sensor.setCache(ctx.instance.deviceId, ctx.instance);
       }
       return ctx;
@@ -823,18 +841,19 @@ module.exports = function(Sensor) {
     try {
       logger.publish(4, `${collectionName}`, 'beforeDelete:req', ctx.where);
       if (ctx.where.id) {
-        const instance = await ctx.Model.findById(ctx.where.id);
+        const SensorResource = Sensor.app.models.SensorResource;
+        const sensor = await Sensor.findById(ctx.where.id);
+        if (!sensor || sensor == null) {
+          throw new Error('no sensor to delete');
+        }
+        const device = await Sensor.app.models.Device.findById(sensor.deviceId);
         await Sensor.app.models.Measurement.destroyAll({
           sensorId: ctx.where.id,
         });
-        if (!instance || instance == null) {
-          throw new Error('no instance to delete');
-        }
-        const SensorResource = Sensor.app.models.SensorResource;
         // not working ?
-        //  await Sensor.delete(instance.deviceId, instance.id);
-        await SensorResource.expireCache(instance.deviceId, instance.id, 1);
-        await Sensor.publish(instance, 'DELETE');
+        //  await SensorResource.delete(instance.deviceId, instance.id);
+        await SensorResource.expireCache(sensor.deviceId, sensor.id, 1);
+        await Sensor.publish(device, sensor, 'DELETE');
         return ctx;
       }
       throw new Error('no instance to delete');

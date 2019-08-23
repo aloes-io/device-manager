@@ -2,6 +2,7 @@ import iotAgent from 'iot-agent';
 import crypto from 'crypto';
 import logger from '../services/logger';
 import utils from '../services/utils';
+import DeltaTimer from '../services/delta-timer';
 import deviceTypes from '../initial-data/device-types.json';
 
 /**
@@ -30,7 +31,6 @@ import deviceTypes from '../initial-data/device-types.json';
  */
 module.exports = function(Device) {
   const collectionName = 'Device';
-
   const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
 
   async function transportProtocolValidator(err) {
@@ -193,12 +193,11 @@ module.exports = function(Device) {
         }
         // if (client && (client.ownerId || client.appId)) {
         // }
-
         if (device.status) {
-          const nativePacket = { topic: `${device.devEui}-in/1/255/255/255`, payload: '1' };
-          if (nativePacket.payload && nativePacket.payload !== null) {
-            await Device.app.publish(nativePacket.topic, nativePacket.payload, false, 0);
-          }
+          // const nativePacket = { topic: `${device.devEui}-in/1/255/255/255`, payload: '1' };
+          // if (nativePacket.payload && nativePacket.payload !== null) {
+          //   await Device.app.publish(nativePacket.topic, nativePacket.payload, false, 0);
+          // }
           //  console.log('nativePacket', nativePacket.topic);
         }
         if (device.appIds && device.appIds.length > 0) {
@@ -221,7 +220,7 @@ module.exports = function(Device) {
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
-      logger.publish(4, `${collectionName}`, 'publish:err', error);
+      logger.publish(3, `${collectionName}`, 'publish:err', error);
       return error;
     }
   };
@@ -234,20 +233,14 @@ module.exports = function(Device) {
    */
   const createKeys = async device => {
     try {
-      // let hwIdProp;
-      // if (device.devEui && device.devEui !== null) {
-      //   hwIdProp = 'devEui';
-      // } else if (device.devAddr && device.devAddr !== null) {
-      //   hwIdProp = 'devAddr';
-      // }
-      // if (!hwIdProp) throw new Error('Device hardware id not found');
+      logger.publish(5, `${collectionName}`, 'createKeys:req', device.name);
       const attributes = {};
       let hasChanged = false;
-      if (!device.clientKey) {
+      if (!device.clientKey || device.clientKey === null) {
         attributes.clientKey = utils.generateKey('client');
         hasChanged = true;
       }
-      if (!device.apiKey) {
+      if (!device.apiKey || device.apiKey === null) {
         attributes.apiKey = utils.generateKey('apiKey');
         hasChanged = true;
       }
@@ -263,11 +256,14 @@ module.exports = function(Device) {
       // if (!device.masterKey) {
       //   attributes.masterKey = utils.generateKey('master');
       // }
+
       if (hasChanged) {
         await device.updateAttributes(attributes);
+        logger.publish(4, `${collectionName}`, 'createKeys:res', device.apiKey);
       }
       return device;
     } catch (error) {
+      logger.publish(3, `${collectionName}`, 'createKeys:err', error);
       return error;
     }
   };
@@ -298,7 +294,8 @@ module.exports = function(Device) {
    */
   Device.refreshToken = async (ctx, device) => {
     try {
-      logger.publish(4, `${collectionName}`, 'refreshToken:req', device.id);
+      logger.publish(4, `${collectionName}`, 'refreshToken:req', device);
+
       if (!ctx.req.accessToken) throw new Error('missing token');
       if (!device.id) throw new Error('missing device.id');
       if (ctx.req.accessToken.userId.toString() !== device.ownerId.toString()) {
@@ -306,7 +303,6 @@ module.exports = function(Device) {
       }
       device = await Device.findById(device.id);
       if (device && device !== null) {
-        // await device.resetKeys()
         const attributes = {
           clientKey: utils.generateKey('client'),
           apiKey: utils.generateKey('apiKey'),
@@ -328,14 +324,12 @@ module.exports = function(Device) {
   /**
    * Init device depencies ( token, address )
    * @method module:Device~createProps
-   * @param {object} ctx - Application context
-   * @param {object} ctx.req - HTTP request
-   * @param {object} ctx.res - HTTP response
+   * @param {object} device - Device instance
    * returns {function} module:Device.publish
    */
-  const createProps = async ctx => {
+  const createProps = async device => {
     try {
-      await ctx.instance.address.create({
+      await device.address.create({
         street: '',
         streetNumber: null,
         streetName: null,
@@ -343,10 +337,10 @@ module.exports = function(Device) {
         city: null,
         public: false,
       });
-      const device = await createKeys(ctx.instance);
+      device = await createKeys(device);
       // todo create a sensor 3310 to report event and request network load
-      if (!ctx.instance.address() || !device) {
-        await Device.destroyById(ctx.instance.id);
+      if (!device.address() || !device.apiKey) {
+        await Device.destroyById(device.id);
         throw new Error('no device address');
       }
       return Device.publish(device, 'POST');
@@ -359,15 +353,14 @@ module.exports = function(Device) {
   /**
    * Update device depencies ( token, sensors )
    * @method module:Device~updateProps
-   * @param {object} ctx - Application context
-   * @param {object} ctx.req - HTTP request
-   * @param {object} ctx.res - HTTP response
+   * @param {object} device - Device instance
    * returns {function} module:Device.publish
    */
-  const updateProps = async ctx => {
+  const updateProps = async device => {
     try {
-      const device = await createKeys(ctx.instance);
-      const sensorsCount = await ctx.instance.sensors.count();
+      // device = await createKeys(device);
+      await createKeys(device);
+      const sensorsCount = await device.sensors.count();
       if (sensorsCount && sensorsCount > 0) {
         await Device.app.models.SensorResource.updateCache(device);
       }
@@ -383,7 +376,8 @@ module.exports = function(Device) {
   Device.createOrUpdate = async device => {
     try {
       logger.publish(4, `${collectionName}`, 'createOrUpdate:req', {
-        device: device.name,
+        deviceId: device.id,
+        name: device.name,
       });
       if (!device || device === null) throw new Error('Invalid device input');
       if (device.id && (await Device.exists(device.id))) {
@@ -399,6 +393,7 @@ module.exports = function(Device) {
       return error;
     }
   };
+
   /**
    * Synchronize cache memory with database on disk
    * @method module:Device.syncCache
@@ -491,6 +486,7 @@ module.exports = function(Device) {
       if (!device || device === null || !device.id) {
         throw new Error('no device found');
       }
+      // find equivalent sensor in cache
       logger.publish(4, `${collectionName}`, 'findByPattern:res', {
         deviceName: device.name,
         deviceId: device.id,
@@ -522,15 +518,25 @@ module.exports = function(Device) {
       ) {
         logger.publish(4, `${collectionName}`, 'parseMessage:req', {
           nativeSensorId: attributes.nativeSensorId,
+          nativeNodeId: attributes.nativeNodeId,
         });
         const device = await Device.findByPattern(pattern, attributes);
         if (!device || device === null || device instanceof Error) return null;
-        // await device.updateAttributes({
-        //   frameCounter: device.frameCounter + 1 || 1,
-        //   lastSignal: attributes.lastSignal || new Date(),
-        // });
+        // if (!device.status && client && client.devEui === device.devEui {
+        //   await device.updateAttributes({
+        //     status: true,
+        //     frameCounter: device.frameCounter + 1 || 1,
+        //     lastSignal: attributes.lastSignal || new Date(),
+        //   });
+        // }
         const Sensor = Device.app.models.Sensor;
-        return Sensor.emit('publish', { device, pattern, attributes, client });
+        return Sensor.emit('publish', {
+          device,
+          pattern,
+          //  sensor: device.sensors[0],
+          attributes,
+          client,
+        });
       }
       if (
         pattern.params.collection === 'Device' &&
@@ -548,10 +554,6 @@ module.exports = function(Device) {
           device = await Device.findByPattern(pattern, attributes);
         }
         if (!device || device === null || device instanceof Error) return null;
-        // await device.updateAttributes({
-        //   frameCounter: device.frameCounter + 1 || 1,
-        //   lastSignal: attributes.lastSignal || new Date(),
-        // });
         device = JSON.parse(JSON.stringify(device));
         device = { ...device, ...attributes };
         return Device.emit('publish', { device, pattern, client });
@@ -607,7 +609,7 @@ module.exports = function(Device) {
         }
       } else if (!client) return null;
       const attributes = await iotAgent.encode(packet, pattern);
-      //  logger.publish(4, `${collectionName}`, 'onPublish:attributes', attributes);
+      logger.publish(5, `${collectionName}`, 'onPublish:attributes', attributes);
       if (!attributes) throw new Error('No attributes result');
       logger.publish(4, `${collectionName}`, 'onPublish:res', pattern);
       return parseMessage(pattern, attributes, client);
@@ -673,7 +675,7 @@ module.exports = function(Device) {
           if (index > -1) {
             clients.splice(index, 1);
           }
-          if (clients.length > 1) {
+          if (clients.length > 0) {
             status = true;
           } else {
             frameCounter = 0;
@@ -853,9 +855,9 @@ module.exports = function(Device) {
       } else if (ctx.instance && Device.app) {
         logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
         if (ctx.isNewInstance) {
-          await createProps(ctx);
+          await createProps(ctx.instance);
         } else {
-          await updateProps(ctx);
+          await updateProps(ctx.instance);
         }
       }
       return ctx;
@@ -978,22 +980,22 @@ module.exports = function(Device) {
   Device.observe('before delete', async ctx => {
     try {
       if (ctx.where.id) {
-        const instance = await ctx.Model.findById(ctx.where.id);
-        logger.publish(4, `${collectionName}`, 'beforeDelete:req', instance.id);
+        const device = await ctx.Model.findById(ctx.where.id);
+        logger.publish(4, `${collectionName}`, 'beforeDelete:req', device.id);
         await Device.app.models.Address.destroyAll({
-          deviceId: instance.id,
+          deviceId: device.id,
         });
-        const sensors = await instance.sensors.find();
+        const sensors = await device.sensors.find();
         if (sensors && sensors !== null) {
           const promises = await sensors.map(async sensor => sensor.delete());
           await Promise.all(promises);
         }
-        if (instance && instance.ownerId) {
-          await Device.publish(instance, 'DELETE');
+        if (device && device.ownerId) {
+          await Device.publish(device, 'DELETE');
           return ctx;
         }
       }
-      throw new Error('no instance to delete');
+      throw new Error('no device to delete');
     } catch (error) {
       return error;
     }
@@ -1316,4 +1318,28 @@ module.exports = function(Device) {
       return error;
     }
   };
+
+  const tick = async data => {
+    try {
+      logger.publish(4, `${collectionName}`, 'tick:res', data.time);
+      const devices = await Device.syncCache('UP');
+      return devices;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  Device.setClock = interval => {
+    if (Device.timer && Device.timer !== null) {
+      Device.timer.stop();
+    }
+    Device.timer = new DeltaTimer(tick, {}, interval);
+    Device.start = Device.timer.start();
+    return Device.timer;
+  };
+
+  Device.once('attached', () => {
+    // const clockInterval = 5 * 60000;
+    // Device.setClock(clockInterval);
+  });
 };

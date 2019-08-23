@@ -27,6 +27,7 @@ module.exports = function(Files) {
   const uploadBufferToContainer = (buffer, ownerId, name) =>
     new Promise((resolve, reject) => {
       const bufferStream = new stream.PassThrough();
+      bufferStream.on('error', reject);
       bufferStream.end(buffer);
       const type = fileType(buffer);
       if (!type || !type.ext) reject(new Error('File type information not found'));
@@ -66,7 +67,6 @@ module.exports = function(Files) {
   Files.upload = async (ctx, ownerId, name) => {
     try {
       const options = {};
-
       //  ctx.res.set("Access-Control-Allow-Origin", "*")
       const filter = {
         where: {
@@ -133,9 +133,9 @@ module.exports = function(Files) {
           and: [{ name: { like: new RegExp(`.*${name}.*`, 'i') } }, { ownerId }],
         },
       });
-      //  console.log('fileMeta : ', fileMeta);
+
       const fileStat = await uploadBufferToContainer(buffer, ownerId, name);
-      logger.publish(5, `${collectionName}`, 'uploadBuffer:res1', { fileStat });
+      logger.publish(4, `${collectionName}`, 'uploadBuffer:res1', { fileStat });
       if (!fileStat || !fileStat.type) throw new Error('Failure while uploading stream');
 
       if (fileMeta) {
@@ -148,12 +148,12 @@ module.exports = function(Files) {
         });
       } else {
         fileMeta = await Files.create({
-          name: fileStat.name,
-          //  originalFilename: fileStat.originalFilename,
           size: fileStat.size,
           type: fileStat.type.mime,
+          name: fileStat.name,
           ownerId,
           url: `${CONTAINERS_URL}${ownerId}/download/${fileStat.name}`,
+          //  originalFilename: fileStat.originalFilename,
         });
       }
       logger.publish(3, `${collectionName}`, 'uploadBuffer:res', fileMeta);
@@ -239,18 +239,20 @@ module.exports = function(Files) {
       const resource = sensor.resources[resourceId];
       const resourceType = typeof resource;
       logger.publish(3, `${collectionName}`, 'compose:req', { resourceType, resourceId });
+
       if (resourceType === 'string') {
         if (JSON.parse(resource)) {
           buffer = Buffer.from(JSON.parse(resource.data));
         } else {
-          buffer = Buffer.from(resource, 'base64');
+          buffer = Buffer.from(resource, 'binary');
+          // buffer = Buffer.from(resource, 'base64');
         }
       } else if (resourceType === 'object' && resource.type) {
         buffer = Buffer.from(resource.data);
       } else if (Buffer.isBuffer(resource)) {
         buffer = resource;
       }
-      //  logger.publish(3, `${collectionName}`, 'compose:res', buffer);
+      // logger.publish(3, `${collectionName}`, 'compose:res', buffer);
       return buffer;
     } catch (error) {
       return error;

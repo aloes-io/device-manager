@@ -50,6 +50,9 @@ module.exports = {
     host: process.env.INFLUX_HOST || 'localhost',
     port: Number(process.env.INFLUX_PORT) || 8086,
     protocol: process.env.INFLUX_PROTOCOL || 'http',
+    failoverTimeout: 60000,
+    maxRetries: 5,
+    timePrecision: 'ms',
   },
   storage: {
     name: 'storage',

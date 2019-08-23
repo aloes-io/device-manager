@@ -111,7 +111,7 @@ module.exports = function(Measurement) {
    * @param {object} [client] - MQTT client target
    * returns {function} Measurement.app.publish()
    */
-  Measurement.publish = async (device, measurement, method, client) => {
+  Measurement.publish = async (device, measurement, method) => {
     try {
       const packet = await publish({
         userId: measurement.ownerId,
@@ -126,10 +126,10 @@ module.exports = function(Measurement) {
         logger.publish(4, `${collectionName}`, 'publish:res', {
           topic: packet.topic,
         });
-        if (client && client.id) {
-          // publish to client
-          return null;
-        }
+        // if (client && client.id) {
+        //   // publish to client
+        //   return null;
+        // }
         if (device.appIds && device.appIds.length > 0) {
           await device.appIds.map(async appId => {
             try {
@@ -152,18 +152,112 @@ module.exports = function(Measurement) {
   };
 
   Measurement.once('dataSourceAttached', Model => {
-    const findMeasurement = async filter => {
+    const findMeasurements = async filter => {
       try {
-        const rp = 'rp_forever'; // 'rp_2h';
-        let query;
         const influxConnector = Model.app.datasources.points.connector;
-        influxConnector.buildQuery(collectionName, filter, rp, (err, res) => {
-          if (err) throw err;
-          query = res;
+
+        let retentionPolicies = []; // '0s' || '2h';
+        if (filter.where) {
+          if (filter.where.and) {
+            filter.where.and.forEach((subFilter, index) => {
+              Object.keys(subFilter).forEach(key => {
+                if (key === 'rp') {
+                  if (typeof subFilter[key] === 'object') {
+                    Object.keys(subFilter[key]).forEach(keyFilter => {
+                      if (keyFilter === 'inq') {
+                        subFilter[key].inq.forEach(rp => {
+                          if (influxConnector.retentionPolicies[rp]) {
+                            retentionPolicies.push(rp);
+                          }
+                        });
+                      }
+                    });
+                  } else if (typeof subFilter[key] === 'string') {
+                    if (influxConnector.retentionPolicies[subFilter[key]]) {
+                      retentionPolicies.push(subFilter[key]);
+                    }
+                  }
+                  filter.where.and.splice(index, 1);
+                  // delete subFilter[key];
+                }
+              });
+            });
+          } else if (filter.where.or) {
+            filter.where.or.forEach((subFilter, index) => {
+              Object.keys(subFilter).forEach(key => {
+                if (key === 'rp') {
+                  if (typeof subFilter[key] === 'object') {
+                    Object.keys(subFilter[key]).forEach(keyFilter => {
+                      if (keyFilter === 'inq') {
+                        subFilter[key].inq.forEach(rp => {
+                          if (influxConnector.retentionPolicies[rp]) {
+                            retentionPolicies.push(rp);
+                          }
+                        });
+                      }
+                    });
+                  } else if (typeof subFilter[key] === 'string') {
+                    if (influxConnector.retentionPolicies[subFilter[key]]) {
+                      retentionPolicies.push(subFilter[key]);
+                    }
+                  }
+                  filter.where.or.splice(index, 1);
+                  // delete subFilter[key];
+                }
+              });
+            });
+          } else {
+            Object.keys(filter.where).forEach(key => {
+              if (key === 'rp') {
+                if (typeof filter.where.rp === 'object') {
+                  Object.keys(filter.where.rp).forEach(keyFilter => {
+                    if (keyFilter === 'inq') {
+                      filter.where.rp.inq.forEach(rp => {
+                        if (influxConnector.retentionPolicies[rp]) {
+                          retentionPolicies.push(rp);
+                        }
+                      });
+                    }
+                  });
+                } else if (typeof filter.where.rp === 'string') {
+                  if (influxConnector.retentionPolicies[filter.where.rp]) {
+                    retentionPolicies.push(filter.where.rp);
+                  }
+                }
+                delete filter.where.rp;
+              }
+            });
+          }
+        }
+
+        if (!retentionPolicies || !retentionPolicies[0]) {
+          retentionPolicies = ['2h']; // '0s';
+        }
+        logger.publish(4, `${collectionName}`, 'findMeasurements:retentionPolicies', {
+          retentionPolicies,
         });
-        //  logger.publish(4, `${collectionName}`, 'findMeasurement:res', { query });
-        const result = await influxConnector.client.query(query);
-        logger.publish(4, `${collectionName}`, 'findMeasurement:res', { result });
+
+        let result = [];
+        const promises = await retentionPolicies.map(async rp => {
+          try {
+            let query;
+            influxConnector.buildQuery(collectionName, filter, rp, (err, res) => {
+              if (err) throw err;
+              query = res;
+            });
+            //  logger.publish(4, `${collectionName}`, 'findMeasurements:res', { query });
+            const measurements = await influxConnector.client.query(query);
+            result = [...result, ...measurements];
+            return measurements;
+          } catch (error) {
+            return error;
+          }
+        });
+
+        await Promise.all(promises);
+        result.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+        //  console.log('MEASUREMENTS 2 ', result);
+        logger.publish(4, `${collectionName}`, 'findMeasurements:res', { result });
         return result;
       } catch (error) {
         return error;
@@ -188,7 +282,7 @@ module.exports = function(Measurement) {
         }
         const filter = { ownerId };
         filter.id = id;
-        const result = await findMeasurement(filter);
+        const result = await findMeasurements(filter);
         return result[0];
       } catch (error) {
         return error;
@@ -222,7 +316,7 @@ module.exports = function(Measurement) {
         } else {
           filter.where = { ownerId };
         }
-        const result = await findMeasurement(filter);
+        const result = await findMeasurements(filter);
         return result;
       } catch (error) {
         logger.publish(2, `${collectionName}`, 'find:err', error);
@@ -259,7 +353,7 @@ module.exports = function(Measurement) {
           throw new Error('No ownerId retireved');
         }
         filter.id = id;
-        const instance = await findMeasurement(filter);
+        const instance = await findMeasurements(filter);
         const result = await updateMeasurement(data, instance[0]);
         return result;
       } catch (error) {
@@ -280,7 +374,7 @@ module.exports = function(Measurement) {
         if (filter.where) {
           delete filter.where;
         }
-        const instances = await findMeasurement(filter);
+        const instances = await findMeasurements(filter);
         const resPromise = await instances.map(async instance => {
           try {
             const measurement = await updateMeasurement(data, instance);

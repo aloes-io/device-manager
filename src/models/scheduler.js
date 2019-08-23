@@ -2,6 +2,7 @@
 /* eslint-disable no-await-in-loop */
 import { publish } from 'iot-agent';
 import logger from '../services/logger';
+import DeltaTimer from '../services/delta-timer';
 
 /**
  * @module Scheduler
@@ -15,7 +16,7 @@ const timers = {};
 
 module.exports = function(Scheduler) {
   const collectionName = 'Scheduler';
-  const clockInterval = 10000;
+  const clockInterval = 5000;
 
   /**
    * Format packet and send it via MQTT broker
@@ -137,59 +138,6 @@ module.exports = function(Scheduler) {
   //   }
   // }
 
-  Scheduler.DeltaTimer = function(cb, data, interval) {
-    try {
-      let timeout, lastTime;
-      let count = 0;
-
-      const loop = () => {
-        try {
-          count += 1;
-          const thisTime = +new Date();
-          const deltaTime = thisTime - lastTime;
-          const delay = Math.max(interval - deltaTime, 0);
-          timeout = setTimeout(loop, delay);
-          lastTime = thisTime + delay;
-          data.delay = delay;
-          data.count = count;
-          data.time = thisTime;
-          data.lastTime = lastTime;
-          if (count > 1) cb(data);
-          return null;
-        } catch (error) {
-          return error;
-        }
-      };
-
-      const start = () => {
-        try {
-          timeout = setTimeout(loop, 0);
-          lastTime = +new Date();
-          logger.publish(4, `${collectionName}`, 'DeltaTimer:start', lastTime);
-          return lastTime;
-        } catch (error) {
-          return error;
-        }
-      };
-
-      const stop = () => {
-        try {
-          logger.publish(4, `${collectionName}`, 'DeltaTimer:stop', lastTime);
-          clearTimeout(timeout);
-          return lastTime;
-        } catch (error) {
-          return error;
-        }
-      };
-
-      this.start = start;
-      this.stop = stop;
-      return timeout;
-    } catch (error) {
-      return error;
-    }
-  };
-
   const startTimer = async (device, sensor, client, mode = 0) => {
     try {
       let scheduler = await Scheduler.get(`${sensor.id}`);
@@ -210,7 +158,7 @@ module.exports = function(Scheduler) {
         lastTime = timer.stop();
         delete timers[`${sensor.id}`];
       } else {
-        timer = new Scheduler.DeltaTimer(
+        timer = new DeltaTimer(
           Scheduler.onTimeout,
           { sensorId: sensor.id, deviceId: device.id },
           millis,
@@ -494,8 +442,7 @@ module.exports = function(Scheduler) {
     if (Scheduler.timer && Scheduler.timer !== null) {
       Scheduler.timer.stop();
     }
-    //  Scheduler.timer = setInterval(updateTimer, 5000);
-    Scheduler.timer = new Scheduler.DeltaTimer(tick, {}, interval);
+    Scheduler.timer = new DeltaTimer(tick, {}, interval);
     Scheduler.start = Scheduler.timer.start();
     console.log('Set clock :', Scheduler.start);
     return Scheduler.timer;

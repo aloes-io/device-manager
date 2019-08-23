@@ -2,7 +2,6 @@
 import ejs from 'ejs';
 import * as fs from 'fs';
 import crypto from 'crypto';
-import stream from 'stream';
 import path from 'path';
 import app from './server';
 import logger from './logger';
@@ -221,35 +220,6 @@ utils.generateKey = (hmacKey, algorithm, encoding) => {
   hmac.update(buf);
   const key = hmac.digest(encoding);
   return key;
-};
-
-utils.liner = new stream.Transform({ objectMode: true });
-// https://strongloop.com/strongblog/practical-examples-of-the-new-node-js-streams-api/
-// example
-// const source = fs.createReadStream('./access_log')
-// source.pipe(utils.liner)
-// utils.liner.on('readable', () => {
-//      var line = ""
-//      while (null !== (line = utils.liner.read())) {
-//           // do something with line
-//      }
-// })
-
-utils.liner._transform = function(chunk, encoding, done) {
-  let data = chunk.toString();
-  if (this._lastLineData) data = this._lastLineData + data;
-
-  const lines = data.split('\n');
-  this._lastLineData = lines.splice(lines.length - 1, 1)[0];
-
-  lines.forEach(this.push.bind(this));
-  done();
-};
-
-utils.liner._flush = function(done) {
-  if (this._lastLineData) this.push(this._lastLineData);
-  this._lastLineData = null;
-  done();
 };
 
 export default utils;
