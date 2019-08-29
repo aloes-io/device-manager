@@ -5,6 +5,6 @@ mongo -- "$MONGO_INITDB_DATABASE" <<EOF
     admin.auth(rootUser, rootPassword);
     var user = '$MONGO_INITDB_USERNAME';
     var passwd = '$MONGO_INITDB_PASSWORD';
-    var db = '$MONGO_INITDB_DATABASE';
-    db.createUser({user: user, pwd: passwd, roles: [{role: 'readWrite', db: db }]});
+    var database = '$MONGO_INITDB_DATABASE';
+    db.createUser({user: user, pwd: passwd, roles: [{role: 'readWrite', db: database }]});
 EOF

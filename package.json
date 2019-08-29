@@ -19,7 +19,7 @@
     "start:local": "cp deploy/.env_local .env && npm run build && NODE_ENV=local node ./nodemon.js",
     "start:stage": "cp deploy/.env_staging .env && NODE_ENV=staging nodemon --exec babel-node ./src/index.js",
     "start:docker": "cp deploy/.env_docker .env && docker-compose --compatibility up",
-    "kill:docker": "docker-compose --compatibility down",
+    "stop:docker": "docker-compose --compatibility down",
     "build": "npx babel src --out-dir dist --copy-files",
     "build:docker": "cp deploy/.env_docker .env && docker-compose --compatibility build",
     "setup:stage": "cp deploy/.env_staging .env ; pm2 deploy ecosystem.config.js staging setup",
