@@ -234,16 +234,15 @@ module.exports = function(Files) {
       ) {
         throw new Error('Invalid sensor instance');
       }
-      let buffer;
+      let buffer = null;
       const resourceId = sensor.resource.toString();
       const resource = sensor.resources[resourceId];
       const resourceType = typeof resource;
       logger.publish(3, `${collectionName}`, 'compose:req', { resourceType, resourceId });
-
       if (resourceType === 'string') {
-        if (JSON.parse(resource)) {
-          buffer = Buffer.from(JSON.parse(resource.data));
-        } else {
+        try {
+          buffer = Buffer.from(JSON.parse(resource));
+        } catch (error) {
           buffer = Buffer.from(resource, 'binary');
           // buffer = Buffer.from(resource, 'base64');
         }

@@ -105,7 +105,7 @@ module.exports = function(Device) {
    * Set device QRcode access based on declared protocol and access point url
    * @method module:Device~setDeviceQRCode
    * @param {object} device - Device instance
-   * returns {object} device
+   * @returns {object} device
    */
   const setDeviceQRCode = device => {
     try {
@@ -153,7 +153,7 @@ module.exports = function(Device) {
    * Set device icons ( urls ) based on its type
    * @method module:Device~setDeviceIcons
    * @param {object} device - Device instance
-   * returns {object} device
+   * @returns {object} device
    */
   const setDeviceIcons = device => {
     try {
@@ -173,7 +173,7 @@ module.exports = function(Device) {
    * @param {object} device - Device instance
    * @param {string} method - MQTT method
    * @param {object} [client] - MQTT client target
-   * returns {function} Device.app.publish()
+   * @returns {function} Device.app.publish()
    */
   Device.publish = async (device, method, client) => {
     try {
@@ -201,7 +201,7 @@ module.exports = function(Device) {
           //  console.log('nativePacket', nativePacket.topic);
         }
         if (device.appIds && device.appIds.length > 0) {
-          await device.appIds.map(async appId => {
+          const promises = await device.appIds.map(async appId => {
             try {
               const parts = packet.topic.split('/');
               parts[0] = appId;
@@ -212,6 +212,7 @@ module.exports = function(Device) {
               return error;
             }
           });
+          await Promise.all(promises);
         }
         logger.publish(4, `${collectionName}`, 'publish:res', {
           topic: packet.topic,
@@ -229,7 +230,7 @@ module.exports = function(Device) {
    * Keys creation helper - update device attributes
    * @method module:Device~createKeys
    * @param {object} device - Device instance
-   * returns {object} device
+   * @returns {object} device
    */
   const createKeys = async device => {
     try {
@@ -325,7 +326,7 @@ module.exports = function(Device) {
    * Init device depencies ( token, address )
    * @method module:Device~createProps
    * @param {object} device - Device instance
-   * returns {function} module:Device.publish
+   * @returns {function} module:Device.publish
    */
   const createProps = async device => {
     try {
@@ -354,7 +355,7 @@ module.exports = function(Device) {
    * Update device depencies ( token, sensors )
    * @method module:Device~updateProps
    * @param {object} device - Device instance
-   * returns {function} module:Device.publish
+   * @returns {function} module:Device.publish
    */
   const updateProps = async device => {
     try {
@@ -575,11 +576,10 @@ module.exports = function(Device) {
    */
   Device.onPublish = async (packet, client, pattern) => {
     try {
-      if (!pattern || !pattern.params || !pattern.name) {
+      if (!pattern || !pattern.params || !pattern.name || !client) {
         throw new Error('Missing argument');
       }
       if (pattern.name.toLowerCase() === 'aloesclient') {
-        if (!client) return null;
         if (pattern.subType === 'iot') {
           const newPacket = await iotAgent.decode(packet, pattern.params);
           if (newPacket && newPacket.topic) {
@@ -607,10 +607,10 @@ module.exports = function(Device) {
             return Device.app.publish(newPacket.topic, newPacket.payload, false, 1);
           }
         }
-      } else if (!client) return null;
+      }
       const attributes = await iotAgent.encode(packet, pattern);
       logger.publish(5, `${collectionName}`, 'onPublish:attributes', attributes);
-      if (!attributes) throw new Error('No attributes result');
+      if (!attributes) throw new Error('No attributes retrieved from Iot Agent');
       logger.publish(4, `${collectionName}`, 'onPublish:res', pattern);
       return parseMessage(pattern, attributes, client);
     } catch (error) {
@@ -687,7 +687,7 @@ module.exports = function(Device) {
         await device.updateAttributes({
           frameCounter,
           status,
-          lastSignal: new Date(),
+          // lastSignal: new Date(),
           clients,
         });
       }
@@ -1048,7 +1048,7 @@ module.exports = function(Device) {
 
   /**
    * Endpoint for device requesting their own state
-   * @method module:Device~getState
+   * @method module:Device.getState
    * @param {object} ctx - Loopback context
    * @param {string} deviceId - Device instance id
    * @returns {object}
@@ -1095,7 +1095,7 @@ module.exports = function(Device) {
 
   /**
    * Update OTA if a firmware is available
-   * @method module:Device~getOTAUpdate
+   * @method module:Device.getOTAUpdate
    * @param {object} ctx - Loopback context
    * @param {string} deviceId - Device instance id
    * @param {string} [version] - Firmware version requested

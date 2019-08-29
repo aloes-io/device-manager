@@ -5,7 +5,6 @@ import crypto from 'crypto';
 import path from 'path';
 import app from './server';
 import logger from './logger';
-//  import createVue from "./views/create-vue";
 
 const collectionName = 'Utils';
 const utils = {};
@@ -67,23 +66,6 @@ utils.writeFile = (filePath, data, opts = 'utf8') =>
       else resolve();
     });
   });
-
-// generate sensors and virtual object template ( .vue )
-// utils.renderVueTemplate = async (template, context) => {
-//   const app = createVue(context, options.template);
-//   const renderer = require("vue-server-renderer").createRenderer();
-
-//   const filledTemplate = await renderer
-//     .renderToString(app)
-//     .then((html) => {
-//       console.log(html);
-//       return html;
-//     })
-//     .catch((err) => {
-//       console.error(err);
-//     });
-//   return filledTemplate;
-// };
 
 utils.roleResolver = async (user, subcribeType) => {
   try {

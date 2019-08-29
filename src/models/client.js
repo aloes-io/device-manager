@@ -19,6 +19,12 @@ module.exports = function(Client) {
   Client.disableRemoteMethodByName('replaceOrCreate');
   Client.disableRemoteMethodByName('createChangeStream');
 
+  /**
+   * Iterate over each Client keys found in cache
+   * @method module:Client.cacheIterator
+   * @param {object} [filter] - Client filter
+   * @returns {string} key - Cached key
+   */
   Client.cacheIterator = async function*(filter) {
     let iterator;
     if (filter && filter.match) {
@@ -43,7 +49,7 @@ module.exports = function(Client) {
   /**
    * Delete clients stored in cache
    * @method module:Client.deleteAll
-   * returns {array} clients - Cached clients keys
+   * @returns {array} clients - Cached clients keys
    */
   Client.deleteAll = async () => {
     try {

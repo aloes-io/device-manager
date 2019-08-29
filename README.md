@@ -9,7 +9,7 @@
 - Store devices and sensors state ( MongoDB )
 - Fast access to sensor resources ( Redis )
 - Interact with external application and share selection of devices
-- Automatically store sensors value in timeseries ( InfluxDB ) or in file
+- Automatically store sensors value in timeseries ( InfluxDB ), in file, or trigger some timers
 
 [Swagger Explorer](https://supervisor.aloes.io/explorer)
 
@@ -33,6 +33,8 @@ Application build upon :
 - Install [Redis](https://redis.io/)
 
 - Install [InfluxDB](https://www.influxdata.com/)
+
+- Install [Skyring](https://github.com/esatterwhite/skyring) to use external timers
 
 ## Folder structure
 
@@ -66,7 +68,7 @@ Access controlled by Access tokens ( set in headers ) properties and roles for U
 
 Topic pattern : +userId/+modelName/+method/[+modelId]
 
-Access controlled by ( set in mqtt password )  Access tokens for Users, and apiKey for Applications and Devices.
+Access controlled by ( set in mqtt password ) Access tokens for Users, and apiKey for Applications and Devices.
 
 ## Configuration
 
@@ -76,7 +78,6 @@ You can override these by populating `deploy` with files corresponding to an env
 ## Installation
 
 ```bash
-  $ npm install -g pm2
   $ npm install
 ```
 
@@ -86,35 +87,45 @@ You can override these by populating `deploy` with files corresponding to an env
   $ npm run lint
 ```
 
-## Running the development server (REST API)
+## Running the development server
 
 ```bash
-  $ npm run dev
+  $ npm run start:dev
 ```
 
 ## Debug
 
 ```bash
-  $ DEBUG=loopback npm run dev
+  $ DEBUG=loopback npm run start:dev
 ```
 
 [More info...](https://loopback.io/doc/en/lb3/Setting-debug-strings.html)
 
 ## Deploying project
 
-Please remember to update `.env` and / or `ecosystem.config.json` files to match your enviroment.
+Please remember to update `.env` and `ecosystem.config.js` files to match your enviroment.
+
+For example to run in local mode, create `./deploy/.env_local` using `.env_sample` as an example.
 
 ```bash
-  $ npm run start
+  $ npm run start:local
 ```
 
 ### With PM2 :
+
+- [Documentation](https://pm2.keymetrics.io/docs/usage/deployment/)
 
 - Access to server with SSH :
 
 ```bash
   $ ssh-keygen -f ~/.ssh/server_name -t rsa -C <email_address> -b 4096
   $ ssh-copy-id -i ~/.ssh/server_name user@server_uri
+```
+
+- Install PM2 globally :
+
+```bash
+  $ npm install -g pm2
 ```
 
 - Creating environment :
@@ -142,18 +153,18 @@ Be sure to commit your changes on the right branch before each setup and update:
 
 You can serve the project with a distant server by filling `deploy` folder with files corresponding to an environment ( eg: .env_docker ), and then launching this app with docker via `docker-compose up`
 
-Remember to update `*.dockerfile` to match your enviroment.
+Remember to update `*.dockerfile` to match your enviroment, if you don't use docker-compose.
 
 Creating environment :
 
 ```bash
-  $  docker-compose --compatibility build
+  $  npm run build:docker
 ```
 
 Starting container :
 
 ```bash
-  $  docker-compose --compatibility up
+  $  npm run start:docker
 ```
 
 ## To deploy with your own TLS / SSL certificates
@@ -166,10 +177,11 @@ Install your own instance : https://github.com/localtunnel/server
 
 And then install wildcards certificates with : https://certbot.eff.org/
 
+Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
+
 ## TODO
 
-- Optionnaly deploy a node-red instance per user ? (  userId.${aloesDomain} )
-- Use https://github.com/esatterwhite/skyring#master to replace DeltaTimer ( will be useful for Aloes clusters )
+- E2E tests (https://marc-ed-raffalli.github.io/en/projects/lb-declarative-e2e-test)
 - Improve file model access and backup
 - Update / improve device search engine
 - Finish account linking with github

@@ -5,21 +5,25 @@ const result = dotenv.config();
 if (result.error) {
   throw result.error;
 }
+// if !process.env.ALOES_ID process.env.ALOES_ID = uuid
+// if !process.env.ALOES_KEY process.env.ALOES_KEY = uuid
 
 module.exports = {
   apps: [
     {
-      name: `${result.parsed.NODE_NAME}-${result.parsed.NODE_ENV}`,
+      // name: `${result.parsed.NODE_NAME}-${result.parsed.NODE_ENV}`,
+      name: `device-manager`,
       script: './dist/index.js',
       interpreter: 'node',
-      output: `./log/${result.parsed.NODE_NAME}.out.log`,
-      error: `./log/${result.parsed.NODE_NAME}.error.log`,
+      output: `./log/${result.parsed.NODE_NAME}-${result.parsed.NODE_ENV}.out.log`,
+      error: `./log/${result.parsed.NODE_NAME}-${result.parsed.NODE_ENV}.error.log`,
       max_memory_restart: '1G',
       instances: result.parsed.INSTANCES_COUNT || 1,
       exec_mode: 'cluster',
-      restart_delay: 500,
+      restart_delay: 1000,
       wait_ready: false,
       listen_timeout: 3000,
+      kill_timeout: 5000,
       env: {
         NODE_ENV: result.parsed.NODE_ENV,
       },
@@ -28,6 +32,34 @@ module.exports = {
       },
       env_production: {
         NODE_ENV: 'production',
+      },
+    },
+    {
+      // name: `broker-${result.parsed.NODE_ENV}`,
+      name: `broker`,
+      script: './dist/services/broker.js',
+      interpreter: 'node',
+      max_memory_restart: '1G',
+      restart_delay: 500,
+      wait_ready: false,
+      listen_timeout: 3000,
+      kill_timeout: 2500,
+      env: {
+        NODE_ENV: result.parsed.NODE_ENV,
+      },
+    },
+    {
+      // name: `tunnel-${result.parsed.NODE_ENV}`,
+      name: `tunnel`,
+      script: './dist/services/tunnel.js',
+      interpreter: 'node',
+      max_memory_restart: '512M',
+      restart_delay: 500,
+      wait_ready: false,
+      listen_timeout: 3000,
+      kill_timeout: 1500,
+      env: {
+        NODE_ENV: result.parsed.NODE_ENV,
       },
     },
   ],

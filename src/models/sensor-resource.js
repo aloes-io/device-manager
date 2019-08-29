@@ -161,6 +161,7 @@ module.exports = function(SensorResource) {
    * @method module:SensorResource.cacheIterator
    * @param {object} filter - Key filter
    * @property {string} filter.match - glob string
+   * @returns {string} key - Cached key
    */
   SensorResource.cacheIterator = async function*(filter) {
     const iterator = SensorResource.iterateKeys(filter);
@@ -206,7 +207,7 @@ module.exports = function(SensorResource) {
    * Update device's sensors stored in cache
    * @method module:SensorResource.updateCache
    * @param {object} device - Device instance
-   * returns {array} sensor
+   * @returns {array} sensor
    */
   SensorResource.updateCache = async device => {
     try {

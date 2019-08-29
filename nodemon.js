@@ -1,4 +1,10 @@
+/* eslint-disable no-unused-vars */
 const nodemon = require('nodemon');
+const tunnel = require('./dist/services/tunnel');
+const broker = require('./dist/services/broker');
+
+// if !process.env.ALOES_ID process.env.ALOES_ID = uuid
+// if !process.env.ALOES_KEY process.env.ALOES_KEY = uuid
 
 nodemon({
   script: './dist/index.js',
@@ -15,10 +21,10 @@ nodemon
   .on('start', () => {
     console.log('App has started');
   })
-  // .on('quit', () => {
-  //   console.log('App has quit');
-  //   process.exit();
-  // })
+  .on('quit', () => {
+    console.log('App has quit');
+    //   process.exit();
+  })
   .on('restart', files => {
     console.log('App restarted due to: ', files);
   });

@@ -7,9 +7,11 @@ colors.setTheme({
   DEVICE: ['white', 'bold', 'bgBlue'],
   SENSOR: ['white', 'bold', 'bgGreen'],
   MEASUREMENT: ['white', 'bold', 'bgMagenta'],
+  SCHEDULER: ['white', 'bold', 'bgRed'],
   FILES: ['grey', 'bold', 'bgYellow'],
   LOOPBACK: ['cyan', 'bold'],
   BROKER: ['blue', 'bold'],
+  'MQTT-CLIENT': ['green', 'bold'],
   TUNNEL: ['yellow', 'bold'],
   CACHE: ['red', 'bold'],
   TRACKER: ['yellow', 'bold'],
@@ -28,7 +30,8 @@ logger.publish = (priority, collectionName, command, content) => {
   if (priority <= logLevel) {
     if (typeof content === 'object') {
       if (content instanceof Error) {
-        fullContent = content;
+        // fullContent = content;
+        fullContent = `[${collectionName.toUpperCase()}] ${content.message} `;
       } else {
         fullContent = `[${collectionName.toUpperCase()}] ${command} : ${JSON.stringify(content)}`;
       }
@@ -41,6 +44,9 @@ logger.publish = (priority, collectionName, command, content) => {
     switch (collectionName.toUpperCase()) {
       case 'BROKER':
         console.log(`${fullContent}`.BROKER);
+        break;
+      case 'MQTT-CLIENT':
+        console.log(`${fullContent}`['MQTT-CLIENT']);
         break;
       case 'TUNNEL':
         console.log(`${fullContent}`.TUNNEL);
@@ -71,6 +77,9 @@ logger.publish = (priority, collectionName, command, content) => {
         break;
       case 'MEASUREMENT':
         console.log(`${fullContent}`.MEASUREMENT);
+        break;
+      case 'SCHEDULER':
+        console.log(`${fullContent}`.SCHEDULER);
         break;
       default:
         console.log(`${fullContent}`.DEFAULT);

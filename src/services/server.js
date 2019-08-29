@@ -1,8 +1,7 @@
 import loopback from 'loopback';
 import boot from 'loopback-boot';
 //  import {ensureLoggedIn} from 'connect-ensure-login';
-import broker from './broker';
-import tunnel from './tunnel';
+import mqttClient from './mqtt-client';
 import logger from './logger';
 
 /**
@@ -11,10 +10,77 @@ import logger from './logger';
 let httpServer;
 const app = loopback();
 
+const authenticateInstance = async (client, username, password) => {
+  const Client = app.models.Client;
+  try {
+    // todo : find a way to verify in auth request, against which model authenticate
+    //  console.log("client parser", client.parser)
+    let status = false;
+    let foundClient = JSON.parse(await Client.get(client.id));
+    let successPayload = status.toString();
+
+    if (!foundClient || !foundClient.id) {
+      foundClient = { id: client.id, type: 'MQTT' };
+    }
+    const token = await app.models.accessToken.findById(password.toString());
+    if (token && token.userId && token.userId.toString() === username) {
+      status = true;
+      successPayload = token;
+      foundClient.ownerId = token.userId.toString();
+      foundClient.model = 'User';
+      console.log('OWNER MQTT CLIENT', Object.keys(foundClient));
+    }
+
+    let authentification;
+    if (!status) {
+      authentification = await app.models.Device.authenticate(username, password.toString());
+      if (authentification && authentification.device && authentification.keyType) {
+        const instance = authentification.device;
+        if (instance.devEui && instance.devEui !== null) {
+          status = true;
+          successPayload = instance;
+          foundClient.devEui = instance.devEui;
+          foundClient.model = 'Device';
+        }
+      }
+    }
+
+    if (!status) {
+      authentification = await app.models.Application.authenticate(username, password.toString());
+      if (authentification && authentification.application && authentification.keyType) {
+        const instance = authentification.application;
+        if (instance && instance.id) {
+          foundClient.appId = instance.id.toString();
+          foundClient.model = 'Application';
+          successPayload = instance;
+          status = true;
+          if (instance.appEui && instance.appEui !== null) {
+            foundClient.appEui = instance.appEui;
+          }
+        }
+      }
+    }
+
+    if (status) {
+      if (!successPayload) {
+        successPayload = status.toString();
+      }
+      const ttl = 1 * 60 * 60 * 1000;
+      client.user = username;
+      foundClient.user = username;
+      await Client.set(client.id, JSON.stringify(foundClient), ttl);
+    }
+
+    return { client: foundClient, status, payload: successPayload };
+  } catch (error) {
+    return error;
+  }
+};
+
 /**
  * Init HTTP server with new Loopback instance
  *
- * Init external services ( MQTT broker, tunnel )
+ * Init external services ( MQTT broker )
  * @method module:Server.start
  * @param {object} config - Parsed env variables
  * @fires module:app.started
@@ -23,11 +89,20 @@ const app = loopback();
 app.start = async config => {
   try {
     app.set('originUrl', config.HTTP_SERVER_URL);
-    app.set('url', config.HTTP_SERVER_URL);
+    let baseUrl = `${config.HTTP_SERVER_URL}`;
+    if (config.TUNNEL_HOST) {
+      if (config.TUNNEL_SECURE) {
+        baseUrl = `https://${config.NODE_NAME}-${config.NODE_ENV}.${config.TUNNEL_HOST}`;
+      } else {
+        baseUrl = `http://${config.NODE_NAME}-${config.NODE_ENV}.${config.TUNNEL_HOST}`;
+      }
+    }
+    app.set('url', baseUrl);
     app.set('host', config.HTTP_SERVER_HOST);
     app.set('port', Number(config.HTTP_SERVER_PORT));
     //  app.set('cookieSecret', config.COOKIE_SECRET);
-    logger.publish(2, 'loopback', 'start', `${app.get('host')}:${app.get('port')}`);
+    // logger.publish(2, 'loopback', 'start', `${app.get('host')}:${app.get('port')}`);
+    logger.publish(2, 'loopback', 'start', `${app.get('url')}`);
 
     // app.use(
     //   loopback.token({
@@ -38,6 +113,7 @@ app.start = async config => {
     httpServer = app.listen(() => {
       app.emit('started');
 
+      // EXTERNAL AUTH TESTS
       //  app.get('/auth/account', ensureLoggedIn('/login'), (req, res, next) => {
       app.get('/auth/account', (req, res, next) => {
         console.log('auth/account', req.url);
@@ -66,14 +142,25 @@ app.start = async config => {
         res.end();
         next();
       });
+
+      app.post('/api/auth/mqtt', async (req, res, next) => {
+        try {
+          console.log('auth/mqtt', req.url, req.body);
+          const client = req.body.client;
+          const username = req.body.username;
+          const password = req.body.password;
+          const result = await authenticateInstance(client, username, password);
+          res.set('Access-Control-Allow-Origin', '*');
+          res.json(result);
+          return next();
+        } catch (error) {
+          return next(error);
+        }
+      });
     });
 
-    if (config.TUNNEL_URL) {
-      await tunnel.init(app, config);
-    }
-
     if (config.MQTT_BROKER_URL) {
-      await broker.init(app, httpServer, config);
+      await mqttClient.init(app, config);
     }
 
     return httpServer;
@@ -86,23 +173,19 @@ app.start = async config => {
 /**
  * Close the app and services
  * @method module:Server.stop
- * @fires module:app.stopped
  */
-app.stop = async signal => {
+app.stop = async () => {
   try {
-    logger.publish(2, 'loopback', 'stop', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
-    await broker.stop(app);
-    if (app.tunnel) {
-      await tunnel.stop(app);
+    httpServer.close();
+    if (process.env.MQTT_BROKER_URL) {
+      await mqttClient.stop();
     }
-    await app.models.Device.syncCache();
-    return setTimeout(() => {
-      app.emit('stopped', signal);
-      httpServer.close(err => {
-        if (err) throw err;
-      });
-      return true;
-    }, 2000);
+    await app.models.Device.updateAll({ status: true }, { status: false, clients: [] });
+    await app.models.Application.updateAll({ status: true }, { status: false, clients: [] });
+    await app.models.Client.deleteAll();
+    await app.models.Device.syncCache('UP');
+    logger.publish(2, 'loopback', 'stopped', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
+    return true;
   } catch (error) {
     logger.publish(2, 'loopback', 'stop:err', error);
     return error;
@@ -114,32 +197,18 @@ app.stop = async signal => {
  * @method module:Server.publish
  * @fires module:app.publish
  */
-app.publish = (topic, payload, retain = false, qos = 0) =>
-  app.emit('publish', topic, payload, retain, qos);
-
-app.on('publish', async (topic, payload, retain, qos) => {
+app.publish = async (topic, payload, retain = false, qos = 0) => {
   try {
-    if (typeof payload === 'boolean') {
-      payload = payload.toString();
-    } else if (typeof payload === 'number') {
-      payload = payload.toString();
-    } else if (typeof payload === 'object') {
-      //  console.log('publish buffer ?', payload instanceof Buffer);
-      payload = JSON.stringify(payload);
-    }
-    logger.publish(5, 'broker', 'publish:topic', topic);
-    if (!app.broker) throw new Error('MQTT Broker unavailable');
-    // todo add messages to queue Collection ?
-    return app.broker.publish({
-      topic,
-      payload,
-      retain,
-      qos,
-    });
+    await mqttClient.publish(topic, payload, retain, qos);
+    return true;
   } catch (error) {
     return error;
   }
-});
+};
+
+app.on('publish', async (topic, payload, retain = false, qos = 0) =>
+  app.publish(topic, payload, retain, qos),
+);
 
 /**
  * Bootstrap the application, configure models, datasources and middleware.
@@ -154,9 +223,6 @@ app.init = async config => {
       // File Extensions for jest (strongloop/loopback#3204)
       scriptExtensions: config.scriptExtensions,
     };
-    // await boot(app, options, err => {
-    //   if (err) throw err;
-    // });
     await boot(app, options);
     //  logger.publish(4, 'loopback', 'init:res', state);
     //  if (require.main === module) {

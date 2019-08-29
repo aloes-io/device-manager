@@ -118,7 +118,7 @@ module.exports = function(Sensor) {
    * @param {object} sensor - Sensor instance
    * @param {string} [method] - MQTT API method
    * @param {object} [client] - MQTT client target
-   * returns {function} Sensor.app.publish()
+   * @returns {function} Sensor.app.publish()
    */
   Sensor.publish = async (device, sensor, method, client) => {
     try {
@@ -153,13 +153,15 @@ module.exports = function(Sensor) {
             nativePacket.payload !== null &&
             nativePacket.topic.search(sensor.inPrefix) !== -1
           ) {
-            console.log('NATIVE PACKET', nativePacket.payload, nativePacket.topic);
+            logger.publish(4, `${collectionName}`, 'publish:res', {
+              nativeTopic: nativePacket.topic,
+            });
             await Sensor.app.publish(nativePacket.topic, nativePacket.payload, false, 0);
           }
         }
 
         if (device.appIds && device.appIds.length > 0) {
-          await device.appIds.map(async appId => {
+          const promises = await device.appIds.map(async appId => {
             try {
               const parts = packet.topic.split('/');
               parts[0] = appId;
@@ -170,7 +172,9 @@ module.exports = function(Sensor) {
               return error;
             }
           });
+          await Promise.all(promises);
         }
+        // console.log('payload', typeof packet.payload);
         return Sensor.app.publish(packet.topic, packet.payload, false, 0);
       }
       throw new Error('Invalid MQTT Packet encoding');
@@ -306,7 +310,7 @@ module.exports = function(Sensor) {
    * @param {string} sensorType - OMA object Id
    * @param {number} resource - OMA resource ID
    * @param {string} type - OMA resource type
-   * returns {string} method
+   * @returns {string} method
    */
   const getPersistingMethod = (sensorType, resource, type) => {
     try {
@@ -475,7 +479,7 @@ module.exports = function(Sensor) {
    * @param {object} device - Device instance
    * @param {object} sensor - Sensor instance
    * @param {object} [client] - MQTT client
-   * returns {object} result - saved value
+   * @returns {object} result - saved value
    */
   const persistingResource = async (device, sensor, client) => {
     try {
@@ -547,28 +551,27 @@ module.exports = function(Sensor) {
       if (resourceValue === undefined || resourceKey === undefined || resourceKey === null) {
         throw new Error('Missing Sensor key/value');
       }
+
       const SensorResource = Sensor.app.models.SensorResource;
       if (sensor.id) {
         let updatedSensor = await SensorResource.getCache(sensor.deviceId, sensor.id);
         if (!updatedSensor || !updatedSensor.id) throw new Error('Sensor not found');
-
-        // sensor.resources = { ...updatedSensor.resources, ...sensor.resources };
         sensor.resources = { ...sensor.resources, ...updatedSensor.resources };
         updatedSensor = { ...updatedSensor, ...sensor };
-
         updatedSensor = await updateAloesSensors(updatedSensor, Number(resourceKey), resourceValue);
         logger.publish(4, `${collectionName}`, 'createOrUpdate:res', {
           inType: typeof resourceValue,
           outType: typeof updatedSensor.resources[updatedSensor.resource],
-          // outType: typeof updatedSensor.value,
         });
 
         updatedSensor.frameCounter += 1;
-        //  if (typeof updatedSensor.lastSignal === "string")
+        // updatedSensor.value = null; free sensor space ?
+
         const lastSignal = new Date(updatedSensor.lastSignal).getTime();
         if (!updatedSensor.lastSync) {
           updatedSensor.lastSync = lastSignal;
         }
+
         const result = await persistingResource(device, updatedSensor, client);
         if (result && result.sensor) {
           updatedSensor = result.sensor;
@@ -685,7 +688,7 @@ module.exports = function(Sensor) {
           break;
         case 'GET':
           sensor = await Sensor.getInstance(device, sensor);
-          await Sensor.publish(device, sensor, 'GET', client);
+          await Sensor.publish(device, sensor, 'POST', client);
           break;
         case 'POST':
           await Sensor.createOrUpdate(device, sensor, sensor.resource, sensor.value, client);
@@ -871,6 +874,4 @@ module.exports = function(Sensor) {
       return error;
     }
   });
-  // future methods
-  // Sensor.cleanResources
 };

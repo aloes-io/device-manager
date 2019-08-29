@@ -109,7 +109,7 @@ module.exports = function(Measurement) {
    * @param {object} measurement - Measurement instance
    * @param {string} [method] - MQTT method
    * @param {object} [client] - MQTT client target
-   * returns {function} Measurement.app.publish()
+   * @returns {function} Measurement.app.publish()
    */
   Measurement.publish = async (device, measurement, method) => {
     try {

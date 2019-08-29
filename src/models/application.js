@@ -33,7 +33,7 @@ module.exports = Application => {
    * @method module:Application.publish
    * @param {object} application - Application instance
    * @param {object} [client] - MQTT client target
-   * returns {function} Application.app.publish()
+   * @returns {function} Application.app.publish()
    */
   Application.publish = async (application, method, client) => {
     try {
@@ -70,7 +70,7 @@ module.exports = Application => {
    * Keys creation helper - update application attributes
    * @method module:Application~createKeys
    * @param {object} application - Application instance
-   * returns {object} application
+   * @returns {object} application
    */
   const createKeys = async application => {
     try {
@@ -164,7 +164,7 @@ module.exports = Application => {
    * @param {object} ctx - Application context
    * @param {object} ctx.req - HTTP request
    * @param {object} ctx.res - HTTP response
-   * returns {function} module:Device.publish
+   * @returns {function} module:Device.publish
    */
   const createProps = async ctx => {
     try {
@@ -187,7 +187,7 @@ module.exports = Application => {
    * @param {object} ctx - Application context
    * @param {object} ctx.req - HTTP request
    * @param {object} ctx.res - HTTP response
-   * returns {function} module:Application.publish
+   * @returns {function} module:Application.publish
    */
   const updateProps = async ctx => {
     try {

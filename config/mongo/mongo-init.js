@@ -7,7 +7,7 @@ db.createUser({
   roles: [
     {
       role: 'readWrite',
-      db: 'aloes_local',
+      db: 'aloes_stage',
     },
   ],
 });

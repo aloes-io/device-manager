@@ -37,9 +37,14 @@ app.on('started', () => {
   //  process.send('ready');
 });
 
-app.on('stopped', signal => {
-  logger.publish(4, 'loopback', 'stopped', signal);
-  setTimeout(() => process.exit(0), 5000);
+app.on('stopped', async signal => {
+  try {
+    await app.stop(signal);
+    logger.publish(4, 'loopback', 'stop', signal);
+    return true;
+  } catch (error) {
+    return error;
+  }
 });
 
 const boot = async () => {
@@ -68,24 +73,24 @@ const boot = async () => {
 
 boot();
 
-process.on('exit', exitCode => {
-  logger.publish(4, 'process', 'exited', exitCode);
-});
-
+/**
+ * Watch for interrupt signal
+ * @fires module:app.stopped
+ */
 nodeCleanup((exitCode, signal) => {
   try {
     if (signal && signal !== null) {
       logger.publish(4, 'process', 'exit:req', { exitCode, signal, pid: process.pid });
-      app.stop(signal, err => {
-        if (err) throw err;
-      });
-      nodeCleanup.uninstall(); // don't call cleanup handler again
+      app.emit('stopped', signal);
+      setTimeout(() => process.kill(process.pid, signal), 3000);
+      nodeCleanup.uninstall();
       return false;
     }
     return true;
   } catch (error) {
     logger.publish(4, 'process', 'exit:err', error);
-    process.exit(1);
+    //  setTimeout(() => process.exit(1), 3000);
+    setTimeout(() => process.kill(process.pid, signal), 3000);
     return error;
   }
 });
