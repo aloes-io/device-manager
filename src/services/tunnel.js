@@ -15,6 +15,7 @@ const initTunnel = async () => {
     if (result.error) {
       throw result.error;
     }
+
     if (result.parsed.TUNNEL_HOST) {
       const host = result.parsed.TUNNEL_SECURE
         ? `https://${result.parsed.TUNNEL_HOST}`
@@ -41,6 +42,7 @@ const initTunnel = async () => {
     }
     return null;
   } catch (error) {
+    console.log('Tunnel init:err', error);
     return error;
   }
 };
