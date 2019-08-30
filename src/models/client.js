@@ -66,4 +66,13 @@ module.exports = function(Client) {
       return error;
     }
   };
+
+  Client.on('stopped', async () => {
+    try {
+      await Client.deleteAll();
+      return true;
+    } catch (error) {
+      return error;
+    }
+  });
 };

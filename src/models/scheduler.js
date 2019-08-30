@@ -722,8 +722,8 @@ module.exports = function(Scheduler) {
           lastTime: +new Date(),
           timerId,
         };
-        logger.publish(4, `${collectionName}`, 'setExternalClock:res', { scheduler });
         await Scheduler.set(schedulerClockId, JSON.stringify(scheduler));
+        logger.publish(4, `${collectionName}`, 'setExternalClock:res', { scheduler });
       }
       return scheduler;
     } catch (error) {
@@ -764,10 +764,30 @@ module.exports = function(Scheduler) {
       }
       return Scheduler.setInternalClock(interval);
     } catch (error) {
-      console.log('setClock:err', error);
       return error;
     }
   };
 
-  Scheduler.once('attached', () => setTimeout(() => Scheduler.setClock(clockInterval), 2000));
+  Scheduler.delClock = async () => {
+    try {
+      if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
+        const schedulerClockId = `scheduler-clock`;
+        return Scheduler.delete(schedulerClockId);
+      }
+      return Scheduler.timer.stop();
+    } catch (error) {
+      return error;
+    }
+  };
+
+  Scheduler.once('attached', () => setTimeout(() => Scheduler.setClock(clockInterval), 2500));
+
+  Scheduler.on('stopped', async () => {
+    try {
+      await Scheduler.deleteAll();
+      return true;
+    } catch (error) {
+      return error;
+    }
+  });
 };

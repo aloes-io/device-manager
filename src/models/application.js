@@ -498,6 +498,15 @@ module.exports = Application => {
     }
   });
 
+  Application.on('stopped', async () => {
+    try {
+      await Application.updateAll({ status: true }, { status: false, clients: [] });
+      return true;
+    } catch (error) {
+      return error;
+    }
+  });
+
   /**
    * Event reporting that an application instance will be created or updated.
    * @event before save

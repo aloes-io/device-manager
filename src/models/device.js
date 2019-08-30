@@ -792,6 +792,16 @@ module.exports = function(Device) {
     }
   });
 
+  Device.on('stopped', async () => {
+    try {
+      await Device.updateAll({ status: true }, { status: false, clients: [] });
+      await Device.syncCache('UP');
+      return true;
+    } catch (error) {
+      return error;
+    }
+  });
+
   /**
    * Event reporting that a device instance will be created or updated.
    * @event before save

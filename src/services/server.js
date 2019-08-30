@@ -180,10 +180,10 @@ app.stop = async () => {
     if (process.env.MQTT_BROKER_URL) {
       await mqttClient.stop();
     }
-    await app.models.Device.updateAll({ status: true }, { status: false, clients: [] });
-    await app.models.Application.updateAll({ status: true }, { status: false, clients: [] });
-    await app.models.Client.deleteAll();
-    await app.models.Device.syncCache('UP');
+    app.models.Scheduler.emit('stopped');
+    app.models.Device.emit('stopped');
+    app.models.Application.emit('stopped');
+    app.models.Client.emit('stopped');
     logger.publish(2, 'loopback', 'stopped', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
     return true;
   } catch (error) {
