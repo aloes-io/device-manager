@@ -230,7 +230,10 @@ module.exports = function(Scheduler) {
     try {
       if (!process.env.EXTERNAL_TIMER || !process.env.TIMER_BASE_URL) return null;
       logger.publish(4, `${collectionName}`, 'startExternalTimer:req', scheduler);
-      const baseUrl = Scheduler.app.get('url');
+      let baseUrl = Scheduler.app.get('url');
+      if (!baseUrl) {
+        baseUrl = process.env.HTTP_SERVER_URL;
+      }
       const timer = {
         timeout: scheduler.timeOut,
         data: {
@@ -637,7 +640,10 @@ module.exports = function(Scheduler) {
       // const deltaTime = thisTime - scheduler.lastTime;
       // const interval = Math.max(clockInterval - deltaTime, 0);
       // console.log('TIMER interval:', deltaTime, interval);
-      const baseUrl = Scheduler.app.get('url');
+      let baseUrl = Scheduler.app.get('url');
+      if (!baseUrl) {
+        baseUrl = process.env.HTTP_SERVER_URL;
+      }
       const timer = {
         timeout: clockInterval,
         data: body,
@@ -693,7 +699,10 @@ module.exports = function(Scheduler) {
         scheduler = {};
       }
 
-      const baseUrl = Scheduler.app.get('url');
+      let baseUrl = Scheduler.app.get('url');
+      if (!baseUrl) {
+        baseUrl = process.env.HTTP_SERVER_URL;
+      }
       const timer = {
         timeout: interval,
         data: { name: schedulerClockId, secret: process.env.SESSION_SECRET },
