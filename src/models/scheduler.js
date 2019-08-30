@@ -712,6 +712,7 @@ module.exports = function(Scheduler) {
           uri: `${baseUrl}${process.env.REST_API_ROOT}/${collectionName}s/on-tick`,
         },
       };
+      logger.publish(4, `${collectionName}`, 'setExternalClock:callback', timer.callback.uri);
 
       const response = await createTimer(timer);
       if (response && response.location && response.location.split('/')) {

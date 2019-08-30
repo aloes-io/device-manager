@@ -22,14 +22,14 @@ module.exports = {
       },
     ],
   },
-  // redis: {
-  //   name: 'redis',
-  //   connector: 'redis',
-  //   db: process.env.REDIS_COLLECTION || 'ymc',
-  //   host: process.env.REDIS_HOST || 'localhost',
-  //   port: Number(process.env.REDIS_PORT) || 6379,
-  //   password: process.env.REDIS_PASS || '',
-  // },
+  cache: {
+    db: process.env.REDIS_COLLECTIONS || '3',
+    host: process.env.REDIS_HOST || 'localhost',
+    port: Number(process.env.REDIS_PORT) || 6379,
+    name: 'cache',
+    connector: 'kv-redis',
+    lazyConnect: true,
+  },
   storage: {
     name: 'storage',
     connector: 'loopback-component-storage',

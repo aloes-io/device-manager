@@ -54,6 +54,62 @@ module.exports = {
     maxRetries: 5,
     timePrecision: 'ms',
   },
+  timer: {
+    name: 'timer',
+    connector: 'rest',
+    baseURL: process.env.TIMER_BASE_URL || 'http://localhost:8080/timer',
+    debug: true,
+    options: {
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      strictSSL: false,
+    },
+    operations: [
+      {
+        template: {
+          method: 'POST',
+          url: `${process.env.TIMER_BASE_URL || 'http://localhost:8080/timer'}`,
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+          body: '{instance}',
+        },
+        functions: {
+          create: ['instance'],
+        },
+      },
+      {
+        template: {
+          method: 'PUT',
+          url: `${process.env.TIMER_BASE_URL || 'http://localhost:8080/timer'}/{timerId}`,
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+          body: '{instance}',
+        },
+        functions: {
+          updateById: ['timerId', 'instance'],
+        },
+      },
+      {
+        template: {
+          method: 'DELETE',
+          url: `${process.env.TIMER_BASE_URL || 'http://localhost:8080/timer'}/{timerId}`,
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+        },
+        functions: {
+          deleteById: ['timerId'],
+        },
+      },
+    ],
+  },
   storage: {
     name: 'storage',
     connector: 'loopback-component-storage',

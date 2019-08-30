@@ -54,7 +54,7 @@ module.exports = {
       script: './dist/services/tunnel.js',
       interpreter: 'node',
       max_memory_restart: '512M',
-      min_uptime: "10s",
+      min_uptime: '10s',
       max_restarts: 3,
       restart_delay: 5000,
       wait_ready: false,
