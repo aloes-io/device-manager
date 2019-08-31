@@ -217,7 +217,6 @@ mqttClient.init = (app, config) => {
         if (payload.type && payload.data) {
           payload = Buffer.from(payload);
           // payload = Buffer.from(payload).toString();
-          console.log('setInstance payload res', payload);
           // payload = JSON.parse(Buffer.from(payload.data).toString());
         }
         // else {
@@ -226,13 +225,12 @@ mqttClient.init = (app, config) => {
         // }
       }
       logger.publish(4, 'mqtt-client', 'setInstancePayload:res', typeof payload);
-      console.log('outgoing payload', payload);
       return payload;
     } catch (error) {
       logger.publish(4, 'mqtt-client', 'setInstancePayload:err', typeof payload);
       if (typeof payload === 'string') {
         payload = Buffer.from(payload, 'binary');
-        console.log('outgoing payload', payload);
+        // console.log('outgoing payload', payload);
       }
       return payload;
     }

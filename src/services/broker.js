@@ -447,7 +447,8 @@ broker.start = () => {
         if (client.user && !client.aloesId) {
           const foundClient = getClient(client);
           const aloesClients = await broker.getClients(`aloes-${process.env.ALOES_ID}/sync`);
-          // console.log('broker aloes clients : ', aloesClients);
+          console.log('mqtt client source: ', foundClient);
+          console.log('mqtt client targets: ', aloesClients);
           if (!aloesClients || aloesClients === null) {
             throw new Error('No Aloes client connected');
           }
@@ -457,7 +458,7 @@ broker.start = () => {
           // check packet payload type to preformat before stringify
           if (client.devEui) {
             // packet.payload = packet.payload.toString('binary');
-          } else if (client.ownerId) {
+          } else if (client.ownerId || client.appId) {
             packet.payload = JSON.parse(packet.payload.toString());
           }
           packet.payload = Buffer.from(
