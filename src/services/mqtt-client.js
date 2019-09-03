@@ -54,8 +54,8 @@ mqttClient.init = (app, config) => {
       logger.publish(4, 'mqtt-client', 'connect:req', packet);
       app.clientId = clientId;
       await mqttClient.instance.subscribe(`aloes-${process.env.ALOES_ID}/sync`, {
-        qos: 0,
-        retain: false,
+        qos: 2,
+        retain: true,
       });
       await mqttClient.instance.subscribe(`${clientId}/status`, {
         qos: 0,

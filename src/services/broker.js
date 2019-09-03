@@ -95,6 +95,11 @@ broker.getClients = topic =>
       });
   });
 
+broker.cleanSubscriptions = client =>
+  new Promise((resolve, reject) => {
+    broker.persistence.cleanSubscriptions(client, (err, res) => (err ? reject(err) : resolve(res)));
+  });
+
 broker.publish = packet => {
   try {
     if (typeof packet.payload === 'boolean') {
@@ -146,14 +151,18 @@ const updateClientStatus = async (client, status) => {
       if (!aloesClients || aloesClients === null) {
         throw new Error('No Aloes client connected');
       }
-      // if (client.aloesId) {
-      //   const index = broker.aloesClients.indexOf(client.id);
-      //   if (status && index === -1) {
-      //     broker.aloesClients.push(client.id);
-      //   } else if (!status && index > -1) {
-      //     broker.aloesClients.splice(index, 1);
-      //   }
-      // }
+      if (client.aloesId) {
+        if (!status) {
+          await broker.cleanSubscriptions(client);
+        }
+
+        //   const index = broker.aloesClients.indexOf(client.id);
+        //   if (status && index === -1) {
+        //     broker.aloesClients.push(client.id);
+        //   } else if (!status && index > -1) {
+        //     broker.aloesClients.splice(index, 1);
+        //   }
+      }
       if (!client.aloesId) {
         const aloesClientId = aloesClients[Math.floor(Math.random() * aloesClients.length)];
         if (!aloesClientId || aloesClientId === null) {
