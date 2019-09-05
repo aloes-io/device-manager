@@ -18,6 +18,7 @@ const timers = {};
 module.exports = function(Scheduler) {
   const collectionName = 'Scheduler';
   const clockInterval = 5000;
+  const schedulerClockId = `scheduler-clock`;
 
   Scheduler.disableRemoteMethodByName('get');
   Scheduler.disableRemoteMethodByName('set');
@@ -691,10 +692,13 @@ module.exports = function(Scheduler) {
 
   Scheduler.setExternalClock = async interval => {
     try {
-      const schedulerClockId = `scheduler-clock`;
       let scheduler = JSON.parse(await Scheduler.get(schedulerClockId));
       logger.publish(4, `${collectionName}`, 'setExternalClock:req', interval);
-      if (scheduler && scheduler.timerId) return scheduler;
+      if (scheduler && scheduler.timerId) {
+        if (scheduler.stopTime > Date.now()) {
+          return scheduler;
+        }
+      }
       if (!scheduler || scheduler === null) {
         scheduler = {};
       }
@@ -731,13 +735,26 @@ module.exports = function(Scheduler) {
     }
   };
 
-  Scheduler.setInternalClock = async interval => {
+  const checkExternalClock = async () => {
+    try {
+      const scheduler = JSON.parse(await Scheduler.get(schedulerClockId));
+      logger.publish(4, `${collectionName}`, 'checkExternalClock:req', typeof scheduler);
+      if (scheduler && scheduler.timerId && scheduler.stopTime > Date.now()) {
+        return scheduler;
+      }
+      return Scheduler.setExternalClock(clockInterval);
+    } catch (error) {
+      return error;
+    }
+  };
+
+  Scheduler.setInternalClock = async (callback, interval) => {
     try {
       logger.publish(4, `${collectionName}`, 'setInternalClock:req', interval);
       if (Scheduler.timer && Scheduler.timer !== null) {
         Scheduler.timer.stop();
       }
-      Scheduler.timer = new DeltaTimer(onTick, {}, interval);
+      Scheduler.timer = new DeltaTimer(callback, {}, interval);
       Scheduler.start = Scheduler.timer.start();
       logger.publish(4, `${collectionName}`, 'setInternalClock:res', Scheduler.start);
       return Scheduler.timer;
@@ -758,36 +775,21 @@ module.exports = function(Scheduler) {
    * @returns {functions} setInternalClock
    */
   Scheduler.setClock = async interval => {
-    try {
-      if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
-        return Scheduler.setExternalClock(interval);
-      }
-      return Scheduler.setInternalClock(interval);
-    } catch (error) {
-      return error;
+    if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
+      await Scheduler.setExternalClock(interval);
+      return Scheduler.setInternalClock(checkExternalClock, interval * 2);
     }
+    return Scheduler.setInternalClock(onTick, interval);
   };
 
   Scheduler.delClock = async () => {
-    try {
-      if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
-        const schedulerClockId = `scheduler-clock`;
-        return Scheduler.delete(schedulerClockId);
-      }
-      return Scheduler.timer.stop();
-    } catch (error) {
-      return error;
+    if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
+      return Scheduler.delete(schedulerClockId);
     }
+    return Scheduler.timer.stop();
   };
 
   Scheduler.once('attached', () => setTimeout(() => Scheduler.setClock(clockInterval), 2500));
 
-  Scheduler.on('stopped', async () => {
-    try {
-      await Scheduler.deleteAll();
-      return true;
-    } catch (error) {
-      return error;
-    }
-  });
+  Scheduler.on('stopped', async () => Scheduler.deleteAll());
 };

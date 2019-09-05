@@ -55,7 +55,7 @@ mqttClient.init = (app, config) => {
       app.clientId = clientId;
       await mqttClient.instance.subscribe(`aloes-${process.env.ALOES_ID}/sync`, {
         qos: 2,
-        retain: true,
+        retain: false,
       });
       await mqttClient.instance.subscribe(`${clientId}/status`, {
         qos: 0,
@@ -324,6 +324,11 @@ mqttClient.publish = async (topic, payload, retain = false, qos = 0) => {
 
 mqttClient.stop = async () => {
   try {
+    await mqttClient.instance.unsubscribe(`aloes-${process.env.ALOES_ID}/sync`);
+    if (mqttClient.id) {
+      await mqttClient.instance.unsubscribe(`${mqttClient.id}/status`);
+      await mqttClient.instance.unsubscribe(`${mqttClient.id}/rx/#`);
+    }
     await mqttClient.instance.end();
     logger.publish(2, 'mqtt-client', 'stopped', mqttClient.id);
     return true;

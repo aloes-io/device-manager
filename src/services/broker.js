@@ -84,7 +84,7 @@ broker.getClients = topic =>
         try {
           clients.push(client);
         } catch (error) {
-          resolve(error);
+          reject(error);
         }
       })
       .on('end', () => {
@@ -456,7 +456,7 @@ broker.start = () => {
         if (client.user && !client.aloesId) {
           const foundClient = getClient(client);
           const aloesClients = await broker.getClients(`aloes-${process.env.ALOES_ID}/sync`);
-          console.log('mqtt client source: ', foundClient);
+          // console.log('mqtt client source: ', foundClient);
           console.log('mqtt client targets: ', aloesClients);
           if (!aloesClients || aloesClients === null) {
             throw new Error('No Aloes client connected');

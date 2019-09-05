@@ -866,12 +866,8 @@ module.exports = function(Sensor) {
   });
 
   Sensor.afterRemoteError('*', async ctx => {
-    try {
-      logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
-      // publish on collectionName/ERROR
-      return ctx;
-    } catch (error) {
-      return error;
-    }
+    logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
+    // publish on collectionName/ERROR
+    return ctx;
   });
 };
