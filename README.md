@@ -68,7 +68,7 @@ Access controlled by Access tokens ( set in headers ) properties and roles for U
 
 Topic pattern : +userId/+modelName/+method/[+modelId]
 
-Access controlled by ( set in mqtt password ) Access tokens for Users, and apiKey for Applications and Devices.
+Access controlled ( set in mqtt password ) by Access tokens for Users, and API Key for Applications and Devices.
 
 ## Configuration
 
@@ -181,7 +181,6 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 ## TODO
 
-- E2E tests (https://marc-ed-raffalli.github.io/en/projects/lb-declarative-e2e-test)
 - Improve file model access and backup
 - Update / improve device search engine
 - Finish account linking with github

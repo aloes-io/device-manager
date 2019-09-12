@@ -16,6 +16,12 @@ import logger from './logger';
  */
 const broker = {};
 
+/**
+ * HTTP request to Aloes to validate credentials
+ * @method module:Broker.authenticate
+ * @param {object} data - Client instance
+ * @returns {Promise}
+ */
 broker.authenticate = data => {
   const options = {
     hostname: process.env.HTTP_SERVER_HOST,
@@ -75,6 +81,12 @@ broker.authenticate = data => {
   });
 };
 
+/**
+ * Find in cache client ids subscribed to a specific topic pattern
+ * @method module:Broker.getClients
+ * @param {string} topic - Topic pattern
+ * @returns {Promise}
+ */
 broker.getClients = topic =>
   new Promise((resolve, reject) => {
     const stream = broker.persistence.getClientList(topic);
@@ -95,11 +107,23 @@ broker.getClients = topic =>
       });
   });
 
+/**
+ * Remove subscriptions for a specific client
+ * @method module:Broker.getClients
+ * @param {object} client - MQTT client
+ * @returns {Promise}
+ */
 broker.cleanSubscriptions = client =>
   new Promise((resolve, reject) => {
     broker.persistence.cleanSubscriptions(client, (err, res) => (err ? reject(err) : resolve(res)));
   });
 
+/**
+ * Convert payload before publish
+ * @method module:broker.publish
+ * @param {object} packet - MQTT Packet
+ * @returns {functions} broker.instance.publish(packet)
+ */
 broker.publish = packet => {
   try {
     if (typeof packet.payload === 'boolean') {
@@ -115,6 +139,7 @@ broker.publish = packet => {
         packet.payload = Buffer.from(packet.payload);
       }
     }
+    logger.publish(4, 'broker', 'publish:res', { topic: packet.topic });
     return broker.instance.publish(packet);
   } catch (error) {
     return error;
@@ -186,10 +211,10 @@ const updateClientStatus = async (client, status) => {
 };
 
 /**
- * Setup broker functions
+ * Setup broker connection
  * @method module:Broker.start
  * @param {object} app - Loopback app
- * @returns {object} app.broker
+ * @returns {boolean} status
  */
 broker.start = () => {
   try {
@@ -443,8 +468,8 @@ broker.start = () => {
           const topicParts = packet.topic.split('/');
           if (topicParts[1] === 'tx') {
             packet.topic = topicParts.slice(2, topicParts.length).join('/');
-            packet.retain = false;
-            packet.qos = 0;
+            // packet.retain = false;
+            // packet.qos = 0;
             // console.log('broker, reformatted packet to instance', packet);
             broker.publish(packet);
           } else if (topicParts[1] === 'sync') {
@@ -473,8 +498,8 @@ broker.start = () => {
           packet.payload = Buffer.from(
             JSON.stringify({ payload: packet.payload, client: foundClient }),
           );
-          packet.retain = false;
-          packet.qos = 0;
+          // packet.retain = false;
+          // packet.qos = 0;
           broker.publish(packet);
           return cb();
         }
@@ -540,10 +565,10 @@ broker.start = () => {
     //   console.log("Delivered", packet, client.id);
     // });
 
-    return broker.instance;
+    return true;
   } catch (error) {
-    //  logger.publish(2, 'broker', 'start:err', error);
-    return error;
+    logger.publish(2, 'broker', 'start:err', error);
+    return false;
   }
 };
 
@@ -572,7 +597,7 @@ broker.stop = () => {
     return true;
   } catch (error) {
     logger.publish(2, 'broker', 'stop:err', error);
-    return error;
+    return false;
   }
 };
 
@@ -718,7 +743,7 @@ broker.init = () => {
     return broker.start();
   } catch (error) {
     logger.publish(2, 'broker', 'init:err', error);
-    return error;
+    return false;
   }
 };
 
@@ -739,7 +764,7 @@ nodeCleanup((exitCode, signal) => {
   } catch (error) {
     logger.publish(4, 'process', 'exit:err', error);
     setTimeout(() => process.kill(process.pid, signal), 2500);
-    return error;
+    return false;
   }
 });
 

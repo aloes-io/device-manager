@@ -9,7 +9,7 @@
   "properties": {
     "name": {
       "type": "string",
-      "required": false,
+      "required": true,
       "description": "example Digital Input"
     },
     "type": {
@@ -156,9 +156,27 @@
     {
       "accessType": "*",
       "principalType": "ROLE",
+      "principalId": "admin",
+      "permission": "ALLOW",
+      "property": [
+        "create",
+        "find",
+        "findById",
+        "patchAttributes",
+        "updateAttributes",
+        "replaceAttributes",
+        "replaceById",
+        "destroyById",
+        "deleteById",
+        "delete"
+      ]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
       "principalId": "$authenticated",
       "permission": "ALLOW",
-      "property": ["exists", "find", "findById", "__get__measurements"]
+      "property": ["create", "exists", "findById", "__get__measurements"]
     },
     {
       "accessType": "*",
@@ -166,16 +184,15 @@
       "principalId": "$owner",
       "permission": "ALLOW",
       "property": [
-        "replaceById",
         "destroyById",
         "deleteById",
         "replaceOrCreate",
+        "replaceById",
         "updateById",
         "updateAttributes",
         "patchAttributes",
         "upsert",
         "exists",
-        "find",
         "findById",
         "delete",
         "__get__measurements",

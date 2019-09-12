@@ -56,9 +56,6 @@
     "loopback#urlNotFound": {}
   },
   "final:after": {
-    "./middleware/log-error": {
-      "params": { "enabled": false }
-    },
     "strong-error-handler": {
       "params": {
         "debug": false,

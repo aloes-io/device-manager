@@ -1,5 +1,5 @@
 import colors from 'colors';
-import utils from './utils';
+import mqttClient from './mqtt-client';
 
 colors.setTheme({
   USER: ['grey', 'underline'],
@@ -21,7 +21,7 @@ colors.setTheme({
 });
 
 const logger = {};
-//  const remoteLog = false;
+const remoteLog = false;
 
 logger.publish = (priority, collectionName, command, content) => {
   const logLevel = Number(process.env.SERVER_LOGGER_LEVEL) || 4;
@@ -85,19 +85,17 @@ logger.publish = (priority, collectionName, command, content) => {
         console.log(`${fullContent}`.DEFAULT);
     }
 
-    // if (remoteLog === true) {
-    //   pubsub.publish(loopback, {
-    //     USER: 0,
-    //     collectionName,
-    //     data: content,
-    //     method: "POST",
-    //   });
-    // }
+    if (remoteLog && priority <= 2 && process.env.MQTT_BROKER_URL) {
+      const topic = `${collectionName}/${command}`;
+      if (mqttClient && mqttClient.instance) {
+        mqttClient.publish(topic, fullContent);
+      }
+    }
     return null;
   } else if (priority > logLevel) {
     return null;
   }
-  const error = utils.buildError('INVALID_LOG', 'Missing argument in logger');
+  const error = new Error('Missing argument in logger');
   throw error;
 };
 

@@ -1,7 +1,6 @@
 [
   {
-    "type": "admin",
-    "subscribed": "paid",
+    "role": "user",
     "firstName": "edouard",
     "lastName": "getlarge",
     "email": "ed@getlarge.eu",

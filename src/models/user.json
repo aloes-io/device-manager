@@ -9,12 +9,8 @@
   },
   "mixins": {},
   "restrictResetPasswordTokenScope": true,
-  "emailVerificationRequired": true,
+  "emailVerificationRequired": false,
   "properties": {
-    "type": {
-      "type": "string",
-      "required": false
-    },
     "firstName": {
       "type": "string",
       "required": false
@@ -38,9 +34,8 @@
     "status": {
       "type": "boolean"
     },
-    "subscribed": {
-      "type": "string",
-      "default": "new"
+    "role": {
+      "type": "string"
     },
     "currentSubscribedEnd": {
       "type": "string",
@@ -51,7 +46,7 @@
       "default": false
     }
   },
-  "hidden": ["deleted, emailVerified"],
+  "hidden": ["deleted"],
   "validations": [],
   "relations": {
     "accessTokens": {
@@ -119,7 +114,15 @@
       "accessType": "*",
       "principalType": "ROLE",
       "principalId": "admin",
-      "permission": "ALLOW"
+      "permission": "ALLOW",
+      "property": [
+        "find",
+        "findById",
+        "patchAttributes",
+        "updateAttributes",
+        "replaceAttributes",
+        "replaceById"
+      ]
     },
     {
       "accessType": "*",
@@ -139,7 +142,6 @@
         "updateAttributes",
         "upsert",
         "exists",
-        "find",
         "findById",
         "setNewPassword",
         "__create__address",
@@ -171,6 +173,8 @@
       "principalId": "$everyone",
       "permission": "ALLOW",
       "property": [
+        "login",
+        "logout",
         "create",
         "verifyEmail",
         "findByEmail",
@@ -186,8 +190,6 @@
       "principalId": "$authenticated",
       "permission": "ALLOW",
       "property": [
-        "findById",
-        "find",
         "verifyAddress",
         "setNewPassword",
         "sendInvite",

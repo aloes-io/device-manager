@@ -31,9 +31,6 @@ module.exports = {
     },
   },
   'final:after': {
-    './middleware/log-error': {
-      params: { enabled: false },
-    },
     'strong-error-handler': {
       params: {
         debug: false,

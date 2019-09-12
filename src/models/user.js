@@ -2,19 +2,171 @@
 import mails from '../services/mails';
 import logger from '../services/logger';
 import utils from '../services/utils';
-//  import initialRolesList from '../initial-data/base-roles.json';
+import roleManager from '../services/role-manager';
 
 const collectionName = 'User';
 //  const resources = 'Users';
+
+async function createProps(user) {
+  try {
+    logger.publish(4, `${collectionName}`, 'createProps:req', user);
+    if (user.address && !(await user.address.get())) {
+      await user.address.create({
+        street: '',
+        streetNumber: null,
+        streetName: null,
+        postalCode: null,
+        city: null,
+        public: false,
+      });
+    }
+
+    // logger.publish(4, `${collectionName}`, 'createProps:res', user);
+    return user;
+  } catch (error) {
+    logger.publish(4, `${collectionName}`, 'createProps:err', error);
+    throw error;
+  }
+}
+
+async function onBeforeSave(ctx) {
+  try {
+    let role;
+    const appRoles = await roleManager.getAppRoles();
+    if (ctx.data) {
+      logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.data);
+      // filteredProperties.forEach(p => delete ctx.data[p]);
+      role = ctx.data.role;
+      if (!role || !appRoles.includes(role)) {
+        role = 'user';
+      }
+      ctx.data.role = role;
+      ctx.hookState.updateData = ctx.data;
+    } else if (ctx.instance) {
+      logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.instance);
+      role = JSON.parse(JSON.stringify(ctx.instance)).role;
+      if (!appRoles.includes(role)) {
+        ctx.instance.setAttribute({ role: 'user' });
+      } else {
+        ctx.instance.setAttribute({ role });
+      }
+    }
+    const data = ctx.data || ctx.instance || ctx.currentInstance;
+    const authorizedRoles =
+      ctx.options && ctx.options.authorizedRoles ? ctx.options.authorizedRoles : {};
+    // console.log('authorizedRoles ', ctx.options);
+
+    const isAdmin =
+      ctx.options && ctx.options.currentUser && ctx.options.currentUser.roles.includes('admin');
+    // isAdmin = ctx.options && ctx.options.authorizedRoles && ctx.options.authorizedRoles.admin;
+
+    const nonAdminChangingRoleToAdmin = role === 'admin' && !isAdmin;
+    const nonOwnerChangingPassword =
+      !ctx.isNewInstance && authorizedRoles.owner !== true && data.password !== undefined;
+
+    console.log('has no Right to update ?', nonAdminChangingRoleToAdmin, nonOwnerChangingPassword);
+
+    if (nonAdminChangingRoleToAdmin) {
+      const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to update this user');
+      throw error;
+    }
+    if (nonOwnerChangingPassword) {
+      const error = utils.buildError(403, 'NO_OWNER', 'Unauthorized to update this user');
+      throw error;
+    }
+    logger.publish(4, `${collectionName}`, 'beforeSave:req', { data, role });
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'beforeSave:err', error);
+    // ctx.res.status(error.statusCode || 400);
+    throw error;
+  }
+}
+
+async function onAfterSave(ctx) {
+  try {
+    logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
+    if (ctx.hookState.updateData) {
+      // logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
+      // const updatedProps = Object.keys(ctx.hookState.updateData);
+      return ctx;
+    }
+    if (ctx.isNewInstance) {
+      const updatedUser = await createProps(ctx.instance);
+      if (!updatedUser || !updatedUser.id) {
+        // await ctx.Model.app.User.destroyById(user.id);
+        await ctx.instance.destroy();
+        const error = utils.buildError(404, 'FAILED_ACCOUNT_CREATION', `Email couldn't be sent`);
+        throw error;
+      }
+    }
+    if (!ctx.instance.emailVerified) {
+      const response = await mails.verifyEmail(ctx.instance);
+      // console.log('response after save ', response);
+      if (response && response.user) {
+        // await ctx.instance.updateAttributes({ verificationToken: response.user.verificationToken });
+      }
+    }
+    console.log('ctx.instance.role  ', ctx.instance);
+
+    if (!ctx.isNewInstance || ctx.instance.role === 'admin') {
+      const role = JSON.parse(JSON.stringify(ctx.instance)).role;
+      await roleManager.setUserRole(ctx.Model.app, ctx.instance.id, role, !ctx.isNewInstance);
+    }
+    logger.publish(4, `${collectionName}`, 'afterSave:res', ctx.instance);
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'afterSave:err', error);
+    throw error;
+  }
+}
+
+async function onBeforeDelete(ctx) {
+  try {
+    logger.publish(4, `${collectionName}`, 'beforeDelete:req', ctx.where);
+    if (ctx.where.id) {
+      const instance = await ctx.Model.findById(ctx.where.id);
+      // console.log('INSTANCE ', instance);
+      if (instance.address && (await instance.address.get()) !== null) {
+        // console.log('INSTANCE ADDRESS', await instance.address.get());
+        await instance.address.destroy();
+      }
+      if (instance.accessTokens) {
+        await instance.accessTokens.destroyAll();
+      }
+      if (instance.devices && (await instance.devices.count())) {
+        await instance.devices.destroyAll();
+      }
+      if (instance.sensors && (await instance.sensors.count())) {
+        await instance.sensors.destroyAll();
+      }
+      if (instance.files && (await instance.files.count())) {
+        await ctx.Model.app.models.files.removeContainer(instance.id);
+        await instance.files.destroyAll();
+      }
+      logger.publish(4, `${collectionName}`, 'beforeDelete:res', instance);
+      return ctx;
+    }
+    const error = utils.buildError(
+      403,
+      'FORBID_BATCH_DELETION',
+      `You can only delete one user at a time`,
+    );
+    throw error;
+  } catch (error) {
+    logger.publish(4, `${collectionName}`, 'beforeDelete:err', error);
+    throw error;
+  }
+}
 
 /**
  * @module User
  */
 module.exports = function(User) {
-  // async function subscribeTypeValidator(err) {
+  // async function roleValidator(err) {
   //   let falseCounter = 0;
-  //   await initialRolesList.forEach(role => {
-  //     if (this.subscribed !== role.name) {
+  //   initialRolesList.forEach(role => {
+  //     if (this.role !== role) {
   //       falseCounter += 1;
   //     }
   //     if (falseCounter === initialRolesList.length) {
@@ -30,141 +182,12 @@ module.exports = function(User) {
     message: { min: 'User password is too short' },
   });
 
-  // User.validate('subscribed', subscribeTypeValidator, {
-  //   message: 'Wrong subcribe plan',
-  // });
-
-  // User.afterRemoteError('*', async (ctx) => {
-  //   logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
-  //   // ctx.result = new Error(
-  //   //   `[${collectionName.toUpperCase()}]  error on this remote method : ${
-  //   //     ctx.methodString
-  //   //   }`,
-  //   // );
-  //   return null;
+  // User.validate('role', roleValidator, {
+  //   message: 'Wrong role',
   // });
 
   /**
-   * Event reporting that a new user instance has been created.
-   * @event create
-   * @param {object} ctx - Express context.
-   * @param {object} ctx.req - Request
-   * @param {object} ctx.res - Response
-   * @param {object} user - User new instance
-   */
-  User.afterRemote('**.create', async (ctx, user) => {
-    let result;
-    try {
-      logger.publish(4, `${collectionName}`, 'afterCreate:req', user);
-      await user.profileAddress.create({
-        street: '',
-        streetNumber: null,
-        streetName: null,
-        postalCode: null,
-        city: null,
-        public: false,
-      });
-      if (user.id) {
-        const response = await mails.verifyEmail(user);
-        logger.publish(4, `${collectionName}`, 'afterCreate:res', response);
-        if (response.email.accepted[0] === user.email) {
-          result = user;
-          return result;
-        }
-        const error = utils.buildError(
-          'INVALID_EMAIL',
-          `Echec d'envoi de l'email à ${user.email}, veuillez réessayer`,
-        );
-        await User.destroyById(user.id);
-        logger.publish(4, `${collectionName}`, 'afterCreate:err', error);
-        return error;
-      }
-      const error = utils.buildError(
-        'INVALID_PROFILE',
-        `Echec de la création du profile ${user.type}`,
-      );
-      logger.publish(4, `${collectionName}`, 'afterCreate:err', error);
-      return error;
-    } catch (error) {
-      await User.destroyById(user.id);
-      logger.publish(4, `${collectionName}`, 'afterCreate:err', error);
-      return error;
-    }
-  });
-
-  User.afterRemoteError('confirm', async ctx => {
-    logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
-    ctx.res.redirect(process.env.HTTP_CLIENT_URL);
-    return null;
-  });
-
-  /**
-   * Event reporting that an user has confirmed mail validation
-   * @event after confirm
-   * @param {object} ctx - Express context.
-   * @param {object} ctx.req - Request
-   * @param {object} ctx.res - Response
-   */
-  User.afterRemote('confirm', async ctx => {
-    logger.publish(4, `${collectionName}`, 'afterConfirm:req', ctx.args.uid);
-    if (ctx.args.uid) {
-      return utils
-        .mkDirByPathSync(`${process.env.FS_PATH}/${ctx.args.uid}`)
-        .then(res => {
-          console.log(`[${collectionName.toUpperCase()}] container Check : ${res}`);
-          return res;
-        })
-        .catch(err => err);
-    }
-    const error = await utils.buildError(
-      'INVALID_CONATINER',
-      `while creating containers for ${ctx.args.uid}`,
-    );
-    logger.publish(4, `${collectionName}`, 'afterConfirm:err', error);
-    return error;
-  });
-
-  /**
-   * Event reporting that an user attempts to login
-   * @event before confirm
-   * @param {object} ctx - Express context.
-   * @param {object} ctx.req - Request
-   * @param {object} ctx.res - Response
-   */
-  User.beforeRemote('login', async ctx => {
-    logger.publish(4, `${collectionName}`, 'beforeLogin:req', ctx.args);
-    try {
-      const token = await User.login(ctx.args.credentials, 'user');
-      return token;
-    } catch (err) {
-      logger.publish(4, `${collectionName}`, 'beforeLogin:err', {
-        err,
-      });
-      if (err.code && err.code === 'LOGIN_FAILED_EMAIL_NOT_VERIFIED') {
-        console.log('user not verified');
-        //  return new Error("user not verified");
-        ctx.res.send('LOGIN_FAILED_EMAIL_NOT_VERIFIED');
-        return err;
-      }
-      ctx.res.send('LOGIN_FAILED');
-      return err;
-    }
-  });
-
-  // User.beforeRemote('**.find', ensureLoggedIn('/login'), async ctx => {
-  //   logger.publish(4, `${collectionName}`, 'beforeFind:req', ctx.args);
-  //   try {
-  //     return ctx;
-  //   } catch (err) {
-  //     logger.publish(4, `${collectionName}`, 'beforeFind:err', {
-  //       err,
-  //     });
-  //     return err;
-  //   }
-  // });
-
-  /**
-   * Find an user by its email address and send a confirmation link
+   * Find a user by its email address and send a confirmation link
    * @method module:User.findByEmail
    * @param {string} email - User email address
    * @returns {object} mail result
@@ -201,7 +224,7 @@ module.exports = function(User) {
       logger.publish(4, `${collectionName}`, 'verifyEmail:req', user);
       const instance = await User.findById(user.id);
       if (!instance || instance === null) {
-        return new Error("user doesn't exist");
+        throw new Error("user doesn't exist");
       }
       logger.publish(4, `${collectionName}`, 'verifyEmail:res1', instance);
       const result = await mails.verifyEmail(instance);
@@ -213,7 +236,7 @@ module.exports = function(User) {
       logger.publish(4, `${collectionName}`, 'verifyEmail:res', result);
       return result;
     } catch (error) {
-      logger.publish(4, `${collectionName}`, 'verifyEmail:err', error);
+      logger.publish(2, `${collectionName}`, 'verifyEmail:err', error);
       return error;
     }
   };
@@ -237,38 +260,30 @@ module.exports = function(User) {
       .catch(err => err);
   };
 
-  //  send password reset link when requested
-  User.on('resetPasswordRequest', async options => {
-    logger.publish(3, `${collectionName}`, 'resetPasswordRequest:req', options);
-    return mails.sendResetPasswordMail(options).catch(err => err);
-    // logger.publish(3, `${collectionName}`, 'resetPasswordRequest:res', result);
-  });
-
   User.updatePasswordFromToken = async (accessToken, newPassword) => {
-    logger.publish(3, `${collectionName}`, 'updatePasswordFromToken:req', accessToken);
-    let error;
-
-    if (!accessToken) {
-      error = utils.buildError('INVALID_TOKEN', 'token is null');
-      return error;
-    }
-
-    const user = await User.findById(accessToken.userId)
-      .then(res =>
-        res.updateAttribute('password', newPassword).catch(err => {
-          error = utils.buildError('INVALID_OPERATION', err);
-          return Promise.reject(error);
-        }),
-      )
-      .catch(err => {
-        error = utils.buildError('INVALID_USER', err);
-        return Promise.reject(error);
-      });
-
-    if (!user.id) {
+    try {
+      logger.publish(3, `${collectionName}`, 'updatePasswordFromToken:req', accessToken);
+      let error;
+      if (!accessToken || !accessToken.userId || !accessToken.id) {
+        error = utils.buildError(401, 'INVALID_TOKEN', 'token is null');
+        return error;
+      }
+      const token = await User.app.models.accessToken.findById(accessToken.id);
+      if (!token || !token.userId || !token.id) {
+        error = utils.buildError(401, 'INVALID_TOKEN', 'token is invalid');
+        return error;
+      }
+      const user = await User.findById(accessToken.userId);
+      if (!user || !user.id) {
+        error = utils.buildError(400, 'INVALID_USER', 'User not found');
+        return error;
+      }
+      await user.updateAttribute('password', newPassword);
+      return true;
+    } catch (error) {
+      logger.publish(3, `${collectionName}`, 'updatePasswordFromToken:err', error);
       return false;
     }
-    return true;
   };
 
   User.setNewPassword = async (ctx, oldPassword, newPassword) => {
@@ -309,6 +324,100 @@ module.exports = function(User) {
     }
   };
 
+  //  send password reset link when requested
+  User.on('resetPasswordRequest', async options => {
+    logger.publish(3, `${collectionName}`, 'resetPasswordRequest:req', options);
+    return mails.sendResetPasswordMail(options).catch(err => err);
+    // logger.publish(3, `${collectionName}`, 'resetPasswordRequest:res', result);
+  });
+
+  User.afterRemoteError('confirm', async ctx => {
+    logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
+    ctx.res.redirect(process.env.HTTP_CLIENT_URL);
+    return null;
+  });
+
+  /**
+   * Event reporting that an user has confirmed mail validation
+   * @event after confirm
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   */
+  User.afterRemote('confirm', async ctx => {
+    logger.publish(4, `${collectionName}`, 'afterConfirm:req', ctx.args.uid);
+    if (ctx.args.uid) {
+      return utils
+        .mkDirByPathSync(`${process.env.FS_PATH}/${ctx.args.uid}`)
+        .then(res => {
+          console.log(`[${collectionName.toUpperCase()}] container Check : ${res}`);
+          return res;
+        })
+        .catch(err => err);
+    }
+    const error = await utils.buildError(
+      401,
+      'FAILED_CONTAINER_CREATION',
+      `Unauthorized to create containers`,
+    );
+    logger.publish(4, `${collectionName}`, 'afterConfirm:err', error);
+    throw error;
+  });
+
+  /**
+   * Event reporting that an user attempts to login
+   * @event before confirm
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   */
+  User.beforeRemote('login', async ctx => {
+    logger.publish(4, `${collectionName}`, 'beforeLogin:req', ctx.args);
+    try {
+      // const token = await User.login(ctx.args.credentials, 'user');
+      // const options = {...ctx.args.credentials, ttl: 2 * 7 * 24 * 60 * 60}
+      const token = await User.login(ctx.args.credentials, 'user');
+      logger.publish(4, `${collectionName}`, 'beforeLogin:res', token);
+      return token;
+    } catch (err) {
+      logger.publish(2, `${collectionName}`, 'beforeLogin:err', err);
+      if (err.code && err.code === 'LOGIN_FAILED_EMAIL_NOT_VERIFIED') {
+        // console.log('user not verified');
+        //  return new Error("user not verified");
+        const error = await utils.buildError(
+          401,
+          'LOGIN_FAILED_EMAIL_NOT_VERIFIED',
+          `user has not confirmed the account yet`,
+        );
+        // ctx.res.send('LOGIN_FAILED_EMAIL_NOT_VERIFIED');
+        // ctx.res.sendStatus(401);
+        throw error;
+      }
+      // ctx.res.send('LOGIN_FAILED');
+      throw err;
+    }
+  });
+
+  /**
+   * Event reporting that a new user instance will be created.
+   * @event create
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @param {object} user - User new instance
+   */
+  User.observe('before save', onBeforeSave);
+
+  /**
+   * Event reporting that a new user instance has been created.
+   * @event create
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @param {object} user - User new instance
+   */
+  User.observe('after save', onAfterSave);
+
   /**
    * Event reporting that a user instance will be deleted.
    * @event before delete
@@ -317,31 +426,17 @@ module.exports = function(User) {
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - User instance id
    */
-  User.observe('before delete', async ctx => {
-    try {
-      if (ctx.where.id) {
-        const instance = await ctx.Model.findById(ctx.where.id);
-        logger.publish(4, `${collectionName}`, 'beforeDelete:req', instance.id);
-        await User.app.models.Address.destroyAll({
-          userId: instance.id,
-        });
-        await instance.accessTokens.destroyAll();
-        if (await instance.devices.exists()) {
-          await instance.devices.destroyAll();
-        }
-        if (await instance.sensors.exists()) {
-          await instance.sensors.destroyAll();
-        }
-        if (await instance.files.exists()) {
-          // User.app.models.container.destroyContainer(instance.id)
-          await instance.files.destroyAll();
-        }
-      }
-      throw new Error('no instance to delete');
-    } catch (error) {
-      return error;
-    }
-  });
+  User.observe('before delete', onBeforeDelete);
+
+  // User.afterRemoteError('*', async (ctx) => {
+  //   logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
+  //   // ctx.result = new Error(
+  //   //   `[${collectionName.toUpperCase()}]  error on this remote method : ${
+  //   //     ctx.methodString
+  //   //   }`,
+  //   // );
+  //   return null;
+  // });
 
   User.disableRemoteMethodByName('count');
   User.disableRemoteMethodByName('upsertWithWhere');

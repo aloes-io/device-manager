@@ -1,8 +1,256 @@
 import iotAgent from 'iot-agent';
 import { updateAloesSensors } from 'aloes-handlers';
 import logger from '../services/logger';
+import utils from '../services/utils';
 
-//  const CronJob = require('../lib/cron.js').CronJob;
+const collectionName = 'Sensor';
+const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
+
+/**
+ * Define the way to persist data based on OMA resource type
+ * @method module:Sensor~getPersistingMethod
+ * @param {string} sensorType - OMA object Id
+ * @param {number} resource - OMA resource ID
+ * @param {string} type - OMA resource type
+ * @returns {string} method
+ */
+const getPersistingMethod = (sensorType, resource, type) => {
+  try {
+    // savingProcess = "measurement" || "buffer" || "log"
+    logger.publish(4, `${collectionName}`, 'getPersistingMethod:req', {
+      type,
+    });
+    let saveMethod;
+    if (!sensorType || !resource) return null;
+    if (!type || type === null) {
+      switch (resource) {
+        case 5505:
+          // Reset the counter value
+          saveMethod = 'log';
+          break;
+        case 5523:
+          // Trigger initing actuation
+          saveMethod = 'scheduler';
+          break;
+        case 5530:
+          // Command to clear display
+          saveMethod = 'log';
+          break;
+        case 5650:
+          // Reset min and max current values
+          saveMethod = 'log';
+          break;
+        case 5822:
+          // Reset cumulative energy
+          saveMethod = 'log';
+          break;
+        case 5911:
+          // Reset bitmap input value
+          saveMethod = 'log';
+          break;
+        default:
+          saveMethod = null;
+      }
+    } else {
+      switch (type.toLowerCase()) {
+        case 'string':
+          switch (resource) {
+            case 5514:
+              // latitude
+              saveMethod = 'location';
+              break;
+            case 5515:
+              // longitude
+              saveMethod = 'location';
+              break;
+            default:
+              saveMethod = 'log';
+          }
+          break;
+        case 'integer':
+          switch (resource) {
+            case 5526:
+              // scheduler mode
+              saveMethod = 'scheduler';
+              break;
+            case 5534:
+              // scheduler output transitions counter
+              saveMethod = 'scheduler';
+              break;
+            case 5910:
+              // bitmap input
+              saveMethod = 'buffer';
+              break;
+            default:
+              saveMethod = 'measurement';
+          }
+          break;
+        case 'float':
+          switch (resource) {
+            case 5521:
+              // duration of the time delay
+              saveMethod = 'scheduler';
+              break;
+            case 5524:
+              // sound duration
+              saveMethod = 'scheduler';
+              break;
+            case 5525:
+              // minimum off time
+              saveMethod = 'scheduler';
+              break;
+            case 5538:
+              // remaining time
+              saveMethod = 'scheduler';
+              break;
+            case 5544:
+              // cumulative time that timer input is true
+              saveMethod = 'scheduler';
+              break;
+            case 5824:
+              // Time when the load control event will start started.
+              saveMethod = 'scheduler';
+              break;
+            case 5825:
+              // The duration of the load control event.
+              saveMethod = 'scheduler';
+              break;
+            default:
+              saveMethod = 'measurement';
+          }
+          break;
+        case 'boolean':
+          switch (resource) {
+            case 5532:
+              // increase input state
+              saveMethod = 'log';
+              break;
+            case 5533:
+              // decrease input state
+              saveMethod = 'log';
+              break;
+            case 5543:
+              // timer output state
+              saveMethod = 'scheduler';
+              break;
+            case 5850:
+              // switch state
+              if (sensorType === 3340) {
+                saveMethod = 'scheduler';
+              } else {
+                saveMethod = 'measurement';
+              }
+              break;
+            default:
+              saveMethod = 'measurement';
+          }
+          break;
+        case 'time':
+          saveMethod = 'log';
+          break;
+        case 'opaque':
+          if (resource === 5917) {
+            saveMethod = 'measurement';
+          } else if (resource === 5922) {
+            saveMethod = 'buffer';
+          }
+          break;
+        default:
+          saveMethod = null;
+      }
+    }
+
+    logger.publish(4, `${collectionName}`, 'getPersistingMethod:res', {
+      method: saveMethod,
+    });
+    return saveMethod;
+  } catch (error) {
+    console.log('persistingmethod:err', error);
+    return null;
+  }
+};
+
+/**
+ * Persist data based on OMA resource type
+ *
+ * use influxdb for integers and floats
+ *
+ * use filestorage for strings and buffers
+ *
+ * @method module:Sensor~persistingResource
+ * @param {object} app - Loopback app
+ * @param {object} device - Device instance
+ * @param {object} sensor - Sensor instance
+ * @param {object} [client] - MQTT client
+ * @returns {object} result - saved value
+ */
+const persistingResource = async (app, device, sensor, client) => {
+  try {
+    logger.publish(4, `${collectionName}`, 'persistingResource:req', {
+      resource: sensor.resource,
+    });
+    const resourceModel = await app.models.OmaResource.findById(sensor.resource);
+    const method = await getPersistingMethod(sensor.type, resourceModel.id, resourceModel.type);
+    let result;
+    let persistedResource = {};
+    if (!method || method === null) return null;
+    //  if (!method || method === null) throw new Error('Invalid saving method');
+    if (method === 'measurement') {
+      const Measurement = app.models.Measurement;
+      const measurement = await Measurement.compose(sensor);
+      if (measurement && measurement !== null) {
+        const point = await Measurement.create(measurement);
+        //  console.log('influx measurement : ', point.id);
+        // todo fix id generation error
+        await Measurement.publish(device, point.id, 'POST', client);
+        persistedResource = point;
+      }
+    } else if (method === 'log') {
+      // in the future add to elastic search db ?
+      // todo save ( append ) resource in log file ( in device container ) then use utils.liner to access it later
+    } else if (method === 'location') {
+      // also update device.address with reverse geocoding ?
+    } else if (method === 'buffer') {
+      const Files = app.models.Files;
+      const buffer = await Files.compose(sensor);
+      const fileMeta = await Files.uploadBuffer(
+        buffer,
+        sensor.ownerId.toString(),
+        `${sensor.deviceId.toString()}-${sensor.id.toString()}`,
+      );
+      persistedResource = fileMeta;
+    } else if (method === 'scheduler') {
+      const Scheduler = app.models.Scheduler;
+      result = await Scheduler.createOrUpdate(device, sensor, client);
+      sensor = result.sensor;
+      persistedResource = result.scheduler;
+    }
+    return { persistedResource, sensor };
+  } catch (error) {
+    logger.publish(3, `${collectionName}`, 'persist:err', error);
+    return error;
+  }
+};
+
+const deleteSensorProps = async (app, sensor) => {
+  try {
+    if (!sensor || !sensor.id || !sensor.ownerId) {
+      throw utils.buildError(403, 'INVALID_SENSOR', 'Invalid sensor instance');
+    }
+    logger.publish(2, `${collectionName}`, 'deleteSensorProps:req', sensor);
+    const device = await app.models.Device.findById(sensor.deviceId);
+    await app.models.Measurement.destroyAll({
+      sensorId: sensor.id,
+    });
+    // not working properly, why ?
+    //  await SensorResource.delete(instance.deviceId, instance.id);
+    await app.models.SensorResource.expireCache(sensor.deviceId, sensor.id, 1);
+    await app.models.Sensor.publish(device, sensor, 'DELETE');
+    return sensor;
+  } catch (error) {
+    throw error;
+  }
+};
 
 /**
  * @module Sensor
@@ -29,9 +277,6 @@ import logger from '../services/logger';
  * @property {String} deviceId Device instance Id which has sent this measurement
  */
 module.exports = function(Sensor) {
-  const collectionName = 'Sensor';
-  const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
-
   async function typeValidator(err) {
     if (this.type && this.type.toString().length <= 4) {
       if (await Sensor.app.models.OmaObject.exists(this.type)) {
@@ -260,7 +505,7 @@ module.exports = function(Sensor) {
       }
       throw new Error('no sensor found and no known type to register a new one');
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -289,7 +534,9 @@ module.exports = function(Sensor) {
         return Sensor.publish(device, sensor, 'HEAD', client);
       } else if (!sensor.isNewInstance && sensor.id) {
         let updatedSensor = await SensorResource.getCache(device.id, sensor.id);
-        if (!updatedSensor) throw new Error('Sensor not found');
+        if (!updatedSensor) {
+          throw utils.buildError(404, 'INVALID_SENSOR', 'Sensor not found');
+        }
         updatedSensor = { ...updatedSensor, ...sensor };
         updatedSensor.method = 'HEAD';
         updatedSensor.frameCounter = 0;
@@ -297,235 +544,10 @@ module.exports = function(Sensor) {
         await device.sensors.updateById(sensor.id, updatedSensor);
         return Sensor.publish(device, updatedSensor, 'HEAD', client);
       }
-      throw new Error('no valid sensor to register');
+      throw utils.buildError(400, 'INVALID_SENSOR', 'No valid sensor to register');
     } catch (error) {
       console.log('Presentation err:', error);
-      return error;
-    }
-  };
-
-  /**
-   * Define the way to persist data based on OMA resource type
-   * @method module:Sensor~getPersistingMethod
-   * @param {string} sensorType - OMA object Id
-   * @param {number} resource - OMA resource ID
-   * @param {string} type - OMA resource type
-   * @returns {string} method
-   */
-  const getPersistingMethod = (sensorType, resource, type) => {
-    try {
-      // savingProcess = "measurement" || "buffer" || "log"
-      logger.publish(4, `${collectionName}`, 'getPersistingMethod:req', {
-        type,
-      });
-      let saveMethod;
-      if (!sensorType || !resource) return null;
-      if (!type || type === null) {
-        switch (resource) {
-          case 5505:
-            // Reset the counter value
-            saveMethod = 'log';
-            break;
-          case 5523:
-            // Trigger initing actuation
-            saveMethod = 'scheduler';
-            break;
-          case 5530:
-            // Command to clear display
-            saveMethod = 'log';
-            break;
-          case 5650:
-            // Reset min and max current values
-            saveMethod = 'log';
-            break;
-          case 5822:
-            // Reset cumulative energy
-            saveMethod = 'log';
-            break;
-          case 5911:
-            // Reset bitmap input value
-            saveMethod = 'log';
-            break;
-          default:
-            saveMethod = null;
-        }
-      } else {
-        switch (type.toLowerCase()) {
-          case 'string':
-            switch (resource) {
-              case 5514:
-                // latitude
-                saveMethod = 'location';
-                break;
-              case 5515:
-                // longitude
-                saveMethod = 'location';
-                break;
-              default:
-                saveMethod = 'log';
-            }
-            break;
-          case 'integer':
-            switch (resource) {
-              case 5526:
-                // scheduler mode
-                saveMethod = 'scheduler';
-                break;
-              case 5534:
-                // scheduler output transitions counter
-                saveMethod = 'scheduler';
-                break;
-              case 5910:
-                // bitmap input
-                saveMethod = 'buffer';
-                break;
-              default:
-                saveMethod = 'measurement';
-            }
-            break;
-          case 'float':
-            switch (resource) {
-              case 5521:
-                // duration of the time delay
-                saveMethod = 'scheduler';
-                break;
-              case 5524:
-                // sound duration
-                saveMethod = 'scheduler';
-                break;
-              case 5525:
-                // minimum off time
-                saveMethod = 'scheduler';
-                break;
-              case 5538:
-                // remaining time
-                saveMethod = 'scheduler';
-                break;
-              case 5544:
-                // cumulative time that timer input is true
-                saveMethod = 'scheduler';
-                break;
-              case 5824:
-                // Time when the load control event will start started.
-                saveMethod = 'scheduler';
-                break;
-              case 5825:
-                // The duration of the load control event.
-                saveMethod = 'scheduler';
-                break;
-              default:
-                saveMethod = 'measurement';
-            }
-            break;
-          case 'boolean':
-            switch (resource) {
-              case 5532:
-                // increase input state
-                saveMethod = 'log';
-                break;
-              case 5533:
-                // decrease input state
-                saveMethod = 'log';
-                break;
-              case 5543:
-                // timer output state
-                saveMethod = 'scheduler';
-                break;
-              case 5850:
-                // switch state
-                if (sensorType === 3340) {
-                  saveMethod = 'scheduler';
-                } else {
-                  saveMethod = 'measurement';
-                }
-                break;
-              default:
-                saveMethod = 'measurement';
-            }
-            break;
-          case 'time':
-            saveMethod = 'log';
-            break;
-          case 'opaque':
-            if (resource === 5917) {
-              saveMethod = 'measurement';
-            } else if (resource === 5922) {
-              saveMethod = 'buffer';
-            }
-            break;
-          default:
-            saveMethod = null;
-        }
-      }
-
-      logger.publish(4, `${collectionName}`, 'getPersistingMethod:res', {
-        method: saveMethod,
-      });
-      return saveMethod;
-    } catch (error) {
-      console.log('persistingmethod:err', error);
-      return error;
-    }
-  };
-
-  /**
-   * Persist data based on OMA resource type
-   *
-   * use influxdb for integers and floats
-   *
-   * use filestorage for strings and buffers
-   *
-   * @method module:Sensor~persistingResource
-   * @param {object} device - Device instance
-   * @param {object} sensor - Sensor instance
-   * @param {object} [client] - MQTT client
-   * @returns {object} result - saved value
-   */
-  const persistingResource = async (device, sensor, client) => {
-    try {
-      logger.publish(4, `${collectionName}`, 'persistingResource:req', {
-        resource: sensor.resource,
-      });
-      const resourceModel = await Sensor.app.models.OmaResource.findById(sensor.resource);
-      const method = await getPersistingMethod(sensor.type, resourceModel.id, resourceModel.type);
-      let result;
-      let persistedResource = {};
-      if (!method || method === null) return null;
-      //  if (!method || method === null) throw new Error('Invalid saving method');
-      if (method === 'measurement') {
-        const Measurement = Sensor.app.models.Measurement;
-        const measurement = await Measurement.compose(sensor);
-        if (measurement && measurement !== null) {
-          const point = await Measurement.create(measurement);
-          //  console.log('influx measurement : ', point.id);
-          // todo fix id generation error
-          await Measurement.publish(device, point.id, 'POST', client);
-          persistedResource = point;
-        }
-      } else if (method === 'log') {
-        // in the future add to elastic search db ?
-        // todo save ( append ) resource in log file ( in device container ) then use utils.liner to access it later
-      } else if (method === 'location') {
-        // also update device.address with reverse geocoding ?
-      } else if (method === 'buffer') {
-        const Files = Sensor.app.models.Files;
-        const buffer = await Files.compose(sensor);
-        const fileMeta = await Files.uploadBuffer(
-          buffer,
-          sensor.ownerId.toString(),
-          `${sensor.deviceId.toString()}-${sensor.id.toString()}`,
-        );
-        persistedResource = fileMeta;
-      } else if (method === 'scheduler') {
-        const Scheduler = Sensor.app.models.Scheduler;
-        result = await Scheduler.createOrUpdate(device, sensor, client);
-        sensor = result.sensor;
-        persistedResource = result.scheduler;
-      }
-      return { persistedResource, sensor };
-    } catch (error) {
-      logger.publish(3, `${collectionName}`, 'persist:err', error);
-      return error;
+      throw error;
     }
   };
 
@@ -547,15 +569,21 @@ module.exports = function(Sensor) {
         name: sensor.name,
       });
 
-      if (sensor.isNewInstance) throw new Error('Sensor not created yet');
+      if (sensor.isNewInstance) {
+        const error = utils.buildError(400, 'INVALID_SENSOR', 'Sensor not validated yet');
+        throw error;
+      }
       if (resourceValue === undefined || resourceKey === undefined || resourceKey === null) {
-        throw new Error('Missing Sensor key/value');
+        const error = utils.buildError(400, 'INVALID_ARGS', 'Missing Sensor key/value to update');
+        throw error;
       }
 
       const SensorResource = Sensor.app.models.SensorResource;
       if (sensor.id) {
         let updatedSensor = await SensorResource.getCache(sensor.deviceId, sensor.id);
-        if (!updatedSensor || !updatedSensor.id) throw new Error('Sensor not found');
+        if (!updatedSensor || !updatedSensor.id) {
+          throw utils.buildError(404, 'INVALID_SENSOR', 'Sensor not found');
+        }
         sensor.resources = { ...sensor.resources, ...updatedSensor.resources };
         updatedSensor = { ...updatedSensor, ...sensor };
         updatedSensor = await updateAloesSensors(updatedSensor, Number(resourceKey), resourceValue);
@@ -572,7 +600,7 @@ module.exports = function(Sensor) {
           updatedSensor.lastSync = lastSignal;
         }
 
-        const result = await persistingResource(device, updatedSensor, client);
+        const result = await persistingResource(Sensor.app, device, updatedSensor, client);
         if (result && result.sensor) {
           updatedSensor = result.sensor;
         }
@@ -589,10 +617,11 @@ module.exports = function(Sensor) {
         await Sensor.publish(device, updatedSensor, 'PUT', client);
         return updatedSensor;
       }
-      throw new Error('no valid sensor to update');
+      const error = utils.buildError(400, 'INVALID_SENSOR', 'no valid sensor to update');
+      throw error;
     } catch (error) {
-      console.log('createOrUpdate:err', error);
-      return error;
+      logger.publish(2, `${collectionName}`, 'createOrUpdate:err', error);
+      throw error;
     }
   };
 
@@ -741,9 +770,10 @@ module.exports = function(Sensor) {
         }
         return Sensor.execute(device, sensor, method, client);
       }
-      throw new Error('Error while building sensor instance');
+      const error = utils.buildError(400, 'INVALID_SENSOR', 'Error while building sensor instance');
+      throw error;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -796,7 +826,8 @@ module.exports = function(Sensor) {
       }
       return ctx;
     } catch (error) {
-      return error;
+      logger.publish(2, `${collectionName}`, 'beforeSave:err', error);
+      throw error;
     }
   });
 
@@ -815,25 +846,17 @@ module.exports = function(Sensor) {
         return ctx;
         //  } else if (ctx.instance.id && !ctx.isNewInstance && ctx.instance.ownerId) {
       } else if (ctx.instance.id && ctx.instance.ownerId) {
-        await Sensor.setCache(ctx.instance.deviceId, ctx.instance);
+        await Sensor.app.models.SensorResource.setCache(ctx.instance.deviceId, ctx.instance);
       }
       return ctx;
     } catch (error) {
-      return error;
+      logger.publish(2, `${collectionName}`, 'afterSave:err', error);
+      throw error;
     }
   });
 
-  // Sensor.on('changed', async instance => {
-  //   try {
-  //     console.log(instance); // => the changed model
-  //     return instance;
-  //   } catch (error) {
-  //     return error;
-  //   }
-  // });
-
   /**
-   * Event reporting that a sensor instance will be deleted.
+   * Event reporting that a/several sensor instance(s) will be deleted.
    * @event before delete
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
@@ -844,30 +867,22 @@ module.exports = function(Sensor) {
     try {
       logger.publish(4, `${collectionName}`, 'beforeDelete:req', ctx.where);
       if (ctx.where.id) {
-        const SensorResource = Sensor.app.models.SensorResource;
         const sensor = await Sensor.findById(ctx.where.id);
-        if (!sensor || sensor == null) {
-          throw new Error('no sensor to delete');
-        }
-        const device = await Sensor.app.models.Device.findById(sensor.deviceId);
-        await Sensor.app.models.Measurement.destroyAll({
-          sensorId: ctx.where.id,
-        });
-        // not working ?
-        //  await SensorResource.delete(instance.deviceId, instance.id);
-        await SensorResource.expireCache(sensor.deviceId, sensor.id, 1);
-        await Sensor.publish(device, sensor, 'DELETE');
-        return ctx;
+        await deleteSensorProps(Sensor.app, sensor);
+      } else {
+        const filter = { where: ctx.where };
+        const sensors = await ctx.Model.find(filter);
+        await Promise.all(sensors.map(async sensor => deleteSensorProps(Sensor.app, sensor)));
       }
-      throw new Error('no instance to delete');
+      return ctx;
     } catch (error) {
-      return error;
+      logger.publish(2, `${collectionName}`, 'beforeDelete:err', error);
+      throw error;
     }
   });
 
   Sensor.afterRemoteError('*', async ctx => {
-    logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
-    // publish on collectionName/ERROR
+    logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, '');
     return ctx;
   });
 };

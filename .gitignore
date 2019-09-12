@@ -29,3 +29,5 @@ npm-debug.log
 
 #list of device names used on this instance
 device-names.json
+
+.nyc_output/

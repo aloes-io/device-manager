@@ -56,6 +56,13 @@ module.exports = function(Files) {
       ),
     );
 
+  const removeContainer = ownerId =>
+    new Promise((resolve, reject) =>
+      Files.app.models.container.destroyContainer(ownerId, (err, res) =>
+        err ? reject(err) : resolve(res),
+      ),
+    );
+
   /**
    * Request to upload file in userId container via multipart/form data
    * @method module:Files.upload
@@ -202,6 +209,15 @@ module.exports = function(Files) {
         throw new Error('Error while reading stream');
       }
       throw new Error('no file found');
+    } catch (error) {
+      return error;
+    }
+  };
+
+  Files.removeContainer = async userId => {
+    try {
+      await removeContainer(userId);
+      return true;
     } catch (error) {
       return error;
     }

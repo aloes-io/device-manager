@@ -1,5 +1,8 @@
 import loopback from 'loopback';
 import boot from 'loopback-boot';
+import fallback from 'express-history-api-fallback';
+import flash from 'express-flash';
+import path from 'path';
 //  import {ensureLoggedIn} from 'connect-ensure-login';
 import mqttClient from './mqtt-client';
 import logger from './logger';
@@ -9,6 +12,13 @@ import logger from './logger';
  */
 let httpServer;
 const app = loopback();
+
+const unless = (paths, middleware) => (req, res, next) => {
+  if (paths.some(p => req.path.indexOf(p) > -1)) {
+    return next();
+  }
+  return middleware(req, res, next);
+};
 
 const authenticateInstance = async (client, username, password) => {
   const Client = app.models.Client;
@@ -28,7 +38,7 @@ const authenticateInstance = async (client, username, password) => {
       successPayload = token;
       foundClient.ownerId = token.userId.toString();
       foundClient.model = 'User';
-      console.log('OWNER MQTT CLIENT', Object.keys(foundClient));
+      // console.log('OWNER MQTT CLIENT', Object.keys(foundClient));
     }
 
     let authentification;
@@ -88,7 +98,6 @@ const authenticateInstance = async (client, username, password) => {
  */
 app.start = async config => {
   try {
-    app.set('originUrl', config.HTTP_SERVER_URL);
     let baseUrl = `${config.HTTP_SERVER_URL}`;
     if (config.TUNNEL_HOST) {
       if (config.TUNNEL_SECURE) {
@@ -97,10 +106,26 @@ app.start = async config => {
         baseUrl = `http://${config.NODE_NAME}-${config.NODE_ENV}.${config.TUNNEL_HOST}`;
       }
     }
+    app.set('originUrl', config.HTTP_SERVER_URL);
     app.set('url', baseUrl);
     app.set('host', config.HTTP_SERVER_HOST);
     app.set('port', Number(config.HTTP_SERVER_PORT));
     //  app.set('cookieSecret', config.COOKIE_SECRET);
+
+    app.set('view engine', 'ejs');
+    app.set('json spaces', 2); // format json responses for easier viewing
+    app.set('views', path.join(__dirname, 'views'));
+
+    app.use(flash());
+
+    const clientPath = path.resolve(__dirname, '/../client');
+    app.use(
+      unless(
+        [config.REST_API_ROOT, '/auth', '/explorer', '/components'],
+        fallback('index.html', { root: clientPath }),
+      ),
+    );
+
     // logger.publish(2, 'loopback', 'start', `${app.get('host')}:${app.get('port')}`);
     logger.publish(2, 'loopback', 'start', `${app.get('url')}`);
 
@@ -163,10 +188,10 @@ app.start = async config => {
       await mqttClient.init(app, config);
     }
 
-    return httpServer;
+    return true;
   } catch (error) {
     logger.publish(2, 'loopback', 'start:err', error);
-    return error;
+    return false;
   }
 };
 
@@ -176,7 +201,9 @@ app.start = async config => {
  */
 app.stop = async () => {
   try {
-    httpServer.close();
+    if (httpServer) {
+      httpServer.close();
+    }
     if (process.env.MQTT_BROKER_URL) {
       await mqttClient.stop();
     }
@@ -188,7 +215,7 @@ app.stop = async () => {
     return true;
   } catch (error) {
     logger.publish(2, 'loopback', 'stop:err', error);
-    return error;
+    return false;
   }
 };
 
@@ -210,6 +237,11 @@ app.on('publish', async (topic, payload, retain = false, qos = 0) =>
   app.publish(topic, payload, retain, qos),
 );
 
+const bootApp = (loopbackApp, options) =>
+  new Promise((resolve, reject) => {
+    boot(loopbackApp, options, err => (err ? reject(err) : resolve(true)));
+  });
+
 /**
  * Bootstrap the application, configure models, datasources and middleware.
  * @method module:Server.init
@@ -223,15 +255,16 @@ app.init = async config => {
       // File Extensions for jest (strongloop/loopback#3204)
       scriptExtensions: config.scriptExtensions,
     };
-    await boot(app, options);
+    await bootApp(app, options);
     //  logger.publish(4, 'loopback', 'init:res', state);
-    //  if (require.main === module) {
-    //  app.start(config);
-    //  }
-    return app.start(config);
+    if (require.main === module) {
+      return app.start(config);
+    }
+    // return app.start(config);
+    return true;
   } catch (error) {
     logger.publish(2, 'loopback', 'init:err', error);
-    return error;
+    return false;
   }
 };
 
