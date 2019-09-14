@@ -59,7 +59,7 @@ if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
 
   process.on('message', packet => {
     console.log('PROCESS PACKET ', packet);
-    if (typeof packet.id === 'number') {
+    if (typeof packet.id === 'number' && packet.data.ready) {
       boot(packet.id);
       process.send({
         type: 'process:msg',

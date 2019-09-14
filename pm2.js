@@ -59,8 +59,10 @@ const startProcess = async (noDaemon = true) => {
         name: `device-manager`,
         script: './dist/index.js',
         interpreter: 'node',
-        output: `./log/${config.parsed.NODE_NAME}-${config.parsed.NODE_ENV}.out.log`,
-        error: `./log/${config.parsed.NODE_NAME}-${config.parsed.NODE_ENV}.error.log`,
+        // output: `./log/${config.parsed.NODE_NAME}-${config.parsed.NODE_ENV}.out.log`,
+        // error: `./log/${config.parsed.NODE_NAME}-${config.parsed.NODE_ENV}.error.log`,
+        output: '/dev/null',
+        error: '/dev/null',
         maxMemoryRestart: '1G',
         instances: config.parsed.INSTANCES_COUNT || 1,
         execMode: 'cluster',
@@ -199,18 +201,27 @@ const disableDaemon = () => {
 
 const parseProcessPacket = async packet => {
   try {
-    console.log('PM2 RECEIVED MESSAGE', packet);
-    if (packet.process && typeof packet.process.pm_id === 'number' && !packet.data.isStarted) {
-      const message = await sendMsgToProcessId(packet.process.pm_id, {
-        some: 'data',
-        hello: true,
-      });
-      console.log('MESSAGE SENT', message);
+    // console.log('PM2 RECEIVED MESSAGE', packet);
+    if (packet.process && typeof packet.process.pm_id === 'number') {
+      if (packet.data) {
+        if (packet.data.isStarted === false) {
+          console.log('MESSAGE RECEIVED', packet);
+          const message = await sendMsgToProcessId(packet.process.pm_id, {
+            ready: true,
+          });
+          console.log('MESSAGE SENT', message);
+        }
+      }
     }
-    return packet;
   } catch (error) {
     console.log('PARSE PACKET:ERR', error);
     throw error;
+  }
+};
+
+const logMessage = packet => {
+  if (packet.data && packet.data.fullContent) {
+    console.log(packet.data.fullContent);
   }
 };
 
@@ -219,6 +230,7 @@ const listenProcess = async () => {
     console.log('LISTEN PROCESS');
     const bus = await startBus();
     bus.on('process:msg', parseProcessPacket);
+    bus.on('log:msg', logMessage);
     // return bus;
   } catch (error) {
     console.log('LISTEN PROCESS:ERR', error);

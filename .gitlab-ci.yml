@@ -14,6 +14,8 @@ test_async:
     - staging
 
 pages:
+  only:
+    - master
   stage: deploy
   script:
     - npm run docs:build

@@ -19,6 +19,6 @@ RUN npm ci
 RUN npm run build
 
 # CMD ["pm2-runtime", "ecosystem.config.js"]
-CMD ["node","./pm2.js, --start"]
+CMD ["node","pm2.js", "--start"]
 
 # USER node
