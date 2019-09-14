@@ -18,9 +18,9 @@ const setDeviceQRCode = device => {
   try {
     switch (device.transportProtocol.toLowerCase()) {
       case 'mysensors':
-        if (device.accessPointUrl.endsWith('/#!1')) {
+        if (device.accessPointUrl && device.accessPointUrl.endsWith('/#!1')) {
           device.qrCode = `${device.accessPointUrl}`;
-        } else if (device.accessPointUrl) {
+        } else if (device.accessPointUrl && device.id && device.apiKey) {
           device.qrCode = `${device.accessPointUrl}/param?mqtt_server=${
             process.env.MQTT_BROKER_HOST
           }&mqtt_port=${process.env.MQTT_BROKER_PORT}&mqtt_secure=${
@@ -31,9 +31,9 @@ const setDeviceQRCode = device => {
         }
         break;
       case 'aloeslight':
-        if (device.accessPointUrl.endsWith('/#!1')) {
+        if (device.accessPointUrl && device.accessPointUrl.endsWith('/#!1')) {
           device.qrCode = `${device.accessPointUrl}`;
-        } else if (device.accessPointUrl) {
+        } else if (device.accessPointUrl && device.id && device.apiKey) {
           device.qrCode = `${device.accessPointUrl}/param?mqtt_server=${
             process.env.MQTT_BROKER_HOST
           }&mqtt_port=${process.env.MQTT_BROKER_PORT}&mqtt_secure=${
@@ -48,7 +48,7 @@ const setDeviceQRCode = device => {
     }
     return device;
   } catch (error) {
-    return error;
+    throw error;
   }
 };
 
@@ -66,7 +66,7 @@ const setDeviceIcons = device => {
     }
     return device;
   } catch (error) {
-    return error;
+    throw error;
   }
 };
 
@@ -163,7 +163,7 @@ const updateProps = async (app, device) => {
     });
     return app.models.Device.publish(device, 'PUT');
   } catch (error) {
-    return error;
+    throw error;
   }
 };
 
@@ -366,7 +366,7 @@ module.exports = function(Device) {
    * @param {object} device - Device instance
    * @param {string} method - MQTT method
    * @param {object} [client] - MQTT client target
-   * @returns {function} Device.app.publish()
+   * @fires {event} module:Server.publish
    */
   Device.publish = async (device, method, client) => {
     try {
@@ -402,18 +402,20 @@ module.exports = function(Device) {
               const parts = packet.topic.split('/');
               parts[0] = appId;
               const topic = parts.join('/');
-              await Device.app.publish(topic, packet.payload, false, 0);
+              Device.app.emit('publish', topic, packet.payload, false, 0);
               return topic;
             } catch (error) {
-              return error;
+              throw error;
             }
           });
           await Promise.all(promises);
         }
+        // await Device.app.publish(packet.topic, packet.payload, true, 1);
+        Device.app.emit('publish', packet.topic, packet.payload, false, 0);
         logger.publish(4, `${collectionName}`, 'publish:res', {
           topic: packet.topic,
         });
-        return Device.app.publish(packet.topic, packet.payload, true, 1);
+        return device;
       }
       throw utils.buildError(403, 'INVALID_PACKET', 'Invalid MQTT Packet encoding');
     } catch (error) {
@@ -423,9 +425,9 @@ module.exports = function(Device) {
   };
 
   /**
-   * Reset keys for the application instance
-   * @callback {Function} callback
-   * @param {Error} err
+   * Reset keys for this device instance
+   * @method module:Device.prototype.resetKeys
+   * @returns {object} this
    */
   Device.prototype.resetKeys = async function() {
     const attributes = {
@@ -526,7 +528,7 @@ module.exports = function(Device) {
 
   /**
    * Find device related to incoming MQTT packet
-   * @method module:Device.findByPattern;
+   * @method module:Device.findByPattern
    * @param {object} pattern - IotAgent parsed pattern
    * @param {object} attributes - IotAgent parsed message
    * @returns {object} device
@@ -1024,17 +1026,15 @@ module.exports = function(Device) {
    * Endpoint for device authentification with APIKey
    *
    * @method module:Device.authenticate
-   * @param {Any} deviceId
-   * @param {String} key
-   * @param {Error} err
-   * @param {String} matched The matching key; one of:
+   * @param {any} deviceId
+   * @param {string} key
+   * @returns {string} matched The matching key; one of:
    * - clientKey
    * - apiKey
    * - javaScriptKey
    * - restApiKey
    * - windowsKey
    * - masterKey
-   * @promise
    */
   Device.authenticate = async (deviceId, key) => {
     try {

@@ -4,6 +4,7 @@ import app from '../index';
 import testHelper from '../services/test-helper';
 
 require('@babel/register');
+require('../services/broker');
 
 const delayBeforeTesting = 7000;
 const deviceFactory = testHelper.factories.device;
@@ -31,40 +32,49 @@ setTimeout(() => {
 
     const e2eTestsSuite = {
       '[TEST] Sensors E2E Tests': {
-        before: async () => {
-          const users = await Promise.all([
-            testHelper.access.admin.create(app),
-            testHelper.access.user.create(app),
-          ]);
-          userIds = [users[0].id, users[1].id];
-          console.log('USER IDS ', userIds);
+        async before() {
+          try {
+            this.timeout(5000);
+            const users = await Promise.all([
+              testHelper.access.admin.create(app),
+              testHelper.access.user.create(app),
+            ]);
+            userIds = [users[0].id, users[1].id];
 
-          const deviceModels = Array(2)
-            .fill('')
-            .map((_, index) => {
-              if (index === 0) {
-                return deviceFactory(index + 1, userIds[0]);
-              }
-              return deviceFactory(index + 1, userIds[1]);
+            const deviceModels = Array(2)
+              .fill('')
+              .map((_, index) => {
+                if (index === 0) {
+                  return deviceFactory(index + 1, userIds[0]);
+                }
+                return deviceFactory(index + 1, userIds[1]);
+              });
+            await DeviceModel.create(deviceModels).then(res => {
+              devices = res.map(model => model.toJSON());
+              return res;
             });
-          await DeviceModel.create(deviceModels).then(res => {
-            devices = res.map(model => model.toJSON());
-          });
-          const sensorModels = Array(5)
-            .fill('')
-            .map((_, index) => {
-              if (index <= 2) {
-                return sensorFactory(index + 1, devices[0], userIds[0]);
-              }
-              return sensorFactory(index + 1, devices[1], userIds[1]);
+            const sensorModels = Array(5)
+              .fill('')
+              .map((_, index) => {
+                if (index <= 2) {
+                  return sensorFactory(index + 1, devices[0], userIds[0]);
+                }
+                return sensorFactory(index + 1, devices[1], userIds[1]);
+              });
+            // console.log('CREATED SENSORS MODELS ', sensorModels);
+            return SensorModel.create(sensorModels).then(res => {
+              sensors = res.map(model => model.toJSON());
+              return res;
             });
-          // console.log('CREATED SENSORS MODELS ', sensorModels);
-
-          return SensorModel.create(sensorModels).then(res => {
-            sensors = res.map(model => model.toJSON());
-          });
+          } catch (error) {
+            console.log('[TEST] Sensors before:err', error);
+            return error;
+          }
         },
-        after: async () =>
+        // beforeEach() {
+        //   this.timeout(5000);
+        // },
+        after: () =>
           Promise.all([
             SensorModel.destroyAll(),
             DeviceModel.destroyAll(),

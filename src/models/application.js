@@ -33,7 +33,7 @@ module.exports = Application => {
    * @method module:Application.publish
    * @param {object} application - Application instance
    * @param {object} [client] - MQTT client target
-   * @returns {function} Application.app.publish()
+   * @fires {event} module:Server.publish
    */
   Application.publish = async (application, method, client) => {
     try {
@@ -56,13 +56,14 @@ module.exports = Application => {
         }
         if (application.status) {
           const topic = `${application.id}/${collectionName}/${method}`;
-          await Application.app.publish(topic, packet.payload, false, 1);
+          Application.app.emit('publish', topic, packet.payload, false, 1);
         }
-        return Application.app.publish(packet.topic, packet.payload, true, 1);
+        Application.app.emit('publish', packet.topic, packet.payload, false, 1);
+        return application;
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -106,9 +107,9 @@ module.exports = Application => {
   };
 
   /**
-   * Reset keys for the application instance
-   * @callback {Function} callback
-   * @param {Error} err
+   * Reset keys for this application instance
+   * @method module:Application.prototype.resetKeys
+   * @returns {object} this
    */
   Application.prototype.resetKeys = async function() {
     const attributes = {

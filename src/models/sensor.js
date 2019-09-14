@@ -363,7 +363,7 @@ module.exports = function(Sensor) {
    * @param {object} sensor - Sensor instance
    * @param {string} [method] - MQTT API method
    * @param {object} [client] - MQTT client target
-   * @returns {function} Sensor.app.publish()
+   * @fires {event} module:Server.publish
    */
   Sensor.publish = async (device, sensor, method, client) => {
     try {
@@ -401,7 +401,7 @@ module.exports = function(Sensor) {
             logger.publish(4, `${collectionName}`, 'publish:res', {
               nativeTopic: nativePacket.topic,
             });
-            await Sensor.app.publish(nativePacket.topic, nativePacket.payload, false, 0);
+            Sensor.app.emit('publish', nativePacket.topic, nativePacket.payload, false, 0);
           }
         }
 
@@ -411,7 +411,7 @@ module.exports = function(Sensor) {
               const parts = packet.topic.split('/');
               parts[0] = appId;
               const topic = parts.join('/');
-              await Sensor.app.publish(topic, packet.payload, false, 0);
+              Sensor.app.emit('publish', topic, packet.payload, false, 0);
               return topic;
             } catch (error) {
               return error;
@@ -420,7 +420,8 @@ module.exports = function(Sensor) {
           await Promise.all(promises);
         }
         // console.log('payload', typeof packet.payload);
-        return Sensor.app.publish(packet.topic, packet.payload, false, 0);
+        Sensor.app.emit('publish', packet.topic, packet.payload, false, 0);
+        return sensor;
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
@@ -660,7 +661,7 @@ module.exports = function(Sensor) {
   };
 
   /**
-   * Buildsimple where filter based on given attributes
+   * Build simple where filter based on given attributes
    * @param {object} pattern - IotAgent detected pattern
    * @param {object} sensor - Incoming sensor instance
    * @returns {function} Sensor.publish

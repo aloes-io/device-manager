@@ -316,6 +316,23 @@ Reset keys for the application instance
 | status | <code>boolean</code> | Client status |
 | [model] | <code>String</code> | Aloes model ( Application, Device, ... ) |
 
+
+* [Client](#module_Client)
+    * [.cacheIterator([filter])](#module_Client.cacheIterator) ⇒ <code>string</code>
+    * [.deleteAll()](#module_Client.deleteAll) ⇒ <code>array</code>
+
+<a name="module_Client.cacheIterator"></a>
+
+### Client.cacheIterator([filter]) ⇒ <code>string</code>
+Iterate over each Client keys found in cache
+
+**Kind**: static method of [<code>Client</code>](#module_Client)  
+**Returns**: <code>string</code> - key - Cached key  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| [filter] | <code>object</code> | Client filter |
+
 <a name="module_Client.deleteAll"></a>
 
 ### Client.deleteAll() ⇒ <code>array</code>
@@ -355,7 +372,7 @@ Delete clients stored in cache
 
 * [Device](#module_Device)
     * _static_
-        * [.publish(device, method, [client])](#module_Device.publish) ⇒ <code>function</code>
+        * [.publish(device, method, [client])](#module_Device.publish)
         * [.refreshToken(device)](#module_Device.refreshToken) ⇒ <code>functions</code>
         * [.syncCache([direction])](#module_Device.syncCache)
         * [.findByPattern;(pattern, attributes)](#module_Device.findByPattern;) ⇒ <code>object</code>
@@ -370,26 +387,26 @@ Delete clients stored in cache
         * [~setDeviceQRCode(device)](#module_Device..setDeviceQRCode) ⇒ <code>object</code>
         * [~setDeviceIcons(device)](#module_Device..setDeviceIcons) ⇒ <code>object</code>
         * [~createKeys(device)](#module_Device..createKeys) ⇒ <code>object</code>
-        * [~createProps(device)](#module_Device..createProps) ⇒ <code>function</code>
-        * [~updateProps(device)](#module_Device..updateProps) ⇒ <code>function</code>
-        * [~parseMessage(pattern, attributes, client)](#module_Device..parseMessage)
+        * [~createProps(app, device)](#module_Device..createProps) ⇒ <code>function</code>
+        * [~updateProps(app, device)](#module_Device..updateProps) ⇒ <code>function</code>
+        * [~parseMessage(app, packet, pattern, client)](#module_Device..parseMessage)
         * [~findDevice(whereFilter)](#module_Device..findDevice) ⇒ <code>promise</code>
         * [~findAddresses(filter)](#module_Device..findAddresses) ⇒ <code>promise</code>
         * ["client" (message)](#event_client) ⇒ <code>functions</code>
         * ["publish" (message)](#event_publish)
         * ["before save" (ctx)](#event_before save)
         * ["after save" (ctx)](#event_after save)
-        * ["before find" (ctx)](#event_before find) ⇒ <code>object</code>
         * ["before delete" (ctx)](#event_before delete)
+        * ["before find" (ctx)](#event_before find) ⇒ <code>object</code>
         * [~callback](#module_Device..callback) : <code>function</code>
 
 <a name="module_Device.publish"></a>
 
-### Device.publish(device, method, [client]) ⇒ <code>function</code>
+### Device.publish(device, method, [client])
 Format packet and send it via MQTT broker
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>function</code> - Device.app.publish()  
+**Emits**: <code>{event} module:Server.event:publish</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -562,7 +579,7 @@ Keys creation helper - update device attributes
 
 <a name="module_Device..createProps"></a>
 
-### Device~createProps(device) ⇒ <code>function</code>
+### Device~createProps(app, device) ⇒ <code>function</code>
 Init device depencies ( token, address )
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
@@ -570,11 +587,12 @@ Init device depencies ( token, address )
 
 | Param | Type | Description |
 | --- | --- | --- |
+| app | <code>object</code> | Loopback app |
 | device | <code>object</code> | Device instance |
 
 <a name="module_Device..updateProps"></a>
 
-### Device~updateProps(device) ⇒ <code>function</code>
+### Device~updateProps(app, device) ⇒ <code>function</code>
 Update device depencies ( token, sensors )
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
@@ -582,22 +600,24 @@ Update device depencies ( token, sensors )
 
 | Param | Type | Description |
 | --- | --- | --- |
+| app | <code>object</code> | Loopback app |
 | device | <code>object</code> | Device instance |
 
 <a name="module_Device..parseMessage"></a>
 
-### Device~parseMessage(pattern, attributes, client)
+### Device~parseMessage(app, packet, pattern, client)
 Find properties and dispatch to the right function
 
 Adding device and sensor context to raw incoming data
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
-**Emits**: <code>module:Sensor~event:publish</code>  
+**Emits**: <code>module:Device~event:publish</code>, <code>module:Sensor~event:publish</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
+| app | <code>object</code> | Loopback app |
+| packet | <code>object</code> | MQTT packet |
 | pattern | <code>object</code> | Pattern detected by IotAgent |
-| attributes | <code>object</code> | IotAgent parsed message |
 | client | <code>object</code> | MQTT client |
 
 <a name="module_Device..findDevice"></a>
@@ -691,6 +711,20 @@ Event reporting that a device instance has been created or updated.
 | ctx.res | <code>object</code> | Response |
 | ctx.instance | <code>object</code> | Device instance |
 
+<a name="event_before delete"></a>
+
+### "before delete" (ctx)
+Event reporting that a / several device instance(s) will be deleted.
+
+**Kind**: event emitted by [<code>Device</code>](#module_Device)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context. |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
+| ctx.where.id | <code>object</code> | Device instance |
+
 <a name="event_before find"></a>
 
 ### "before find" (ctx) ⇒ <code>object</code>
@@ -704,20 +738,6 @@ Event reporting that a device instance / collection is requested
 | ctx | <code>object</code> | Express context. |
 | ctx.req | <code>object</code> | Request |
 | ctx.res | <code>object</code> | Response |
-
-<a name="event_before delete"></a>
-
-### "before delete" (ctx)
-Event reporting that a device instance will be deleted.
-
-**Kind**: event emitted by [<code>Device</code>](#module_Device)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| ctx | <code>object</code> | Express context. |
-| ctx.req | <code>object</code> | Request |
-| ctx.res | <code>object</code> | Response |
-| ctx.where.id | <code>object</code> | Device instance |
 
 <a name="module_Device..callback"></a>
 
@@ -881,28 +901,19 @@ Format packet and send it via MQTT broker
 
 
 * [Scheduler](#module_Scheduler)
-    * [.cacheIterator([filter])](#module_Scheduler.cacheIterator) ⇒ <code>string</code>
-    * [.publish(device, measurement, [method], [client])](#module_Scheduler.publish) ⇒ <code>function</code>
-    * [.onTimeout(data)](#module_Scheduler.onTimeout) ⇒ <code>object</code>
-    * [.onTimeout(body)](#module_Scheduler.onTimeout) ⇒ <code>object</code>
-    * [.createOrUpdate(device, sensor, [client])](#module_Scheduler.createOrUpdate) ⇒ <code>object</code>
-    * [.cacheIterator([filter])](#module_Scheduler.cacheIterator) ⇒ <code>string</code>
-    * [.getAll()](#module_Scheduler.getAll) ⇒ <code>array</code>
-    * [.deleteAll()](#module_Scheduler.deleteAll) ⇒ <code>array</code>
-    * [.onTick(body)](#module_Scheduler.onTick) ⇒ <code>object</code>
-    * [.setClock(interval)](#module_Scheduler.setClock) ⇒ <code>functions</code> \| <code>functions</code>
-
-<a name="module_Scheduler.cacheIterator"></a>
-
-### Scheduler.cacheIterator([filter]) ⇒ <code>string</code>
-Iterate over each Client keys found in cache
-
-**Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>string</code> - key - Cached key  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| [filter] | <code>object</code> | Client filter |
+    * _static_
+        * [.publish(device, measurement, [method], [client])](#module_Scheduler.publish) ⇒ <code>function</code>
+        * [.onTimeout(body)](#module_Scheduler.onTimeout) ⇒ <code>functions</code>
+        * [.createOrUpdate(device, sensor, [client])](#module_Scheduler.createOrUpdate) ⇒ <code>object</code>
+        * [.cacheIterator([filter])](#module_Scheduler.cacheIterator) ⇒ <code>string</code>
+        * [.getAll([filter])](#module_Scheduler.getAll) ⇒ <code>array</code>
+        * [.deleteAll([filter])](#module_Scheduler.deleteAll) ⇒ <code>array</code>
+        * [.onTick(body)](#module_Scheduler.onTick) ⇒ <code>functions</code>
+        * [.setClock(interval)](#module_Scheduler.setClock) ⇒ <code>functions</code> \| <code>functions</code>
+    * _inner_
+        * [~onTimeout(data)](#module_Scheduler..onTimeout) ⇒ <code>object</code>
+        * [~onTick(data)](#module_Scheduler..onTick) ⇒ <code>object</code>
+        * [~onTickHook(body)](#module_Scheduler..onTickHook) ⇒ <code>functions</code>
 
 <a name="module_Scheduler.publish"></a>
 
@@ -921,23 +932,11 @@ Format packet and send it via MQTT broker
 
 <a name="module_Scheduler.onTimeout"></a>
 
-### Scheduler.onTimeout(data) ⇒ <code>object</code>
+### Scheduler.onTimeout(body) ⇒ <code>functions</code>
 Endpoint for Sensor timers hooks
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>object</code> - payload - Updated timeout  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| data | <code>object</code> | Timer callback data |
-
-<a name="module_Scheduler.onTimeout"></a>
-
-### Scheduler.onTimeout(body) ⇒ <code>object</code>
-Endpoint for Sensor timers hooks
-
-**Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>object</code> - payload - Updated timeout  
+**Returns**: <code>functions</code> - module:Scheduler~onTimeout  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -971,25 +970,35 @@ Iterate over each Scheduler keys found in cache
 
 <a name="module_Scheduler.getAll"></a>
 
-### Scheduler.getAll() ⇒ <code>array</code>
+### Scheduler.getAll([filter]) ⇒ <code>array</code>
 Find schedulers in the cache and add to device instance
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
 **Returns**: <code>array</code> - schedulers - Cached schedulers  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| [filter] | <code>object</code> | Scheduler filter |
+
 <a name="module_Scheduler.deleteAll"></a>
 
-### Scheduler.deleteAll() ⇒ <code>array</code>
+### Scheduler.deleteAll([filter]) ⇒ <code>array</code>
 Delete schedulers stored in cache
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
 **Returns**: <code>array</code> - schedulers - Cached schedulers keys  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| [filter] | <code>object</code> | Scheduler filter |
+
 <a name="module_Scheduler.onTick"></a>
 
-### Scheduler.onTick(body) ⇒ <code>object</code>
+### Scheduler.onTick(body) ⇒ <code>functions</code>
 Endpoint for Scheduler external timeout hooks
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>object</code> - payload - Updated timeout  
+**Returns**: <code>functions</code> - module:Scheduler~onTickHook  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1010,6 +1019,46 @@ else a DeltaTimer instance will be created and stored in memory
 | Param | Type | Description |
 | --- | --- | --- |
 | interval | <code>number</code> | Timeout interval |
+
+<a name="module_Scheduler..onTimeout"></a>
+
+### Scheduler~onTimeout(data) ⇒ <code>object</code>
+Scheduler timeout callback ( sensor timers )
+
+**Kind**: inner method of [<code>Scheduler</code>](#module_Scheduler)  
+**Returns**: <code>object</code> - payload - Updated timeout  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| data | <code>object</code> | Timer callback data |
+
+<a name="module_Scheduler..onTick"></a>
+
+### Scheduler~onTick(data) ⇒ <code>object</code>
+Scheduler timeout callback ( scheduler clock )
+
+Update every sensor having an active scheduler
+
+**Kind**: inner method of [<code>Scheduler</code>](#module_Scheduler)  
+**Returns**: <code>object</code> - payload - Updated timeout  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| data | <code>object</code> | Timer callback data |
+
+<a name="module_Scheduler..onTickHook"></a>
+
+### Scheduler~onTickHook(body) ⇒ <code>functions</code>
+Scheduler timeout callback ( scheduler clock )
+
+validate webhook content before dispatch
+
+**Kind**: inner method of [<code>Scheduler</code>](#module_Scheduler)  
+**Returns**: <code>functions</code> - module:Scheduler~onTick  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| body | <code>object</code> | Timer callback data |
 
 <a name="module_SensorResource"></a>
 
@@ -1158,7 +1207,7 @@ Update device's sensors stored in cache
 * [Sensor](#module_Sensor)
     * _static_
         * [.syncCache(device, [direction])](#module_Sensor.syncCache)
-        * [.publish(device, sensor, [method], [client])](#module_Sensor.publish) ⇒ <code>function</code>
+        * [.publish(device, sensor, [method], [client])](#module_Sensor.publish)
         * [.compose(device, attributes)](#module_Sensor.compose) ⇒ <code>object</code>
         * [.handlePresentation(device, sensor, [client])](#module_Sensor.handlePresentation) ⇒ <code>function</code> \| <code>function</code>
         * [.createOrUpdate(device, sensor, resourceKey, resourceValue, [client])](#module_Sensor.createOrUpdate) ⇒ <code>function</code>
@@ -1166,7 +1215,7 @@ Update device's sensors stored in cache
         * [.onPublish(device, attributes, [sensor], client)](#module_Sensor.onPublish) ⇒ <code>functions</code>
     * _inner_
         * [~getPersistingMethod(sensorType, resource, type)](#module_Sensor..getPersistingMethod) ⇒ <code>string</code>
-        * [~persistingResource(device, sensor, [client])](#module_Sensor..persistingResource) ⇒ <code>object</code>
+        * [~persistingResource(app, device, sensor, [client])](#module_Sensor..persistingResource) ⇒ <code>object</code>
         * ["publish" (message)](#event_publish) ⇒ <code>functions</code>
         * ["before save" (ctx)](#event_before save)
         * ["after save" (ctx)](#event_after save)
@@ -1186,11 +1235,11 @@ Synchronize cache memory with database on disk
 
 <a name="module_Sensor.publish"></a>
 
-### Sensor.publish(device, sensor, [method], [client]) ⇒ <code>function</code>
+### Sensor.publish(device, sensor, [method], [client])
 Format packet and send it via MQTT broker
 
 **Kind**: static method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>function</code> - Sensor.app.publish()  
+**Emits**: <code>{event} module:Server.event:publish</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1287,7 +1336,7 @@ Define the way to persist data based on OMA resource type
 
 <a name="module_Sensor..persistingResource"></a>
 
-### Sensor~persistingResource(device, sensor, [client]) ⇒ <code>object</code>
+### Sensor~persistingResource(app, device, sensor, [client]) ⇒ <code>object</code>
 Persist data based on OMA resource type
 
 use influxdb for integers and floats
@@ -1299,6 +1348,7 @@ use filestorage for strings and buffers
 
 | Param | Type | Description |
 | --- | --- | --- |
+| app | <code>object</code> | Loopback app |
 | device | <code>object</code> | Device instance |
 | sensor | <code>object</code> | Sensor instance |
 | [client] | <code>object</code> | MQTT client |
@@ -1356,7 +1406,7 @@ Event reporting that a sensor instance has been created or updated.
 <a name="event_before delete"></a>
 
 ### "before delete" (ctx)
-Event reporting that a sensor instance will be deleted.
+Event reporting that a/several sensor instance(s) will be deleted.
 
 **Kind**: event emitted by [<code>Sensor</code>](#module_Sensor)  
 
@@ -1376,15 +1426,16 @@ Event reporting that a sensor instance will be deleted.
         * [.findByEmail(email)](#module_User.findByEmail) ⇒ <code>object</code>
         * [.verifyEmail(user)](#module_User.verifyEmail) ⇒ <code>object</code>
     * _inner_
-        * ["create" (ctx, user)](#event_create)
         * ["after confirm" (ctx)](#event_after confirm)
         * ["before confirm" (ctx)](#event_before confirm)
+        * ["create" (ctx, user)](#event_create)
+        * ["create" (ctx, user)](#event_create)
         * ["before delete" (ctx)](#event_before delete)
 
 <a name="module_User.findByEmail"></a>
 
 ### User.findByEmail(email) ⇒ <code>object</code>
-Find an user by its email address and send a confirmation link
+Find a user by its email address and send a confirmation link
 
 **Kind**: static method of [<code>User</code>](#module_User)  
 **Returns**: <code>object</code> - mail result  
@@ -1404,20 +1455,6 @@ Send a confirmation link to confirm signup
 | Param | Type | Description |
 | --- | --- | --- |
 | user | <code>object</code> | User instance |
-
-<a name="event_create"></a>
-
-### "create" (ctx, user)
-Event reporting that a new user instance has been created.
-
-**Kind**: event emitted by [<code>User</code>](#module_User)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| ctx | <code>object</code> | Express context. |
-| ctx.req | <code>object</code> | Request |
-| ctx.res | <code>object</code> | Response |
-| user | <code>object</code> | User new instance |
 
 <a name="event_after confirm"></a>
 
@@ -1444,6 +1481,34 @@ Event reporting that an user attempts to login
 | ctx | <code>object</code> | Express context. |
 | ctx.req | <code>object</code> | Request |
 | ctx.res | <code>object</code> | Response |
+
+<a name="event_create"></a>
+
+### "create" (ctx, user)
+Event reporting that a new user instance will be created.
+
+**Kind**: event emitted by [<code>User</code>](#module_User)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context. |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
+| user | <code>object</code> | User new instance |
+
+<a name="event_create"></a>
+
+### "create" (ctx, user)
+Event reporting that a new user instance has been created.
+
+**Kind**: event emitted by [<code>User</code>](#module_User)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context. |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
+| user | <code>object</code> | User new instance |
 
 <a name="event_before delete"></a>
 

@@ -4,8 +4,9 @@ import fallback from 'express-history-api-fallback';
 import flash from 'express-flash';
 import path from 'path';
 //  import {ensureLoggedIn} from 'connect-ensure-login';
-import mqttClient from './mqtt-client';
+import MQTTClient from './mqtt-client';
 import logger from './logger';
+// import utils from '../services/utils';
 
 /**
  * @module Server
@@ -80,10 +81,10 @@ const authenticateInstance = async (client, username, password) => {
       foundClient.user = username;
       await Client.set(client.id, JSON.stringify(foundClient), ttl);
     }
-
+    // const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to update this user');
     return { client: foundClient, status, payload: successPayload };
   } catch (error) {
-    return error;
+    throw error;
   }
 };
 
@@ -93,7 +94,7 @@ const authenticateInstance = async (client, username, password) => {
  * Init external services ( MQTT broker )
  * @method module:Server.start
  * @param {object} config - Parsed env variables
- * @fires module:app.started
+ * @fires module:Server.started
  * @returns {object} httpServer
  */
 app.start = async config => {
@@ -106,6 +107,8 @@ app.start = async config => {
         baseUrl = `http://${config.NODE_NAME}-${config.NODE_ENV}.${config.TUNNEL_HOST}`;
       }
     }
+    logger.publish(2, 'loopback', 'start:req', baseUrl);
+
     app.set('originUrl', config.HTTP_SERVER_URL);
     app.set('url', baseUrl);
     app.set('host', config.HTTP_SERVER_HOST);
@@ -136,8 +139,6 @@ app.start = async config => {
     // );
 
     httpServer = app.listen(() => {
-      app.emit('started');
-
       // EXTERNAL AUTH TESTS
       //  app.get('/auth/account', ensureLoggedIn('/login'), (req, res, next) => {
       app.get('/auth/account', (req, res, next) => {
@@ -168,29 +169,34 @@ app.start = async config => {
         next();
       });
 
-      app.post('/api/auth/mqtt', async (req, res, next) => {
+      app.post('/api/auth/mqtt', async (req, res) => {
         try {
-          console.log('auth/mqtt', req.url, req.body);
+          // console.log('auth/mqtt', req.url, req.body);
           const client = req.body.client;
           const username = req.body.username;
           const password = req.body.password;
           const result = await authenticateInstance(client, username, password);
           res.set('Access-Control-Allow-Origin', '*');
           res.json(result);
-          return next();
+          return;
         } catch (error) {
-          return next(error);
+          throw error;
+          // return next(error);
         }
       });
+
+      app.emit('started', true);
     });
 
-    if (config.MQTT_BROKER_URL) {
-      await mqttClient.init(app, config);
-    }
+    // if (config.MQTT_BROKER_URL) {
+    // }
+    await MQTTClient.init(app, config);
+    // logger.publish(2, 'loopback', 'start:res', baseUrl);
 
     return true;
   } catch (error) {
     logger.publish(2, 'loopback', 'start:err', error);
+    app.emit('started', false);
     return false;
   }
 };
@@ -198,18 +204,24 @@ app.start = async config => {
 /**
  * Close the app and services
  * @method module:Server.stop
+ * @param {string} signal - process signal
+ * @fires module:Scheduler.stopped
+ * @fires module:Application.stopped
+ * @fires module:Device.stopped
+ * @fires module:Client.stopped
  */
-app.stop = async () => {
+app.stop = async signal => {
   try {
+    logger.publish(2, 'loopback', 'stop', signal);
     if (httpServer) {
       httpServer.close();
     }
     if (process.env.MQTT_BROKER_URL) {
-      await mqttClient.stop();
+      await MQTTClient.stop();
     }
     app.models.Scheduler.emit('stopped');
-    app.models.Device.emit('stopped');
     app.models.Application.emit('stopped');
+    app.models.Device.emit('stopped');
     app.models.Client.emit('stopped');
     logger.publish(2, 'loopback', 'stopped', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
     return true;
@@ -222,14 +234,13 @@ app.stop = async () => {
 /**
  * Emit publish event
  * @method module:Server.publish
- * @fires module:app.publish
+ * @returns {function} module:MQTTClient.publish
  */
 app.publish = async (topic, payload, retain = false, qos = 0) => {
   try {
-    await mqttClient.publish(topic, payload, retain, qos);
-    return true;
+    return MQTTClient.publish(topic, payload, retain, qos);
   } catch (error) {
-    return error;
+    throw error;
   }
 };
 
@@ -252,20 +263,55 @@ app.init = async config => {
     logger.publish(2, 'loopback', 'init', `${config.NODE_NAME} / ${config.NODE_ENV}`);
     const options = {
       appRootDir: config.appRootDir,
-      // File Extensions for jest (strongloop/loopback#3204)
       scriptExtensions: config.scriptExtensions,
     };
     await bootApp(app, options);
     //  logger.publish(4, 'loopback', 'init:res', state);
-    if (require.main === module) {
-      return app.start(config);
-    }
-    // return app.start(config);
-    return true;
+    // if (require.main === module) {
+    //   return app.start(config);
+    // }
+    return app.start(config);
   } catch (error) {
     logger.publish(2, 'loopback', 'init:err', error);
     return false;
   }
 };
+
+/**
+ * Event reporting that the application and all subservices should start.
+ * @event started
+ * @param {object} config - Parsed env variables
+ * @returns {functions} Server.init(config)
+ */
+app.on('start', app.init);
+
+/**
+ * Event reporting that the application and all subservices have started.
+ * @event started
+ * @param {boolean} state - application state
+ * @returns {functions} Server.stop()
+ */
+app.on('started', state => {
+  if (state) {
+    const baseUrl = app.get('url').replace(/\/$/, '');
+    logger.publish(4, 'loopback', 'Setup', `Browse ${process.env.NODE_NAME} API @: ${baseUrl}`);
+    if (app.get('loopback-component-explorer')) {
+      const explorerPath = app.get('loopback-component-explorer').mountPath;
+      logger.publish(4, 'loopback', 'Setup', `Explore REST API @: ${baseUrl}${explorerPath}`);
+    }
+    //  process.send('ready');
+  } else {
+    //  app.emit('error');
+    //  process.send('error');
+  }
+});
+
+/**
+ * Event reporting that the application and all subservice should stop.
+ * @event stop
+ * @param {string} signal - process signal
+ * @returns {functions} Server.stop()
+ */
+app.on('stop', async signal => app.stop(signal));
 
 export default app;

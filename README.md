@@ -87,13 +87,11 @@ You can override these by populating `deploy` with files corresponding to an env
   $ npm run lint
 ```
 
-## Running the development server
-
-```bash
-  $ npm run start:dev
-```
-
 ## Debug
+
+- To set Aloes verbosity, configure SERVER_LOGGER_LEVEL from 0 to 4
+
+- To activate Loopback debug
 
 ```bash
   $ DEBUG=loopback npm run start:dev
@@ -101,52 +99,30 @@ You can override these by populating `deploy` with files corresponding to an env
 
 [More info...](https://loopback.io/doc/en/lb3/Setting-debug-strings.html)
 
-## Deploying project
+## Starting project
 
-Please remember to update `.env` and `ecosystem.config.js` files to match your enviroment.
+Create or update `.env` file to match your enviroment.
 
 For example to run in local mode, create `./deploy/.env_local` using `.env_sample` as an example.
+
+### With Nodemon
 
 ```bash
   $ npm run start:local
 ```
 
-### With PM2 :
+### With PM2
 
-- [Documentation](https://pm2.keymetrics.io/docs/usage/deployment/)
-
-- Access to server with SSH :
+- Starting PM2 processes :
 
 ```bash
-  $ ssh-keygen -f ~/.ssh/server_name -t rsa -C <email_address> -b 4096
-  $ ssh-copy-id -i ~/.ssh/server_name user@server_uri
+  $ npm run start:pm2
 ```
 
-- Install PM2 globally :
+- Stopping PM2 processes :
 
 ```bash
-  $ npm install -g pm2
-```
-
-- Creating environment :
-
-```bash
-  $ pm2 deploy ecosystem.config.js production setup
-```
-
-- Updating environment :
-
-```bash
-  $ pm2 deploy ecosystem.config.js production update
-```
-
-Be sure to commit your changes on the right branch before each setup and update: ( master for production env, and staging for dev/staging env )
-
-```bash
-  $  git checkout master
-  $  git add .
-  $  git commit .
-  $  git push
+  $ npm run stop:pm2
 ```
 
 ### With Docker
@@ -161,10 +137,16 @@ Creating environment :
   $  npm run build:docker
 ```
 
-Starting container :
+Starting containers :
 
 ```bash
   $  npm run start:docker
+```
+
+Stopping containers :
+
+```bash
+  $  npm run stop:docker
 ```
 
 ## To deploy with your own TLS / SSL certificates

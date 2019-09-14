@@ -1,5 +1,8 @@
 import logger from './logger';
 
+/**
+ * @module RoleManager
+ */
 const roleManager = {};
 
 const appRolesById = {};
@@ -17,18 +20,19 @@ roleManager.getAppRoles = () => Object.values(appRolesById);
 roleManager.setAppRoles = async (app, roles) => {
   try {
     logger.publish(4, 'loopback', 'Initialize roles:req', roles);
-    const rolesToCreate = roles.map(role => {
-      const obj = { name: role };
-      return obj;
+    const promises = await roles.map(async roleName => {
+      const obj = { name: roleName };
+      const role = await app.models.Role.findOrCreate({ where: obj }, obj);
+      return role[0];
     });
-    const savedRoles = await app.models.Role.create(rolesToCreate);
+    // const savedRoles = await app.models.Role.create(rolesToCreate);
+    const savedRoles = await Promise.all(promises);
     // cache role name for quick mapping
     savedRoles.forEach(role => {
       appRolesById[role.id] = role.name;
       return role;
     });
-    // const savedRoles = await app.models.Role.findOrCreate({}, rolesToCreate);
-    // console.log('saved roles', savedRoles);
+    logger.publish(5, 'loopback', 'Initialize roles:res', savedRoles);
     return savedRoles;
   } catch (error) {
     logger.publish(2, 'loopback', 'Initialize roles:err', error);
@@ -41,7 +45,7 @@ roleManager.setAppRoles = async (app, roles) => {
  *
  * @param   app
  * @param   userId
- * @return  {Promise<[string|number]>}
+ * @return  {Promise<string|number>}
  */
 roleManager.getUserRoles = (app, userId) =>
   new Promise((resolve, reject) => {
@@ -59,7 +63,7 @@ roleManager.getUserRoles = (app, userId) =>
  *
  * @param   app
  * @param   userId
- * @return  {Promise<[string]>}
+ * @return  {Promise<string>}
  */
 roleManager.getUserRoleNames = async (app, userId) => {
   try {
@@ -85,8 +89,7 @@ roleManager.setUserRole = async (app, userId, roleName, reset = false) => {
     if (reset) {
       logger.publish(4, 'loopback', `Removing previous role ${roleName} for user `, userId);
       const roles = await roleManager.getUserRoleNames(app, userId);
-      console.log('Get User roles', roles);
-
+      // console.log('Get User roles', roles);
       // the user has same role
       if (roles.includes(roleName)) {
         return;
@@ -107,7 +110,6 @@ roleManager.setUserRole = async (app, userId, roleName, reset = false) => {
 
     logger.publish(4, 'loopback', `Setting role ${roleName} for user `, userId);
     const role = await app.models.Role.findOne({ where: { name: roleName } });
-
     if (role && role !== null) {
       await role.principals.create({
         principalType: app.models.RoleMapping.USER,
@@ -118,6 +120,7 @@ roleManager.setUserRole = async (app, userId, roleName, reset = false) => {
     return;
   } catch (error) {
     logger.publish(2, 'loopback', `setUserRole:err`, error);
+    throw error;
   }
 };
 
@@ -180,10 +183,10 @@ roleManager.roleResolver = async (app, user, subcribeType) => {
     });
     return result;
   } catch (error) {
-    logger.publish(4, 'loopback', 'roleResolver:err', {
+    logger.publish(2, 'loopback', 'roleResolver:err', {
       error,
     });
-    return error;
+    throw error;
   }
 };
 

@@ -3,9 +3,7 @@
 <dl>
 <dt><a href="#module_Broker">Broker</a></dt>
 <dd></dd>
-<dt><a href="#module_Broker">Broker</a></dt>
-<dd></dd>
-<dt><a href="#module_Client">Client</a></dt>
+<dt><a href="#module_MQTTClient">MQTTClient</a></dt>
 <dd></dd>
 <dt><a href="#module_Server">Server</a></dt>
 <dd></dd>
@@ -17,38 +15,64 @@
 
 * [Broker](#module_Broker)
     * _static_
-        * [.start(app)](#module_Broker.start) ⇒ <code>object</code>
-        * [.stop(app)](#module_Broker.stop) ⇒ <code>boolean</code>
+        * [.getClients([id])](#module_Broker.getClients) ⇒ <code>array</code> \| <code>object</code>
+        * [.getClientsByTopic(topic)](#module_Broker.getClientsByTopic) ⇒ <code>Promise</code>
+        * [.cleanSubscriptions(client)](#module_Broker.cleanSubscriptions) ⇒ <code>Promise</code>
+        * [.start(app)](#module_Broker.start) ⇒ <code>boolean</code>
+        * [.stop()](#module_Broker.stop) ⇒ <code>boolean</code>
         * [.init()](#module_Broker.init) ⇒ <code>function</code>
-        * [.start(app)](#module_Broker.start) ⇒ <code>object</code>
-        * [.stop(app)](#module_Broker.stop) ⇒ <code>boolean</code>
-        * [.init(app, httpServer, conf)](#module_Broker.init) ⇒ <code>function</code>
     * _inner_
+        * [~getClient(client)](#module_Broker..getClient) ⇒ <code>object</code>
+        * [~pickRandomClient(clientIds, attempts)](#module_Broker..pickRandomClient) ⇒ <code>object</code>
+        * [~authentificationRequest(data)](#module_Broker..authentificationRequest) ⇒ <code>Promise</code>
         * [~authenticate(client, [username], [password], cb)](#module_Broker..authenticate) ⇒ <code>function</code>
         * [~authorizePublish(client, packet, cb)](#module_Broker..authorizePublish) ⇒ <code>function</code>
-        * [~authorizeSubscribe(client, sub, cb)](#module_Broker..authorizeSubscribe) ⇒ <code>function</code>
-        * [~authenticate(client, [username], [password], cb)](#module_Broker..authenticate) ⇒ <code>function</code>
-        * [~authorizePublish(client, packet, cb)](#module_Broker..authorizePublish) ⇒ <code>function</code>
-        * [~authorizeSubscribe(client, sub, cb)](#module_Broker..authorizeSubscribe) ⇒ <code>function</code>
-        * [~updateModelsStatus(client, status)](#module_Broker..updateModelsStatus)
-        * [~findPattern(packet, client)](#module_Broker..findPattern) ⇒ <code>object</code>
-        * [~redirectMessage(packet, pattern)](#module_Broker..redirectMessage) ⇒ <code>string</code>
-        * ["client" (client)](#event_client) ⇒ <code>functions</code>
-        * ["clientDisconnect" (client)](#event_clientDisconnect) ⇒ <code>functions</code>
-        * ["keepaliveTimeout" (client)](#event_keepaliveTimeout) ⇒ <code>functions</code>
+        * [~authorizeSubscribe(client, packet, cb)](#module_Broker..authorizeSubscribe) ⇒ <code>function</code>
         * ["published" (packet, client)](#event_published)
         * ["client" (client)](#event_client) ⇒ <code>functions</code>
         * ["clientDisconnect" (client)](#event_clientDisconnect) ⇒ <code>functions</code>
         * ["keepaliveTimeout" (client)](#event_keepaliveTimeout) ⇒ <code>functions</code>
-        * ["published" (packet, client)](#event_published)
+
+<a name="module_Broker.getClients"></a>
+
+### Broker.getClients([id]) ⇒ <code>array</code> \| <code>object</code>
+Find in cache clients subscribed to a specific topic pattern
+
+**Kind**: static method of [<code>Broker</code>](#module_Broker)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| [id] | <code>string</code> | Client id |
+
+<a name="module_Broker.getClientsByTopic"></a>
+
+### Broker.getClientsByTopic(topic) ⇒ <code>Promise</code>
+Find in cache client ids subscribed to a specific topic pattern
+
+**Kind**: static method of [<code>Broker</code>](#module_Broker)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| topic | <code>string</code> | Topic pattern |
+
+<a name="module_Broker.cleanSubscriptions"></a>
+
+### Broker.cleanSubscriptions(client) ⇒ <code>Promise</code>
+Remove subscriptions for a specific client
+
+**Kind**: static method of [<code>Broker</code>](#module_Broker)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| client | <code>object</code> | MQTT client |
 
 <a name="module_Broker.start"></a>
 
-### Broker.start(app) ⇒ <code>object</code>
-Setup broker functions
+### Broker.start(app) ⇒ <code>boolean</code>
+Setup broker connection
 
 **Kind**: static method of [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>object</code> - app.broker  
+**Returns**: <code>boolean</code> - status  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -56,15 +80,10 @@ Setup broker functions
 
 <a name="module_Broker.stop"></a>
 
-### Broker.stop(app) ⇒ <code>boolean</code>
+### Broker.stop() ⇒ <code>boolean</code>
 Stop broker and update models status
 
 **Kind**: static method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| app | <code>object</code> | Loopback app |
-
 <a name="module_Broker.init"></a>
 
 ### Broker.init() ⇒ <code>function</code>
@@ -72,42 +91,41 @@ Init MQTT Broker with new Aedes instance
 
 **Kind**: static method of [<code>Broker</code>](#module_Broker)  
 **Returns**: <code>function</code> - broker.start  
-<a name="module_Broker.start"></a>
+<a name="module_Broker..getClient"></a>
 
-### Broker.start(app) ⇒ <code>object</code>
-Setup broker functions
+### Broker~getClient(client) ⇒ <code>object</code>
+Transform circular MQTT client in JSON
 
-**Kind**: static method of [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>object</code> - app.broker  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| app | <code>object</code> | Loopback app |
-
-<a name="module_Broker.stop"></a>
-
-### Broker.stop(app) ⇒ <code>boolean</code>
-Stop broker and update models status
-
-**Kind**: static method of [<code>Broker</code>](#module_Broker)  
+**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
+**Returns**: <code>object</code> - client  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| app | <code>object</code> | Loopback app |
+| client | <code>object</code> | MQTT client |
 
-<a name="module_Broker.init"></a>
+<a name="module_Broker..pickRandomClient"></a>
 
-### Broker.init(app, httpServer, conf) ⇒ <code>function</code>
-Init MQTT Broker with new Aedes instance
+### Broker~pickRandomClient(clientIds, attempts) ⇒ <code>object</code>
+Give a range of clientIds, find a connected client
 
-**Kind**: static method of [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>function</code> - broker.start  
+**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
+**Returns**: <code>object</code> - client  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| app | <code>object</code> | Loopback app |
-| httpServer | <code>object</code> | HTTP server to attach for websockets support |
-| conf | <code>object</code> | Env varirables |
+| clientIds | <code>Array.&lt;string&gt;</code> | MQTT client Ids |
+| attempts | <code>number</code> | Number of tryouts before returning null |
+
+<a name="module_Broker..authentificationRequest"></a>
+
+### Broker~authentificationRequest(data) ⇒ <code>Promise</code>
+HTTP request to Aloes to validate credentials
+
+**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| data | <code>object</code> | Client instance |
 
 <a name="module_Broker..authenticate"></a>
 
@@ -138,7 +156,7 @@ Aedes publish authorization callback
 
 <a name="module_Broker..authorizeSubscribe"></a>
 
-### Broker~authorizeSubscribe(client, sub, cb) ⇒ <code>function</code>
+### Broker~authorizeSubscribe(client, packet, cb) ⇒ <code>function</code>
 Aedes subscribe authorization callback
 
 **Kind**: inner method of [<code>Broker</code>](#module_Broker)  
@@ -146,86 +164,20 @@ Aedes subscribe authorization callback
 | Param | Type | Description |
 | --- | --- | --- |
 | client | <code>object</code> | MQTT client |
-| sub | <code>object</code> | MQTT packet |
-| cb | <code>function</code> | callback |
-
-<a name="module_Broker..authenticate"></a>
-
-### Broker~authenticate(client, [username], [password], cb) ⇒ <code>function</code>
-Aedes authentification callback
-
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-| [username] | <code>string</code> | MQTT username |
-| [password] | <code>object</code> | MQTT password |
-| cb | <code>function</code> | callback |
-
-<a name="module_Broker..authorizePublish"></a>
-
-### Broker~authorizePublish(client, packet, cb) ⇒ <code>function</code>
-Aedes publish authorization callback
-
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
 | packet | <code>object</code> | MQTT packet |
 | cb | <code>function</code> | callback |
 
-<a name="module_Broker..authorizeSubscribe"></a>
+<a name="event_published"></a>
 
-### Broker~authorizeSubscribe(client, sub, cb) ⇒ <code>function</code>
-Aedes subscribe authorization callback
+### "published" (packet, client)
+On message published to Aedes broker
 
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-| sub | <code>object</code> | MQTT packet |
-| cb | <code>function</code> | callback |
-
-<a name="module_Broker..updateModelsStatus"></a>
-
-### Broker~updateModelsStatus(client, status)
-Update models status from MQTT conection status and client properties
-
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-| status | <code>boolean</code> | MQTT conection status |
-
-<a name="module_Broker..findPattern"></a>
-
-### Broker~findPattern(packet, client) ⇒ <code>object</code>
-Retrieve pattern from packet.topic
-
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>object</code> - pattern  
+**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | packet | <code>object</code> | MQTT packet |
 | client | <code>object</code> | MQTT client |
-
-<a name="module_Broker..redirectMessage"></a>
-
-### Broker~redirectMessage(packet, pattern) ⇒ <code>string</code>
-Redirect parsed message to corresponding Loopback model || device
-
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>string</code> - serviceName  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| packet | <code>object</code> | MQTT packet |
-| pattern | <code>object</code> | IoTAgent retireved pattern |
 
 <a name="event_client"></a>
 
@@ -263,275 +215,89 @@ When client keep alive timeout
 | --- | --- | --- |
 | client | <code>object</code> | MQTT client |
 
-<a name="event_published"></a>
+<a name="module_MQTTClient"></a>
 
-### "published" (packet, client)
-On message published to Mosca broker
+## MQTTClient
 
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| packet | <code>object</code> | MQTT packet |
-| client | <code>object</code> | MQTT client |
-
-<a name="event_client"></a>
-
-### "client" (client) ⇒ <code>functions</code>
-On client connected to Aedes broker
-
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>functions</code> - updateModelsStatus  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-
-<a name="event_clientDisconnect"></a>
-
-### "clientDisconnect" (client) ⇒ <code>functions</code>
-On client disconnecting from Aedes broker
-
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>functions</code> - updateModelsStatus  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-
-<a name="event_keepaliveTimeout"></a>
-
-### "keepaliveTimeout" (client) ⇒ <code>functions</code>
-When client keep alive timeout
-
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>functions</code> - updateModelsStatus  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-
-<a name="event_published"></a>
-
-### "published" (packet, client)
-On message published to Mosca broker
-
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| packet | <code>object</code> | MQTT packet |
-| client | <code>object</code> | MQTT client |
-
-<a name="module_Broker"></a>
-
-## Broker
-
-* [Broker](#module_Broker)
+* [MQTTClient](#module_MQTTClient)
     * _static_
-        * [.start(app)](#module_Broker.start) ⇒ <code>object</code>
-        * [.stop(app)](#module_Broker.stop) ⇒ <code>boolean</code>
-        * [.init()](#module_Broker.init) ⇒ <code>function</code>
-        * [.start(app)](#module_Broker.start) ⇒ <code>object</code>
-        * [.stop(app)](#module_Broker.stop) ⇒ <code>boolean</code>
-        * [.init(app, httpServer, conf)](#module_Broker.init) ⇒ <code>function</code>
+        * [.init(app, config)](#module_MQTTClient.init) ⇒ <code>boolean</code>
+        * [.publish(topic, payload)](#module_MQTTClient.publish) ⇒ <code>boolean</code>
+        * [.stop()](#module_MQTTClient.stop) ⇒ <code>boolean</code>
     * _inner_
-        * [~authenticate(client, [username], [password], cb)](#module_Broker..authenticate) ⇒ <code>function</code>
-        * [~authorizePublish(client, packet, cb)](#module_Broker..authorizePublish) ⇒ <code>function</code>
-        * [~authorizeSubscribe(client, sub, cb)](#module_Broker..authorizeSubscribe) ⇒ <code>function</code>
-        * [~authenticate(client, [username], [password], cb)](#module_Broker..authenticate) ⇒ <code>function</code>
-        * [~authorizePublish(client, packet, cb)](#module_Broker..authorizePublish) ⇒ <code>function</code>
-        * [~authorizeSubscribe(client, sub, cb)](#module_Broker..authorizeSubscribe) ⇒ <code>function</code>
-        * [~updateModelsStatus(client, status)](#module_Broker..updateModelsStatus)
-        * [~findPattern(packet, client)](#module_Broker..findPattern) ⇒ <code>object</code>
-        * [~redirectMessage(packet, pattern)](#module_Broker..redirectMessage) ⇒ <code>string</code>
-        * ["client" (client)](#event_client) ⇒ <code>functions</code>
-        * ["clientDisconnect" (client)](#event_clientDisconnect) ⇒ <code>functions</code>
-        * ["keepaliveTimeout" (client)](#event_keepaliveTimeout) ⇒ <code>functions</code>
-        * ["published" (packet, client)](#event_published)
-        * ["client" (client)](#event_client) ⇒ <code>functions</code>
-        * ["clientDisconnect" (client)](#event_clientDisconnect) ⇒ <code>functions</code>
-        * ["keepaliveTimeout" (client)](#event_keepaliveTimeout) ⇒ <code>functions</code>
-        * ["published" (packet, client)](#event_published)
+        * [~updateModelsStatus(app, client, status)](#module_MQTTClient..updateModelsStatus)
+        * [~findPattern(app, packet, client)](#module_MQTTClient..findPattern) ⇒ <code>object</code>
+        * [~redirectMessage(packet, pattern)](#module_MQTTClient..redirectMessage) ⇒ <code>string</code>
+        * [~onStatus(app, topic, payload)](#module_MQTTClient..onStatus) ⇒ <code>functions</code>
+        * [~onReceive(app, topic, payload)](#module_MQTTClient..onReceive)
+        * [~onMessage(app, topic, payload)](#module_MQTTClient..onMessage) ⇒ <code>functions</code> \| <code>functions</code>
 
-<a name="module_Broker.start"></a>
+<a name="module_MQTTClient.init"></a>
 
-### Broker.start(app) ⇒ <code>object</code>
-Setup broker functions
+### MQTTClient.init(app, config) ⇒ <code>boolean</code>
+Setup MQTT client connection
 
-**Kind**: static method of [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>object</code> - app.broker  
+**Kind**: static method of [<code>MQTTClient</code>](#module_MQTTClient)  
+**Returns**: <code>boolean</code> - status  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | app | <code>object</code> | Loopback app |
+| config | <code>object</code> | Environment variables |
 
-<a name="module_Broker.stop"></a>
+<a name="module_MQTTClient.publish"></a>
 
-### Broker.stop(app) ⇒ <code>boolean</code>
-Stop broker and update models status
+### MQTTClient.publish(topic, payload) ⇒ <code>boolean</code>
+Convert payload and topic before publish
 
-**Kind**: static method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| app | <code>object</code> | Loopback app |
-
-<a name="module_Broker.init"></a>
-
-### Broker.init() ⇒ <code>function</code>
-Init MQTT Broker with new Aedes instance
-
-**Kind**: static method of [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>function</code> - broker.start  
-<a name="module_Broker.start"></a>
-
-### Broker.start(app) ⇒ <code>object</code>
-Setup broker functions
-
-**Kind**: static method of [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>object</code> - app.broker  
+**Kind**: static method of [<code>MQTTClient</code>](#module_MQTTClient)  
+**Returns**: <code>boolean</code> - status  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| app | <code>object</code> | Loopback app |
+| topic | <code>string</code> | Packet topic |
+| payload | <code>any</code> | Packet payload |
 
-<a name="module_Broker.stop"></a>
+<a name="module_MQTTClient.stop"></a>
 
-### Broker.stop(app) ⇒ <code>boolean</code>
-Stop broker and update models status
+### MQTTClient.stop() ⇒ <code>boolean</code>
+Stop MQTT client and unsubscribe
 
-**Kind**: static method of [<code>Broker</code>](#module_Broker)  
+**Kind**: static method of [<code>MQTTClient</code>](#module_MQTTClient)  
+**Returns**: <code>boolean</code> - status  
+<a name="module_MQTTClient..updateModelsStatus"></a>
 
-| Param | Type | Description |
-| --- | --- | --- |
-| app | <code>object</code> | Loopback app |
-
-<a name="module_Broker.init"></a>
-
-### Broker.init(app, httpServer, conf) ⇒ <code>function</code>
-Init MQTT Broker with new Aedes instance
-
-**Kind**: static method of [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>function</code> - broker.start  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| app | <code>object</code> | Loopback app |
-| httpServer | <code>object</code> | HTTP server to attach for websockets support |
-| conf | <code>object</code> | Env varirables |
-
-<a name="module_Broker..authenticate"></a>
-
-### Broker~authenticate(client, [username], [password], cb) ⇒ <code>function</code>
-Aedes authentification callback
-
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-| [username] | <code>string</code> | MQTT username |
-| [password] | <code>object</code> | MQTT password |
-| cb | <code>function</code> | callback |
-
-<a name="module_Broker..authorizePublish"></a>
-
-### Broker~authorizePublish(client, packet, cb) ⇒ <code>function</code>
-Aedes publish authorization callback
-
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-| packet | <code>object</code> | MQTT packet |
-| cb | <code>function</code> | callback |
-
-<a name="module_Broker..authorizeSubscribe"></a>
-
-### Broker~authorizeSubscribe(client, sub, cb) ⇒ <code>function</code>
-Aedes subscribe authorization callback
-
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-| sub | <code>object</code> | MQTT packet |
-| cb | <code>function</code> | callback |
-
-<a name="module_Broker..authenticate"></a>
-
-### Broker~authenticate(client, [username], [password], cb) ⇒ <code>function</code>
-Aedes authentification callback
-
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-| [username] | <code>string</code> | MQTT username |
-| [password] | <code>object</code> | MQTT password |
-| cb | <code>function</code> | callback |
-
-<a name="module_Broker..authorizePublish"></a>
-
-### Broker~authorizePublish(client, packet, cb) ⇒ <code>function</code>
-Aedes publish authorization callback
-
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-| packet | <code>object</code> | MQTT packet |
-| cb | <code>function</code> | callback |
-
-<a name="module_Broker..authorizeSubscribe"></a>
-
-### Broker~authorizeSubscribe(client, sub, cb) ⇒ <code>function</code>
-Aedes subscribe authorization callback
-
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-| sub | <code>object</code> | MQTT packet |
-| cb | <code>function</code> | callback |
-
-<a name="module_Broker..updateModelsStatus"></a>
-
-### Broker~updateModelsStatus(client, status)
+### MQTTClient~updateModelsStatus(app, client, status)
 Update models status from MQTT conection status and client properties
 
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
+**Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
 
 | Param | Type | Description |
 | --- | --- | --- |
+| app | <code>object</code> | Loopback app |
 | client | <code>object</code> | MQTT client |
 | status | <code>boolean</code> | MQTT conection status |
 
-<a name="module_Broker..findPattern"></a>
+<a name="module_MQTTClient..findPattern"></a>
 
-### Broker~findPattern(packet, client) ⇒ <code>object</code>
+### MQTTClient~findPattern(app, packet, client) ⇒ <code>object</code>
 Retrieve pattern from packet.topic
 
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
+**Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
 **Returns**: <code>object</code> - pattern  
 
 | Param | Type | Description |
 | --- | --- | --- |
+| app | <code>object</code> | Loopback app |
 | packet | <code>object</code> | MQTT packet |
 | client | <code>object</code> | MQTT client |
 
-<a name="module_Broker..redirectMessage"></a>
+<a name="module_MQTTClient..redirectMessage"></a>
 
-### Broker~redirectMessage(packet, pattern) ⇒ <code>string</code>
+### MQTTClient~redirectMessage(packet, pattern) ⇒ <code>string</code>
 Redirect parsed message to corresponding Loopback model || device
 
-**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
+**Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
 **Returns**: <code>string</code> - serviceName  
 
 | Param | Type | Description |
@@ -539,158 +305,62 @@ Redirect parsed message to corresponding Loopback model || device
 | packet | <code>object</code> | MQTT packet |
 | pattern | <code>object</code> | IoTAgent retireved pattern |
 
-<a name="event_client"></a>
+<a name="module_MQTTClient..onStatus"></a>
 
-### "client" (client) ⇒ <code>functions</code>
-On client connected to Aedes broker
+### MQTTClient~onStatus(app, topic, payload) ⇒ <code>functions</code>
+Called when status message has been detected
 
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>functions</code> - updateModelsStatus  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-
-<a name="event_clientDisconnect"></a>
-
-### "clientDisconnect" (client) ⇒ <code>functions</code>
-On client disconnected from Aedes broker
-
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>functions</code> - updateModelsStatus  
+**Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
+**Returns**: <code>functions</code> - module:MQTTClient~updateModelsStatus  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| client | <code>object</code> | MQTT client |
+| app | <code>object</code> | Loopback app |
+| topic | <code>object</code> | MQTT topic |
+| payload | <code>object</code> | MQTT payload |
 
-<a name="event_keepaliveTimeout"></a>
+<a name="module_MQTTClient..onReceive"></a>
 
-### "keepaliveTimeout" (client) ⇒ <code>functions</code>
-When client keep alive timeout
+### MQTTClient~onReceive(app, topic, payload)
+Called when message arrived from the broker to be redirected to the right Model
 
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>functions</code> - updateModelsStatus  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-
-<a name="event_published"></a>
-
-### "published" (packet, client)
-On message published to Mosca broker
-
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
+**Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
+**Emits**: <code>event:{functions} publish</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| packet | <code>object</code> | MQTT packet |
-| client | <code>object</code> | MQTT client |
+| app | <code>object</code> | Loopback app |
+| topic | <code>object</code> | MQTT topic |
+| payload | <code>object</code> | MQTT payload |
 
-<a name="event_client"></a>
+<a name="module_MQTTClient..onMessage"></a>
 
-### "client" (client) ⇒ <code>functions</code>
-On client connected to Aedes broker
+### MQTTClient~onMessage(app, topic, payload) ⇒ <code>functions</code> \| <code>functions</code>
+Parse the message arriving from the broker
 
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>functions</code> - updateModelsStatus  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-
-<a name="event_clientDisconnect"></a>
-
-### "clientDisconnect" (client) ⇒ <code>functions</code>
-On client disconnecting from Aedes broker
-
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>functions</code> - updateModelsStatus  
+**Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
+**Returns**: <code>functions</code> - module:MQTTClient~onStatus<code>functions</code> - module:MQTTClient~onReceive  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-
-<a name="event_keepaliveTimeout"></a>
-
-### "keepaliveTimeout" (client) ⇒ <code>functions</code>
-When client keep alive timeout
-
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>functions</code> - updateModelsStatus  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-
-<a name="event_published"></a>
-
-### "published" (packet, client)
-On message published to Mosca broker
-
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| packet | <code>object</code> | MQTT packet |
-| client | <code>object</code> | MQTT client |
-
-<a name="module_Client"></a>
-
-## Client
-
-* [Client](#module_Client)
-    * [~updateModelsStatus(client, status)](#module_Client..updateModelsStatus)
-    * [~findPattern(packet, client)](#module_Client..findPattern) ⇒ <code>object</code>
-    * [~redirectMessage(packet, pattern)](#module_Client..redirectMessage) ⇒ <code>string</code>
-
-<a name="module_Client..updateModelsStatus"></a>
-
-### Client~updateModelsStatus(client, status)
-Update models status from MQTT conection status and client properties
-
-**Kind**: inner method of [<code>Client</code>](#module_Client)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
-| status | <code>boolean</code> | MQTT conection status |
-
-<a name="module_Client..findPattern"></a>
-
-### Client~findPattern(packet, client) ⇒ <code>object</code>
-Retrieve pattern from packet.topic
-
-**Kind**: inner method of [<code>Client</code>](#module_Client)  
-**Returns**: <code>object</code> - pattern  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| packet | <code>object</code> | MQTT packet |
-| client | <code>object</code> | MQTT client |
-
-<a name="module_Client..redirectMessage"></a>
-
-### Client~redirectMessage(packet, pattern) ⇒ <code>string</code>
-Redirect parsed message to corresponding Loopback model || device
-
-**Kind**: inner method of [<code>Client</code>](#module_Client)  
-**Returns**: <code>string</code> - serviceName  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| packet | <code>object</code> | MQTT packet |
-| pattern | <code>object</code> | IoTAgent retireved pattern |
+| app | <code>object</code> | Loopback app |
+| topic | <code>object</code> | MQTT topic |
+| payload | <code>object</code> | MQTT payload |
 
 <a name="module_Server"></a>
 
 ## Server
 
 * [Server](#module_Server)
-    * [.start(config)](#module_Server.start) ⇒ <code>object</code>
-    * [.stop()](#module_Server.stop)
-    * [.publish()](#module_Server.publish)
-    * [.init(config)](#module_Server.init)
+    * _static_
+        * [.start(config)](#module_Server.start) ⇒ <code>object</code>
+        * [.stop(signal)](#module_Server.stop)
+        * [.publish()](#module_Server.publish) ⇒ <code>function</code>
+        * [.init(config)](#module_Server.init)
+    * _inner_
+        * ["started" (config)](#event_started) ⇒ <code>functions</code>
+        * ["started" (state)](#event_started) ⇒ <code>functions</code>
+        * ["stop" (signal)](#event_stop) ⇒ <code>functions</code>
 
 <a name="module_Server.start"></a>
 
@@ -701,7 +371,7 @@ Init external services ( MQTT broker )
 
 **Kind**: static method of [<code>Server</code>](#module_Server)  
 **Returns**: <code>object</code> - httpServer  
-**Emits**: <code>module:app.event:started</code>  
+**Emits**: <code>module:Server.event:started</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -709,18 +379,23 @@ Init external services ( MQTT broker )
 
 <a name="module_Server.stop"></a>
 
-### Server.stop()
+### Server.stop(signal)
 Close the app and services
 
 **Kind**: static method of [<code>Server</code>](#module_Server)  
-**Emits**: <code>module:app.event:stopped</code>  
+**Emits**: <code>module:Scheduler.event:stopped</code>, <code>module:Application.event:stopped</code>, <code>module:Device.event:stopped</code>, <code>module:Client.event:stopped</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| signal | <code>string</code> | process signal |
+
 <a name="module_Server.publish"></a>
 
-### Server.publish()
+### Server.publish() ⇒ <code>function</code>
 Emit publish event
 
 **Kind**: static method of [<code>Server</code>](#module_Server)  
-**Emits**: <code>module:app.event:publish</code>  
+**Returns**: <code>function</code> - module:MQTTClient.publish  
 <a name="module_Server.init"></a>
 
 ### Server.init(config)
@@ -731,4 +406,40 @@ Bootstrap the application, configure models, datasources and middleware.
 | Param | Type | Description |
 | --- | --- | --- |
 | config | <code>object</code> | Parsed env variables |
+
+<a name="event_started"></a>
+
+### "started" (config) ⇒ <code>functions</code>
+Event reporting that the application and all subservices should start.
+
+**Kind**: event emitted by [<code>Server</code>](#module_Server)  
+**Returns**: <code>functions</code> - Server.init(config)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| config | <code>object</code> | Parsed env variables |
+
+<a name="event_started"></a>
+
+### "started" (state) ⇒ <code>functions</code>
+Event reporting that the application and all subservices have started.
+
+**Kind**: event emitted by [<code>Server</code>](#module_Server)  
+**Returns**: <code>functions</code> - Server.stop()  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| state | <code>boolean</code> | application state |
+
+<a name="event_stop"></a>
+
+### "stop" (signal) ⇒ <code>functions</code>
+Event reporting that the application and all subservice should stop.
+
+**Kind**: event emitted by [<code>Server</code>](#module_Server)  
+**Returns**: <code>functions</code> - Server.stop()  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| signal | <code>string</code> | process signal |
 

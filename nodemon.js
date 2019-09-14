@@ -1,10 +1,11 @@
-/* eslint-disable no-unused-vars */
 const nodemon = require('nodemon');
-const tunnel = require('./dist/services/tunnel');
-const broker = require('./dist/services/broker');
+require('./dist/services/tunnel');
+require('./dist/services/broker');
 
 // if !process.env.ALOES_ID process.env.ALOES_ID = uuid
 // if !process.env.ALOES_KEY process.env.ALOES_KEY = uuid
+
+process.env.CLUSTER_MODE = false;
 
 nodemon({
   script: './dist/index.js',

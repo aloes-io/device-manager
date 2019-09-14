@@ -3,27 +3,12 @@ import nodeCleanup from 'node-cleanup';
 import app from './services/server';
 import logger from './services/logger';
 
-app.on('started', () => {
-  const baseUrl = app.get('url').replace(/\/$/, '');
-  logger.publish(4, 'loopback', 'Setup', `Browse ${process.env.NODE_NAME} API @: ${baseUrl}`);
-  if (app.get('loopback-component-explorer')) {
-    const explorerPath = app.get('loopback-component-explorer').mountPath;
-    logger.publish(4, 'loopback', 'Setup', `Explore REST API @: ${baseUrl}${explorerPath}`);
-  }
-  //  process.send('ready');
-});
-
-app.on('stopped', async signal => {
-  try {
-    await app.stop(signal);
-    logger.publish(4, 'loopback', 'stop', signal);
-    return true;
-  } catch (error) {
-    return error;
-  }
-});
-
-const boot = async () => {
+/**
+ * Initialize application and services
+ * @param {string} [processId] - process id
+ * @fires module:Server.start
+ */
+const boot = async processId => {
   try {
     const result = dotenv.config();
     if (result.error) {
@@ -31,41 +16,66 @@ const boot = async () => {
     }
     const config = {
       ...result.parsed,
+      processId,
       appRootDir: __dirname,
       // File Extensions for jest (strongloop/loopback#3204)
       scriptExtensions: ['.js', '.json', '.node', '.ejs'],
     };
-    const state = await app.init(config);
-    logger.publish(4, 'loopback', 'boot:res', state);
-    return state;
+    logger.publish(2, 'loopback', 'boot:res', processId);
+    return app.emit('start', config);
   } catch (error) {
-    logger.publish(4, 'loopback', 'boot:error', error);
-    return error;
+    logger.publish(1, 'loopback', 'boot:error', error);
+    throw error;
   }
 };
 
-boot();
-
 /**
  * Watch for interrupt signal
- * @fires module:app.stopped
+ * @fires module:Server.stop
  */
 nodeCleanup((exitCode, signal) => {
   try {
     if (signal && signal !== null) {
-      logger.publish(4, 'process', 'exit:req', { exitCode, signal, pid: process.pid });
-      app.emit('stopped', signal);
+      logger.publish(1, 'process', 'exit:req', { exitCode, signal, pid: process.pid });
+      app.emit('stop', signal);
       setTimeout(() => process.kill(process.pid, signal), 3000);
       nodeCleanup.uninstall();
       return false;
     }
     return true;
   } catch (error) {
-    logger.publish(4, 'process', 'exit:err', error);
+    logger.publish(1, 'process', 'exit:err', error);
     //  setTimeout(() => process.exit(1), 3000);
-    setTimeout(() => process.kill(process.pid, signal), 3000);
-    return error;
+    process.kill(process.pid, signal);
+    throw error;
   }
 });
+
+if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
+  logger.publish(1, 'process', 'init:single', { pid: process.pid });
+  boot(0);
+} else {
+  logger.publish(1, 'process', 'init:cluster', { pid: process.pid });
+
+  process.on('message', packet => {
+    console.log('PROCESS PACKET ', packet);
+    if (typeof packet.id === 'number') {
+      boot(packet.id);
+      process.send({
+        type: 'process:msg',
+        data: {
+          isStarted: true,
+        },
+      });
+    }
+  });
+
+  process.send({
+    type: 'process:msg',
+    data: {
+      isStarted: false,
+    },
+  });
+}
 
 export default app;

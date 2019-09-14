@@ -4,6 +4,7 @@ import app from '../index';
 import testHelper from '../services/test-helper';
 
 require('@babel/register');
+require('../services/broker');
 
 const delayBeforeTesting = 7000;
 const deviceFactory = testHelper.factories.device;
@@ -28,27 +29,31 @@ setTimeout(() => {
 
     const e2eTestsSuite = {
       '[TEST] Devices E2E Tests': {
-        before: async () => {
-          const users = await Promise.all([
-            testHelper.access.admin.create(app),
-            testHelper.access.user.create(app),
-          ]);
-          const userIds = [users[0].id, users[1].id];
-          const models = Array(5)
-            .fill('')
-            .map((_, index) => {
-              if (index <= 1) {
-                return deviceFactory(index + 1, userIds[0]);
-              }
-              return deviceFactory(index + 1, userIds[1]);
-            });
-          return DeviceModel.create(models).then(res => {
+        async before() {
+          try {
+            this.timeout(3000);
+            const users = await Promise.all([
+              testHelper.access.admin.create(app),
+              testHelper.access.user.create(app),
+            ]);
+            const userIds = [users[0].id, users[1].id];
+            const models = Array(5)
+              .fill('')
+              .map((_, index) => {
+                if (index <= 1) {
+                  return deviceFactory(index + 1, userIds[0]);
+                }
+                return deviceFactory(index + 1, userIds[1]);
+              });
+            // console.log('CREATED DEVICES MODELS ', models);
+            const res = await DeviceModel.create(models);
             devices = res.map(model => model.toJSON());
-          });
+            return devices;
+          } catch (error) {
+            console.log('[TEST] Devices before:err', error);
+            return error;
+          }
         },
-        // beforeEach() {
-        //   this.timeout(5000);
-        // },
         after: () =>
           Promise.all([
             DeviceModel.destroyAll(),

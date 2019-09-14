@@ -7,6 +7,12 @@ cache:
 before_script:
   - npm ci
 
+test_async:
+  script:
+    - npm run test
+  only:
+    - staging
+
 pages:
   stage: deploy
   script:

@@ -1,4 +1,5 @@
-FROM keymetrics/pm2:latest-alpine
+# FROM keymetrics/pm2:latest-alpine
+FROM node:lts-alpine
 
 ENV NODE_NAME device-manager
 
@@ -6,7 +7,7 @@ RUN mkdir -p /home/node/$NODE_NAME
 
 COPY src /home/node/$NODE_NAME/src/
 COPY package*.json /home/node/$NODE_NAME/
-COPY ecosystem.config.js /home/node/$NODE_NAME/
+COPY pm2.js /home/node/$NODE_NAME/
 COPY favicon.ico /home/node/$NODE_NAME/
 RUN mkdir -p /home/node/$NODE_NAME/storage
 
@@ -17,6 +18,7 @@ ENV NPM_CONFIG_LOGLEVEL warn
 RUN npm ci 
 RUN npm run build
 
-CMD ["pm2-runtime", "ecosystem.config.js"]
+# CMD ["pm2-runtime", "ecosystem.config.js"]
+CMD ["node","./pm2.js, --start"]
 
 # USER node

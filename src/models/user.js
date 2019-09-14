@@ -5,7 +5,6 @@ import utils from '../services/utils';
 import roleManager from '../services/role-manager';
 
 const collectionName = 'User';
-//  const resources = 'Users';
 
 async function createProps(user) {
   try {
@@ -64,7 +63,7 @@ async function onBeforeSave(ctx) {
     const nonOwnerChangingPassword =
       !ctx.isNewInstance && authorizedRoles.owner !== true && data.password !== undefined;
 
-    console.log('has no Right to update ?', nonAdminChangingRoleToAdmin, nonOwnerChangingPassword);
+    // console.log('has no Right to update ?', nonAdminChangingRoleToAdmin, nonOwnerChangingPassword);
 
     if (nonAdminChangingRoleToAdmin) {
       const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to update this user');
@@ -74,7 +73,7 @@ async function onBeforeSave(ctx) {
       const error = utils.buildError(403, 'NO_OWNER', 'Unauthorized to update this user');
       throw error;
     }
-    logger.publish(4, `${collectionName}`, 'beforeSave:req', { data, role });
+    logger.publish(4, `${collectionName}`, 'beforeSave:res', { data, role });
     return ctx;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'beforeSave:err', error);
@@ -107,7 +106,6 @@ async function onAfterSave(ctx) {
         // await ctx.instance.updateAttributes({ verificationToken: response.user.verificationToken });
       }
     }
-    console.log('ctx.instance.role  ', ctx.instance);
 
     if (!ctx.isNewInstance || ctx.instance.role === 'admin') {
       const role = JSON.parse(JSON.stringify(ctx.instance)).role;
