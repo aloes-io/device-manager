@@ -184,15 +184,13 @@ app.start = async config => {
           // return next(error);
         }
       });
-
-      app.emit('started', true);
     });
 
     // if (config.MQTT_BROKER_URL) {
     // }
     await MQTTClient.init(app, config);
     // logger.publish(2, 'loopback', 'start:res', baseUrl);
-
+    app.emit('started', true);
     return true;
   } catch (error) {
     logger.publish(2, 'loopback', 'start:err', error);
@@ -213,6 +211,7 @@ app.start = async config => {
 app.stop = async signal => {
   try {
     logger.publish(2, 'loopback', 'stop', signal);
+    app.bootState = false;
     if (httpServer) {
       httpServer.close();
     }
@@ -253,6 +252,8 @@ const bootApp = (loopbackApp, options) =>
     boot(loopbackApp, options, err => (err ? reject(err) : resolve(true)));
   });
 
+app.isStarted = () => app.bootState;
+
 /**
  * Bootstrap the application, configure models, datasources and middleware.
  * @method module:Server.init
@@ -292,6 +293,7 @@ app.on('start', app.init);
  * @returns {functions} Server.stop()
  */
 app.on('started', state => {
+  app.bootState = state;
   if (state) {
     const baseUrl = app.get('url').replace(/\/$/, '');
     logger.publish(4, 'loopback', 'Setup', `Browse ${process.env.NODE_NAME} API @: ${baseUrl}`);

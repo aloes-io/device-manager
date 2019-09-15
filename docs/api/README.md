@@ -47,8 +47,10 @@
 
 
 * [Application](#module_Application)
+    * _instance_
+        * [.resetKeys()](#module_Application+resetKeys) ⇒ <code>object</code>
     * _static_
-        * [.publish(application, [client])](#module_Application.publish) ⇒ <code>function</code>
+        * [.publish(application, [client])](#module_Application.publish)
         * [.refreshToken(application)](#module_Application.refreshToken) ⇒ <code>functions</code>
         * [.onPublish(packet, client, pattern)](#module_Application.onPublish) ⇒ <code>functions</code>
         * [.updateStatus(client, status)](#module_Application.updateStatus) ⇒ <code>function</code>
@@ -65,15 +67,21 @@
         * ["before save" (ctx)](#event_before save)
         * ["after save" (ctx)](#event_after save)
         * ["before delete" (ctx)](#event_before delete)
-        * [~callback](#module_Application..callback) : <code>function</code>
 
+<a name="module_Application+resetKeys"></a>
+
+### application.resetKeys() ⇒ <code>object</code>
+Reset keys for this application instance
+
+**Kind**: instance method of [<code>Application</code>](#module_Application)  
+**Returns**: <code>object</code> - this  
 <a name="module_Application.publish"></a>
 
-### Application.publish(application, [client]) ⇒ <code>function</code>
+### Application.publish(application, [client])
 Format packet and send it via MQTT broker
 
 **Kind**: static method of [<code>Application</code>](#module_Application)  
-**Returns**: <code>function</code> - Application.app.publish()  
+**Emits**: <code>{event} module:Server.event:publish</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -291,17 +299,6 @@ Event reporting that an application instance will be deleted.
 | ctx.res | <code>object</code> | Response |
 | ctx.where.id | <code>object</code> | Application instance |
 
-<a name="module_Application..callback"></a>
-
-### Application~callback : <code>function</code>
-Reset keys for the application instance
-
-**Kind**: inner typedef of [<code>Application</code>](#module_Application)  
-
-| Param | Type |
-| --- | --- |
-| err | <code>Error</code> | 
-
 <a name="module_Client"></a>
 
 ## Client
@@ -371,14 +368,16 @@ Delete clients stored in cache
 
 
 * [Device](#module_Device)
+    * _instance_
+        * [.resetKeys()](#module_Device+resetKeys) ⇒ <code>object</code>
     * _static_
         * [.publish(device, method, [client])](#module_Device.publish)
         * [.refreshToken(device)](#module_Device.refreshToken) ⇒ <code>functions</code>
         * [.syncCache([direction])](#module_Device.syncCache)
-        * [.findByPattern;(pattern, attributes)](#module_Device.findByPattern;) ⇒ <code>object</code>
+        * [.findByPattern(pattern, attributes)](#module_Device.findByPattern) ⇒ <code>object</code>
         * [.onPublish(packet, client, pattern)](#module_Device.onPublish) ⇒ <code>functions</code>
         * [.updateStatus(client, status)](#module_Device.updateStatus) ⇒ <code>functions</code>
-        * [.authenticate(deviceId, key, err, matched)](#module_Device.authenticate)
+        * [.authenticate(deviceId, key)](#module_Device.authenticate) ⇒ <code>string</code>
         * [.getState(ctx, deviceId)](#module_Device.getState) ⇒ <code>object</code>
         * [.getOTAUpdate(ctx, deviceId, [version])](#module_Device.getOTAUpdate) ⇒ <code>object</code>
         * [.search(filter)](#module_Device.search) ⇒ <code>array</code>
@@ -398,8 +397,14 @@ Delete clients stored in cache
         * ["after save" (ctx)](#event_after save)
         * ["before delete" (ctx)](#event_before delete)
         * ["before find" (ctx)](#event_before find) ⇒ <code>object</code>
-        * [~callback](#module_Device..callback) : <code>function</code>
 
+<a name="module_Device+resetKeys"></a>
+
+### device.resetKeys() ⇒ <code>object</code>
+Reset keys for this device instance
+
+**Kind**: instance method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>object</code> - this  
 <a name="module_Device.publish"></a>
 
 ### Device.publish(device, method, [client])
@@ -437,9 +442,9 @@ Synchronize cache memory with database on disk
 | --- | --- | --- |
 | [direction] | <code>string</code> | UP to save on disk | DOWN to save on cache, |
 
-<a name="module_Device.findByPattern;"></a>
+<a name="module_Device.findByPattern"></a>
 
-### Device.findByPattern;(pattern, attributes) ⇒ <code>object</code>
+### Device.findByPattern(pattern, attributes) ⇒ <code>object</code>
 Find device related to incoming MQTT packet
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
@@ -479,18 +484,22 @@ Update device status from MQTT connection status
 
 <a name="module_Device.authenticate"></a>
 
-### Device.authenticate(deviceId, key, err, matched)
+### Device.authenticate(deviceId, key) ⇒ <code>string</code>
 Endpoint for device authentification with APIKey
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
-**Promise**:   
+**Returns**: <code>string</code> - matched The matching key; one of:
+- clientKey
+- apiKey
+- javaScriptKey
+- restApiKey
+- windowsKey
+- masterKey  
 
-| Param | Type | Description |
-| --- | --- | --- |
-| deviceId | <code>Any</code> |  |
-| key | <code>String</code> |  |
-| err | <code>Error</code> |  |
-| matched | <code>String</code> | The matching key; one of: - clientKey - apiKey - javaScriptKey - restApiKey - windowsKey - masterKey |
+| Param | Type |
+| --- | --- |
+| deviceId | <code>any</code> | 
+| key | <code>string</code> | 
 
 <a name="module_Device.getState"></a>
 
@@ -739,17 +748,6 @@ Event reporting that a device instance / collection is requested
 | ctx.req | <code>object</code> | Request |
 | ctx.res | <code>object</code> | Response |
 
-<a name="module_Device..callback"></a>
-
-### Device~callback : <code>function</code>
-Reset keys for the application instance
-
-**Kind**: inner typedef of [<code>Device</code>](#module_Device)  
-
-| Param | Type |
-| --- | --- |
-| err | <code>Error</code> | 
-
 <a name="module_Files"></a>
 
 ## Files
@@ -818,8 +816,23 @@ Request to download file in userId container
 
 
 * [Measurement](#module_Measurement)
+    * [.publish(device, measurement, [method], [client])](#module_Measurement.publish)
     * [.compose(sensor)](#module_Measurement.compose) ⇒ <code>object</code>
-    * [.publish(device, measurement, [method], [client])](#module_Measurement.publish) ⇒ <code>function</code>
+
+<a name="module_Measurement.publish"></a>
+
+### Measurement.publish(device, measurement, [method], [client])
+Format packet and send it via MQTT broker
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+**Emits**: <code>{event} module:Server.event:publish</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| device | <code>object</code> | found Device instance |
+| measurement | <code>object</code> | Measurement instance |
+| [method] | <code>string</code> | MQTT method |
+| [client] | <code>object</code> | MQTT client target |
 
 <a name="module_Measurement.compose"></a>
 
@@ -832,21 +845,6 @@ On sensor update, if an OMA resource is of float or integer type
 | Param | Type | Description |
 | --- | --- | --- |
 | sensor | <code>object</code> | updated Sensor instance |
-
-<a name="module_Measurement.publish"></a>
-
-### Measurement.publish(device, measurement, [method], [client]) ⇒ <code>function</code>
-Format packet and send it via MQTT broker
-
-**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
-**Returns**: <code>function</code> - Measurement.app.publish()  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| device | <code>object</code> | found Device instance |
-| measurement | <code>object</code> | Measurement instance |
-| [method] | <code>string</code> | MQTT method |
-| [client] | <code>object</code> | MQTT client target |
 
 <a name="module_OmaObject"></a>
 
@@ -902,7 +900,7 @@ Format packet and send it via MQTT broker
 
 * [Scheduler](#module_Scheduler)
     * _static_
-        * [.publish(device, measurement, [method], [client])](#module_Scheduler.publish) ⇒ <code>function</code>
+        * [.publish(device, measurement, [method], [client])](#module_Scheduler.publish)
         * [.onTimeout(body)](#module_Scheduler.onTimeout) ⇒ <code>functions</code>
         * [.createOrUpdate(device, sensor, [client])](#module_Scheduler.createOrUpdate) ⇒ <code>object</code>
         * [.cacheIterator([filter])](#module_Scheduler.cacheIterator) ⇒ <code>string</code>
@@ -917,11 +915,11 @@ Format packet and send it via MQTT broker
 
 <a name="module_Scheduler.publish"></a>
 
-### Scheduler.publish(device, measurement, [method], [client]) ⇒ <code>function</code>
+### Scheduler.publish(device, measurement, [method], [client])
 Format packet and send it via MQTT broker
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>function</code> - Scheduler.app.publish()  
+**Emits**: <code>{event} module:Server.event:publish</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |

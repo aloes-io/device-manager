@@ -6,7 +6,7 @@ import roleManager from '../services/role-manager';
 
 const collectionName = 'User';
 
-async function createProps(user) {
+const createProps = async (app, user) => {
   try {
     logger.publish(4, `${collectionName}`, 'createProps:req', user);
     if (user.address && !(await user.address.get())) {
@@ -19,21 +19,38 @@ async function createProps(user) {
         public: false,
       });
     }
+    // const container = await utils.mkDirByPathSync(`${process.env.FS_PATH}/${user.id}`);
+    // console.log(`[${collectionName.toUpperCase()}] createProps:res`, container);
+    try {
+      await app.models.Files.createContainer(user.id);
+    } catch (e) {
+      console.log(`[${collectionName.toUpperCase()}] createProps:e`, e);
+      if (e.code !== 'EEXIST') {
+        throw e;
+      }
+    }
 
+    if (!user.emailVerified) {
+      const response = await mails.verifyEmail(user);
+      // console.log('response after save ', response);
+      if (response && response.user) {
+        // await ctx.instance.updateAttributes({ verificationToken: response.user.verificationToken });
+      }
+    }
     // logger.publish(4, `${collectionName}`, 'createProps:res', user);
     return user;
   } catch (error) {
     logger.publish(4, `${collectionName}`, 'createProps:err', error);
     throw error;
   }
-}
+};
 
-async function onBeforeSave(ctx) {
+const onBeforeSave = async ctx => {
   try {
     let role;
     const appRoles = await roleManager.getAppRoles();
     if (ctx.data) {
-      logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.data);
+      logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.data);
       // filteredProperties.forEach(p => delete ctx.data[p]);
       role = ctx.data.role;
       if (!role || !appRoles.includes(role)) {
@@ -42,7 +59,7 @@ async function onBeforeSave(ctx) {
       ctx.data.role = role;
       ctx.hookState.updateData = ctx.data;
     } else if (ctx.instance) {
-      logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.instance);
+      logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.instance);
       role = JSON.parse(JSON.stringify(ctx.instance)).role;
       if (!appRoles.includes(role)) {
         ctx.instance.setAttribute({ role: 'user' });
@@ -51,38 +68,15 @@ async function onBeforeSave(ctx) {
       }
     }
     const data = ctx.data || ctx.instance || ctx.currentInstance;
-    const authorizedRoles =
-      ctx.options && ctx.options.authorizedRoles ? ctx.options.authorizedRoles : {};
-    // console.log('authorizedRoles ', ctx.options);
-
-    const isAdmin =
-      ctx.options && ctx.options.currentUser && ctx.options.currentUser.roles.includes('admin');
-    // isAdmin = ctx.options && ctx.options.authorizedRoles && ctx.options.authorizedRoles.admin;
-
-    const nonAdminChangingRoleToAdmin = role === 'admin' && !isAdmin;
-    const nonOwnerChangingPassword =
-      !ctx.isNewInstance && authorizedRoles.owner !== true && data.password !== undefined;
-
-    // console.log('has no Right to update ?', nonAdminChangingRoleToAdmin, nonOwnerChangingPassword);
-
-    if (nonAdminChangingRoleToAdmin) {
-      const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to update this user');
-      throw error;
-    }
-    if (nonOwnerChangingPassword) {
-      const error = utils.buildError(403, 'NO_OWNER', 'Unauthorized to update this user');
-      throw error;
-    }
     logger.publish(4, `${collectionName}`, 'beforeSave:res', { data, role });
     return ctx;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'beforeSave:err', error);
-    // ctx.res.status(error.statusCode || 400);
     throw error;
   }
-}
+};
 
-async function onAfterSave(ctx) {
+const onAfterSave = async ctx => {
   try {
     logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
     if (ctx.hookState.updateData) {
@@ -91,19 +85,12 @@ async function onAfterSave(ctx) {
       return ctx;
     }
     if (ctx.isNewInstance) {
-      const updatedUser = await createProps(ctx.instance);
+      const updatedUser = await createProps(ctx.Model.app, ctx.instance);
       if (!updatedUser || !updatedUser.id) {
         // await ctx.Model.app.User.destroyById(user.id);
         await ctx.instance.destroy();
         const error = utils.buildError(404, 'FAILED_ACCOUNT_CREATION', `Email couldn't be sent`);
         throw error;
-      }
-    }
-    if (!ctx.instance.emailVerified) {
-      const response = await mails.verifyEmail(ctx.instance);
-      // console.log('response after save ', response);
-      if (response && response.user) {
-        // await ctx.instance.updateAttributes({ verificationToken: response.user.verificationToken });
       }
     }
 
@@ -117,48 +104,72 @@ async function onAfterSave(ctx) {
     logger.publish(2, `${collectionName}`, 'afterSave:err', error);
     throw error;
   }
-}
+};
 
-async function onBeforeDelete(ctx) {
+const deleteProps = async (app, user) => {
   try {
-    logger.publish(4, `${collectionName}`, 'beforeDelete:req', ctx.where);
-    if (ctx.where.id) {
-      const instance = await ctx.Model.findById(ctx.where.id);
-      // console.log('INSTANCE ', instance);
-      if (instance.address && (await instance.address.get()) !== null) {
-        // console.log('INSTANCE ADDRESS', await instance.address.get());
-        await instance.address.destroy();
-      }
-      if (instance.accessTokens) {
-        await instance.accessTokens.destroyAll();
-      }
-      if (instance.devices && (await instance.devices.count())) {
-        await instance.devices.destroyAll();
-      }
-      if (instance.sensors && (await instance.sensors.count())) {
-        await instance.sensors.destroyAll();
-      }
-      if (instance.files && (await instance.files.count())) {
-        await ctx.Model.app.models.files.removeContainer(instance.id);
-        await instance.files.destroyAll();
-      }
-      logger.publish(4, `${collectionName}`, 'beforeDelete:res', instance);
-      return ctx;
+    logger.publish(5, `${collectionName}`, 'deleteProps:req', user);
+    // console.log('INSTANCE ', user);
+    if (user.address && (await user.address.get()) !== null) {
+      // console.log('user ADDRESS', await user.address.get());
+      await user.address.destroy();
     }
-    const error = utils.buildError(
-      403,
-      'FORBID_BATCH_DELETION',
-      `You can only delete one user at a time`,
-    );
-    throw error;
+    if (user.accessTokens) {
+      await user.accessTokens.destroyAll();
+    }
+    if (user.devices && (await user.devices.count())) {
+      await user.devices.destroyAll();
+    }
+    if (user.sensors && (await user.sensors.count())) {
+      await user.sensors.destroyAll();
+    }
+    if (user.files && (await user.files.count())) {
+      await user.files.destroyAll();
+    }
+    try {
+      await app.models.files.removeContainer(user.id);
+    } catch (e) {
+      console.log(`[${collectionName.toUpperCase()}] deleteProps:e`, e);
+    }
+
+    logger.publish(4, `${collectionName}`, 'deleteProps:res', user);
+    return user;
   } catch (error) {
-    logger.publish(4, `${collectionName}`, 'beforeDelete:err', error);
+    logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
     throw error;
   }
-}
+};
+
+const onBeforeDelete = async ctx => {
+  try {
+    logger.publish(4, `${collectionName}`, 'beforeDelete:req', ctx.where);
+    if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
+      const user = await ctx.Model.findById(ctx.where.id);
+      await deleteProps(ctx.Model.app, user);
+    } else {
+      const filter = { where: ctx.where };
+      const users = await ctx.Model.find(filter);
+      await Promise.all(users.map(async user => deleteProps(ctx.Model.app, user)));
+    }
+    logger.publish(4, `${collectionName}`, 'beforeDelete:res', 'done');
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'beforeDelete:err', error);
+    throw error;
+  }
+};
 
 /**
  * @module User
+ * @property {string} id  Database generated ID
+ * @property {string} firstName
+ * @property {string} lastName
+ * @property {string} fullName
+ * @property {string} fullAddress
+ * @property {string} avatarImgUrl
+ * @property {string} headerImgUrl
+ * @property {boolean} status
+ * @property {string} role admin or user
  */
 module.exports = function(User) {
   // async function roleValidator(err) {
@@ -195,19 +206,19 @@ module.exports = function(User) {
       logger.publish(4, `${collectionName}`, 'findByEmail:req', email);
       const user = await User.findOne({ where: { email } });
       if (!user || user === null) {
-        return new Error("user doesn't exist");
+        throw new Error("user doesn't exist");
       }
       const result = await mails.verifyEmail(user);
       if (result && !result.email.accepted) {
         const error = new Error('Email rejected');
         logger.publish(2, `${collectionName}`, 'findByEmail:err', error);
-        return error;
+        throw error;
       }
       logger.publish(4, `${collectionName}`, 'findByEmail:res', result);
       return result;
     } catch (error) {
       logger.publish(4, `${collectionName}`, 'findByEmail:err', error);
-      return error;
+      throw error;
     }
   };
 
@@ -229,33 +240,24 @@ module.exports = function(User) {
       if (result && !result.email.accepted) {
         const error = new Error('Email rejected');
         logger.publish(2, `${collectionName}`, 'findByEmail:err', error);
-        return error;
+        throw error;
       }
       logger.publish(4, `${collectionName}`, 'verifyEmail:res', result);
       return result;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'verifyEmail:err', error);
-      return error;
+      throw error;
     }
   };
 
   User.verifyCaptcha = async (hashes, token) => {
-    let result;
     const coinhive = User.app.dataSources.coinhive;
-    await utils
-      .verifyCaptcha(coinhive, hashes, token)
-      .then(res => {
-        result = res;
-      })
-      .catch(err => err);
-    return result;
+    return utils.verifyCaptcha(coinhive, hashes, token);
   };
 
   User.verifyAddress = async address => {
     logger.publish(4, `${collectionName}`, 'verifyAddress:req', address);
-    return User.app.models.Address.verifyAddress(address)
-      .then(res => res)
-      .catch(err => err);
+    return User.app.models.Address.verifyAddress(address);
   };
 
   User.updatePasswordFromToken = async (accessToken, newPassword) => {
@@ -295,7 +297,7 @@ module.exports = function(User) {
       //  logger.publish(3, `${collectionName}`, 'setNewPassword:res', res);
       return user;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -318,7 +320,7 @@ module.exports = function(User) {
       return result;
     } catch (error) {
       logger.publish(4, collectionName, ' sendInvite:err', error);
-      return error;
+      throw error;
     }
   };
 
@@ -353,7 +355,7 @@ module.exports = function(User) {
         })
         .catch(err => err);
     }
-    const error = await utils.buildError(
+    const error = utils.buildError(
       401,
       'FAILED_CONTAINER_CREATION',
       `Unauthorized to create containers`,
@@ -381,18 +383,63 @@ module.exports = function(User) {
       logger.publish(2, `${collectionName}`, 'beforeLogin:err', err);
       if (err.code && err.code === 'LOGIN_FAILED_EMAIL_NOT_VERIFIED') {
         // console.log('user not verified');
-        //  return new Error("user not verified");
-        const error = await utils.buildError(
+        const error = utils.buildError(
           401,
           'LOGIN_FAILED_EMAIL_NOT_VERIFIED',
           `user has not confirmed the account yet`,
         );
-        // ctx.res.send('LOGIN_FAILED_EMAIL_NOT_VERIFIED');
-        // ctx.res.sendStatus(401);
         throw error;
       }
-      // ctx.res.send('LOGIN_FAILED');
       throw err;
+    }
+  });
+
+  User.beforeRemote('**', async ctx => {
+    try {
+      if (
+        ctx.method.name.indexOf('upsert') !== -1 ||
+        ctx.method.name.indexOf('updateAll') !== -1 ||
+        ctx.method.name.indexOf('save') !== -1 ||
+        ctx.method.name.indexOf('patchAttributes') !== -1 ||
+        ctx.method.name.indexOf('updateAttributes') !== -1
+      ) {
+        const options = ctx.args ? ctx.args.options : {};
+        const data = ctx.args.data;
+        const authorizedRoles = options && options.authorizedRoles ? options.authorizedRoles : {};
+        // console.log('authorizedRoles & data', options, data);
+        const role = data.role || 'user';
+        const isAdmin =
+          options && options.currentUser && options.currentUser.roles.includes('admin');
+        // isAdmin = ctx.options && ctx.options.authorizedRoles && ctx.options.authorizedRoles.admin;
+
+        const nonAdminChangingRoleToAdmin = role === 'admin' && !isAdmin;
+        const nonOwnerChangingPassword =
+          !ctx.isNewInstance && authorizedRoles.owner !== true && data.password !== undefined;
+
+        if (nonAdminChangingRoleToAdmin) {
+          const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to update this user');
+          throw error;
+        }
+        if (nonOwnerChangingPassword) {
+          const error = utils.buildError(403, 'NO_OWNER', 'Unauthorized to update this user');
+          throw error;
+        }
+      } else if (ctx.method.name.indexOf('create') !== -1) {
+        const options = ctx.args ? ctx.args.options : {};
+        const data = ctx.args.data;
+        // console.log('authorizedRoles & data', options, data);
+        const role = data.role || 'user';
+        const isAdmin =
+          options && options.currentUser && options.currentUser.roles.includes('admin');
+
+        if (role === 'admin' && !isAdmin) {
+          const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to create this user');
+          throw error;
+        }
+      }
+      return ctx;
+    } catch (error) {
+      throw error;
     }
   });
 
@@ -403,6 +450,7 @@ module.exports = function(User) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} user - User new instance
+   * @returns {function} beforeSave
    */
   User.observe('before save', onBeforeSave);
 
@@ -413,6 +461,7 @@ module.exports = function(User) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} user - User new instance
+   * @returns {function} afterSave
    */
   User.observe('after save', onAfterSave);
 
@@ -423,6 +472,7 @@ module.exports = function(User) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - User instance id
+   * @returns {function} beforeDelete
    */
   User.observe('before delete', onBeforeDelete);
 

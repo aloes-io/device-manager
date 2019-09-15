@@ -15,6 +15,7 @@
     "docs:build": "npm run docs:md ; cp ./README.md ./docs/readme/. ; ./node_modules/.bin/vuepress build docs",
     "docs:serve": "light-server -s public -p 7000 --servePrefix /device-manager/",
     "test:user": "cp deploy/.env_development .env ; export NODE_ENV=development ; nyc mocha ./src/**/user.e2e.test.js --opts mocha.opts",
+    "test:files": "cp deploy/.env_development .env ; export NODE_ENV=development ; nyc mocha ./src/**/files.e2e.test.js --opts mocha.opts",
     "test:device": "cp deploy/.env_development .env ; export NODE_ENV=development ; nyc mocha ./src/**/device.e2e.test.js --opts mocha.opts",
     "test:sensor": "cp deploy/.env_development .env ; export NODE_ENV=development ; nyc mocha ./src/**/sensor.e2e.test.js --opts mocha.opts",
     "test": "cp deploy/.env_development .env ; export NODE_ENV=development ; nyc mocha ./src/**/*.test.js --opts mocha.opts",

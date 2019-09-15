@@ -34,7 +34,7 @@ module.exports = function(Scheduler) {
    * @param {object} measurement - Scheduler instance
    * @param {string} [method] - MQTT method
    * @param {object} [client] - MQTT client target
-   * @returns {function} Scheduler.app.publish()
+   * @fires {event} module:Server.publish
    */
   Scheduler.publish = async (device, scheduler, method) => {
     try {
@@ -59,18 +59,19 @@ module.exports = function(Scheduler) {
               const parts = packet.topic.split('/');
               parts[0] = appId;
               const topic = parts.join('/');
-              await Scheduler.app.publish(topic, packet.payload, false, 0);
+              Scheduler.app.emit('publish', topic, packet.payload, false, 0);
               return topic;
             } catch (error) {
               return error;
             }
           });
         }
-        return Scheduler.app.publish(packet.topic, packet.payload, false, 0);
+        Scheduler.app.emit('publish', packet.topic, packet.payload, false, 0);
+        return scheduler;
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -365,7 +366,7 @@ module.exports = function(Scheduler) {
       return true;
     } catch (error) {
       console.log('onTimeout err:', error);
-      return error;
+      throw error;
     }
   };
 
@@ -609,7 +610,7 @@ module.exports = function(Scheduler) {
         }
       });
       await Promise.all(promises);
-      await Scheduler.app.publish(topic, payload, false, 0);
+      Scheduler.app.emit('publish', topic, payload, false, 0);
       return { payload, topic };
     } catch (error) {
       console.log(' onTick err', error);
@@ -686,7 +687,7 @@ module.exports = function(Scheduler) {
       }
       return Scheduler.onTickHook(body);
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 

@@ -9,13 +9,16 @@ require('@babel/register');
 
 const delayBeforeTesting = 7000;
 
-const userFactory = testHelper.factories.user;
+const userTest = () => {
+  const userFactory = testHelper.factories.user;
+  const loginUrl = '/api/Users/login';
+  const collectionName = 'Users';
+  const apiUrl = `/api/${collectionName}/`;
 
-setTimeout(() => {
-  describe('User', () => {
-    // this.timeout(delayBeforeTesting);
+  describe(collectionName, function() {
+    this.timeout(4000);
+
     const UserModel = app.models.user;
-
     let userModels;
 
     const users = Array(2)
@@ -32,21 +35,18 @@ setTimeout(() => {
         password: users[0].password,
       },
     };
-    const userApiUrl = '/api/users/';
 
-    const getUser0Url = () => userApiUrl + userModels[0].id;
+    const getUser0Url = () => `${apiUrl}${userModels[0].id}`;
 
     const e2eTestsSuite = {
-      '[TEST] Users E2E Tests': {
+      [`[TEST] ${collectionName} E2E Tests`]: {
         async before() {
-          this.timeout(10000);
+          this.timeout(5000);
           const result = await Promise.all([
             testHelper.access.admin.create(app),
             UserModel.create(users),
           ]);
 
-          // userModels = JSON.parse(JSON.stringify(result[1]));
-          // userModels.push(JSON.parse(JSON.stringify(result[0])));
           userModels = result[1];
           userModels.push(result[0]);
           // console.log('userModels', userModels);
@@ -67,28 +67,27 @@ setTimeout(() => {
           return result;
         },
         after: () => Promise.all([UserModel.destroyAll()]),
-        // after: () => Promise.all([UserModel.destroyAll(), process.kill(process.pid, 'SIGINT')]),
         tests: {
           '[TEST] Verifying "Create" access': {
             tests: [
               {
                 name: 'everyone CAN create "role: user" user',
                 verb: 'post',
-                url: userApiUrl,
+                url: apiUrl,
                 body: userFactory(undefined, 'user'),
                 expect: 200,
               },
               {
                 name: 'everyone CANNOT create "role: admin" user',
                 verb: 'post',
-                url: userApiUrl,
+                url: apiUrl,
                 body: userFactory(undefined, 'admin'),
                 expect: 403,
               },
               {
                 name: 'user CANNOT create "role: admin" user',
                 verb: 'post',
-                url: userApiUrl,
+                url: apiUrl,
                 auth: profiles.user,
                 body: userFactory(undefined, 'admin'),
                 expect: 403,
@@ -96,7 +95,7 @@ setTimeout(() => {
               {
                 name: 'admin CAN create "role: user" user',
                 verb: 'post',
-                url: userApiUrl,
+                url: apiUrl,
                 auth: profiles.admin,
                 body: userFactory(undefined, 'user'),
                 expect: 200,
@@ -104,7 +103,7 @@ setTimeout(() => {
               {
                 name: 'admin CAN create "role: admin" user',
                 verb: 'post',
-                url: userApiUrl,
+                url: apiUrl,
                 auth: profiles.admin,
                 body: userFactory(undefined, 'admin'),
                 expect: 200,
@@ -122,21 +121,21 @@ setTimeout(() => {
               {
                 name: 'everyone CANNOT read user list',
                 verb: 'get',
-                url: userApiUrl,
+                url: apiUrl,
                 expect: 401,
               },
 
               {
                 name: 'user CANNOT read user details',
                 verb: 'get',
-                url: () => userApiUrl + userModels[1].id,
+                url: () => `${apiUrl}${userModels[1].id}`,
                 auth: profiles.user, // user 0
                 expect: 401,
               },
               {
                 name: 'user CANNOT read user list',
                 verb: 'get',
-                url: userApiUrl,
+                url: apiUrl,
                 auth: profiles.user,
                 expect: 401,
               },
@@ -164,7 +163,7 @@ setTimeout(() => {
               {
                 name: 'admin CAN read user list',
                 verb: 'get',
-                url: userApiUrl,
+                url: apiUrl,
                 auth: profiles.admin,
                 expect: 200,
               },
@@ -182,7 +181,7 @@ setTimeout(() => {
               {
                 name: "user CANNOT update user's details",
                 verb: 'patch',
-                url: () => `${userApiUrl}${userModels[1].id}`,
+                url: () => `${apiUrl}${userModels[1].id}`,
                 auth: profiles.user, // user 0
                 body: { firstName: 'coffee' },
                 expect: 401,
@@ -237,13 +236,12 @@ setTimeout(() => {
                 steps: [
                   {
                     verb: 'post',
-                    url: () => `${userApiUrl}login`,
+                    url: () => `${apiUrl}login`,
                     body: profiles.admin,
-                    // body: { email: users[0].email, password: users[0].password },
                     expect: 200,
                   },
                   step0Response => ({
-                    url: () => `${userApiUrl}logout?access_token=${step0Response.body.id}`,
+                    url: () => `${apiUrl}logout?access_token=${step0Response.body.id}`,
                     verb: 'post',
                     expect: 204,
                   }),
@@ -256,7 +254,7 @@ setTimeout(() => {
     };
 
     const testConfig = {
-      auth: { url: '/api/users/login' },
+      auth: { url: loginUrl },
       error: err => {
         console.error('TEST ERR', err.error);
       },
@@ -264,6 +262,9 @@ setTimeout(() => {
 
     lbe2e(app, testConfig, e2eTestsSuite);
   });
+};
 
+setTimeout(() => {
+  userTest();
   run();
 }, delayBeforeTesting);

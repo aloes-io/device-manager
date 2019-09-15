@@ -5,6 +5,8 @@
 <dd></dd>
 <dt><a href="#module_MQTTClient">MQTTClient</a></dt>
 <dd></dd>
+<dt><a href="#module_RoleManager">RoleManager</a></dt>
+<dd></dd>
 <dt><a href="#module_Server">Server</a></dt>
 <dd></dd>
 </dl>
@@ -347,6 +349,9 @@ Parse the message arriving from the broker
 | topic | <code>object</code> | MQTT topic |
 | payload | <code>object</code> | MQTT payload |
 
+<a name="module_RoleManager"></a>
+
+## RoleManager
 <a name="module_Server"></a>
 
 ## Server

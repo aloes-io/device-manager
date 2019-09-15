@@ -2,6 +2,7 @@
   "name": "user",
   "plural": "users",
   "base": "User",
+  "resourceName": "Users",
   "ownerRelations": true,
   "idInjection": true,
   "options": {

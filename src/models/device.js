@@ -70,6 +70,41 @@ const setDeviceIcons = device => {
   }
 };
 
+const beforeSave = async ctx => {
+  try {
+    if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
+    if (ctx.data) {
+      logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.data);
+      filteredProperties.forEach(p => delete ctx.data[p]);
+      ctx.hookState.updateData = ctx.data;
+      return ctx;
+    }
+    if (ctx.instance) {
+      logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.instance);
+      const promises = await filteredProperties.map(async prop =>
+        ctx.instance.unsetAttribute(prop),
+      );
+      await Promise.all(promises);
+      if (ctx.instance.transportProtocol && ctx.instance.transportProtocol !== null) {
+        await setDeviceQRCode(ctx.instance);
+      }
+      //  logger.publish(3, `${collectionName}`, "beforeSave:res1", device);
+      if (ctx.instance.type && ctx.instance.type !== null) {
+        await setDeviceIcons(ctx.instance);
+      }
+      logger.publish(5, collectionName, 'beforeSave:res', ctx.instance);
+      return ctx;
+    }
+    // else if (ctx.currentInstance) {
+    //   device = ctx.currentInstance;
+    // }
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'beforeSave:err', error);
+    throw error;
+  }
+};
+
 /**
  * Keys creation helper - update device attributes
  * @method module:Device~createKeys
@@ -167,6 +202,29 @@ const updateProps = async (app, device) => {
   }
 };
 
+const afterSave = async ctx => {
+  try {
+    if (ctx.hookState.updateData) {
+      logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
+      const updatedProps = Object.keys(ctx.hookState.updateData);
+      if (updatedProps.some(prop => prop === 'status')) {
+        await ctx.Model.publish(ctx.instance, 'HEAD');
+      }
+    } else if (ctx.instance && ctx.Model.app) {
+      logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
+      if (ctx.isNewInstance) {
+        await createProps(ctx.Model.app, ctx.instance);
+      } else {
+        await updateProps(ctx.Model.app, ctx.instance);
+      }
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'afterSave:err', error);
+    throw error;
+  }
+};
+
 const deleteProps = async (app, device) => {
   try {
     if (!device || !device.id || !device.ownerId) {
@@ -187,6 +245,25 @@ const deleteProps = async (app, device) => {
     throw error;
   }
 };
+
+const beforeDelete = async ctx => {
+  try {
+    logger.publish(4, `${collectionName}`, 'beforeDelete:req', ctx.where);
+    if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
+      const device = await ctx.Model.findById(ctx.where.id);
+      await deleteProps(ctx.Model.app, device);
+    } else {
+      const filter = { where: ctx.where };
+      const devices = await ctx.Model.find(filter);
+      await Promise.all(devices.map(async device => deleteProps(ctx.Model.app, device)));
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'beforeDelete:err', error);
+    throw error;
+  }
+};
+
 /**
  * Find properties and dispatch to the right function
  *
@@ -476,6 +553,52 @@ module.exports = function(Device) {
       throw error;
     } catch (error) {
       logger.publish(4, `${collectionName}`, 'refreshToken:err', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Endpoint for device requesting their own state
+   * @method module:Device.getState
+   * @param {object} ctx - Loopback context
+   * @param {string} deviceId - Device instance id
+   * @returns {object}
+   */
+  Device.getState = async (deviceId, options) => {
+    try {
+      //  console.log('getstate, req : ', deviceId, options);
+      if (!options || !options.apikey) throw new Error('missing token');
+      if (!deviceId) throw new Error('missing device.id');
+      const tokenId = options.apikey.trim();
+      logger.publish(4, `${collectionName}`, 'getState:req', { deviceId, tokenId });
+
+      const device = await Device.findById(deviceId, {
+        fields: {
+          id: true,
+          devEui: true,
+          apiKey: true,
+          frameCounter: true,
+          name: true,
+          status: true,
+        },
+      });
+
+      if (device && device !== null) {
+        const authentification = await Device.authenticate(deviceId, tokenId);
+        if (authentification && authentification.keyType) {
+          return device;
+        }
+        // const foundToken = await device.accessTokens.findById(tokenId);
+        // //  console.log('getstate, token : ', tokenId, device.apiKey, foundToken);
+        // if (foundToken && foundToken !== null) {
+        //   return device;
+        // }
+        //  ctx.res.status(403);
+        return null;
+      }
+      //  ctx.res.status(404);
+      return null;
+    } catch (error) {
       throw error;
     }
   };
@@ -831,41 +954,9 @@ module.exports = function(Device) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Device instance
+   * @returns {function} beforeSave
    */
-  Device.observe('before save', async ctx => {
-    try {
-      if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
-      if (ctx.data) {
-        logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.data);
-        filteredProperties.forEach(p => delete ctx.data[p]);
-        ctx.hookState.updateData = ctx.data;
-        return ctx;
-      }
-      if (ctx.instance) {
-        logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.instance);
-        const promises = await filteredProperties.map(async prop =>
-          ctx.instance.unsetAttribute(prop),
-        );
-        await Promise.all(promises);
-        if (ctx.instance.transportProtocol && ctx.instance.transportProtocol !== null) {
-          await setDeviceQRCode(ctx.instance);
-        }
-        //  logger.publish(3, `${collectionName}`, "beforeSave:res1", device);
-        if (ctx.instance.type && ctx.instance.type !== null) {
-          await setDeviceIcons(ctx.instance);
-        }
-        logger.publish(5, collectionName, 'beforeSave:res', ctx.instance);
-        return ctx;
-      }
-      // else if (ctx.currentInstance) {
-      //   device = ctx.currentInstance;
-      // }
-      return ctx;
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'beforeSave:err', error);
-      throw error;
-    }
-  });
+  Device.observe('before save', beforeSave);
 
   /**
    * Event reporting that a device instance has been created or updated.
@@ -874,29 +965,9 @@ module.exports = function(Device) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Device instance
+   * @returns {function} afterSave
    */
-  Device.observe('after save', async ctx => {
-    try {
-      if (ctx.hookState.updateData) {
-        logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
-        const updatedProps = Object.keys(ctx.hookState.updateData);
-        if (updatedProps.some(prop => prop === 'status')) {
-          await Device.publish(ctx.instance, 'HEAD');
-        }
-      } else if (ctx.instance && Device.app) {
-        logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
-        if (ctx.isNewInstance) {
-          await createProps(Device.app, ctx.instance);
-        } else {
-          await updateProps(Device.app, ctx.instance);
-        }
-      }
-      return ctx;
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'afterSave:err', error);
-      throw error;
-    }
-  });
+  Device.observe('after save', afterSave);
 
   /**
    * Event reporting that a / several device instance(s) will be deleted.
@@ -905,24 +976,9 @@ module.exports = function(Device) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - Device instance
+   * @returns {function} beforeDelete
    */
-  Device.observe('before delete', async ctx => {
-    try {
-      logger.publish(4, `${collectionName}`, 'beforeDelete:req', ctx.where);
-      if (ctx.where && ctx.where.id) {
-        const device = await ctx.Model.findById(ctx.where.id);
-        await deleteProps(Device.app, device);
-      } else {
-        const filter = { where: ctx.where };
-        const devices = await ctx.Model.find(filter);
-        await Promise.all(devices.map(async device => deleteProps(Device.app, device)));
-      }
-      return ctx;
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'beforeDelete:err', error);
-      throw error;
-    }
-  });
+  Device.observe('before delete', beforeDelete);
 
   Device.afterRemoteError('*', async ctx => {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, '');
@@ -1061,53 +1117,7 @@ module.exports = function(Device) {
       });
       return result;
     } catch (error) {
-      return error;
-    }
-  };
-
-  /**
-   * Endpoint for device requesting their own state
-   * @method module:Device.getState
-   * @param {object} ctx - Loopback context
-   * @param {string} deviceId - Device instance id
-   * @returns {object}
-   */
-  Device.getState = async (deviceId, options) => {
-    try {
-      //  console.log('getstate, req : ', deviceId, options);
-      if (!options || !options.apikey) throw new Error('missing token');
-      if (!deviceId) throw new Error('missing device.id');
-      const tokenId = options.apikey.trim();
-      logger.publish(4, `${collectionName}`, 'getState:req', { deviceId, tokenId });
-
-      const device = await Device.findById(deviceId, {
-        fields: {
-          id: true,
-          devEui: true,
-          apiKey: true,
-          frameCounter: true,
-          name: true,
-          status: true,
-        },
-      });
-
-      if (device && device !== null) {
-        const authentification = await Device.authenticate(deviceId, tokenId);
-        if (authentification && authentification.keyType) {
-          return device;
-        }
-        // const foundToken = await device.accessTokens.findById(tokenId);
-        // //  console.log('getstate, token : ', tokenId, device.apiKey, foundToken);
-        // if (foundToken && foundToken !== null) {
-        //   return device;
-        // }
-        //  ctx.res.status(403);
-        return null;
-      }
-      //  ctx.res.status(404);
-      return null;
-    } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -1167,8 +1177,7 @@ module.exports = function(Device) {
         //  const device = await Device.findById(deviceId);
         //  console.log('#device ', device);
         if (!device || device === null) {
-          ctx.res.status(403);
-          throw new Error('No device found');
+          throw utils.buildError(404, 'NOT_FOUND', 'No device found');
         }
         // const token = await device.accessTokens.findById(device.apiKey);
         // // console.log('getstate, token : ', token);
@@ -1197,8 +1206,7 @@ module.exports = function(Device) {
         //  const fileMeta = await device.files.findOne(fileFilter);
 
         if (version && fileMeta.version && fileMeta.version === version) {
-          ctx.res.status(304);
-          throw new Error('already up to date');
+          throw utils.buildError(304, 'UNCHANGED', 'already up to date');
         }
         ctx.res.set('Content-Disposition', `attachment; filename=${fileMeta.name}`);
 
@@ -1232,13 +1240,11 @@ module.exports = function(Device) {
         if (result && !(result instanceof Error)) {
           return result;
         }
-        ctx.res.status(304);
-        throw new Error('Error while reading stream');
+        throw utils.buildError(304, 'ERROR_STREAMING', 'Error while reading stream');
       }
-      ctx.res.status(403);
-      throw new Error('only for ESP8266 updater');
+      throw utils.buildError(403, 'WRONG_TARGET', 'only for ESP8266 updater');
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -1283,7 +1289,7 @@ module.exports = function(Device) {
       return devices;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'search:err', error);
-      return error;
+      throw error;
     }
   };
 
@@ -1333,7 +1339,7 @@ module.exports = function(Device) {
       return devices;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'geoLocate:err', error);
-      return error;
+      throw error;
     }
   };
 

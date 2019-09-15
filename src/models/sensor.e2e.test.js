@@ -7,11 +7,15 @@ require('@babel/register');
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
-const deviceFactory = testHelper.factories.device;
-const sensorFactory = testHelper.factories.sensor;
 
-setTimeout(() => {
-  describe('Sensor', () => {
+const sensorTest = () => {
+  const deviceFactory = testHelper.factories.device;
+  const sensorFactory = testHelper.factories.sensor;
+  const loginUrl = '/api/Users/login';
+  const collectionName = 'Sensors';
+  const apiUrl = `/api/${collectionName}/`;
+
+  return describe(collectionName, () => {
     const DeviceModel = app.models.Device;
     const SensorModel = app.models.Sensor;
 
@@ -28,10 +32,8 @@ setTimeout(() => {
       },
     };
 
-    const sensorApiUrl = '/api/Sensors/';
-
     const e2eTestsSuite = {
-      '[TEST] Sensors E2E Tests': {
+      [`[TEST] ${collectionName} E2E Tests`]: {
         async before() {
           try {
             this.timeout(5000);
@@ -87,7 +89,7 @@ setTimeout(() => {
               {
                 name: 'everyone CANNOT create',
                 verb: 'post',
-                url: sensorApiUrl,
+                url: apiUrl,
                 body: () => sensorFactory(6, devices[0]),
                 expect: 401,
               },
@@ -95,7 +97,7 @@ setTimeout(() => {
                 name: 'user CAN create',
                 verb: 'post',
                 auth: profiles.user,
-                url: sensorApiUrl,
+                url: apiUrl,
                 body: () => sensorFactory(7, devices[1], userIds[1]),
                 expect: 200,
               },
@@ -103,7 +105,7 @@ setTimeout(() => {
                 name: 'admin CAN create',
                 verb: 'post',
                 auth: profiles.admin,
-                url: sensorApiUrl,
+                url: apiUrl,
                 body: () => sensorFactory(8, devices[0], userIds[0]),
                 expect: 200,
               },
@@ -114,27 +116,27 @@ setTimeout(() => {
               {
                 name: 'everyone CANNOT read ONE',
                 verb: 'get',
-                url: () => sensorApiUrl + sensors[0].id,
+                url: () => `${apiUrl}${sensors[0].id}`,
                 expect: 401,
               },
               {
                 name: 'everyone CANNOT read ALL',
                 verb: 'get',
-                url: sensorApiUrl,
+                url: apiUrl,
                 expect: 401,
               },
               {
                 name: 'everyone CAN read OWN',
                 verb: 'get',
                 auth: profiles.user,
-                url: () => sensorApiUrl + sensors[4].id,
+                url: () => `${apiUrl}${sensors[4].id}`,
                 expect: 200,
               },
               {
                 name: 'admin CAN read ALL',
                 verb: 'get',
                 auth: profiles.admin,
-                url: () => sensorApiUrl,
+                url: () => apiUrl,
                 expect: 200,
               },
             ],
@@ -144,7 +146,7 @@ setTimeout(() => {
               {
                 name: 'everyone CANNOT update',
                 verb: 'put',
-                url: () => sensorApiUrl + sensors[0].id,
+                url: () => `${apiUrl}${sensors[0].id}`,
                 body: () => ({
                   ...sensors[0],
                   name: `${sensors[0].name} - updated`,
@@ -155,7 +157,7 @@ setTimeout(() => {
                 name: 'user CANNOT update ALL',
                 verb: 'put',
                 auth: profiles.user,
-                url: () => sensorApiUrl + sensors[0].id,
+                url: () => `${apiUrl}${sensors[0].id}`,
                 body: () => ({
                   ...sensors[0],
                   name: `${sensors[0].name} - updated`,
@@ -166,7 +168,7 @@ setTimeout(() => {
                 name: 'user CAN update OWN',
                 verb: 'put',
                 auth: profiles.user,
-                url: () => sensorApiUrl + sensors[3].id,
+                url: () => `${apiUrl}${sensors[3].id}`,
                 body: () => ({
                   ...sensors[3],
                   name: `${sensors[3].name} - updated`,
@@ -177,7 +179,7 @@ setTimeout(() => {
                 name: 'admin CAN update ALL',
                 verb: 'put',
                 auth: profiles.admin,
-                url: () => sensorApiUrl + sensors[4].id,
+                url: () => `${apiUrl}${sensors[4].id}`,
                 body: () => ({
                   ...sensors[4],
                   name: `${sensors[4].name} - updated`,
@@ -191,21 +193,21 @@ setTimeout(() => {
               {
                 name: 'everyone CANNOT delete ALL',
                 verb: 'delete',
-                url: () => sensorApiUrl + sensors[0].id,
+                url: () => `${apiUrl}${sensors[0].id}`,
                 expect: 401,
               },
               {
                 name: 'user CAN delete OWN',
                 verb: 'delete',
                 auth: profiles.user,
-                url: () => sensorApiUrl + sensors[3].id,
+                url: () => `${apiUrl}${sensors[3].id}`,
                 expect: 200,
               },
               {
                 name: 'admin CAN delete ALL',
                 verb: 'delete',
                 auth: profiles.admin,
-                url: () => sensorApiUrl + sensors[4].id,
+                url: () => `${apiUrl}${sensors[4].id}`,
                 expect: 200,
               },
             ],
@@ -215,11 +217,14 @@ setTimeout(() => {
     };
 
     const testConfig = {
-      auth: { url: '/api/users/login' },
+      auth: { url: loginUrl },
     };
 
     lbe2e(app, testConfig, e2eTestsSuite);
   });
+};
 
+setTimeout(() => {
+  sensorTest();
   run();
 }, delayBeforeTesting);

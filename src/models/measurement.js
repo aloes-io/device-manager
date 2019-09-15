@@ -1,6 +1,7 @@
 /* eslint-disable no-param-reassign */
 import { publish } from 'iot-agent';
 import logger from '../services/logger';
+import utils from '../services/utils';
 
 /**
  * @module Measurement
@@ -54,6 +55,56 @@ module.exports = function(Measurement) {
   });
 
   /**
+   * Format packet and send it via MQTT broker
+   * @method module:Measurement.publish
+   * @param {object} device - found Device instance
+   * @param {object} measurement - Measurement instance
+   * @param {string} [method] - MQTT method
+   * @param {object} [client] - MQTT client target
+   * @fires {event} module:Server.publish
+   */
+  Measurement.publish = async (device, measurement, method) => {
+    try {
+      const packet = await publish({
+        userId: measurement.ownerId,
+        collection: collectionName,
+        modelId: measurement.id,
+        data: measurement,
+        method: method || 'POST',
+        pattern: 'aloesclient',
+      });
+
+      if (packet && packet.topic && packet.payload) {
+        logger.publish(4, `${collectionName}`, 'publish:res', {
+          topic: packet.topic,
+        });
+        // if (client && client.id) {
+        //   // publish to client
+        //   return null;
+        // }
+        if (device.appIds && device.appIds.length > 0) {
+          await device.appIds.map(async appId => {
+            try {
+              const parts = packet.topic.split('/');
+              parts[0] = appId;
+              const topic = parts.join('/');
+              Measurement.app.emit('publish', topic, packet.payload, false, 0);
+              return topic;
+            } catch (error) {
+              return error;
+            }
+          });
+        }
+        Measurement.app.emit('publish', packet.topic, packet.payload, false, 0);
+        return measurement;
+      }
+      throw new Error('Invalid MQTT Packet encoding');
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  /**
    * On sensor update, if an OMA resource is of float or integer type
    * @method module:Measurement.compose
    * @param {object} sensor - updated Sensor instance
@@ -97,55 +148,6 @@ module.exports = function(Measurement) {
         measurement,
       });
       return measurement;
-    } catch (error) {
-      return error;
-    }
-  };
-
-  /**
-   * Format packet and send it via MQTT broker
-   * @method module:Measurement.publish
-   * @param {object} device - found Device instance
-   * @param {object} measurement - Measurement instance
-   * @param {string} [method] - MQTT method
-   * @param {object} [client] - MQTT client target
-   * @returns {function} Measurement.app.publish()
-   */
-  Measurement.publish = async (device, measurement, method) => {
-    try {
-      const packet = await publish({
-        userId: measurement.ownerId,
-        collection: collectionName,
-        modelId: measurement.id,
-        data: measurement,
-        method: method || 'POST',
-        pattern: 'aloesclient',
-      });
-
-      if (packet && packet.topic && packet.payload) {
-        logger.publish(4, `${collectionName}`, 'publish:res', {
-          topic: packet.topic,
-        });
-        // if (client && client.id) {
-        //   // publish to client
-        //   return null;
-        // }
-        if (device.appIds && device.appIds.length > 0) {
-          await device.appIds.map(async appId => {
-            try {
-              const parts = packet.topic.split('/');
-              parts[0] = appId;
-              const topic = parts.join('/');
-              await Measurement.app.publish(topic, packet.payload, false, 0);
-              return topic;
-            } catch (error) {
-              return error;
-            }
-          });
-        }
-        return Measurement.app.publish(packet.topic, packet.payload, false, 0);
-      }
-      throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
       return error;
     }
@@ -268,7 +270,7 @@ module.exports = function(Measurement) {
       try {
         logger.publish(4, `${collectionName}`, 'find:req', { id });
         if (!options.accessToken && !options.apikey) {
-          throw new Error('No token found in HTTP Options');
+          throw utils.buildError(403, 'INVALID_AUTH', 'No token found in HTTP Options');
         }
         let ownerId;
         if (options.accessToken) {
@@ -278,14 +280,14 @@ module.exports = function(Measurement) {
           ownerId = application.ownerId;
         }
         if (!ownerId) {
-          throw new Error('No ownerId retireved');
+          throw utils.buildError(401, 'UNAUTHORZIED', 'Invalid user');
         }
         const filter = { ownerId };
         filter.id = id;
         const result = await findMeasurements(filter);
         return result[0];
       } catch (error) {
-        return error;
+        throw error;
       }
     };
 
@@ -294,9 +296,11 @@ module.exports = function(Measurement) {
         logger.publish(4, `${collectionName}`, 'find:req', { filter });
         //  console.log(`${collectionName}`, 'find:req', options);
         if (!options.accessToken && !options.apikey) {
-          throw new Error('No token found in HTTP Options');
+          throw utils.buildError(403, 'INVALID_AUTH', 'No token found in HTTP Options');
         }
-        if (!filter || filter === null) throw new Error('Missing filter in argument');
+        if (!filter || filter === null) {
+          throw utils.buildError(400, 'INVALID_ARG', 'Missing filter in argument');
+        }
         let ownerId;
         if (options.accessToken) {
           ownerId = options.accessToken.userId.toString();
@@ -305,7 +309,7 @@ module.exports = function(Measurement) {
           ownerId = application.ownerId;
         }
         if (!ownerId) {
-          throw new Error('No ownerId retireved');
+          throw utils.buildError(401, 'UNAUTHORZIED', 'Invalid user');
         }
         if (filter.where) {
           if (filter.where.and) {
@@ -320,7 +324,7 @@ module.exports = function(Measurement) {
         return result;
       } catch (error) {
         logger.publish(2, `${collectionName}`, 'find:err', error);
-        return error;
+        throw error;
       }
     };
 
@@ -340,7 +344,7 @@ module.exports = function(Measurement) {
       try {
         logger.publish(4, `${collectionName}`, 'replaceById:req', { id });
         if (!options.accessToken || !options.apikey) {
-          throw new Error('No token found in HTTP Options');
+          throw utils.buildError(403, 'INVALID_AUTH', 'No token found in HTTP Options');
         }
         const filter = {};
         if (options.accessToken) {
@@ -350,7 +354,7 @@ module.exports = function(Measurement) {
           filter.ownerId = application.ownerId;
         }
         if (!filter.ownerId) {
-          throw new Error('No ownerId retireved');
+          throw utils.buildError(401, 'UNAUTHORZIED', 'Invalid user');
         }
         filter.id = id;
         const instance = await findMeasurements(filter);
@@ -358,7 +362,7 @@ module.exports = function(Measurement) {
         return result;
       } catch (error) {
         logger.publish(2, `${collectionName}`, 'replaceById:err', error);
-        return error;
+        throw error;
       }
     };
 
@@ -366,9 +370,11 @@ module.exports = function(Measurement) {
       try {
         logger.publish(4, `${collectionName}`, 'updateAll:req', { filter });
         if (!options.accessToken || !options.apikey) {
-          throw new Error('No token found in HTTP Options');
+          throw utils.buildError(403, 'INVALID_AUTH', 'No token found in HTTP Options');
         }
-        if (!filter || filter === null) throw new Error('Missing filter in argument');
+        if (!filter || filter === null) {
+          throw utils.buildError(400, 'INVALID_ARG', 'Missing filter in argument');
+        }
         const ownerId = options.accessToken.userId.toString();
         filter.ownerId = ownerId;
         if (filter.where) {
@@ -387,7 +393,7 @@ module.exports = function(Measurement) {
         return result;
       } catch (error) {
         logger.publish(2, `${collectionName}`, 'updateAll:err', error);
-        return error;
+        throw error;
       }
     };
 
@@ -416,8 +422,9 @@ module.exports = function(Measurement) {
     Model.deleteById = async (id, options) => {
       try {
         logger.publish(4, `${collectionName}`, 'deleteById:req', { id });
-        if (!options.accessToken || !options.apikey)
-          throw new Error('No token found in HTTP Options');
+        if (!options.accessToken || !options.apikey) {
+          throw utils.buildError(403, 'INVALID_AUTH', 'No token found in HTTP Options');
+        }
         const filter = {};
         if (options.accessToken) {
           filter.ownerId = options.accessToken.userId.toString();
@@ -426,32 +433,37 @@ module.exports = function(Measurement) {
           filter.ownerId = application.ownerId;
         }
         if (!filter.ownerId) {
-          throw new Error('No ownerId retireved');
+          throw utils.buildError(401, 'UNAUTHORZIED', 'Invalid user');
         }
         filter.id = id;
         const result = await deleteMeasurement(filter);
         return result;
       } catch (error) {
-        return error;
+        throw error;
       }
     };
 
     Model.destroyAll = async filter => {
       try {
-        if (!filter || filter === null) throw new Error('Missing filter in argument');
+        if (!filter || filter === null) {
+          throw utils.buildError(400, 'INVALID_ARG', 'Missing filter in argument');
+        }
         logger.publish(4, `${collectionName}`, 'destroyAll:req', { filter });
         const result = await deleteMeasurement(filter);
         return result;
       } catch (error) {
-        return error;
+        throw error;
       }
     };
 
     Model.deleteWhere = async (filter, options) => {
       try {
-        if (!options.accessToken || !options.apikey)
-          throw new Error('No token found in HTTP Options');
-        if (!filter || filter === null) throw new Error('Missing filter in argument');
+        if (!options.accessToken || !options.apikey) {
+          throw utils.buildError(403, 'INVALID_AUTH', 'No token found in HTTP Options');
+        }
+        if (!filter || filter === null) {
+          throw utils.buildError(400, 'INVALID_ARG', 'Missing filter in argument');
+        }
         logger.publish(4, `${collectionName}`, 'deleteWhere:req', { filter });
         if (options.accessToken) {
           filter.ownerId = options.accessToken.userId.toString();
@@ -460,7 +472,7 @@ module.exports = function(Measurement) {
           filter.ownerId = application.ownerId;
         }
         if (!filter.ownerId) {
-          throw new Error('No ownerId retireved');
+          throw utils.buildError(401, 'UNAUTHORZIED', 'Invalid user');
         }
         if (filter.where) {
           delete filter.where;
@@ -470,7 +482,7 @@ module.exports = function(Measurement) {
         return result;
       } catch (error) {
         logger.publish(2, `${collectionName}`, 'deleteWhere:err', error);
-        return error;
+        throw error;
       }
     };
   });
@@ -484,12 +496,8 @@ module.exports = function(Measurement) {
   });
 
   Measurement.afterRemoteError('*', async ctx => {
-    try {
-      logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
-      // publish on collectionName/ERROR
-      return ctx;
-    } catch (error) {
-      return error;
-    }
+    logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
+    // publish on collectionName/ERROR
+    return ctx;
   });
 };

@@ -6,6 +6,26 @@ import utils from '../services/utils';
 const collectionName = 'Sensor';
 const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
 
+const beforeSave = async ctx => {
+  try {
+    if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
+    if (ctx.instance) {
+      logger.publish(5, `${collectionName}`, 'beforeSave:req', '');
+      const promises = await filteredProperties.map(async p => ctx.instance.unsetAttribute(p));
+      await Promise.all(promises);
+    } else if (ctx.data) {
+      logger.publish(5, `${collectionName}`, 'beforePartialSave:req', '');
+      const promises = await filteredProperties.map(p => delete ctx.data[p]);
+      await Promise.all(promises);
+      ctx.hookState.updateData = ctx.data;
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'beforeSave:err', error);
+    throw error;
+  }
+};
+
 /**
  * Define the way to persist data based on OMA resource type
  * @method module:Sensor~getPersistingMethod
@@ -232,12 +252,28 @@ const persistingResource = async (app, device, sensor, client) => {
   }
 };
 
-const deleteSensorProps = async (app, sensor) => {
+const afterSave = async ctx => {
+  try {
+    logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState);
+    if (ctx.hookState.updateData) {
+      return ctx;
+      //  } else if (ctx.instance.id && !ctx.isNewInstance && ctx.instance.ownerId) {
+    } else if (ctx.instance.id && ctx.instance.ownerId) {
+      await ctx.Model.app.models.SensorResource.setCache(ctx.instance.deviceId, ctx.instance);
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'afterSave:err', error);
+    throw error;
+  }
+};
+
+const deleteProps = async (app, sensor) => {
   try {
     if (!sensor || !sensor.id || !sensor.ownerId) {
       throw utils.buildError(403, 'INVALID_SENSOR', 'Invalid sensor instance');
     }
-    logger.publish(2, `${collectionName}`, 'deleteSensorProps:req', sensor);
+    logger.publish(2, `${collectionName}`, 'deleteProps:req', sensor);
     const device = await app.models.Device.findById(sensor.deviceId);
     await app.models.Measurement.destroyAll({
       sensorId: sensor.id,
@@ -252,29 +288,47 @@ const deleteSensorProps = async (app, sensor) => {
   }
 };
 
+const beforeDelete = async ctx => {
+  try {
+    logger.publish(4, `${collectionName}`, 'beforeDelete:req', ctx.where);
+    if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
+      const sensor = await ctx.Model.findById(ctx.where.id);
+      await deleteProps(ctx.Model.app, sensor);
+    } else {
+      const filter = { where: ctx.where };
+      const sensors = await ctx.Model.find(filter);
+      await Promise.all(sensors.map(async sensor => deleteProps(ctx.Model.app, sensor)));
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'beforeDelete:err', error);
+    throw error;
+  }
+};
+
 /**
  * @module Sensor
- * @property {String} id  Database generated ID.
- * @property {String} name required.
- * @property {String} devEui hardware generated Device Id required.
- * @property {Date} lastSignal
- * @property {Date} lastSync last date when this sensor cache was synced
- * @property {Number} frameCounter Number of messages since last connection
- * @property {String} type OMA object ID, used to format resources schema
- * @property {String} resource OMA resource ID used for last message
- * @property {Array} resources OMA Resources ( formatted object where sensor value and settings are stored )
- * @property {Array} icons OMA Object icons URL
- * @property {Object} colors OMA Resource colors
- * @property {String} transportProtocol Framework used for message transportation
- * @property {String} transportProtocolVersion Framework version
- * @property {String} messageProtocol Framework used for message encoding
- * @property {String} messageProtocolVersion Framework version
- * @property {String} nativeSensorId Original sensor id ( stringified integer )
- * @property {String} [nativeNodeId] Original node id ( stringified integer )
- * @property {String} nativeType Original sensor type identifier
- * @property {String} nativeResource Original sensor variables identifier
- * @property {String} ownerId User ID of the developer who registers the application.
- * @property {String} deviceId Device instance Id which has sent this measurement
+ * @property {string} id  Database generated ID.
+ * @property {string} name required.
+ * @property {string} devEui hardware generated Device Id required.
+ * @property {date} lastSignal
+ * @property {date} lastSync last date when this sensor cache was synced
+ * @property {number} frameCounter Number of messages since last connection
+ * @property {string} type OMA object ID, used to format resources schema
+ * @property {string} resource OMA resource ID used for last message
+ * @property {array} resources OMA Resources ( formatted object where sensor value and settings are stored )
+ * @property {array} icons OMA Object icons URL
+ * @property {bject} colors OMA Resource colors
+ * @property {string} transportProtocol Framework used for message transportation
+ * @property {string} transportProtocolVersion Framework version
+ * @property {string} messageProtocol Framework used for message encoding
+ * @property {string} messageProtocolVersion Framework version
+ * @property {string} nativeSensorId Original sensor id ( stringified integer )
+ * @property {string} [nativeNodeId] Original node id ( stringified integer )
+ * @property {string} nativeType Original sensor type identifier
+ * @property {string} nativeResource Original sensor variables identifier
+ * @property {string} ownerId User ID of the developer who registers the application.
+ * @property {string} deviceId Device instance Id which has sent this measurement
  */
 module.exports = function(Sensor) {
   async function typeValidator(err) {
@@ -811,26 +865,9 @@ module.exports = function(Sensor) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Sensor instance
+   * @returns {function} beforeSave
    */
-  Sensor.observe('before save', async ctx => {
-    try {
-      if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
-      if (ctx.instance) {
-        logger.publish(5, `${collectionName}`, 'beforeSave:req', '');
-        const promises = await filteredProperties.map(async p => ctx.instance.unsetAttribute(p));
-        await Promise.all(promises);
-      } else if (ctx.data) {
-        logger.publish(5, `${collectionName}`, 'beforePartialSave:req', '');
-        const promises = await filteredProperties.map(p => delete ctx.data[p]);
-        await Promise.all(promises);
-        ctx.hookState.updateData = ctx.data;
-      }
-      return ctx;
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'beforeSave:err', error);
-      throw error;
-    }
-  });
+  Sensor.observe('before save', beforeSave);
 
   /**
    * Event reporting that a sensor instance has been created or updated.
@@ -839,22 +876,9 @@ module.exports = function(Sensor) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Sensor instance
+   * @returns {function} afterSave
    */
-  Sensor.observe('after save', async ctx => {
-    try {
-      logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState);
-      if (ctx.hookState.updateData) {
-        return ctx;
-        //  } else if (ctx.instance.id && !ctx.isNewInstance && ctx.instance.ownerId) {
-      } else if (ctx.instance.id && ctx.instance.ownerId) {
-        await Sensor.app.models.SensorResource.setCache(ctx.instance.deviceId, ctx.instance);
-      }
-      return ctx;
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'afterSave:err', error);
-      throw error;
-    }
-  });
+  Sensor.observe('after save', afterSave);
 
   /**
    * Event reporting that a/several sensor instance(s) will be deleted.
@@ -863,24 +887,9 @@ module.exports = function(Sensor) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - Sensor id
+   * @returns {function} beforeDelete
    */
-  Sensor.observe('before delete', async ctx => {
-    try {
-      logger.publish(4, `${collectionName}`, 'beforeDelete:req', ctx.where);
-      if (ctx.where.id) {
-        const sensor = await Sensor.findById(ctx.where.id);
-        await deleteSensorProps(Sensor.app, sensor);
-      } else {
-        const filter = { where: ctx.where };
-        const sensors = await ctx.Model.find(filter);
-        await Promise.all(sensors.map(async sensor => deleteSensorProps(Sensor.app, sensor)));
-      }
-      return ctx;
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'beforeDelete:err', error);
-      throw error;
-    }
-  });
+  Sensor.observe('before delete', beforeDelete);
 
   Sensor.afterRemoteError('*', async ctx => {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, '');

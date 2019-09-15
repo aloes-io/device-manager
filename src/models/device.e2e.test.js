@@ -7,10 +7,13 @@ require('@babel/register');
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
-const deviceFactory = testHelper.factories.device;
 
-setTimeout(() => {
-  describe('Device', () => {
+const deviceTest = () => {
+  const deviceFactory = testHelper.factories.device;
+  const loginUrl = '/api/Users/login';
+  const collectionName = 'Devices';
+
+  return describe(collectionName, () => {
     const DeviceModel = app.models.Device;
     let devices;
 
@@ -25,13 +28,13 @@ setTimeout(() => {
       },
     };
 
-    const deviceApiUrl = '/api/Devices/';
+    const apiUrl = `/api/${collectionName}/`;
 
     const e2eTestsSuite = {
-      '[TEST] Devices E2E Tests': {
+      [`[TEST] ${collectionName} E2E Tests`]: {
         async before() {
           try {
-            this.timeout(3000);
+            this.timeout(4000);
             const users = await Promise.all([
               testHelper.access.admin.create(app),
               testHelper.access.user.create(app),
@@ -66,7 +69,7 @@ setTimeout(() => {
               {
                 name: 'everyone CANNOT create',
                 verb: 'post',
-                url: deviceApiUrl,
+                url: apiUrl,
                 body: deviceFactory(6),
                 expect: 401,
               },
@@ -74,7 +77,7 @@ setTimeout(() => {
                 name: 'user CAN create',
                 verb: 'post',
                 auth: profiles.user,
-                url: deviceApiUrl,
+                url: apiUrl,
                 body: deviceFactory(7),
                 expect: 200,
               },
@@ -82,7 +85,7 @@ setTimeout(() => {
                 name: 'admin CAN create',
                 verb: 'post',
                 auth: profiles.admin,
-                url: deviceApiUrl,
+                url: apiUrl,
                 body: deviceFactory(8),
                 expect: 200,
               },
@@ -93,27 +96,27 @@ setTimeout(() => {
               {
                 name: 'everyone CANNOT read ONE',
                 verb: 'get',
-                url: () => deviceApiUrl + devices[0].id,
+                url: () => `${apiUrl}${devices[0].id}`,
                 expect: 401,
               },
               {
                 name: 'everyone CANNOT read ALL',
                 verb: 'get',
-                url: deviceApiUrl,
+                url: apiUrl,
                 expect: 401,
               },
               {
                 name: 'everyone CAN read OWN',
                 verb: 'get',
                 auth: profiles.user,
-                url: () => deviceApiUrl + devices[2].id,
+                url: () => `${apiUrl}${devices[2].id}`,
                 expect: 200,
               },
               {
                 name: 'admin CAN read ALL',
                 verb: 'get',
                 auth: profiles.admin,
-                url: () => deviceApiUrl,
+                url: () => apiUrl,
                 expect: 200,
               },
             ],
@@ -123,7 +126,7 @@ setTimeout(() => {
               {
                 name: 'everyone CANNOT update',
                 verb: 'put',
-                url: () => deviceApiUrl + devices[0].id,
+                url: () => apiUrl + devices[0].id,
                 body: () => ({
                   ...devices[0],
                   name: `${devices[0].name} - updated`,
@@ -134,7 +137,7 @@ setTimeout(() => {
                 name: 'user CANNOT update ALL',
                 verb: 'put',
                 auth: profiles.user,
-                url: () => deviceApiUrl + devices[0].id,
+                url: () => `${apiUrl}${devices[0].id}`,
                 body: () => ({
                   ...devices[0],
                   name: `${devices[0].name} - updated`,
@@ -145,7 +148,7 @@ setTimeout(() => {
                 name: 'user CAN update OWN',
                 verb: 'put',
                 auth: profiles.user,
-                url: () => deviceApiUrl + devices[2].id,
+                url: () => `${apiUrl}${devices[2].id}`,
                 body: () => ({
                   ...devices[2],
                   name: `${devices[2].name} - updated`,
@@ -156,7 +159,7 @@ setTimeout(() => {
                 name: 'admin CAN update ALL',
                 verb: 'put',
                 auth: profiles.admin,
-                url: () => deviceApiUrl + devices[2].id,
+                url: () => `${apiUrl}${devices[2].id}`,
                 body: () => ({
                   ...devices[2],
                   name: `${devices[2].name} - updated`,
@@ -170,21 +173,21 @@ setTimeout(() => {
               {
                 name: 'everyone CANNOT delete ALL',
                 verb: 'delete',
-                url: () => deviceApiUrl + devices[0].id,
+                url: () => `${apiUrl}${devices[0].id}`,
                 expect: 401,
               },
               {
                 name: 'user CAN delete OWN',
                 verb: 'delete',
                 auth: profiles.user,
-                url: () => deviceApiUrl + devices[2].id,
+                url: () => `${apiUrl}${devices[2].id}`,
                 expect: 200,
               },
               {
                 name: 'admin CAN delete ALL',
                 verb: 'delete',
                 auth: profiles.admin,
-                url: () => deviceApiUrl + devices[3].id,
+                url: () => `${apiUrl}${devices[3].id}`,
                 expect: 200,
               },
             ],
@@ -194,11 +197,14 @@ setTimeout(() => {
     };
 
     const testConfig = {
-      auth: { url: '/api/users/login' },
+      auth: { url: loginUrl },
     };
 
     lbe2e(app, testConfig, e2eTestsSuite);
   });
+};
 
+setTimeout(() => {
+  deviceTest();
   run();
 }, delayBeforeTesting);

@@ -240,6 +240,20 @@ const onMessage = async (app, topic, payload) => {
   }
 };
 
+MQTTClient.start = async () => {
+  await mqttClient.subscribe(`aloes-${process.env.ALOES_ID}/sync`, {
+    qos: 2,
+    retain: false,
+  });
+  await mqttClient.subscribe(`${MQTTClient.id}/status`, {
+    qos: 0,
+    retain: false,
+  });
+  await mqttClient.subscribe(`${MQTTClient.id}/rx/#`, {
+    qos: 0,
+    retain: false,
+  });
+};
 /**
  * Setup MQTT client connection
  * @method module:MQTTClient.init
@@ -292,19 +306,6 @@ MQTTClient.init = async (app, config) => {
       logger.publish(4, 'mqtt-client', 'error', err);
     });
 
-    await mqttClient.subscribe(`aloes-${process.env.ALOES_ID}/sync`, {
-      qos: 2,
-      retain: false,
-    });
-    await mqttClient.subscribe(`${MQTTClient.id}/status`, {
-      qos: 0,
-      retain: false,
-    });
-    await mqttClient.subscribe(`${MQTTClient.id}/rx/#`, {
-      qos: 0,
-      retain: false,
-    });
-
     mqttClient.on('connect', async packet => {
       try {
         logger.publish(4, 'mqtt-client', 'connect:req', packet);
@@ -331,6 +332,7 @@ MQTTClient.init = async (app, config) => {
 
     mqttClient.on('message', async (topic, payload) => onMessage(app, topic, payload));
 
+    await MQTTClient.start();
     // logger.publish(4, 'mqtt-client', 'init:res', mqttClientOptions);
     return true;
   } catch (error) {
