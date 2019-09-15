@@ -9,7 +9,7 @@
 - Store devices and sensors state ( MongoDB )
 - Fast access to sensor resources ( Redis )
 - Interact with external application and share selection of devices
-- Automatically store sensors value in timeseries ( InfluxDB ) or in file
+- Automatically store sensors value in timeseries ( InfluxDB ), in file, or trigger some timers
 
 [Swagger Explorer](https://supervisor.aloes.io/explorer)
 
@@ -33,6 +33,8 @@ Application build upon :
 - Install [Redis](https://redis.io/)
 
 - Install [InfluxDB](https://www.influxdata.com/)
+
+- Install [Skyring](https://github.com/esatterwhite/skyring) to use external timers
 
 ## Folder structure
 
@@ -66,7 +68,7 @@ Access controlled by Access tokens ( set in headers ) properties and roles for U
 
 Topic pattern : +userId/+modelName/+method/[+modelId]
 
-Access controlled by ( set in mqtt password )  Access tokens for Users, and apiKey for Applications and Devices.
+Access controlled ( set in mqtt password ) by Access tokens for Users, and API Key for Applications and Devices.
 
 ## Configuration
 
@@ -76,7 +78,6 @@ You can override these by populating `deploy` with files corresponding to an env
 ## Installation
 
 ```bash
-  $ npm install -g pm2
   $ npm install
 ```
 
@@ -86,74 +87,66 @@ You can override these by populating `deploy` with files corresponding to an env
   $ npm run lint
 ```
 
-## Running the development server (REST API)
-
-```bash
-  $ npm run dev
-```
-
 ## Debug
 
+- To set Aloes verbosity, configure SERVER_LOGGER_LEVEL from 0 to 4
+
+- To activate Loopback debug
+
 ```bash
-  $ DEBUG=loopback npm run dev
+  $ DEBUG=loopback npm run start:dev
 ```
 
 [More info...](https://loopback.io/doc/en/lb3/Setting-debug-strings.html)
 
-## Deploying project
+## Starting project
 
-Please remember to update `.env` and / or `ecosystem.config.json` files to match your enviroment.
+Create or update `.env` file to match your enviroment.
+
+For example to run in local mode, create `./deploy/.env_local` using `.env_sample` as an example.
+
+### With Nodemon
 
 ```bash
-  $ npm run start
+  $ npm run start:local
 ```
 
-### With PM2 :
+### With PM2
 
-- Access to server with SSH :
+- Starting PM2 processes :
 
 ```bash
-  $ ssh-keygen -f ~/.ssh/server_name -t rsa -C <email_address> -b 4096
-  $ ssh-copy-id -i ~/.ssh/server_name user@server_uri
+  $ npm run start:pm2
 ```
 
-- Creating environment :
+- Stopping PM2 processes :
 
 ```bash
-  $ pm2 deploy ecosystem.config.js production setup
-```
-
-- Updating environment :
-
-```bash
-  $ pm2 deploy ecosystem.config.js production update
-```
-
-Be sure to commit your changes on the right branch before each setup and update: ( master for production env, and staging for dev/staging env )
-
-```bash
-  $  git checkout master
-  $  git add .
-  $  git commit .
-  $  git push
+  $ npm run stop:pm2
 ```
 
 ### With Docker
 
 You can serve the project with a distant server by filling `deploy` folder with files corresponding to an environment ( eg: .env_docker ), and then launching this app with docker via `docker-compose up`
 
-Remember to update `*.dockerfile` to match your enviroment.
+Remember to update `*.dockerfile` to match your enviroment, if you don't use docker-compose.
 
 Creating environment :
 
 ```bash
-  $  docker-compose --compatibility build
+  $  npm run build:docker
 ```
 
-Starting container :
+Starting containers :
 
 ```bash
-  $  docker-compose --compatibility up
+  $  npm run start:docker
+```
+
+Stopping containers :
+
+```bash
+  $  npm run stop:docker
 ```
 
 ## To deploy with your own TLS / SSL certificates
@@ -166,10 +159,10 @@ Install your own instance : https://github.com/localtunnel/server
 
 And then install wildcards certificates with : https://certbot.eff.org/
 
+Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
+
 ## TODO
 
-- Optionnaly deploy a node-red instance per user ? (  userId.${aloesDomain} )
-- Use https://github.com/esatterwhite/skyring#master to replace DeltaTimer ( will be useful for Aloes clusters )
 - Improve file model access and backup
 - Update / improve device search engine
 - Finish account linking with github

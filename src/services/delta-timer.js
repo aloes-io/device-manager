@@ -2,22 +2,25 @@ import logger from './logger';
 
 const DeltaTimer = function(cb, data, interval) {
   try {
-    let timeout, lastTime;
+    let timer, lastTime;
     let count = 0;
+    let timeout = interval;
+    let timerData = data;
+    let callback = cb;
 
     const loop = () => {
       try {
         count += 1;
         const thisTime = +new Date();
         const deltaTime = thisTime - lastTime;
-        const delay = Math.max(interval - deltaTime, 0);
-        timeout = setTimeout(loop, delay);
+        const delay = Math.max(timeout - deltaTime, 0);
+        timer = setTimeout(loop, delay);
         lastTime = thisTime + delay;
-        data.delay = delay;
-        data.count = count;
-        data.time = thisTime;
-        data.lastTime = lastTime;
-        if (count > 1) cb(data);
+        timerData.delay = delay;
+        timerData.count = count;
+        timerData.time = thisTime;
+        timerData.lastTime = lastTime;
+        if (count > 1) callback(timerData);
         return null;
       } catch (error) {
         return error;
@@ -26,7 +29,7 @@ const DeltaTimer = function(cb, data, interval) {
 
     const start = () => {
       try {
-        timeout = setTimeout(loop, 0);
+        timer = setTimeout(loop, 0);
         lastTime = +new Date();
         logger.publish(4, 'UTILS', 'DeltaTimer:start', lastTime);
         return lastTime;
@@ -38,16 +41,23 @@ const DeltaTimer = function(cb, data, interval) {
     const stop = () => {
       try {
         logger.publish(4, 'UTILS', 'DeltaTimer:stop', lastTime);
-        clearTimeout(timeout);
+        clearTimeout(timer);
         return lastTime;
       } catch (error) {
         return error;
       }
     };
 
+    const update = (updatedCb, updatedData, updatedInterval) => {
+      callback = updatedCb;
+      timerData = { ...timerData, ...updatedData };
+      timeout = updatedInterval;
+    };
+
     this.start = start;
     this.stop = stop;
-    return timeout;
+    this.update = update;
+    return timer;
   } catch (error) {
     return error;
   }

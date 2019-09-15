@@ -2,13 +2,14 @@ import app from './server';
 import utils from './utils';
 import logger from './logger';
 
+const mails = {};
 const emailFrom = process.env.CONTACT_EMAIL;
-const verifyTemplate = '../views/verify.ejs';
+const verifyTemplate = `${__dirname}/../views/verify.ejs`;
+// const verifyTemplate = '../views/verify.ejs';
 const resetTemplate = '../views/reset-password.ejs';
 const inviteTemplate = '../views/mail-invite.ejs';
 const contactFormTemplate = '../views/contact-form.ejs';
 const collectionName = 'Mail';
-const mails = {};
 const baseConf = {
   type: 'email',
   to: '',
@@ -60,8 +61,8 @@ mails.send = async options => {
     });
     if (result.accepted.length < 1) {
       // send the mail a second time ?
-      const mailError = utils.buildError('INVALID_EMAIL', 'email was rejected');
-      return mailError;
+      const mailError = utils.buildError(404, 'INVALID_EMAIL', 'email was rejected');
+      throw mailError;
     }
     result = { message: 'email sent' };
     return result;
@@ -71,30 +72,37 @@ mails.send = async options => {
   }
 };
 
-mails.verifyEmail = async user => {
-  logger.publish(4, `${collectionName}`, 'verifyEmail:req', user);
-  // loopback appends &token=value
-  const options = {
-    ...config.verifyOptions,
-    to: user.email,
-    verifyHref: `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/users/confirm?uid=${
-      user.id
-    }&redirect=${process.env.HTTP_CLIENT_URL}/login`,
-    user,
-    text: `Please confirm account creation by opening this link`,
-  };
-
-  const result = await user.verify(options).catch(err => {
-    logger.publish(2, `${collectionName}`, 'verifyEmail:err', err);
-    return err;
+const verifyUser = (user, options) =>
+  new Promise((resolve, reject) => {
+    user.verify(options, (opts, err, res) => (err ? reject(err) : resolve({ ...options, ...res })));
   });
-  // if (!result.email.accepted) {
-  //   const error = new Error('Email rejected');
-  //   logger.publish(2, `${collectionName}`, 'verifyEmail:err', error);
-  //   return error;
-  // }
-  logger.publish(2, `${collectionName}`, 'verifyEmail:res', result);
-  return result;
+
+mails.verifyEmail = async user => {
+  try {
+    logger.publish(4, `${collectionName}`, 'verifyEmail:req', { verifyTemplate, user });
+    // loopback will append &token=value
+    const options = {
+      ...config.verifyOptions,
+      to: user.email,
+      verifyHref: `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/users/confirm?uid=${
+        user.id
+      }&redirect=${process.env.HTTP_CLIENT_URL}/login`,
+      user,
+      text: `Please confirm account creation by opening this link`,
+    };
+
+    const result = await verifyUser(user, options);
+    // if (!result.email.accepted) {
+    //   const error = new Error('Email rejected');
+    //   logger.publish(2, `${collectionName}`, 'verifyEmail:err', error);
+    //   return error;
+    // }
+    logger.publish(2, `${collectionName}`, 'verifyEmail:res', result);
+    return result;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'verifyEmail:err', error);
+    return null;
+  }
 };
 
 mails.sendResetPasswordMail = async options => {

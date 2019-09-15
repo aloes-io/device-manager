@@ -1,60 +1,169 @@
 import fileType from 'file-type';
 import stream from 'stream';
 import logger from '../services/logger';
+import utils from '../services/utils';
 
-const CONTAINERS_URL = `${process.env.REST_API_ROOT}/files/`;
+const collectionName = 'Files';
+const CONTAINERS_URL = `${process.env.REST_API_ROOT}/${collectionName}/`;
 
+const createContainer = (app, options) =>
+  new Promise((resolve, reject) =>
+    app.models.container.createContainer(options, (err, res) => (err ? reject(err) : resolve(res))),
+  );
+
+const getContainers = app =>
+  new Promise((resolve, reject) =>
+    app.models.container.getContainers((err, res) => (err ? reject(err) : resolve(res))),
+  );
+
+const getContainer = (app, ownerId) =>
+  new Promise((resolve, reject) =>
+    app.models.container.getContainer(ownerId.toString(), (err, res) =>
+      err ? reject(err) : resolve(res),
+    ),
+  );
+
+const getFileFromContainer = (app, ownerId, name) =>
+  new Promise((resolve, reject) =>
+    app.models.container.getFile(ownerId.toString(), name, (err, res) =>
+      err ? reject(err) : resolve(res),
+    ),
+  );
+
+const getFilesFromContainer = (app, ownerId, options = {}) =>
+  new Promise((resolve, reject) =>
+    app.models.container.getFiles(ownerId.toString(), options, (err, res) =>
+      err ? reject(err) : resolve(res),
+    ),
+  );
+
+const uploadToContainer = (app, ctx, ownerId, options) =>
+  new Promise((resolve, reject) =>
+    app.models.container.upload(ownerId.toString(), ctx.req, ctx.res, options, (err, fileObj) =>
+      err ? reject(err) : resolve(fileObj.files.file[0]),
+    ),
+  );
+
+const uploadBufferToContainer = (app, buffer, ownerId, name) =>
+  new Promise((resolve, reject) => {
+    const bufferStream = new stream.PassThrough();
+    bufferStream.on('error', reject);
+    bufferStream.end(buffer);
+    const type = fileType(buffer);
+    if (!type || !type.ext) reject(new Error('File type information not found'));
+    const nameParts = name.split('.');
+    if (nameParts.length < 2) {
+      name = `${name}.${type.ext}`;
+    }
+    const writeStream = app.models.container.uploadStream(ownerId.toString(), name);
+    bufferStream.pipe(writeStream);
+    writeStream.on('finish', () => {
+      resolve({
+        type,
+        path: writeStream.path,
+        size: writeStream.bytesWritten,
+        name,
+        //  originalFilename: `${name}`,
+      });
+    });
+    writeStream.on('error', reject);
+  });
+
+const removeFileFromContainer = (app, ownerId, name) =>
+  new Promise((resolve, reject) =>
+    app.models.container.removeFile(ownerId.toString(), name, (err, res) =>
+      err ? reject(err) : resolve(res),
+    ),
+  );
+
+const removeContainer = (app, ownerId) =>
+  new Promise((resolve, reject) =>
+    app.models.container.destroyContainer(ownerId.toString(), (err, res) =>
+      err ? reject(err) : resolve(res),
+    ),
+  );
+
+const onBeforeSave = async ctx => {
+  try {
+    if (ctx.data) {
+      logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.data);
+      if (ctx.data.name) {
+        // UPDATE FILE IN CONTAINER TOO
+        // protect name from being updated
+      }
+      ctx.hookState.updateData = ctx.data;
+    } else if (ctx.instance) {
+      logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.instance);
+      // UPDATE FILE IN CONTAINER TOO
+      // protect name from being updated
+    }
+    const data = ctx.data || ctx.instance || ctx.currentInstance;
+    // const authorizedRoles =
+    //   ctx.options && ctx.options.authorizedRoles ? ctx.options.authorizedRoles : {};
+
+    logger.publish(4, `${collectionName}`, 'beforeSave:res', { data });
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'beforeSave:err', error);
+    throw error;
+  }
+};
+
+const deleteProps = async (app, fileMeta) => {
+  try {
+    if (!fileMeta || !fileMeta.id || !fileMeta.ownerId) {
+      throw utils.buildError(403, 'INVALID_FILE', 'Invalid file instance');
+    }
+    logger.publish(4, `${collectionName}`, 'deleteProps:req', fileMeta);
+    try {
+      const file = await getFileFromContainer(app, fileMeta.ownerId.toString(), fileMeta.name);
+      // console.log('FILE ', file);
+      if (file && file.name) {
+        await removeFileFromContainer(app, fileMeta.ownerId, file.name);
+      }
+    } catch (e) {
+      console.log(`[${collectionName.toUpperCase()}] deleteProps:e`, e);
+    }
+
+    return fileMeta;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const onBeforeDelete = async ctx => {
+  try {
+    if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
+      const file = await ctx.Model.findById(ctx.where.id);
+      await deleteProps(ctx.Model.app, file);
+    } else {
+      const filter = { where: ctx.where };
+      const files = await ctx.Model.find(filter);
+      await Promise.all(files.map(async file => deleteProps(ctx.Model.app, file)));
+    }
+    logger.publish(4, `${collectionName}`, 'beforeDelete:res', 'done');
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'beforeDelete:err', error);
+    throw error;
+  }
+};
 /**
  * @module Files
+ * @property {string} id  Database generated ID
+ * @property {string} name
+ * @property {string} type
+ * @property {string} size
+ * @property {string} role
+ * @property {string} url
  */
 module.exports = function(Files) {
-  const collectionName = 'files';
-
   Files.validatesPresenceOf('ownerId');
 
   Files.disableRemoteMethodByName('count');
   Files.disableRemoteMethodByName('upsertWithWhere');
   Files.disableRemoteMethodByName('replaceOrCreate');
   Files.disableRemoteMethodByName('createChangeStream');
-
-  const uploadToContainer = (ctx, ownerId, options) =>
-    new Promise((resolve, reject) =>
-      Files.app.models.container.upload(ownerId, ctx.req, ctx.res, options, (err, fileObj) =>
-        err ? reject(err) : resolve(fileObj.files.file[0]),
-      ),
-    );
-
-  const uploadBufferToContainer = (buffer, ownerId, name) =>
-    new Promise((resolve, reject) => {
-      const bufferStream = new stream.PassThrough();
-      bufferStream.on('error', reject);
-      bufferStream.end(buffer);
-      const type = fileType(buffer);
-      if (!type || !type.ext) reject(new Error('File type information not found'));
-      const nameParts = name.split('.');
-      if (nameParts.length < 2) {
-        name = `${name}.${type.ext}`;
-      }
-      const writeStream = Files.app.models.container.uploadStream(ownerId, name);
-      bufferStream.pipe(writeStream);
-      writeStream.on('finish', () => {
-        resolve({
-          type,
-          path: writeStream.path,
-          size: writeStream.bytesWritten,
-          name,
-          //  originalFilename: `${name}`,
-        });
-      });
-      writeStream.on('error', reject);
-    });
-
-  const removeFromContainer = (ownerId, name) =>
-    new Promise((resolve, reject) =>
-      Files.app.models.container.removeFile(ownerId, name, (err, res) =>
-        err ? reject(err) : resolve(res),
-      ),
-    );
 
   /**
    * Request to upload file in userId container via multipart/form data
@@ -85,7 +194,7 @@ module.exports = function(Files) {
       }
 
       let fileMeta = await Files.findOne(filter);
-      const fileInfo = await uploadToContainer(ctx, ownerId, options);
+      const fileInfo = await uploadToContainer(Files.app, ctx, ownerId, options);
       //  console.log('fileInfo Upload', fileInfo);
 
       if (fileMeta) {
@@ -107,13 +216,13 @@ module.exports = function(Files) {
         });
       }
 
-      // if (file[1])  await removeFromContainer(ownerId, name);
+      // if (file[1])  await removeFileFromContainer(ownerId, name);
       logger.publish(3, `${collectionName}`, 'upload:res', fileInfo);
       //  return fileInfo;
       return fileMeta;
     } catch (err) {
       logger.publish(2, `${collectionName}`, 'upload:err', err);
-      return err;
+      throw err;
     }
   };
 
@@ -133,13 +242,16 @@ module.exports = function(Files) {
           and: [{ name: { like: new RegExp(`.*${name}.*`, 'i') } }, { ownerId }],
         },
       });
-
-      const fileStat = await uploadBufferToContainer(buffer, ownerId, name);
+      // console.log('buffer file upload', typeof buffer, Buffer.isBuffer(buffer), buffer);
+      // if (typeof buffer === 'object' && !Buffer.isBuffer(buffer)) {
+      // Buffer.from(buffer);
+      // }
+      const fileStat = await uploadBufferToContainer(Files.app, buffer, ownerId, name);
       logger.publish(4, `${collectionName}`, 'uploadBuffer:res1', { fileStat });
       if (!fileStat || !fileStat.type) throw new Error('Failure while uploading stream');
 
       if (fileMeta) {
-        fileMeta.updateAttributes({
+        await fileMeta.updateAttributes({
           type: fileStat.type.mime,
           size: fileStat.size,
           name: fileStat.name,
@@ -160,7 +272,7 @@ module.exports = function(Files) {
       return fileMeta;
     } catch (err) {
       logger.publish(2, `${collectionName}`, 'upload:err', err);
-      return err;
+      throw err;
     }
   };
 
@@ -198,23 +310,29 @@ module.exports = function(Files) {
         if (result && !(result instanceof Error)) {
           return result;
         }
-        ctx.res.status(304);
-        throw new Error('Error while reading stream');
+        throw utils.buildError(304, 'ERROR_STREAMING', 'Error while reading stream');
       }
-      throw new Error('no file found');
+      throw utils.buildError(404, 'NOT_FOUND', 'no file found');
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
-  Files.remove = async (userId, name) => {
-    try {
-      await removeFromContainer(userId, name);
-      return true;
-    } catch (error) {
-      return error;
-    }
-  };
+  Files.createContainer = async userId => createContainer(Files.app, { name: userId.toString() });
+
+  Files.getContainers = async userId => getContainers(Files.app, userId);
+
+  Files.getContainer = async (userId, name) => getContainer(Files.app, userId, name);
+
+  Files.getFilesFromContainer = async userId => getFilesFromContainer(Files.app, userId);
+
+  Files.getFileFromContainer = async (userId, name) =>
+    getFileFromContainer(Files.app, userId, name);
+
+  Files.removeContainer = async userId => removeContainer(Files.app, userId);
+
+  Files.removeFileFromContainer = async (userId, name) =>
+    removeFileFromContainer(Files.app, userId, name);
 
   /**
    * On sensor update, if an OMA resource is of float or integer type
@@ -234,16 +352,18 @@ module.exports = function(Files) {
       ) {
         throw new Error('Invalid sensor instance');
       }
-      let buffer;
+      let buffer = null;
       const resourceId = sensor.resource.toString();
       const resource = sensor.resources[resourceId];
       const resourceType = typeof resource;
-      logger.publish(3, `${collectionName}`, 'compose:req', { resourceType, resourceId });
-
+      logger.publish(3, `${collectionName}`, 'compose:req', {
+        resourceType,
+        resourceId,
+      });
       if (resourceType === 'string') {
-        if (JSON.parse(resource)) {
-          buffer = Buffer.from(JSON.parse(resource.data));
-        } else {
+        try {
+          buffer = Buffer.from(JSON.parse(resource));
+        } catch (error) {
           buffer = Buffer.from(resource, 'binary');
           // buffer = Buffer.from(resource, 'base64');
         }
@@ -258,4 +378,26 @@ module.exports = function(Files) {
       return error;
     }
   };
+
+  /**
+   * Event reporting that a new Files instance will be created.
+   * @event create
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @param {object} user - Files new instance
+   * @returns {function} beforeSave
+   */
+  Files.observe('before save', onBeforeSave);
+
+  /**
+   * Event reporting that a / several File instance(s) will be deleted.
+   * @event before delete
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @param {object} ctx.where.id - File meta instance
+   * @returns {function} beforeDelete
+   */
+  Files.observe('before delete', onBeforeDelete);
 };

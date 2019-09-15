@@ -54,63 +54,62 @@ module.exports = {
     maxRetries: 5,
     timePrecision: 'ms',
   },
-  // timer: {
-  //   name: 'timer',
-  //   connector: 'rest',
-  //   baseURL: process.env.TIMER_BASE_URL || 'http://localhost:8002/timer',
-  //   debug: true,
-  //   options: {
-  //     headers: {
-  //       accept: 'application/json',
-  //       'content-type': 'application/json',
-  //       // apikey: process.env.APPLICATION_KEY,
-  //       // appId: process.env.APPLICATION_ID,
-  //     },
-  //     strictSSL: false,
-  //   },
-  //   operations: [
-  //     {
-  //       template: {
-  //         method: 'GET',
-  //         url: `${process.env.TIMER_BASE_URL}/{timerId}`,
-  //         headers: {
-  //           accept: 'application/json',
-  //           'content-type': 'application/json',
-  //         },
-  //       },
-  //       functions: {
-  //         getTimer: ['timerId'],
-  //       },
-  //     },
-  //     {
-  //       template: {
-  //         method: 'POST',
-  //         url: `${process.env.TIMER_BASE_URL}/{timerId}`,
-  //         headers: {
-  //           accept: 'application/json',
-  //           'content-type': 'application/json',
-  //         },
-  //       },
-  //       body: '{body}',
-  //       functions: {
-  //         createtimer: ['timerId', 'body'],
-  //       },
-  //     },
-  //     {
-  //       template: {
-  //         method: 'DELETE',
-  //         url: `${process.env.TIMER_BASE_URL}/{timerId}`,
-  //         headers: {
-  //           accept: 'application/json',
-  //           'content-type': 'application/json',
-  //         },
-  //       },
-  //       functions: {
-  //         deleteTimer: ['timerId'],
-  //       },
-  //     },
-  //   ],
-  // },
+  timer: {
+    name: 'timer',
+    connector: 'rest',
+    baseURL: process.env.TIMER_BASE_URL || 'http://localhost:8080/timer',
+    debug: true,
+    options: {
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      strictSSL: false,
+    },
+    operations: [
+      {
+        template: {
+          method: 'POST',
+          url: `${process.env.TIMER_BASE_URL || 'http://localhost:8080/timer'}`,
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+          body: '{instance}',
+        },
+        functions: {
+          create: ['instance'],
+        },
+      },
+      {
+        template: {
+          method: 'PUT',
+          url: `${process.env.TIMER_BASE_URL || 'http://localhost:8080/timer'}/{timerId}`,
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+          body: '{instance}',
+        },
+        functions: {
+          updateById: ['timerId', 'instance'],
+        },
+      },
+      {
+        template: {
+          method: 'DELETE',
+          url: `${process.env.TIMER_BASE_URL || 'http://localhost:8080/timer'}/{timerId}`,
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+        },
+        functions: {
+          deleteById: ['timerId'],
+        },
+      },
+    ],
+  },
   storage: {
     name: 'storage',
     connector: 'loopback-component-storage',

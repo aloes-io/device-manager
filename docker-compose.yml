@@ -5,26 +5,34 @@ services:
     env_file: .env
     build:
       context: .
-      dockerfile: ${NODE_ENV}.dockerfile
+      dockerfile: local.dockerfile
     image: getlarge/${NODE_NAME}:0.5
     ports:
       - '${HTTP_SERVER_PORT}:${HTTP_SERVER_PORT}'
       - '${MQTT_BROKER_PORT}:${MQTT_BROKER_PORT}'
       - '${MQTTS_BROKER_PORT}:${MQTTS_BROKER_PORT}'
+      - '${WS_BROKER_PORT}:${WS_BROKER_PORT}'
     expose:
       - '${HTTP_SERVER_PORT}'
       - '${MQTT_BROKER_PORT}'
       - '${MQTTS_BROKER_PORT}'
+      - '${WS_BROKER_PORT}'
+      # - '${TIMER_PORT}'
     depends_on:
       - mongo
       - influxdb
       - redis
+      - timer-proxy
     volumes:
-      - /opt/device-manager-${NODE_ENV}-storage:/home/node/${NODE_NAME}/storage
+      - ./.env:/home/node/device-manager/.env:ro
+      - ./deploy/device-manager-local.key:/home/node/device-manager/deploy/device-manager-local.key:ro
+      - ./deploy/device-manager-local.crt:/home/node/device-manager/deploy/device-manager-local.crt:ro
+      # - /opt/device-manager-${NODE_ENV}-storage:/home/node/${NODE_NAME}/storage
     links:
       - mongo
       - redis
       - influxdb
+      - timer-proxy
     restart: on-failure
     deploy:
       resources:
@@ -39,16 +47,16 @@ services:
         max-file: '3'
 
   mongo:
+    env_file: ./config/mongo/.env
     image: mongo:4.1.13
     restart: always
-    env_file: ./config/.env
     volumes:
-      - ./config/mongo/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - ./config/mongo/mongo-init.sh:/docker-entrypoint-initdb.d/mongo-init.sh:ro
       - mongovolume:/data/db
 
   influxdb:
+    env_file: ./config/influx/.env
     image: influxdb:1.7-alpine
-    env_file: ./config/.env
     volumes:
       - influxvolume:/var/lib/influxdb
 
@@ -56,10 +64,159 @@ services:
     image: redis:5-alpine
     volumes:
       - redisvolume:/data
-      # - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
-    # command: ['redis-server', '/usr/local/etc/redis/redis.conf']
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: ['redis-server', '/usr/local/etc/redis/redis.conf']
+
+  timer-1:
+    build:
+      context: https://github.com/esatterwhite/skyring.git#master
+    hostname: timer-1
+    environment:
+      - DEBUG=*
+      - channel__host=timer-1
+      - nats__hosts=nats-a:4222,nats-b:4222,nats-c:4222
+      - seeds=timer-1:3455,timer-2:3456
+      - storage__backend=leveldown
+      - storage__path=/var/data/skyring
+    networks:
+      - skyring
+    depends_on:
+      - nats-a
+      - nats-b
+      - nats-c
+
+  timer-2:
+    build:
+      context: https://github.com/esatterwhite/skyring.git#master
+    hostname: timer-2
+    environment:
+      - DEBUG=*
+      - channel__host=timer-2
+      - channel__port=3456
+      - nats__hosts=nats-a:4222,nats-b:4222,nats-c:4222
+      - seeds=timer-1:3455,timer-2:3456
+      - storage__backend=leveldown
+      - storage__path=/var/data/skyring
+    networks:
+      - skyring
+    depends_on:
+      - nats-a
+      - nats-b
+      - nats-c
+
+  timer-3:
+    build:
+      context: https://github.com/esatterwhite/skyring.git#master
+    hostname: timer-3
+    environment:
+      - DEBUG=*
+      - channel__host=timer-3
+      - nats__hosts=nats-a:4222,nats-b:4222,nats-c:4222
+      - seeds=timer-1:3455,timer-2:3456
+      - storage__backend=leveldown
+      - storage__path=/var/data/skyring
+    networks:
+      - skyring
+    depends_on:
+      - nats-a
+      - nats-b
+      - nats-c
+      - timer-1
+      - timer-2
+
+  timer-4:
+    build:
+      context: https://github.com/esatterwhite/skyring.git#master
+    hostname: timer-4
+    environment:
+      - DEBUG=*
+      - channel__host=timer-4
+      - nats__hosts=nats-a:4222,nats-b:4222,nats-c:4222
+      - seeds=timer-1:3455,timer-2:3456
+      - storage__backend=leveldown
+      - storage__path=/var/data/skyring
+    networks:
+      - skyring
+    depends_on:
+      - nats-a
+      - nats-b
+      - nats-c
+      - timer-1
+      - timer-2
+
+  timer-5:
+    build:
+      context: https://github.com/esatterwhite/skyring.git#master
+    hostname: timer-5
+    environment:
+      - DEBUG=*
+      - channel__host=timer-5
+      - nats__hosts=nats-a:4222,nats-b:4222,nats-c:4222
+      - seeds=timer-1:3455,timer-2:3456
+      - storage__backend=leveldown
+      - storage__path=/var/data/skyring
+    networks:
+      - skyring
+    depends_on:
+      - nats-a
+      - nats-b
+      - nats-c
+      - timer-1
+      - timer-2
+      - timer-3
+      - timer-4
+
+  nats-a:
+    image: nats:latest
+    volumes:
+      - ./config/nats:/tmp
+    command: >
+      -c /tmp/a.conf -D
+    networks:
+      - skyring
+
+  nats-b:
+    image: nats:latest
+    volumes:
+      - ./config/nats:/tmp
+    command: >
+      -c /tmp/b.conf -D
+    depends_on:
+      - nats-a
+    networks:
+      - skyring
+
+  nats-c:
+    image: nats:latest
+    volumes:
+      - ./config/nats:/tmp
+    depends_on:
+      - nats-a
+    command: >
+      -c /tmp/c.conf -D
+    networks:
+      - skyring
+
+  timer-proxy:
+    image: 'nginx:latest'
+    volumes:
+      - ./config/nginx/skyring.conf:/etc/nginx/nginx.conf
+    ports:
+      - '${TIMER_PORT}:80'
+    networks:
+      - skyring
+    depends_on:
+      - timer-1
+      - timer-2
+      - timer-3
+      - timer-4
+      - timer-5
 
 volumes:
   mongovolume:
   redisvolume:
   influxvolume:
+
+networks:
+  skyring:
+    driver: bridge

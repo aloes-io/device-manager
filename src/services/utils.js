@@ -5,15 +5,22 @@ import crypto from 'crypto';
 import path from 'path';
 import app from './server';
 import logger from './logger';
-//  import createVue from "./views/create-vue";
 
 const collectionName = 'Utils';
 const utils = {};
 
-utils.buildError = (code, message) => {
-  const err = new Error(message);
-  err.statusCode = 400;
-  err.code = code;
+const codeNames = {
+  400: 'Bad Request',
+  401: 'Unauthorized',
+  403: 'Forbidden',
+  404: 'Not Found',
+};
+
+utils.buildError = (statusCode, code, message) => {
+  const err = new Error(code || codeNames[statusCode] || message || 'An error occurred!');
+  // const err = new Error(message);
+  err.statusCode = statusCode;
+  // err.code = code;
   return err;
 };
 
@@ -54,85 +61,13 @@ utils.renderTemplate = options =>
 
 utils.readFile = (filePath, opts = 'utf8') =>
   new Promise((resolve, reject) => {
-    fs.readFile(filePath, opts, (err, data) => {
-      if (err) reject(err);
-      else resolve(data);
-    });
+    fs.readFile(filePath, opts, (err, data) => (err ? reject(err) : resolve(data)));
   });
 
 utils.writeFile = (filePath, data, opts = 'utf8') =>
   new Promise((resolve, reject) => {
-    fs.appendFile(filePath, data, opts, err => {
-      if (err) reject(err);
-      else resolve();
-    });
+    fs.appendFile(filePath, data, opts, err => (err ? reject(err) : resolve()));
   });
-
-// generate sensors and virtual object template ( .vue )
-// utils.renderVueTemplate = async (template, context) => {
-//   const app = createVue(context, options.template);
-//   const renderer = require("vue-server-renderer").createRenderer();
-
-//   const filledTemplate = await renderer
-//     .renderToString(app)
-//     .then((html) => {
-//       console.log(html);
-//       return html;
-//     })
-//     .catch((err) => {
-//       console.error(err);
-//     });
-//   return filledTemplate;
-// };
-
-utils.roleResolver = async (user, subcribeType) => {
-  try {
-    logger.publish(4, `${collectionName}`, 'roleResolver:req', {
-      subcribeType,
-    });
-    const Role = app.models.Role;
-    const RoleMapping = app.models.RoleMapping;
-    const adminRole = await Role.findOne({ where: { name: 'admin' } });
-    const payload = await Role.find({ where: { name: subcribeType } })
-      .then(role => ({ user, role: role[0] }))
-      .then(res => res);
-
-    const response = { ...payload };
-    logger.publish(4, `${collectionName}`, 'roleResolver:res1', response);
-    const foundRole = await RoleMapping.findOrCreate(
-      {
-        where: {
-          and: [{ principalId: response.user.id }, { roleId: { neq: adminRole.id } }],
-        },
-      },
-      {
-        principalType: RoleMapping.USER,
-        principalId: response.user.id,
-        roleId: response.role.id,
-      },
-    );
-    logger.publish(4, `${collectionName}`, 'roleResolver:res2', foundRole[0]);
-    if (!foundRole) {
-      return new Error('no role found or created !');
-    }
-
-    const result = await RoleMapping.replaceById(foundRole[0].id, {
-      ...foundRole[0],
-      principalType: RoleMapping.USER,
-      principalId: response.user.id,
-      roleId: response.role.id,
-    });
-    logger.publish(4, collectionName, 'roleResolver:res', {
-      result,
-    });
-    return result;
-  } catch (error) {
-    logger.publish(4, collectionName, 'roleResolver:err', {
-      error,
-    });
-    return error;
-  }
-};
 
 const findCollection = (filter, collectionIdsList) =>
   new Promise((resolve, reject) => {
@@ -152,8 +87,9 @@ const findCollection = (filter, collectionIdsList) =>
 
 utils.composeGeoLocateResult = async (filter, collectionIdsList) => {
   try {
-    if (filter.collectionType.toLowerCase() === 'device') filter.relationName = 'deviceAddress';
-    else filter.relationName = 'profileAddress';
+    // if (filter.collectionType.toLowerCase() === 'device') filter.relationName = 'deviceAddress';
+    // else filter.relationName = 'profileAddress';
+    filter.relationName = 'address';
     const result = await findCollection(filter, collectionIdsList);
     logger.publish(4, `${collectionName}`, 'composeGeoLocateResult:res3', result);
     return result;

@@ -171,7 +171,18 @@
       "accessType": "*",
       "principalType": "ROLE",
       "principalId": "admin",
-      "permission": "ALLOW"
+      "permission": "ALLOW",
+      "property": [
+        "find",
+        "findById",
+        "patchAttributes",
+        "updateAttributes",
+        "replaceAttributes",
+        "replaceById",
+        "destroyById",
+        "deleteById",
+        "delete"
+      ]
     },
     {
       "accessType": "*",
@@ -211,7 +222,6 @@
       "permission": "ALLOW",
       "property": [
         "create",
-        "find",
         "findById",
         "replaceById",
         "replaceOrCreate",

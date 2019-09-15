@@ -8,7 +8,8 @@
 - Adding context to sensors with OMA schemas
 - Store devices and sensors state ( MongoDB )
 - Fast access to sensor resources ( Redis )
-- Store sensors value in timeseries ( InfluxDB )
+- Interact with external application and share selection of devices
+- Automatically store sensors value in timeseries ( InfluxDB ), in file, or trigger some timers
 
 [Swagger Explorer](https://supervisor.aloes.io/explorer)
 
@@ -27,11 +28,13 @@ Application build upon :
 
 ## Prerequisites
 
-- Install (MongoDB)[https://www.mongodb.com/]
+- Install [MongoDB](https://www.mongodb.com/)
 
-- Install (Redis)[https://redis.io/]
+- Install [Redis](https://redis.io/)
 
-- Install (InfluxDB)[https://www.influxdata.com/]
+- Install [InfluxDB](https://www.influxdata.com/)
+
+- Install [Skyring](https://github.com/esatterwhite/skyring) to use external timers
 
 ## Folder structure
 
@@ -59,13 +62,13 @@ Application build upon :
 
 URL pattern : +apiRoot/+modelPluralName/+path
 
-Access controlled by JWT tokens properties ( set in headers ), based on request URL.
+Access controlled by Access tokens ( set in headers ) properties and roles for Users, and apiKey for Applications and Devices.
 
 ## MQTT API
 
 Topic pattern : +userId/+modelName/+method/[+modelId]
 
-Access controlled by mqtt password = apiKey = accessToken.id, based on pub/sub topic.
+Access controlled ( set in mqtt password ) by Access tokens for Users, and API Key for Applications and Devices.
 
 ## Configuration
 
@@ -75,7 +78,6 @@ You can override these by populating `deploy` with files corresponding to an env
 ## Installation
 
 ```bash
-  $ npm install -g pm2
   $ npm install
 ```
 
@@ -85,56 +87,66 @@ You can override these by populating `deploy` with files corresponding to an env
   $ npm run lint
 ```
 
-## Running the development server (REST API)
-
-```bash
-  $ npm run dev
-```
-
 ## Debug
 
+- To set Aloes verbosity, configure SERVER_LOGGER_LEVEL from 0 to 4
+
+- To activate Loopback debug
+
 ```bash
-  $ DEBUG=loopback npm run dev
+  $ DEBUG=loopback npm run start:dev
 ```
 
 [More info...](https://loopback.io/doc/en/lb3/Setting-debug-strings.html)
 
-## Deploying project
+## Starting project
 
-Please remember to update `.env` and / or `ecosystem.config.json` files to match your enviroment.
+Create or update `.env` file to match your enviroment.
+
+For example to run in local mode, create `./deploy/.env_local` using `.env_sample` as an example.
+
+### With Nodemon
 
 ```bash
-  $ npm run start
+  $ npm run start:local
 ```
 
-### You can also launch this app with pm2 :
+### With PM2
 
-- Access to server with SSH :
+- Starting PM2 processes :
 
 ```bash
-  $ ssh-keygen -f ~/.ssh/server_name -t rsa -C <email_address> -b 4096
-  $ ssh-copy-id -i ~/.ssh/server_name user@server_uri
+  $ npm run start:pm2
 ```
 
-- Creating environment :
+- Stopping PM2 processes :
 
 ```bash
-  $ pm2 deploy ecosystem.config.js production setup
+  $ npm run stop:pm2
 ```
 
-- Updating environment :
+### With Docker
+
+You can serve the project with a distant server by filling `deploy` folder with files corresponding to an environment ( eg: .env_docker ), and then launching this app with docker via `docker-compose up`
+
+Remember to update `*.dockerfile` to match your enviroment, if you don't use docker-compose.
+
+Creating environment :
 
 ```bash
-  $ pm2 deploy ecosystem.config.js production update
+  $  npm run build:docker
 ```
 
-Be sure to commit your changes on the right branch before each setup and update: ( master for production env, and staging for dev/staging env )
+Starting containers :
 
 ```bash
-  $  git checkout master
-  $  git add .
-  $  git commit .
-  $  git push
+  $  npm run start:docker
+```
+
+Stopping containers :
+
+```bash
+  $  npm run stop:docker
 ```
 
 ## To deploy with your own TLS / SSL certificates
@@ -147,12 +159,13 @@ Install your own instance : https://github.com/localtunnel/server
 
 And then install wildcards certificates with : https://certbot.eff.org/
 
+Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
+
 ## TODO
 
+- Improve file model access and backup
 - Update / improve device search engine
 - Finish account linking with github
-- Improve Application model to share access to a pool of devices
 - Add user(s) in a team to easily share devices access ( via collaborators property )
 - Data exports ( devices selection by filter )
-- Catch and store data related to MQTT traffic ( via Sensor model ? )
-- Migrate to Loopback v4
+- Catch and store data related to MQTT traffic ( via Specific sensor instance ? )

@@ -5,9 +5,17 @@ cache:
     - node_modules/
 
 before_script:
-  - npm install
+  - npm ci
+
+test_async:
+  script:
+    - npm run test
+  only:
+    - staging
 
 pages:
+  only:
+    - master
   stage: deploy
   script:
     - npm run docs:build

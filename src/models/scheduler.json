@@ -18,17 +18,43 @@
     {
       "accessType": "*",
       "principalType": "ROLE",
-      "principalId": "$authenticated",
+      "principalId": "$everyone",
       "permission": "ALLOW",
-      "property": ["get", "iterateKeys", "keys"]
-    },
-    {
-      "accessType": "*",
-      "principalType": "ROLE",
-      "principalId": "$owner",
-      "permission": "ALLOW",
-      "property": ["get", "set", "keys", "iterateKeys", "ttl", "expire"]
+      "property": ["onTick", "onTimeout"]
     }
   ],
-  "methods": {}
+  "methods": {
+    "onTick": {
+      "description": ["Endpoint for timer instance callback ( Scheduler clock )"],
+      "accepts": [
+        {
+          "arg": "body",
+          "type": "object",
+          "http": {
+            "source": "body"
+          }
+        }
+      ],
+      "http": {
+        "verb": "post",
+        "path": "/on-tick"
+      }
+    },
+    "onTimeout": {
+      "description": ["Endpoint for timer instance callback ( Sensor timer )"],
+      "accepts": [
+        {
+          "arg": "body",
+          "type": "object",
+          "http": {
+            "source": "body"
+          }
+        }
+      ],
+      "http": {
+        "verb": "post",
+        "path": "/on-timeout"
+      }
+    }
+  }
 }

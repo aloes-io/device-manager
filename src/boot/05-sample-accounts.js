@@ -1,12 +1,10 @@
 import initialUsersList from '../initial-data/base-accounts.json';
 import logger from '../services/logger';
+import roleManager from '../services/role-manager';
 
-//  export default createBaseAccounts;
-module.exports = async function(app) {
+module.exports = async function createSampleAccounts(app) {
   try {
     const User = app.models.user;
-    const Role = app.models.Role;
-    const RoleMapping = app.models.RoleMapping;
 
     const accounts = await User.find().then(res => {
       if (res.length < 1) {
@@ -14,45 +12,11 @@ module.exports = async function(app) {
       }
       return res;
     });
-
-    //  await accounts[0].address.destroy();
-    let address = await accounts[0].address.get();
-    if (!address) {
-      logger.publish(4, 'loopback', 'boot:createSample:res', accounts);
-      address = await accounts[0].address.create({
-        street: '98 Rue des Garennes',
-        streetNumber: 98,
-        streetName: 'Rue des Garennes',
-        postalCode: 38390,
-        city: ' Bouvesse-Quirieu',
-        public: true,
-      });
-    }
-
-    const role = await Role.findOne({ where: { name: 'admin' } });
-    if (!role || role === null || !accounts || accounts === null) {
-      return null;
-    }
-    logger.publish(4, 'loopback', 'boot:createPrincipal:req', role);
-
-    let principal = await role.principals.find({
-      where: {
-        principalType: RoleMapping.USER,
-        principalId: accounts[0].id,
-      },
-    });
-
-    if (!principal || principal === null) {
-      principal = await role.principals.create({
-        principalType: RoleMapping.USER,
-        principalId: accounts[0].id,
-      });
-    }
-
-    logger.publish(4, 'loopback', 'boot:createPrincipal:res', principal);
-    return principal;
+    await roleManager.setUserRole(app, accounts[0].id, 'admin', true);
+    logger.publish(4, 'loopback', 'boot:createSampleAccounts:res', accounts);
+    return accounts;
   } catch (error) {
-    logger.publish(2, 'loopback', 'boot:createPrincipal:err', error);
+    logger.publish(2, 'loopback', 'boot:createSampleAccounts:err', error);
     return error;
   }
 };

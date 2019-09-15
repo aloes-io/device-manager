@@ -107,7 +107,7 @@
   },
   "Scheduler": {
     "dataSource": "cache",
-    "public": false
+    "public": true
   },
   "Team": {
     "dataSource": "db",

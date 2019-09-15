@@ -33,7 +33,7 @@ module.exports = Application => {
    * @method module:Application.publish
    * @param {object} application - Application instance
    * @param {object} [client] - MQTT client target
-   * returns {function} Application.app.publish()
+   * @fires {event} module:Server.publish
    */
   Application.publish = async (application, method, client) => {
     try {
@@ -56,13 +56,14 @@ module.exports = Application => {
         }
         if (application.status) {
           const topic = `${application.id}/${collectionName}/${method}`;
-          await Application.app.publish(topic, packet.payload, false, 1);
+          Application.app.emit('publish', topic, packet.payload, false, 1);
         }
-        return Application.app.publish(packet.topic, packet.payload, true, 1);
+        Application.app.emit('publish', packet.topic, packet.payload, false, 1);
+        return application;
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -70,7 +71,7 @@ module.exports = Application => {
    * Keys creation helper - update application attributes
    * @method module:Application~createKeys
    * @param {object} application - Application instance
-   * returns {object} application
+   * @returns {object} application
    */
   const createKeys = async application => {
     try {
@@ -106,9 +107,9 @@ module.exports = Application => {
   };
 
   /**
-   * Reset keys for the application instance
-   * @callback {Function} callback
-   * @param {Error} err
+   * Reset keys for this application instance
+   * @method module:Application.prototype.resetKeys
+   * @returns {object} this
    */
   Application.prototype.resetKeys = async function() {
     const attributes = {
@@ -164,7 +165,7 @@ module.exports = Application => {
    * @param {object} ctx - Application context
    * @param {object} ctx.req - HTTP request
    * @param {object} ctx.res - HTTP response
-   * returns {function} module:Device.publish
+   * @returns {function} module:Device.publish
    */
   const createProps = async ctx => {
     try {
@@ -187,7 +188,7 @@ module.exports = Application => {
    * @param {object} ctx - Application context
    * @param {object} ctx.req - HTTP request
    * @param {object} ctx.res - HTTP response
-   * returns {function} module:Application.publish
+   * @returns {function} module:Application.publish
    */
   const updateProps = async ctx => {
     try {
@@ -493,6 +494,15 @@ module.exports = Application => {
       const client = message.client;
       if (!packet || !pattern) throw new Error('Message missing properties');
       return Application.onPublish(packet, client, pattern);
+    } catch (error) {
+      return error;
+    }
+  });
+
+  Application.on('stopped', async () => {
+    try {
+      await Application.updateAll({ status: true }, { status: false, clients: [] });
+      return true;
     } catch (error) {
       return error;
     }
