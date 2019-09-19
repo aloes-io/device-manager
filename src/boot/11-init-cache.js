@@ -7,6 +7,6 @@ module.exports = async function initCache(app) {
     //  await app.models.Device.updateAll({ 'clients.length': {gt : 0}  }, { clients: [] });
     return { devices, clients, schedulers };
   } catch (error) {
-    return error;
+    throw error;
   }
 };

@@ -13,7 +13,7 @@ module.exports = {
       {
         type: 'smtp',
         host: process.env.SMTP_HOST,
-        secure: process.env.SMTP_SECURE,
+        secure: Boolean(process.env.SMTP_SECURE),
         port: Number(process.env.SMTP_PORT),
         auth: {
           user: process.env.SMTP_USER,

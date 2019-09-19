@@ -17,6 +17,6 @@ module.exports = async function createSampleAccounts(app) {
     return accounts;
   } catch (error) {
     logger.publish(2, 'loopback', 'boot:createSampleAccounts:err', error);
-    return error;
+    throw error;
   }
 };

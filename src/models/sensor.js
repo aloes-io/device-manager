@@ -6,22 +6,28 @@ import utils from '../services/utils';
 const collectionName = 'Sensor';
 const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
 
-const beforeSave = async ctx => {
+/**
+ * Validate instance before creation
+ * @method module:Sensor~onBeforeSave
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
+const onBeforeSave = async ctx => {
   try {
     if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
     if (ctx.instance) {
-      logger.publish(5, `${collectionName}`, 'beforeSave:req', '');
+      logger.publish(5, `${collectionName}`, 'onBeforeSave:req', '');
       const promises = await filteredProperties.map(async p => ctx.instance.unsetAttribute(p));
       await Promise.all(promises);
     } else if (ctx.data) {
-      logger.publish(5, `${collectionName}`, 'beforePartialSave:req', '');
+      logger.publish(5, `${collectionName}`, 'onBeforePartialSave:req', '');
       const promises = await filteredProperties.map(p => delete ctx.data[p]);
       await Promise.all(promises);
       ctx.hookState.updateData = ctx.data;
     }
     return ctx;
   } catch (error) {
-    logger.publish(2, `${collectionName}`, 'beforeSave:err', error);
+    logger.publish(2, `${collectionName}`, 'onBeforeSave:err', error);
     throw error;
   }
 };
@@ -252,9 +258,15 @@ const persistingResource = async (app, device, sensor, client) => {
   }
 };
 
-const afterSave = async ctx => {
+/**
+ * Create relations on instance creation
+ * @method module:Sensor~onAfterSave
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
+const onAfterSave = async ctx => {
   try {
-    logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState);
+    logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.hookState);
     if (ctx.hookState.updateData) {
       return ctx;
       //  } else if (ctx.instance.id && !ctx.isNewInstance && ctx.instance.ownerId) {
@@ -263,7 +275,7 @@ const afterSave = async ctx => {
     }
     return ctx;
   } catch (error) {
-    logger.publish(2, `${collectionName}`, 'afterSave:err', error);
+    logger.publish(2, `${collectionName}`, 'onAfterSave:err', error);
     throw error;
   }
 };
@@ -288,9 +300,15 @@ const deleteProps = async (app, sensor) => {
   }
 };
 
-const beforeDelete = async ctx => {
+/**
+ * Delete relations on instance(s) deletetion
+ * @method module:Sensor~onBeforeDelete
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
+const onBeforeDelete = async ctx => {
   try {
-    logger.publish(4, `${collectionName}`, 'beforeDelete:req', ctx.where);
+    logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
     if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
       const sensor = await ctx.Model.findById(ctx.where.id);
       await deleteProps(ctx.Model.app, sensor);
@@ -301,7 +319,7 @@ const beforeDelete = async ctx => {
     }
     return ctx;
   } catch (error) {
-    logger.publish(2, `${collectionName}`, 'beforeDelete:err', error);
+    logger.publish(2, `${collectionName}`, 'onBeforeDelete:err', error);
     throw error;
   }
 };
@@ -640,8 +658,11 @@ module.exports = function(Sensor) {
           throw utils.buildError(404, 'INVALID_SENSOR', 'Sensor not found');
         }
         sensor.resources = { ...sensor.resources, ...updatedSensor.resources };
-        updatedSensor = { ...updatedSensor, ...sensor };
-        updatedSensor = await updateAloesSensors(updatedSensor, Number(resourceKey), resourceValue);
+        updatedSensor = await updateAloesSensors(
+          { ...updatedSensor, ...sensor },
+          Number(resourceKey),
+          resourceValue,
+        );
         logger.publish(4, `${collectionName}`, 'createOrUpdate:res', {
           inType: typeof resourceValue,
           outType: typeof updatedSensor.resources[updatedSensor.resource],
@@ -720,39 +741,39 @@ module.exports = function(Sensor) {
    * @param {object} sensor - Incoming sensor instance
    * @returns {function} Sensor.publish
    */
-  Sensor.buildWhere = attributes => {
-    try {
-      const filter = { where: {} };
-      // check validAttributes
-      const schema = Sensor.definition.properties;
-      const schemaKeys = Object.keys(schema);
-      const attributesKeys = Object.keys(attributes);
-      if (attributesKeys.length > 1) {
-        filter.where = { and: [] };
-        attributesKeys.forEach(key =>
-          schemaKeys.forEach(schemaKey => {
-            if (schemaKey === key && attributes[key] !== null) {
-              filter.where.and.push({
-                [key]: attributes[key],
-              });
-            }
-          }),
-        );
-      } else {
-        schemaKeys.forEach(schemaKey => {
-          if (schemaKey === attributesKeys[0] && attributes[attributesKeys[0]] !== null) {
-            filter.where = {
-              [attributesKeys[0]]: attributes[attributesKeys[0]],
-            };
-          }
-        });
-      }
-      console.log('filter : ', filter);
-      return filter;
-    } catch (error) {
-      return error;
-    }
-  };
+  // Sensor.buildWhere = attributes => {
+  //   try {
+  //     const filter = { where: {} };
+  //     // check validAttributes
+  //     const schema = Sensor.definition.properties;
+  //     const schemaKeys = Object.keys(schema);
+  //     const attributesKeys = Object.keys(attributes);
+  //     if (attributesKeys.length > 1) {
+  //       filter.where = { and: [] };
+  //       attributesKeys.forEach(key =>
+  //         schemaKeys.forEach(schemaKey => {
+  //           if (schemaKey === key && attributes[key] !== null) {
+  //             filter.where.and.push({
+  //               [key]: attributes[key],
+  //             });
+  //           }
+  //         }),
+  //       );
+  //     } else {
+  //       schemaKeys.forEach(schemaKey => {
+  //         if (schemaKey === attributesKeys[0] && attributes[attributesKeys[0]] !== null) {
+  //           filter.where = {
+  //             [attributesKeys[0]]: attributes[attributesKeys[0]],
+  //           };
+  //         }
+  //       });
+  //     }
+  //     console.log('filter : ', filter);
+  //     return filter;
+  //   } catch (error) {
+  //     return error;
+  //   }
+  // };
 
   /**
    * When sensor found, execute method extracted from MQTT topic
@@ -793,7 +814,7 @@ module.exports = function(Sensor) {
       }
       return sensor;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -867,7 +888,7 @@ module.exports = function(Sensor) {
    * @param {object} ctx.instance - Sensor instance
    * @returns {function} beforeSave
    */
-  Sensor.observe('before save', beforeSave);
+  Sensor.observe('before save', onBeforeSave);
 
   /**
    * Event reporting that a sensor instance has been created or updated.
@@ -878,7 +899,7 @@ module.exports = function(Sensor) {
    * @param {object} ctx.instance - Sensor instance
    * @returns {function} afterSave
    */
-  Sensor.observe('after save', afterSave);
+  Sensor.observe('after save', onAfterSave);
 
   /**
    * Event reporting that a/several sensor instance(s) will be deleted.
@@ -889,7 +910,7 @@ module.exports = function(Sensor) {
    * @param {object} ctx.where.id - Sensor id
    * @returns {function} beforeDelete
    */
-  Sensor.observe('before delete', beforeDelete);
+  Sensor.observe('before delete', onBeforeDelete);
 
   Sensor.afterRemoteError('*', async ctx => {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, '');

@@ -40,7 +40,7 @@ const getFilesFromContainer = (app, ownerId, options = {}) =>
 const uploadToContainer = (app, ctx, ownerId, options) =>
   new Promise((resolve, reject) =>
     app.models.container.upload(ownerId.toString(), ctx.req, ctx.res, options, (err, fileObj) =>
-      err ? reject(err) : resolve(fileObj.files.file[0]),
+      err ? reject(err) : resolve(fileObj),
     ),
   );
 
@@ -83,28 +83,33 @@ const removeContainer = (app, ownerId) =>
     ),
   );
 
+/**
+ * Validate instance before creation
+ * @method module:Files~onBeforeSave
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
 const onBeforeSave = async ctx => {
   try {
     if (ctx.data) {
-      logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.data);
+      logger.publish(5, `${collectionName}`, 'onBeforeSave:req', ctx.data);
       if (ctx.data.name) {
         // UPDATE FILE IN CONTAINER TOO
         // protect name from being updated
       }
       ctx.hookState.updateData = ctx.data;
     } else if (ctx.instance) {
-      logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.instance);
+      logger.publish(5, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
       // UPDATE FILE IN CONTAINER TOO
       // protect name from being updated
     }
     const data = ctx.data || ctx.instance || ctx.currentInstance;
     // const authorizedRoles =
     //   ctx.options && ctx.options.authorizedRoles ? ctx.options.authorizedRoles : {};
-
-    logger.publish(4, `${collectionName}`, 'beforeSave:res', { data });
+    logger.publish(4, `${collectionName}`, 'onBeforeSave:res', { data });
     return ctx;
   } catch (error) {
-    logger.publish(2, `${collectionName}`, 'beforeSave:err', error);
+    logger.publish(2, `${collectionName}`, 'onBeforeSave:err', error);
     throw error;
   }
 };
@@ -117,20 +122,24 @@ const deleteProps = async (app, fileMeta) => {
     logger.publish(4, `${collectionName}`, 'deleteProps:req', fileMeta);
     try {
       const file = await getFileFromContainer(app, fileMeta.ownerId.toString(), fileMeta.name);
-      // console.log('FILE ', file);
       if (file && file.name) {
         await removeFileFromContainer(app, fileMeta.ownerId, file.name);
       }
     } catch (e) {
       console.log(`[${collectionName.toUpperCase()}] deleteProps:e`, e);
     }
-
     return fileMeta;
   } catch (error) {
     throw error;
   }
 };
 
+/**
+ * Delete relations on instance(s) deletetion
+ * @method module:Files~onBeforeDelete
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
 const onBeforeDelete = async ctx => {
   try {
     if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
@@ -141,10 +150,36 @@ const onBeforeDelete = async ctx => {
       const files = await ctx.Model.find(filter);
       await Promise.all(files.map(async file => deleteProps(ctx.Model.app, file)));
     }
-    logger.publish(4, `${collectionName}`, 'beforeDelete:res', 'done');
+    logger.publish(4, `${collectionName}`, 'onBeforeDelete:res', 'success');
     return ctx;
   } catch (error) {
-    logger.publish(2, `${collectionName}`, 'beforeDelete:err', error);
+    logger.publish(2, `${collectionName}`, 'onBeforeDelete:err', error);
+    throw error;
+  }
+};
+
+const onBeforeRemote = async ctx => {
+  try {
+    if (
+      ctx.method.name === 'upload' ||
+      ctx.method.name === 'uploadBuffer' ||
+      ctx.method.name === 'download'
+    ) {
+      const options = ctx.args ? ctx.args.options : {};
+      if (!options || !options.currentUser) {
+        throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
+      }
+      // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.ownerId);
+      const isAdmin = options.currentUser.roles.includes('admin');
+      if (!isAdmin) {
+        if (!ctx.args.ownerId || ctx.args.ownerId !== options.currentUser.id.toString()) {
+          throw utils.buildError(401, 'UNAUTHORIZED', 'Requires admin rights');
+        }
+      }
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'onBeforeRemote:err', error);
     throw error;
   }
 };
@@ -165,6 +200,23 @@ module.exports = function(Files) {
   Files.disableRemoteMethodByName('replaceOrCreate');
   Files.disableRemoteMethodByName('createChangeStream');
 
+  const updateFileMeta = async (fileMeta, newFileMeta, ownerId) => {
+    try {
+      logger.publish(3, `${collectionName}`, 'updateFileMeta:req', { ownerId, ...newFileMeta });
+      if (fileMeta && fileMeta.id) {
+        await fileMeta.updateAttributes({ ...newFileMeta });
+      } else {
+        fileMeta = await Files.create({
+          ...newFileMeta,
+          ownerId,
+          // url: `${CONTAINERS_URL}${ownerId}/download/${newFileMeta.originalFilename}`,
+        });
+      }
+      return fileMeta;
+    } catch (error) {
+      throw error;
+    }
+  };
   /**
    * Request to upload file in userId container via multipart/form data
    * @method module:Files.upload
@@ -175,6 +227,8 @@ module.exports = function(Files) {
    */
   Files.upload = async (ctx, ownerId, name) => {
     try {
+      logger.publish(3, `${collectionName}`, 'upload:req', { ownerId, name });
+
       const options = {};
       //  ctx.res.set("Access-Control-Allow-Origin", "*")
       const filter = {
@@ -194,30 +248,46 @@ module.exports = function(Files) {
       }
 
       let fileMeta = await Files.findOne(filter);
-      const fileInfo = await uploadToContainer(Files.app, ctx, ownerId, options);
-      //  console.log('fileInfo Upload', fileInfo);
-
-      if (fileMeta) {
-        fileMeta.updateAttributes({
-          type: fileInfo.type,
-          //  size: fileInfo.size,
-          name: fileInfo.name,
-          originalFilename: fileInfo.originalFilename,
-          url: `${CONTAINERS_URL}${ownerId}/download/${fileInfo.name}`,
-        });
+      if (fileMeta && fileMeta.id) {
+        await deleteProps(Files.app, fileMeta);
+      }
+      const result = await uploadToContainer(Files.app, ctx, ownerId.toString(), options);
+      if (result && result.files) {
+        if (result.files.length > 1) {
+          let fileInfo;
+          await Promise.all(
+            result.files.map(async file => {
+              Object.keys(file).forEach(key => {
+                if (key === 'fields' && result.files.fields) {
+                  fileInfo = result.files.fields;
+                }
+                if (key === 'file') {
+                  fileInfo = result.files.file[0];
+                }
+              });
+              fileInfo.url = `${CONTAINERS_URL}${ownerId}/download/${fileInfo.name}`;
+              return updateFileMeta(fileMeta, fileInfo, ownerId);
+            }),
+          );
+        } else {
+          let fileInfo;
+          Object.keys(result.files).forEach(key => {
+            if (key === 'fields' && result.files.fields) {
+              fileInfo = result.files.fields;
+            }
+            if (key === 'file') {
+              fileInfo = result.files.file[0];
+            }
+          });
+          fileInfo.url = `${CONTAINERS_URL}${ownerId}/download/${fileInfo.name}`;
+          fileMeta = await updateFileMeta(fileMeta, fileInfo, ownerId);
+        }
       } else {
-        fileMeta = await Files.create({
-          name: fileInfo.name,
-          originalFilename: fileInfo.originalFilename,
-          //  size: fileStat.size,
-          type: fileInfo.type,
-          ownerId,
-          url: `${CONTAINERS_URL}${ownerId}/download/${fileInfo.name}`,
-        });
+        throw utils.buildError(400, 'ERROR_UPLOAD', 'Error while upload file');
       }
 
       // if (file[1])  await removeFileFromContainer(ownerId, name);
-      logger.publish(3, `${collectionName}`, 'upload:res', fileInfo);
+      logger.publish(3, `${collectionName}`, 'upload:res', fileMeta);
       //  return fileInfo;
       return fileMeta;
     } catch (err) {
@@ -243,52 +313,42 @@ module.exports = function(Files) {
         },
       });
       // console.log('buffer file upload', typeof buffer, Buffer.isBuffer(buffer), buffer);
-      // if (typeof buffer === 'object' && !Buffer.isBuffer(buffer)) {
-      // Buffer.from(buffer);
-      // }
+
       const fileStat = await uploadBufferToContainer(Files.app, buffer, ownerId, name);
       logger.publish(4, `${collectionName}`, 'uploadBuffer:res1', { fileStat });
       if (!fileStat || !fileStat.type) throw new Error('Failure while uploading stream');
+      fileMeta = await updateFileMeta(
+        fileMeta,
+        {
+          type: fileStat.type.mime,
+          size: fileStat.size,
+          name: fileStat.name,
+          url: `${CONTAINERS_URL}${ownerId}/download/${fileStat.name}`,
+        },
+        ownerId,
+      );
 
-      if (fileMeta) {
-        await fileMeta.updateAttributes({
-          type: fileStat.type.mime,
-          size: fileStat.size,
-          name: fileStat.name,
-          url: `${CONTAINERS_URL}${ownerId}/download/${fileStat.name}`,
-          //  originalFilename: fileStat.originalFilename,
-        });
-      } else {
-        fileMeta = await Files.create({
-          size: fileStat.size,
-          type: fileStat.type.mime,
-          name: fileStat.name,
-          ownerId,
-          url: `${CONTAINERS_URL}${ownerId}/download/${fileStat.name}`,
-          //  originalFilename: fileStat.originalFilename,
-        });
-      }
       logger.publish(3, `${collectionName}`, 'uploadBuffer:res', fileMeta);
       return fileMeta;
     } catch (err) {
-      logger.publish(2, `${collectionName}`, 'upload:err', err);
+      logger.publish(2, `${collectionName}`, 'uploadBuffer:err', err);
       throw err;
     }
   };
 
   /**
-   * Request to download file in userId container
+   * Request to download file in ownerId container
    * @method module:Files.download
    * @param {string} ownerId - Container owner and path
    * @param {string} name - File name
    * @returns {object} fileMeta
    */
-  Files.download = async (ctx, userId, name) => {
+  Files.download = async (ctx, ownerId, name) => {
     try {
       // let auth = false;
       ctx.res.set('Access-Control-Allow-Origin', '*');
-      logger.publish(3, `${collectionName}`, 'download:req', userId);
-      const readStream = Files.app.models.container.downloadStream(userId, name);
+      logger.publish(3, `${collectionName}`, 'download:req', { ownerId, name });
+      const readStream = Files.app.models.container.downloadStream(ownerId, name);
       if (readStream && readStream !== null) {
         const endStream = new Promise((resolve, reject) => {
           const bodyChunks = [];
@@ -300,17 +360,15 @@ module.exports = function(Files) {
             ctx.res.set('Content-Type', `application/octet-stream`);
             ctx.res.set('Content-Disposition', `attachment; filename=${name}`);
             ctx.res.set('Content-Length', readStream.bytesRead);
-            ctx.res.status(200);
+            // ctx.res.status(200);
             resolve(body);
           });
           readStream.on('error', reject);
         });
 
-        const result = await endStream;
-        if (result && !(result instanceof Error)) {
-          return result;
-        }
-        throw utils.buildError(304, 'ERROR_STREAMING', 'Error while reading stream');
+        const file = await endStream;
+        return file;
+        // throw utils.buildError(304, 'ERROR_STREAMING', 'Error while reading stream');
       }
       throw utils.buildError(404, 'NOT_FOUND', 'no file found');
     } catch (error) {
@@ -336,7 +394,7 @@ module.exports = function(Files) {
 
   /**
    * On sensor update, if an OMA resource is of float or integer type
-   * @method Files:Measurement.compose
+   * @method modules:Files.compose
    * @param {object} sensor - updated Sensor instance
    * @returns {object} buffer
    */
@@ -400,4 +458,14 @@ module.exports = function(Files) {
    * @returns {function} beforeDelete
    */
   Files.observe('before delete', onBeforeDelete);
+
+  /**
+   * Event reporting that a file instance / collection is requested
+   * @event before find
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @returns {object} ctx
+   */
+  Files.beforeRemote('**', onBeforeRemote);
 };

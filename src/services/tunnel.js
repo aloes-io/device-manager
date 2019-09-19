@@ -43,7 +43,7 @@ const initTunnel = async () => {
     return null;
   } catch (error) {
     console.log('Tunnel init:err', error);
-    return error;
+    throw error;
   }
 };
 
@@ -56,14 +56,14 @@ nodeCleanup((exitCode, signal) => {
         console.log('Stop tunnel');
         tunnel.instance.stop();
       }
-      setTimeout(() => process.kill(process.pid, signal), 2500);
+      setTimeout(() => process.kill(process.pid, signal), 1500);
       nodeCleanup.uninstall();
       return false;
     }
     return true;
   } catch (error) {
-    setTimeout(() => process.kill(process.pid, signal), 2500);
-    return error;
+    process.kill(process.pid, signal);
+    return false;
   }
 });
 

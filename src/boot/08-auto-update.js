@@ -8,6 +8,6 @@ export default async function autoUpdate(app) {
     return true;
   } catch (error) {
     logger.publish(2, 'loopback', 'boot:autoUpdate:err', error);
-    return error;
+    throw error;
   }
 }

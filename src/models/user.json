@@ -38,10 +38,6 @@
     "role": {
       "type": "string"
     },
-    "currentSubscribedEnd": {
-      "type": "string",
-      "required": false
-    },
     "deleted": {
       "type": "boolean",
       "default": false
@@ -122,7 +118,9 @@
         "patchAttributes",
         "updateAttributes",
         "replaceAttributes",
-        "replaceById"
+        "replaceById",
+        "__get__address",
+        "__update__address"
       ]
     },
     {
@@ -144,11 +142,8 @@
         "upsert",
         "exists",
         "findById",
-        "setNewPassword",
-        "__create__address",
         "__get__address",
         "__update__address",
-        "__destroy__address",
         "__get__devices",
         "__create__devices",
         "__findById__devices",
@@ -191,10 +186,8 @@
       "principalId": "$authenticated",
       "permission": "ALLOW",
       "property": [
-        "verifyAddress",
-        "setNewPassword",
         "sendInvite",
-        "__create__address",
+        "setNewPassword",
         "__get__address",
         "__get__devices",
         "__create__devices",
@@ -219,8 +212,9 @@
         }
       ],
       "returns": {
-        "arg": "result",
-        "type": "object"
+        "arg": "user",
+        "type": "object",
+        "root": true
       },
       "http": {
         "verb": "post",
@@ -237,35 +231,13 @@
         }
       ],
       "returns": {
-        "arg": "result",
-        "type": "object"
+        "arg": "user",
+        "type": "object",
+        "root": true
       },
       "http": {
         "verb": "post",
         "path": "/find-by-email"
-      }
-    },
-    "verifyCaptcha": {
-      "description": ["Verify captcha response ( coinhive ) "],
-      "accepts": [
-        {
-          "arg": "hashes",
-          "type": "string",
-          "required": true
-        },
-        {
-          "arg": "token",
-          "type": "string",
-          "required": true
-        }
-      ],
-      "returns": {
-        "arg": "result",
-        "type": "object"
-      },
-      "http": {
-        "verb": "post",
-        "path": "/verify-captcha"
       }
     },
     "resetPassword": {
@@ -303,7 +275,7 @@
           "required": true
         }
       ],
-      "returns": { "type": "boolean", "arg": "passwordChanged" },
+      "returns": { "type": "boolean", "arg": "success" },
       "http": { "path": "/update-password-from-token", "verb": "post" }
     },
     "setNewPassword": {
@@ -346,8 +318,8 @@
         }
       ],
       "returns": {
-        "arg": "response",
-        "type": "object"
+        "arg": "success",
+        "type": "boolean"
       },
       "http": {
         "verb": "post",
@@ -376,23 +348,6 @@
       "http": {
         "verb": "post",
         "path": "/invite-studio"
-      }
-    },
-    "verifyAddress": {
-      "description": ["Call the address model"],
-      "accepts": [
-        {
-          "arg": "address",
-          "type": "object"
-        }
-      ],
-      "returns": {
-        "arg": "updatedAddress",
-        "type": "object"
-      },
-      "http": {
-        "verb": "post",
-        "path": "/verify-address"
       }
     }
   }

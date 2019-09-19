@@ -67,7 +67,18 @@
       "accessType": "*",
       "principalType": "ROLE",
       "principalId": "admin",
-      "permission": "ALLOW"
+      "permission": "ALLOW",
+      "property": [
+        "verify",
+        "search",
+        "geoLocate",
+        "find",
+        "findById",
+        "patchAttributes",
+        "updateAttributes",
+        "replaceAttributes",
+        "replaceById"
+      ]
     },
     {
       "accessType": "*",
@@ -81,13 +92,12 @@
       "principalId": "$owner",
       "permission": "ALLOW",
       "property": [
-        "updateAttributes",
         "upsert",
         "exists",
         "get",
-        "find",
         "findById",
-        "update",
+        "patchAttributes",
+        "updateAttributes",
         "replaceById",
         "replaceOrCreate",
         "upsertWithWhere"
@@ -98,21 +108,64 @@
       "principalType": "ROLE",
       "principalId": "$authenticated",
       "permission": "ALLOW",
-      "property": "verifyAddress"
+      "property": ["verify", "search", "geoLocate"]
     }
   ],
   "methods": {
-    "verifyAddress": {
-      "description": ["Verify this address exists ( geocode - opencage)"],
+    "verify": {
+      "description": ["Verify this address exists ( geocode - opencage) and generate coordiantes"],
       "accepts": [
         {
           "arg": "address",
-          "type": "object"
+          "type": "any"
         }
       ],
       "returns": {
         "arg": "updatedAddress",
-        "type": "object"
+        "type": "object",
+        "root": true
+      },
+      "http": {
+        "verb": "post",
+        "path": "/verify"
+      }
+    },
+    "search": {
+      "description": ["Find addresses by address property"],
+      "accepts": [
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "addresses",
+        "type": "array",
+        "root": true
+      },
+      "http": {
+        "verb": "post",
+        "path": "/search"
+      }
+    },
+    "geoLocate": {
+      "description": ["Find addresses by geopoint in coordinates property"],
+      "accepts": [
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "addresses",
+        "type": "array",
+        "root": true
+      },
+      "http": {
+        "verb": "post",
+        "path": "/geo-locate"
       }
     }
   }

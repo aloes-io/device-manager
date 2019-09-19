@@ -3,10 +3,7 @@ import ejs from 'ejs';
 import * as fs from 'fs';
 import crypto from 'crypto';
 import path from 'path';
-import app from './server';
-import logger from './logger';
 
-const collectionName = 'Utils';
 const utils = {};
 
 const codeNames = {
@@ -68,84 +65,6 @@ utils.writeFile = (filePath, data, opts = 'utf8') =>
   new Promise((resolve, reject) => {
     fs.appendFile(filePath, data, opts, err => (err ? reject(err) : resolve()));
   });
-
-const findCollection = (filter, collectionIdsList) =>
-  new Promise((resolve, reject) => {
-    app.models[filter.collectionType].find(
-      {
-        where: { id: { inq: collectionIdsList } },
-        include: {
-          relation: filter.relationName,
-          scope: {
-            where: { public: true },
-          },
-        },
-      },
-      (err, collection) => (err ? reject(err) : resolve(collection)),
-    );
-  });
-
-utils.composeGeoLocateResult = async (filter, collectionIdsList) => {
-  try {
-    // if (filter.collectionType.toLowerCase() === 'device') filter.relationName = 'deviceAddress';
-    // else filter.relationName = 'profileAddress';
-    filter.relationName = 'address';
-    const result = await findCollection(filter, collectionIdsList);
-    logger.publish(4, `${collectionName}`, 'composeGeoLocateResult:res3', result);
-    return result;
-  } catch (error) {
-    logger.publish(4, `${collectionName}`, 'composeGeoLocateResult:err', error);
-    return error;
-  }
-};
-
-utils.verifyCaptcha = async (coinhive, hashes, token) => {
-  const temp = {
-    token,
-    hashes,
-    secret: process.env.COINHIVE_API_KEY,
-  };
-  const body = Object.keys(temp)
-    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(temp[key])}`)
-    .join('&');
-  //  console.log(`[${collectionName.toUpperCase()}] verifyCaptcha req : ${body}`);
-  if (coinhive) {
-    return coinhive
-      .verifyCaptcha('token/verify', body)
-      .then(res => JSON.parse(res))
-      .catch(err => err);
-    // console.log(
-    //   `[${collectionName.toUpperCase()}] verifyCaptcha res :`,
-    //   JSON.parse(res),
-    // );
-    //  return result;
-  }
-  return false;
-};
-
-utils.createLink = async (coinhive, user, url) => {
-  let result;
-  const temp = {
-    url,
-    hashes: process.env.COINHIVE_HASHES,
-    secret: process.env.COINHIVE_API_KEY,
-  };
-  const body = Object.keys(temp)
-    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(temp[key])}`)
-    .join('&');
-  if (coinhive) {
-    console.log('creating link', body);
-    await coinhive
-      .createLink('link/create', body)
-      .then(res => {
-        console.log(`[${collectionName.toUpperCase()}] createLink res :`, res);
-        result = JSON.parse(res);
-      })
-      .catch(err => err);
-    return result;
-  }
-  return false;
-};
 
 utils.generateKey = (hmacKey, algorithm, encoding) => {
   hmacKey = hmacKey || 'loopback';

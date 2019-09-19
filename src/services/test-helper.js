@@ -1,4 +1,6 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import fs from 'fs';
+import FormData from 'form-data';
 import path from 'path';
 import { promisify } from 'util';
 import { omaObjects, omaViews } from 'oma-json';
@@ -9,7 +11,36 @@ let lastDeviceId = 0;
 let lastSensorId = 0;
 let lastMeasurmentId = 0;
 let lastFileId = 0;
+let lastAddressId = 0;
 let lastUserId = 0;
+
+function addressFactory(id, owner) {
+  if (!owner) return null;
+  let ownerType;
+  if (id) {
+    lastAddressId = id;
+  } else {
+    lastAddressId += 1;
+    id = lastAddressId;
+  }
+  if (owner.devEui) {
+    ownerType = 'Device';
+  } else if (owner.role) {
+    ownerType = 'User';
+  }
+  const address = {
+    street: '1 rue du minage',
+    streetName: 'Rue du minage',
+    streetNumber: 0,
+    postalCode: 17000,
+    city: 'La Rochelle',
+    verified: false,
+    public: true,
+    ownerId: owner.id,
+    ownerType,
+  };
+  return address;
+}
 
 function userFactory(id, role) {
   id = id || lastUserId + 1;
@@ -23,7 +54,6 @@ function userFactory(id, role) {
   if (role) {
     user.role = role;
   }
-
   return user;
 }
 
@@ -44,20 +74,24 @@ function buildMethods(profile) {
             // need to manually set the role here
             return roleManager.setUserRole(app, user.id, 'admin', true).then(() => user); // force the return of the user
           }
-
           return user;
         }),
     login: app => app.models.user.login(profile),
   };
 }
 
-async function fileFactory() {
+async function fileFactory(type) {
   const readFile = promisify(fs.readFile);
-
-  // const formData = {
-  //   file: fs.createReadStream(`${path.resolve('.')}/docs/.vuepress/public/logo.png`),
-  // };
   const buffer = await readFile(`${path.resolve('.')}/docs/.vuepress/public/logo.png`);
+  if (type === 'formdata') {
+    const formData = new FormData();
+    formData.append('file', buffer, {
+      filename: `test.png`,
+      contentType: 'application/octet-stream',
+      mimeType: 'application/octet-stream',
+    });
+    return formData;
+  }
   return buffer;
 }
 
@@ -90,7 +124,6 @@ function deviceFactory(id, ownerId) {
   }
   ownerId = ownerId || lastUserId;
   const deviceTypesList = Object.keys(deviceTypes);
-
   return {
     name: `Device ${id}`,
     type: deviceTypesList[Math.floor(Math.random() * deviceTypesList.length)],
@@ -161,6 +194,7 @@ function measurementFactory(id, sensor, ownerId) {
 module.exports = {
   factories: {
     user: userFactory,
+    address: addressFactory,
     file: fileFactory,
     fileMeta: fileMetaFactory,
     device: deviceFactory,

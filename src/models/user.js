@@ -31,11 +31,9 @@ const createProps = async (app, user) => {
     }
 
     if (!user.emailVerified) {
-      const response = await mails.verifyEmail(user);
+      app.models.user.emit('verifyEmail', user);
+      // await mails.verifyEmail(user);
       // console.log('response after save ', response);
-      if (response && response.user) {
-        // await ctx.instance.updateAttributes({ verificationToken: response.user.verificationToken });
-      }
     }
     // logger.publish(4, `${collectionName}`, 'createProps:res', user);
     return user;
@@ -45,12 +43,18 @@ const createProps = async (app, user) => {
   }
 };
 
+/**
+ * Validate instance before creation
+ * @method module:User~onBeforeSave
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
 const onBeforeSave = async ctx => {
   try {
     let role;
     const appRoles = await roleManager.getAppRoles();
     if (ctx.data) {
-      logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.data);
+      logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.data);
       // filteredProperties.forEach(p => delete ctx.data[p]);
       role = ctx.data.role;
       if (!role || !appRoles.includes(role)) {
@@ -59,7 +63,7 @@ const onBeforeSave = async ctx => {
       ctx.data.role = role;
       ctx.hookState.updateData = ctx.data;
     } else if (ctx.instance) {
-      logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.instance);
+      logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
       role = JSON.parse(JSON.stringify(ctx.instance)).role;
       if (!appRoles.includes(role)) {
         ctx.instance.setAttribute({ role: 'user' });
@@ -68,19 +72,25 @@ const onBeforeSave = async ctx => {
       }
     }
     const data = ctx.data || ctx.instance || ctx.currentInstance;
-    logger.publish(4, `${collectionName}`, 'beforeSave:res', { data, role });
+    logger.publish(4, `${collectionName}`, 'onBeforeSave:res', { data, role });
     return ctx;
   } catch (error) {
-    logger.publish(2, `${collectionName}`, 'beforeSave:err', error);
+    logger.publish(2, `${collectionName}`, 'onBeforeSave:err', error);
     throw error;
   }
 };
 
+/**
+ * Create relations on instance creation
+ * @method module:User~onAfterSave
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
 const onAfterSave = async ctx => {
   try {
-    logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
+    logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.instance);
     if (ctx.hookState.updateData) {
-      // logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
+      // logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.hookState.updateData);
       // const updatedProps = Object.keys(ctx.hookState.updateData);
       return ctx;
     }
@@ -98,10 +108,10 @@ const onAfterSave = async ctx => {
       const role = JSON.parse(JSON.stringify(ctx.instance)).role;
       await roleManager.setUserRole(ctx.Model.app, ctx.instance.id, role, !ctx.isNewInstance);
     }
-    logger.publish(4, `${collectionName}`, 'afterSave:res', ctx.instance);
+    logger.publish(4, `${collectionName}`, 'onAfterSave:res', ctx.instance);
     return ctx;
   } catch (error) {
-    logger.publish(2, `${collectionName}`, 'afterSave:err', error);
+    logger.publish(2, `${collectionName}`, 'onAfterSave:err', error);
     throw error;
   }
 };
@@ -140,9 +150,15 @@ const deleteProps = async (app, user) => {
   }
 };
 
+/**
+ * Delete relations on instance(s) deletetion
+ * @method module:User~onBeforeDelete
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
 const onBeforeDelete = async ctx => {
   try {
-    logger.publish(4, `${collectionName}`, 'beforeDelete:req', ctx.where);
+    logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
     if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
       const user = await ctx.Model.findById(ctx.where.id);
       await deleteProps(ctx.Model.app, user);
@@ -151,10 +167,75 @@ const onBeforeDelete = async ctx => {
       const users = await ctx.Model.find(filter);
       await Promise.all(users.map(async user => deleteProps(ctx.Model.app, user)));
     }
-    logger.publish(4, `${collectionName}`, 'beforeDelete:res', 'done');
+    logger.publish(4, `${collectionName}`, 'onBeforeDelete:res', 'done');
     return ctx;
   } catch (error) {
-    logger.publish(2, `${collectionName}`, 'beforeDelete:err', error);
+    logger.publish(2, `${collectionName}`, 'onBeforeDelete:err', error);
+    throw error;
+  }
+};
+
+const onBeforeRemote = async (app, ctx) => {
+  try {
+    if (
+      ctx.method.name.indexOf('upsert') !== -1 ||
+      ctx.method.name.indexOf('updateAll') !== -1 ||
+      ctx.method.name.indexOf('save') !== -1 ||
+      ctx.method.name.indexOf('patchAttributes') !== -1 ||
+      ctx.method.name.indexOf('updateAttributes') !== -1
+    ) {
+      const options = ctx.args ? ctx.args.options : {};
+      const data = ctx.args.data;
+      const authorizedRoles = options && options.authorizedRoles ? options.authorizedRoles : {};
+      const role = data.role || 'user';
+      const isAdmin = options && options.currentUser && options.currentUser.roles.includes('admin');
+      // isAdmin = ctx.options && ctx.options.authorizedRoles && ctx.options.authorizedRoles.admin;
+      // console.log('authorizedRoles, isAdmin & data', isAdmin, options, data);
+      const nonAdminChangingRoleToAdmin = role === 'admin' && !isAdmin;
+      const nonOwnerChangingPassword =
+        !ctx.isNewInstance && authorizedRoles.owner !== true && data.password !== undefined;
+
+      if (nonAdminChangingRoleToAdmin) {
+        const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to update this user');
+        throw error;
+      }
+      if (nonOwnerChangingPassword) {
+        const error = utils.buildError(403, 'NO_OWNER', 'Unauthorized to update this user');
+        throw error;
+      }
+    } else if (ctx.method.name.indexOf('create') !== -1) {
+      const options = ctx.args ? ctx.args.options : {};
+      const data = ctx.args.data;
+      const role = data.role || 'user';
+      const isAdmin = options && options.currentUser && options.currentUser.roles.includes('admin');
+      // console.log('authorizedRoles, isAdmin & data', isAdmin, options, data);
+      if (role === 'admin' && !isAdmin) {
+        const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to create this user');
+        throw error;
+      }
+    } else if (ctx.method.name === 'login') {
+      logger.publish(4, `${collectionName}`, 'beforeLogin:req', ctx.args);
+      try {
+        // const options = {...ctx.args.credentials, ttl: 2 * 7 * 24 * 60 * 60}
+        const token = await app.models.User.login(ctx.args.credentials, 'user');
+        logger.publish(4, `${collectionName}`, 'beforeLogin:res', token);
+        return token;
+      } catch (err) {
+        logger.publish(2, `${collectionName}`, 'beforeLogin:err', err);
+        if (err.code && err.code === 'LOGIN_FAILED_EMAIL_NOT_VERIFIED') {
+          const error = utils.buildError(
+            401,
+            'LOGIN_FAILED_EMAIL_NOT_VERIFIED',
+            `user has not confirmed the account yet`,
+          );
+          throw error;
+        }
+        throw err;
+      }
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'onBeforeRemote:err', error);
     throw error;
   }
 };
@@ -172,28 +253,11 @@ const onBeforeDelete = async ctx => {
  * @property {string} role admin or user
  */
 module.exports = function(User) {
-  // async function roleValidator(err) {
-  //   let falseCounter = 0;
-  //   initialRolesList.forEach(role => {
-  //     if (this.role !== role) {
-  //       falseCounter += 1;
-  //     }
-  //     if (falseCounter === initialRolesList.length) {
-  //       return err();
-  //     }
-  //     return null;
-  //   });
-  // }
-
   //  User.validatesAbsenceOf('deleted', {unless: 'admin'});
   User.validatesLengthOf('password', {
     min: 5,
     message: { min: 'User password is too short' },
   });
-
-  // User.validate('role', roleValidator, {
-  //   message: 'Wrong role',
-  // });
 
   /**
    * Find a user by its email address and send a confirmation link
@@ -204,18 +268,21 @@ module.exports = function(User) {
   User.findByEmail = async email => {
     try {
       logger.publish(4, `${collectionName}`, 'findByEmail:req', email);
-      const user = await User.findOne({ where: { email } });
+      const user = await User.findOne({
+        where: { email },
+        fields: {
+          email: true,
+          firstName: true,
+          lastName: true,
+        },
+      });
       if (!user || user === null) {
-        throw new Error("user doesn't exist");
-      }
-      const result = await mails.verifyEmail(user);
-      if (result && !result.email.accepted) {
-        const error = new Error('Email rejected');
-        logger.publish(2, `${collectionName}`, 'findByEmail:err', error);
+        const error = utils.buildError(404, 'USER_NOT_FOUND', `User doesn't exist`);
         throw error;
       }
-      logger.publish(4, `${collectionName}`, 'findByEmail:res', result);
-      return result;
+      // User.app.emit('verifyEmail', user);
+      logger.publish(4, `${collectionName}`, 'findByEmail:res', user);
+      return user;
     } catch (error) {
       logger.publish(4, `${collectionName}`, 'findByEmail:err', error);
       throw error;
@@ -231,33 +298,31 @@ module.exports = function(User) {
   User.verifyEmail = async user => {
     try {
       logger.publish(4, `${collectionName}`, 'verifyEmail:req', user);
-      const instance = await User.findById(user.id);
+      const instance = await User.findById(user.id, {
+        fields: {
+          email: true,
+          firstName: true,
+          lastName: true,
+        },
+      });
       if (!instance || instance === null) {
-        throw new Error("user doesn't exist");
-      }
-      logger.publish(4, `${collectionName}`, 'verifyEmail:res1', instance);
-      const result = await mails.verifyEmail(instance);
-      if (result && !result.email.accepted) {
-        const error = new Error('Email rejected');
-        logger.publish(2, `${collectionName}`, 'findByEmail:err', error);
+        const error = utils.buildError(404, 'USER_NOT_FOUND', `User doesn't exist`);
         throw error;
       }
-      logger.publish(4, `${collectionName}`, 'verifyEmail:res', result);
-      return result;
+      logger.publish(4, `${collectionName}`, 'verifyEmail:res', instance);
+      User.app.emit('verifyEmail', user);
+      // const result = await mails.verifyEmail(instance);
+      // if (result && !result.email.accepted) {
+      //   const error = new Error('Email rejected');
+      //   logger.publish(2, `${collectionName}`, 'findByEmail:err', error);
+      //   throw error;
+      // }
+      // logger.publish(4, `${collectionName}`, 'verifyEmail:res', result);
+      return user;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'verifyEmail:err', error);
       throw error;
     }
-  };
-
-  User.verifyCaptcha = async (hashes, token) => {
-    const coinhive = User.app.dataSources.coinhive;
-    return utils.verifyCaptcha(coinhive, hashes, token);
-  };
-
-  User.verifyAddress = async address => {
-    logger.publish(4, `${collectionName}`, 'verifyAddress:req', address);
-    return User.app.models.Address.verifyAddress(address);
   };
 
   User.updatePasswordFromToken = async (accessToken, newPassword) => {
@@ -265,34 +330,46 @@ module.exports = function(User) {
       logger.publish(3, `${collectionName}`, 'updatePasswordFromToken:req', accessToken);
       let error;
       if (!accessToken || !accessToken.userId || !accessToken.id) {
-        error = utils.buildError(401, 'INVALID_TOKEN', 'token is null');
-        return error;
+        error = utils.buildError(401, 'INVALID_TOKEN', 'Missing token');
+        throw error;
       }
       const token = await User.app.models.accessToken.findById(accessToken.id);
       if (!token || !token.userId || !token.id) {
-        error = utils.buildError(401, 'INVALID_TOKEN', 'token is invalid');
-        return error;
+        error = utils.buildError(401, 'INVALID_TOKEN', 'Token is invalid');
+        throw error;
       }
       const user = await User.findById(accessToken.userId);
       if (!user || !user.id) {
-        error = utils.buildError(400, 'INVALID_USER', 'User not found');
-        return error;
+        error = utils.buildError(404, 'INVALID_USER', 'User not found');
+        throw error;
       }
       await user.updateAttribute('password', newPassword);
       return true;
     } catch (error) {
       logger.publish(3, `${collectionName}`, 'updatePasswordFromToken:err', error);
-      return false;
+      throw error;
     }
   };
 
   User.setNewPassword = async (ctx, oldPassword, newPassword) => {
     try {
-      if (!ctx.req.accessToken) throw new Error('missing token');
+      let error;
+      if (!ctx.req.accessToken) {
+        error = utils.buildError(401, 'INVALID_TOKEN', 'Missing token');
+        throw error;
+      }
       logger.publish(3, `${collectionName}`, 'setNewPassword:req', '');
       const accessToken = ctx.req.accessToken;
+      const token = await User.app.models.accessToken.findById(accessToken.id);
+      if (!token || !token.userId || !token.id) {
+        error = utils.buildError(401, 'INVALID_TOKEN', 'Token is invalid');
+        throw error;
+      }
       const user = await User.findById(accessToken.userId);
-      if (!user || !user.id) throw new Error('no user found');
+      if (!user || !user.id) {
+        error = utils.buildError(404, 'INVALID_USER', 'User not found');
+        throw error;
+      }
       await User.changePassword(user.id, oldPassword, newPassword);
       //  logger.publish(3, `${collectionName}`, 'setNewPassword:res', res);
       return user;
@@ -304,9 +381,10 @@ module.exports = function(User) {
   User.sendContactForm = async form => {
     logger.publish(4, `${collectionName}`, 'sendContactForm:req', form);
     try {
-      const response = await mails.sendContactForm(form);
-      logger.publish(4, `${collectionName}`, 'sendContactForm:res', response);
-      return response;
+      User.app.emit('sendContactForm', form);
+      // const response = await mails.sendContactForm(form);
+      // logger.publish(4, `${collectionName}`, 'sendContactForm:res', response);
+      return true;
     } catch (error) {
       logger.publish(4, `${collectionName}`, 'sendContactForm:err', error);
       throw error;
@@ -315,133 +393,58 @@ module.exports = function(User) {
 
   User.sendInvite = async (ctx, options) => {
     try {
-      const result = await mails.sendMailInvite(ctx, options);
-      logger.publish(4, collectionName, ' sendInvite:res', result);
-      return result;
+      // const result = await mails.sendMailInvite(options);
+      User.app.emit('sendMailInvite', options);
+      return true;
     } catch (error) {
       logger.publish(4, collectionName, ' sendInvite:err', error);
       throw error;
     }
   };
 
-  //  send password reset link when requested
-  User.on('resetPasswordRequest', async options => {
-    logger.publish(3, `${collectionName}`, 'resetPasswordRequest:req', options);
-    return mails.sendResetPasswordMail(options).catch(err => err);
-    // logger.publish(3, `${collectionName}`, 'resetPasswordRequest:res', result);
-  });
-
   User.afterRemoteError('confirm', async ctx => {
     logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
     ctx.res.redirect(process.env.HTTP_CLIENT_URL);
-    return null;
+    return ctx;
   });
+
+  // User.afterRemoteError('*', async (ctx) => {
+  //   logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
+  //   // ctx.result = new Error(
+  //   //   `[${collectionName.toUpperCase()}]  error on this remote method : ${
+  //   //     ctx.methodString
+  //   //   }`,
+  //   // );
+  //   return null;
+  // });
 
   /**
-   * Event reporting that an user has confirmed mail validation
-   * @event after confirm
-   * @param {object} ctx - Express context.
-   * @param {object} ctx.req - Request
-   * @param {object} ctx.res - Response
+   * Event reporting to trigger mails.verifyEmail
+   * @event verifyEmail
+   * @param {object} user - User instance
    */
-  User.afterRemote('confirm', async ctx => {
-    logger.publish(4, `${collectionName}`, 'afterConfirm:req', ctx.args.uid);
-    if (ctx.args.uid) {
-      return utils
-        .mkDirByPathSync(`${process.env.FS_PATH}/${ctx.args.uid}`)
-        .then(res => {
-          console.log(`[${collectionName.toUpperCase()}] container Check : ${res}`);
-          return res;
-        })
-        .catch(err => err);
-    }
-    const error = utils.buildError(
-      401,
-      'FAILED_CONTAINER_CREATION',
-      `Unauthorized to create containers`,
-    );
-    logger.publish(4, `${collectionName}`, 'afterConfirm:err', error);
-    throw error;
-  });
+  User.on('verifyEmail', mails.verifyEmail);
 
   /**
-   * Event reporting that an user attempts to login
-   * @event before confirm
-   * @param {object} ctx - Express context.
-   * @param {object} ctx.req - Request
-   * @param {object} ctx.res - Response
+   * Event reporting to trigger mails.send
+   * @event sendContactForm
+   * @param {object} options - Form properties
    */
-  User.beforeRemote('login', async ctx => {
-    logger.publish(4, `${collectionName}`, 'beforeLogin:req', ctx.args);
-    try {
-      // const token = await User.login(ctx.args.credentials, 'user');
-      // const options = {...ctx.args.credentials, ttl: 2 * 7 * 24 * 60 * 60}
-      const token = await User.login(ctx.args.credentials, 'user');
-      logger.publish(4, `${collectionName}`, 'beforeLogin:res', token);
-      return token;
-    } catch (err) {
-      logger.publish(2, `${collectionName}`, 'beforeLogin:err', err);
-      if (err.code && err.code === 'LOGIN_FAILED_EMAIL_NOT_VERIFIED') {
-        // console.log('user not verified');
-        const error = utils.buildError(
-          401,
-          'LOGIN_FAILED_EMAIL_NOT_VERIFIED',
-          `user has not confirmed the account yet`,
-        );
-        throw error;
-      }
-      throw err;
-    }
-  });
+  User.on('sendContactForm', mails.sendContactForm);
 
-  User.beforeRemote('**', async ctx => {
-    try {
-      if (
-        ctx.method.name.indexOf('upsert') !== -1 ||
-        ctx.method.name.indexOf('updateAll') !== -1 ||
-        ctx.method.name.indexOf('save') !== -1 ||
-        ctx.method.name.indexOf('patchAttributes') !== -1 ||
-        ctx.method.name.indexOf('updateAttributes') !== -1
-      ) {
-        const options = ctx.args ? ctx.args.options : {};
-        const data = ctx.args.data;
-        const authorizedRoles = options && options.authorizedRoles ? options.authorizedRoles : {};
-        // console.log('authorizedRoles & data', options, data);
-        const role = data.role || 'user';
-        const isAdmin =
-          options && options.currentUser && options.currentUser.roles.includes('admin');
-        // isAdmin = ctx.options && ctx.options.authorizedRoles && ctx.options.authorizedRoles.admin;
+  /**
+   * Event reporting to trigger mails.send
+   * @event sendMailInvite
+   * @param {object} options - Form properties
+   */
+  User.on('sendMailInvite', mails.sendMailInvite);
 
-        const nonAdminChangingRoleToAdmin = role === 'admin' && !isAdmin;
-        const nonOwnerChangingPassword =
-          !ctx.isNewInstance && authorizedRoles.owner !== true && data.password !== undefined;
-
-        if (nonAdminChangingRoleToAdmin) {
-          const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to update this user');
-          throw error;
-        }
-        if (nonOwnerChangingPassword) {
-          const error = utils.buildError(403, 'NO_OWNER', 'Unauthorized to update this user');
-          throw error;
-        }
-      } else if (ctx.method.name.indexOf('create') !== -1) {
-        const options = ctx.args ? ctx.args.options : {};
-        const data = ctx.args.data;
-        // console.log('authorizedRoles & data', options, data);
-        const role = data.role || 'user';
-        const isAdmin =
-          options && options.currentUser && options.currentUser.roles.includes('admin');
-
-        if (role === 'admin' && !isAdmin) {
-          const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to create this user');
-          throw error;
-        }
-      }
-      return ctx;
-    } catch (error) {
-      throw error;
-    }
-  });
+  /**
+   * Event reporting to send password reset link when requested
+   * @event resetPasswordRequest
+   * @param {object} options - Mail options
+   */
+  User.on('resetPasswordRequest', mails.sendResetPasswordMail);
 
   /**
    * Event reporting that a new user instance will be created.
@@ -476,15 +479,14 @@ module.exports = function(User) {
    */
   User.observe('before delete', onBeforeDelete);
 
-  // User.afterRemoteError('*', async (ctx) => {
-  //   logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
-  //   // ctx.result = new Error(
-  //   //   `[${collectionName.toUpperCase()}]  error on this remote method : ${
-  //   //     ctx.methodString
-  //   //   }`,
-  //   // );
-  //   return null;
-  // });
+  /**
+   * Event reporting that a remote user method has been requested
+   * @event before confirm
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   */
+  User.beforeRemote('**', async ctx => onBeforeRemote(User.app, ctx));
 
   User.disableRemoteMethodByName('count');
   User.disableRemoteMethodByName('upsertWithWhere');

@@ -3,52 +3,54 @@ import utils from './utils';
 import logger from './logger';
 
 const mails = {};
+
 const emailFrom = process.env.CONTACT_EMAIL;
 const verifyTemplate = `${__dirname}/../views/verify.ejs`;
-// const verifyTemplate = '../views/verify.ejs';
-const resetTemplate = '../views/reset-password.ejs';
-const inviteTemplate = '../views/mail-invite.ejs';
-const contactFormTemplate = '../views/contact-form.ejs';
+const resetTemplate = `${__dirname}/../views/reset-password.ejs`;
+const inviteTemplate = `${__dirname}/../views/mail-invite.ejs`;
+const contactFormTemplate = `${__dirname}/../views/contact-form.ejs`;
 const collectionName = 'Mail';
+
 const baseConf = {
   type: 'email',
   to: '',
   from: emailFrom,
   text: '',
   headers: { 'Mime-Version': '1.0' },
-  host: `${process.env.HOST}`,
-  port: process.env.PORT,
+  host: `${process.env.HTTP_SERVER_HOST}`,
+  port: Number(process.env.HTTP_SERVER_PORT),
   restApiRoot: process.env.REST_API_ROOT,
   serverUrl: process.env.HTTP_SERVER_URL,
   url: '',
 };
+
 const config = {
   verifyOptions: {
     ...baseConf,
-    subject: `Welcome on ${process.env.APP_NAME}`,
+    subject: `Welcome on ${process.env.NODE_NAME}`,
     template: verifyTemplate,
   },
   resetOptions: {
     ...baseConf,
-    subject: `New password for ${process.env.APP_NAME}`,
+    subject: `New password for ${process.env.NODE_NAME}`,
     template: resetTemplate,
     //  redirect: `${process.env.HTTP_CLIENT_URL}`,
   },
   contactFormOptions: {
     ...baseConf,
-    subject: `New message via contact form ${process.env.APP_NAME}`,
+    subject: `New message via contact form ${process.env.NODE_NAME}`,
     template: contactFormTemplate,
   },
   inviteOptions: {
     ...baseConf,
-    subject: `You are nvited on ${process.env.APP_NAME}`,
+    subject: `You are nvited on ${process.env.NODE_NAME}`,
     template: inviteTemplate,
   },
 };
 
 const sendMail = updatedOptions =>
   new Promise((resolve, reject) => {
-    app.models.Email.send(updatedOptions, (err, res) => (err ? reject(err) : resolve(res)));
+    app.models.Email.send(updatedOptions, (err, mail) => (err ? reject(err) : resolve(mail)));
   });
 
 mails.send = async options => {
@@ -59,16 +61,16 @@ mails.send = async options => {
       result,
       options,
     });
-    if (result.accepted.length < 1) {
+    if (result && result.accepted && result.accepted.length < 1) {
       // send the mail a second time ?
-      const mailError = utils.buildError(404, 'INVALID_EMAIL', 'email was rejected');
-      throw mailError;
+      const error = utils.buildError(404, 'INVALID_EMAIL', 'email was rejected');
+      throw error;
     }
     result = { message: 'email sent' };
     return result;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'send:err', error);
-    return error;
+    throw error;
   }
 };
 
@@ -101,51 +103,63 @@ mails.verifyEmail = async user => {
     return result;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'verifyEmail:err', error);
-    return null;
+    throw error;
   }
 };
 
 mails.sendResetPasswordMail = async options => {
-  logger.publish(4, `${collectionName}`, 'sendResetPasswordMail:req', options);
-  const newOptions = {
-    ...config.resetOptions,
-    to: options.email,
-    url: `${process.env.HTTP_CLIENT_URL}/reset-password?userId=${
-      options.accessToken.userId
-    }&token=${options.accessToken.id}`,
-    user: options.user,
-    text: `You can assign a new password on clicking that link`,
-  };
-
-  return mails.send(newOptions);
+  try {
+    const newOptions = {
+      ...config.resetOptions,
+      to: options.email,
+      url: `${process.env.HTTP_CLIENT_URL}/reset-password?userId=${
+        options.accessToken.userId
+      }&token=${options.accessToken.id}`,
+      user: options.user,
+      text: `You can assign a new password on clicking that link`,
+    };
+    logger.publish(4, `${collectionName}`, 'sendResetPasswordMail:req', newOptions);
+    await mails.send(newOptions);
+  } catch (error) {
+    logger.publish(4, `${collectionName}`, 'sendResetPasswordMail:err', error);
+    throw error;
+  }
 };
 
 mails.sendContactForm = async options => {
-  logger.publish(4, `${collectionName}`, 'sendContactForm:req', options);
-  const newOptions = {
-    ...config.contactFormOptions,
-    to: `${process.env.ADMIN_EMAIL}`,
-    email: options.email,
-    firstName: options.firstName,
-    lastName: options.lastName,
-    subject: options.subject,
-    text: options.content,
-  };
-  return mails.send(newOptions);
+  try {
+    const newOptions = {
+      ...config.contactFormOptions,
+      to: `${process.env.ADMIN_EMAIL}`,
+      email: options.email,
+      firstName: options.firstName,
+      lastName: options.lastName,
+      subject: options.subject,
+      text: options.content,
+    };
+    logger.publish(4, `${collectionName}`, 'sendContactForm:req', newOptions);
+    await mails.send(newOptions);
+  } catch (error) {
+    throw error;
+  }
 };
 
-mails.sendMailInvite = async (ctx, options) => {
-  console.log(`[${collectionName.toUpperCase()}] sendMailInvite req`, options);
-  const newOptions = {
-    ...config.inviteOptions,
-    to: options.email,
-    guestName: options.email,
-    url: `${process.env.HTTP_CLIENT_URL}`,
-    text: `${options.profile.firstName} ${options.profile.lastName} invited you on ${
-      process.env.APP_NAME
-    }`,
-  };
-  return mails.send(newOptions);
+mails.sendMailInvite = async options => {
+  try {
+    const newOptions = {
+      ...config.inviteOptions,
+      to: options.email,
+      guestName: options.email,
+      url: `${process.env.HTTP_CLIENT_URL}`,
+      text: `${options.profile.firstName} ${options.profile.lastName} invited you on ${
+        process.env.NODE_NAME
+      }`,
+    };
+    logger.publish(4, `${collectionName}`, 'sendMailInvite:req', newOptions);
+    await mails.send(newOptions);
+  } catch (error) {
+    throw error;
+  }
 };
 
 export default mails;

@@ -5,8 +5,6 @@ import app from '../index';
 import testHelper from '../services/test-helper';
 // import mails from '../services/mails';
 
-require('@babel/register');
-
 const delayBeforeTesting = 7000;
 
 const userTest = () => {
@@ -16,7 +14,7 @@ const userTest = () => {
   const apiUrl = `/api/${collectionName}/`;
 
   describe(collectionName, function() {
-    this.timeout(4000);
+    this.timeout(7000);
 
     const UserModel = app.models.user;
     let userModels;
@@ -41,30 +39,35 @@ const userTest = () => {
     const e2eTestsSuite = {
       [`[TEST] ${collectionName} E2E Tests`]: {
         async before() {
-          this.timeout(5000);
-          const result = await Promise.all([
-            testHelper.access.admin.create(app),
-            UserModel.create(users),
-          ]);
+          try {
+            this.timeout(7000);
+            const result = await Promise.all([
+              testHelper.access.admin.create(app),
+              UserModel.create(users),
+            ]);
 
-          userModels = result[1];
-          userModels.push(result[0]);
-          // console.log('userModels', userModels);
+            userModels = result[1];
+            userModels.push(result[0]);
+            // console.log('userModels', userModels);
 
-          // todo handle emailVerification ..
-          // const promises = await userModels.map(async user => {
-          //   if (!user.emailVerified) {
-          //     const response = await mails.verifyEmail(user);
-          //      console.log('response after save ', response);
-          //     if (response && response.user) {
-          //       await userModel.confirm(user.id, response.user.verificationToken, 'http://ed-X510URR:8080/login');
-          //     }
-          //   }
-          //   return user;
-          // });
-          // await Promise.all(promises);
+            // todo handle emailVerification ..
+            // const promises = await userModels.map(async user => {
+            //   if (!user.emailVerified) {
+            //     const response = await mails.verifyEmail(user);
+            //      console.log('response after save ', response);
+            //     if (response && response.user) {
+            //       await userModel.confirm(user.id, response.user.verificationToken, 'http://ed-X510URR:8080/login');
+            //     }
+            //   }
+            //   return user;
+            // });
+            // await Promise.all(promises);
 
-          return result;
+            return result;
+          } catch (error) {
+            console.log(`[TEST] ${collectionName} before:err`, error);
+            return error;
+          }
         },
         after: () => Promise.all([UserModel.destroyAll()]),
         tests: {
@@ -124,7 +127,6 @@ const userTest = () => {
                 url: apiUrl,
                 expect: 401,
               },
-
               {
                 name: 'user CANNOT read user details',
                 verb: 'get',
@@ -236,7 +238,7 @@ const userTest = () => {
                 steps: [
                   {
                     verb: 'post',
-                    url: () => `${apiUrl}login`,
+                    url: () => `${loginUrl}`,
                     body: profiles.admin,
                     expect: 200,
                   },
@@ -244,6 +246,74 @@ const userTest = () => {
                     url: () => `${apiUrl}logout?access_token=${step0Response.body.id}`,
                     verb: 'post',
                     expect: 204,
+                  }),
+                ],
+              },
+            ],
+          },
+          '[TEST] Verifying "Authentification" utils': {
+            tests: [
+              {
+                name: 'everyone CAN check if an account exists by email',
+                verb: 'post',
+                url: () => `${apiUrl}find-by-email`,
+                body: () => ({
+                  email: profiles.user.email,
+                }),
+                expect: 200,
+              },
+              {
+                name: 'everyone CAN validate account creation',
+                verb: 'post',
+                url: () => `${apiUrl}verify-email`,
+                body: () => ({
+                  user: userModels[1],
+                }),
+                expect: 200,
+              },
+              {
+                name: 'everyone CAN request new password by email',
+                verb: 'post',
+                url: () => `${apiUrl}reset`,
+                body: () => ({
+                  email: profiles.user.email,
+                }),
+                expect: 204,
+              },
+              {
+                name: 'user CAN replace his old password with new',
+                verb: 'post',
+                auth: profiles.user,
+                url: () => `${apiUrl}set-new-password`,
+                body: () => ({
+                  oldPassword: profiles.user.password,
+                  newPassword: 'TRICKYPASSWORD',
+                }),
+                expect: 200,
+              },
+              {
+                name: 'user CAN update his password from access token',
+                steps: [
+                  {
+                    verb: 'post',
+                    url: () => `${loginUrl}`,
+                    body: profiles.admin,
+                    expect: 200,
+                  },
+                  step0Response => ({
+                    verb: 'post',
+                    headers: () => ({
+                      authorization: step0Response.body.id.toString(),
+                    }),
+                    url: () => `${apiUrl}/update-password-from-token`,
+                    body: () => ({
+                      newPassword: 'TRICKYPASSWORD',
+                      accessToken: step0Response.body,
+                    }),
+                    expect: resp => {
+                      expect(resp.status).to.be.equal(200);
+                      expect(resp.body.success).to.be.equal(true);
+                    },
                   }),
                 ],
               },

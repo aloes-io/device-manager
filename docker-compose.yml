@@ -17,7 +17,6 @@ services:
       - '${MQTT_BROKER_PORT}'
       - '${MQTTS_BROKER_PORT}'
       - '${WS_BROKER_PORT}'
-      # - '${TIMER_PORT}'
     depends_on:
       - mongo
       - influxdb

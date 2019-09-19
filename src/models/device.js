@@ -1,8 +1,7 @@
-import iotAgent from 'iot-agent';
 import crypto from 'crypto';
+import iotAgent from 'iot-agent';
 import logger from '../services/logger';
 import utils from '../services/utils';
-import DeltaTimer from '../services/delta-timer';
 import deviceTypes from '../initial-data/device-types.json';
 
 const collectionName = 'Device';
@@ -70,17 +69,23 @@ const setDeviceIcons = device => {
   }
 };
 
-const beforeSave = async ctx => {
+/**
+ * Validate instance before creation
+ * @method module:Device~onBeforeSave
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
+const onBeforeSave = async ctx => {
   try {
     if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
     if (ctx.data) {
-      logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.data);
+      logger.publish(4, `${collectionName}`, 'onBeforePartialSave:req', ctx.data);
       filteredProperties.forEach(p => delete ctx.data[p]);
       ctx.hookState.updateData = ctx.data;
       return ctx;
     }
     if (ctx.instance) {
-      logger.publish(4, `${collectionName}`, 'beforeSave:req', ctx.instance);
+      logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
       const promises = await filteredProperties.map(async prop =>
         ctx.instance.unsetAttribute(prop),
       );
@@ -92,7 +97,7 @@ const beforeSave = async ctx => {
       if (ctx.instance.type && ctx.instance.type !== null) {
         await setDeviceIcons(ctx.instance);
       }
-      logger.publish(5, collectionName, 'beforeSave:res', ctx.instance);
+      logger.publish(5, collectionName, 'onBeforeSave:res', ctx.instance);
       return ctx;
     }
     // else if (ctx.currentInstance) {
@@ -100,7 +105,7 @@ const beforeSave = async ctx => {
     // }
     return ctx;
   } catch (error) {
-    logger.publish(2, `${collectionName}`, 'beforeSave:err', error);
+    logger.publish(2, `${collectionName}`, 'onBeforeSave:err', error);
     throw error;
   }
 };
@@ -173,7 +178,7 @@ const createProps = async (app, device) => {
     }
     return app.models.Device.publish(device, 'POST');
   } catch (error) {
-    console.log('create Props: err', error);
+    logger.publish(3, `${collectionName}`, 'createProps:err', error);
     throw error;
   }
 };
@@ -202,16 +207,102 @@ const updateProps = async (app, device) => {
   }
 };
 
-const afterSave = async ctx => {
+const appendCachedSensors = async (app, ctx) => {
+  try {
+    logger.publish(4, `${collectionName}`, 'appendCachedSensors:req', {
+      query: ctx.req.query,
+      params: ctx.req.params,
+    });
+    let getSensors = false;
+    let result;
+    const Device = app.models.Device;
+
+    if (ctx.method.name.startsWith('__get')) {
+      const modelName = ctx.method.name.split('__')[2];
+      const params = ctx.req.params;
+      //  console.log('[DEVICE] beforeRemote get:req', modelName, params);
+      if (modelName === 'sensors' && params && params.id) {
+        getSensors = true;
+        const id = params.id;
+        let device = {};
+        if (params.ownerId) {
+          device = await Device.find({ where: { and: [{ id }, { ownerId: params.ownerId }] } });
+        } else {
+          device = await Device.findById(id);
+        }
+        result = [JSON.parse(JSON.stringify(device))];
+      }
+    }
+
+    if (ctx.req.query.filter) {
+      let whereFilter;
+      if (typeof ctx.req.query.filter === 'string') {
+        whereFilter = JSON.parse(ctx.req.query.filter);
+      } else if (typeof ctx.req.query.filter === 'object') {
+        whereFilter = ctx.req.query.filter;
+      }
+      console.log('[DEVICE] appendCachedSensors:req', whereFilter);
+
+      if (whereFilter.include) {
+        if (typeof whereFilter.include === 'object') {
+          const index = whereFilter.include.indexOf('sensors');
+          getSensors = true;
+          if (index !== -1) {
+            whereFilter.include.splice(index, 1);
+          }
+        } else if (typeof whereFilter.include === 'string') {
+          if (whereFilter.include.search('sensor') !== -1) {
+            getSensors = true;
+            delete whereFilter.include;
+          }
+        } else if (
+          whereFilter.include.relation &&
+          typeof whereFilter.include.relation === 'string'
+        ) {
+          if (whereFilter.include.relation.search('sensor') !== -1) {
+            getSensors = true;
+            delete whereFilter.include;
+          }
+        }
+      }
+      if (whereFilter.where) {
+        const devices = await Device.find(whereFilter);
+        result = JSON.parse(JSON.stringify(devices));
+      } else if (whereFilter && whereFilter.id) {
+        const id = whereFilter.id;
+        const device = await Device.findById(id);
+        result = [JSON.parse(JSON.stringify(device))];
+      }
+    }
+    //  console.log('result', result.length);
+    if (result && getSensors) {
+      const promises = await result.map(app.models.SensorResource.includeCache);
+      result = await Promise.all(promises);
+    }
+    //  logger.publish(4, `${collectionName}`, 'beforeFind:res', result.length);
+    return result;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'appendCachedSensors:err', error);
+    throw error;
+  }
+};
+
+/**
+ * Create relations on instance creation
+ * @method module:Device~onAfterSave
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
+const onAfterSave = async ctx => {
   try {
     if (ctx.hookState.updateData) {
-      logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
+      logger.publish(4, `${collectionName}`, 'onAfterPartialSave:req', ctx.hookState.updateData);
       const updatedProps = Object.keys(ctx.hookState.updateData);
       if (updatedProps.some(prop => prop === 'status')) {
         await ctx.Model.publish(ctx.instance, 'HEAD');
       }
     } else if (ctx.instance && ctx.Model.app) {
-      logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
+      logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.instance);
       if (ctx.isNewInstance) {
         await createProps(ctx.Model.app, ctx.instance);
       } else {
@@ -220,7 +311,7 @@ const afterSave = async ctx => {
     }
     return ctx;
   } catch (error) {
-    logger.publish(2, `${collectionName}`, 'afterSave:err', error);
+    logger.publish(2, `${collectionName}`, 'onAfterSave:err', error);
     throw error;
   }
 };
@@ -246,9 +337,15 @@ const deleteProps = async (app, device) => {
   }
 };
 
-const beforeDelete = async ctx => {
+/**
+ * Delete relations on instance(s) deletetion
+ * @method module:Device~onBeforeDelete
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
+const onBeforeDelete = async ctx => {
   try {
-    logger.publish(4, `${collectionName}`, 'beforeDelete:req', ctx.where);
+    logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
     if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
       const device = await ctx.Model.findById(ctx.where.id);
       await deleteProps(ctx.Model.app, device);
@@ -259,7 +356,113 @@ const beforeDelete = async ctx => {
     }
     return ctx;
   } catch (error) {
-    logger.publish(2, `${collectionName}`, 'beforeDelete:err', error);
+    logger.publish(2, `${collectionName}`, 'onBeforeDelete:err', error);
+    throw error;
+  }
+};
+
+const onBeforeRemote = async (app, ctx) => {
+  try {
+    if (
+      ctx.method.name.indexOf('find') !== -1 ||
+      ctx.method.name.indexOf('__get') !== -1 ||
+      ctx.method.name === 'get'
+      // ctx.method.name.indexOf('get') !== -1
+    ) {
+      const options = ctx.args ? ctx.args.options : {};
+      if (!options || !options.currentUser) {
+        throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
+      }
+      const isAdmin = options.currentUser.roles.includes('admin');
+      if (ctx.req.query && ctx.req.query.filter) {
+        if (!isAdmin) {
+          if (!ctx.req.query.filter.where) ctx.req.query.filter.where = {};
+          ctx.req.query.filter.where.ownerId = options.currentUser.id.toString();
+        }
+      }
+      if (ctx.req.params) {
+        if (!isAdmin) {
+          ctx.req.params.ownerId = options.currentUser.id.toString();
+        }
+      }
+      const result = await appendCachedSensors(app, ctx);
+      if (result && result !== null) {
+        ctx.result = result;
+      }
+    } else if (ctx.method.name === 'search' || ctx.method.name === 'geoLocate') {
+      const options = ctx.args ? ctx.args.options : {};
+      if (!options || !options.currentUser) {
+        throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
+      }
+      const isAdmin = options.currentUser.roles.includes('admin');
+      if (!isAdmin) {
+        if (!ctx.args.filter) ctx.args.filter = {};
+        ctx.args.filter.ownerId = options.currentUser.id.toString();
+        ctx.args.filter.ownerType = options.currentUser.type;
+        // ctx.args.filter.public = true;
+      }
+    } else if (ctx.method.name === 'findByPattern') {
+      const options = ctx.args ? ctx.args.options : {};
+      if (!options || !options.currentUser) {
+        throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
+      }
+      const isAdmin = options.currentUser.roles.includes('admin');
+      if (!isAdmin) {
+        if (!ctx.args.attributes) ctx.args.attributes = {};
+        ctx.args.attributes.ownerId = options.currentUser.id.toString();
+      }
+    } else if (ctx.method.name === 'onPublish') {
+      const options = ctx.args ? ctx.args.options : {};
+      if (!options || !options.currentUser) {
+        throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
+      }
+      // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.client);
+      const isAdmin = options.currentUser.roles.includes('admin');
+      if (!ctx.args.client) ctx.args.client = {};
+      // ctx.args.client.user = options.currentUser.id.toString();
+      if (!isAdmin) {
+        ctx.args.client.user = options.currentUser.id.toString();
+        if (options.currentUser.devEui) {
+          ctx.args.client.devEui = options.currentUser.devEui;
+        }
+      }
+    } else if (ctx.method.name === 'updateStatus') {
+      const options = ctx.args ? ctx.args.options : {};
+      if (!options || !options.currentUser) {
+        throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
+      }
+      // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.client);
+      const isAdmin = options.currentUser.roles.includes('admin');
+      if (!ctx.args.client) ctx.args.client = {};
+      if (!isAdmin) {
+        ctx.args.client.user = options.currentUser.id.toString();
+        if (options.currentUser.devEui) {
+          ctx.args.client.devEui = options.currentUser.devEui;
+        }
+      }
+    } else if (ctx.method.name === 'getState') {
+      const options = ctx.args ? ctx.args.options : {};
+      if (!options || !options.currentUser) {
+        throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
+      }
+      // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.deviceId);
+      const isAdmin = options.currentUser.roles.includes('admin');
+      if (!isAdmin) {
+        if (options.currentUser.devEui) {
+          if (options.currentUser.id.toString() !== ctx.args.deviceId.toString()) {
+            const error = utils.buildError(
+              401,
+              'INVALID_USER',
+              'Only device itself can trigger this endpoint',
+            );
+            throw error;
+          }
+        }
+      }
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'onBeforeRemote:err', error);
     throw error;
   }
 };
@@ -276,6 +479,7 @@ const beforeDelete = async ctx => {
  * @param {object} client - MQTT client
  * @fires module:Device~publish
  * @fires module:Sensor~publish
+ * @returns {object} device
  */
 const parseMessage = async (app, packet, pattern, client) => {
   try {
@@ -290,12 +494,14 @@ const parseMessage = async (app, packet, pattern, client) => {
         if (newPacket && newPacket.topic) {
           // todo use client.publish instead ?
           logger.publish(4, `${collectionName}`, 'parseMessage:redirect to', newPacket.topic);
-          return app.publish(newPacket.topic, newPacket.payload, false, 1);
+          // await app.publish(newPacket.topic, newPacket.payload, false, 1);
+          app.emit('publish', newPacket.topic, newPacket.payload, false, 0);
+          return newPacket;
         }
       }
     }
     const attributes = await iotAgent.encode(packet, pattern);
-    logger.publish(5, `${collectionName}`, 'parseMessage:attributes', attributes);
+    logger.publish(4, `${collectionName}`, 'parseMessage:attributes', attributes);
 
     if (
       attributes.devEui &&
@@ -307,22 +513,21 @@ const parseMessage = async (app, packet, pattern, client) => {
         nativeNodeId: attributes.nativeNodeId,
       });
       const device = await Device.findByPattern(pattern, attributes);
-      if (!device || device === null || device instanceof Error) return null;
+      if (!device || device === null) {
+        const error = utils.buildError(404, 'DEVICE_NOT_FOUND', 'Device not retrieved from packet');
+        throw error;
+      }
 
-      return app.models.Sensor.emit('publish', {
+      app.models.Sensor.emit('publish', {
         device,
         pattern,
         //  sensor: device.sensors[0],
         attributes,
         client,
       });
+      return device;
     }
-    if (
-      pattern.params.collection === 'Device' &&
-      attributes.devEui &&
-      attributes.status &&
-      attributes.apiKey
-    ) {
+    if (pattern.params.collection === 'Device' && attributes.devEui && attributes.apiKey) {
       logger.publish(4, `${collectionName}`, 'parseMessage:redirect to Device', {
         devEui: attributes.devEui,
       });
@@ -332,10 +537,14 @@ const parseMessage = async (app, packet, pattern, client) => {
       } else {
         device = await Device.findByPattern(pattern, attributes);
       }
-      if (!device || device === null || device instanceof Error) return null;
+      if (!device || device === null) {
+        const error = utils.buildError(404, 'DEVICE_NOT_FOUND', 'Device not retrieved from packet');
+        throw error;
+      }
       device = JSON.parse(JSON.stringify(device));
       device = { ...device, ...attributes };
-      return Device.emit('publish', { device, pattern, client });
+      Device.emit('publish', { device, pattern, client });
+      return device;
     }
     const error = utils.buildError(400, 'DECODING_ERROR', 'No attributes retrieved from Iot Agent');
     throw error;
@@ -344,6 +553,136 @@ const parseMessage = async (app, packet, pattern, client) => {
     throw error;
   }
 };
+
+const checkHeader = (headers, key, value = false) => {
+  if (!headers[key]) {
+    return false;
+  }
+  if (value && headers[key] !== value) {
+    return false;
+  }
+  return true;
+};
+
+const updateESP = async (ctx, deviceId, version) => {
+  try {
+    const headers = ctx.req.headers;
+    console.log('headers', headers);
+    if (
+      !checkHeader(headers, 'x-esp8266-sta-mac') ||
+      !checkHeader(headers, 'x-esp8266-ap-mac') ||
+      !checkHeader(headers, 'x-esp8266-free-space') ||
+      !checkHeader(headers, 'x-esp8266-sketch-size') ||
+      !checkHeader(headers, 'x-esp8266-sketch-md5') ||
+      !checkHeader(headers, 'x-esp8266-chip-size') ||
+      !checkHeader(headers, 'x-esp8266-sdk-version') ||
+      !checkHeader(headers, 'x-esp8266-mode')
+    ) {
+      const error = utils.buildError(403, 'INVALID_OTA_HEADER', 'invalid ESP8266 header');
+      throw error;
+    }
+
+    const devEui = headers['x-esp8266-sta-mac'].split(':').join('');
+    const filter = {
+      where: {
+        or: [
+          { id: deviceId },
+          {
+            devEui: {
+              like: new RegExp(`.*${devEui}.*`, 'i'),
+            },
+          },
+        ],
+      },
+    };
+    const device = await ctx.Model.findOne(filter);
+    //  const device = await Device.findById(deviceId);
+    //  console.log('#device ', device);
+    if (!device || device === null) {
+      throw utils.buildError(404, 'NOT_FOUND', 'No device found');
+    }
+
+    console.log('devEui', devEui, device.devEui);
+    ctx.res.set('Content-Type', `application/octet-stream`);
+    // look for meta containing firmware tag ?
+    //  const fileFilter = { where: { role: {like: new RegExp(`.*firmware.*`, 'i')} } };
+    // const fileFilter = { where: { name: { like: new RegExp(`.*bin.*`, 'i') } } };
+    // const fileMeta = await device.files.findOne(fileFilter);
+
+    const fileFilter = {
+      where: {
+        and: [
+          { ownerId: device.ownerId.toString() },
+          { name: { like: new RegExp(`.*bin.*`, 'i') } },
+          { name: { like: new RegExp(`.*${device.id}.*`, 'i') } },
+        ],
+      },
+    };
+
+    const fileMeta = await ctx.Model.app.models.files.findOne(fileFilter);
+    //  const fileMeta = await device.files.findOne(fileFilter);
+
+    if (version && fileMeta.version && fileMeta.version === version) {
+      throw utils.buildError(304, 'UNCHANGED', 'already up to date');
+    }
+    ctx.res.set('Content-Disposition', `attachment; filename=${fileMeta.name}`);
+
+    //  const readStream = Device.app.models.container.downloadStream(device.id.toString(), fileMeta.name);
+    const readStream = ctx.Model.app.models.container.downloadStream(
+      device.id.toString(),
+      fileMeta.name,
+    );
+    const md5sum = crypto.createHash('md5');
+
+    const endStream = new Promise((resolve, reject) => {
+      const bodyChunks = [];
+      readStream.on('data', d => {
+        bodyChunks.push(d);
+        md5sum.update(d);
+      });
+      readStream.on('end', () => {
+        const hash = md5sum.digest('hex');
+        const body = Buffer.concat(bodyChunks);
+        //  console.log('#hash ', hash, headers['x-esp8266-sketch-md5']);
+        // console.log('file', file);
+        ctx.res.set('Content-Length', readStream.bytesRead);
+        ctx.res.status(200);
+        ctx.res.set('x-MD5', hash);
+        resolve(body);
+      });
+      readStream.on('error', reject);
+    });
+
+    const result = await endStream;
+    if (result && !(result instanceof Error)) {
+      return result;
+    }
+    throw utils.buildError(304, 'STREAM_ERROR', 'Error while reading stream');
+  } catch (error) {
+    throw error;
+  }
+};
+
+const updateFirmware = async (ctx, deviceId, version) => {
+  try {
+    if (checkHeader(ctx.req.headers, 'user-agent', 'ESP8266-http-Update')) {
+      return updateESP(ctx, deviceId, version);
+    }
+    throw utils.buildError(403, 'WRONG_TARGET', 'only for ESP8266 updater');
+  } catch (error) {
+    throw error;
+  }
+};
+
+// const onTick = async data => {
+//   try {
+//     logger.publish(4, `${collectionName}`, 'tick:res', data.time);
+//     const devices = await Device.syncCache('UP');
+//     return devices;
+//   } catch (error) {
+//     return error;
+//   }
+// };
 
 /**
  * @module Device
@@ -522,22 +861,19 @@ module.exports = function(Device) {
   /**
    * Create new keys, and update Device instance
    * @method module:Device.refreshToken
-   * @param {object} device - Device instance
+   * @param {object} deviceId - Device instance id
    * @returns {functions} device.updateAttributes
    */
-  Device.refreshToken = async (ctx, device) => {
+  Device.refreshToken = async (ctx, deviceId) => {
     try {
-      logger.publish(4, `${collectionName}`, 'refreshToken:req', device);
+      logger.publish(4, `${collectionName}`, 'refreshToken:req', deviceId);
       if (!ctx.req.accessToken) throw utils.buildError(403, 'NO_TOKEN', 'User is not authentified');
-      if (!device.id || !device.ownerId) {
-        throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
-      }
-      if (ctx.req.accessToken.userId.toString() !== device.ownerId.toString()) {
-        const error = utils.buildError(403, 'INVALID_OWNER', "User doesn't own this device");
-        throw error;
-      }
-      device = await Device.findById(device.id);
+      const device = await Device.findById(deviceId);
       if (device && device !== null) {
+        if (ctx.req.accessToken.userId.toString() !== device.ownerId.toString()) {
+          const error = utils.buildError(401, 'INVALID_OWNER', "User doesn't own this device");
+          throw error;
+        }
         const attributes = {
           clientKey: utils.generateKey('client'),
           apiKey: utils.generateKey('apiKey'),
@@ -564,14 +900,9 @@ module.exports = function(Device) {
    * @param {string} deviceId - Device instance id
    * @returns {object}
    */
-  Device.getState = async (deviceId, options) => {
+  Device.getState = async deviceId => {
     try {
-      //  console.log('getstate, req : ', deviceId, options);
-      if (!options || !options.apikey) throw new Error('missing token');
-      if (!deviceId) throw new Error('missing device.id');
-      const tokenId = options.apikey.trim();
-      logger.publish(4, `${collectionName}`, 'getState:req', { deviceId, tokenId });
-
+      logger.publish(4, `${collectionName}`, 'getState:req', { deviceId });
       const device = await Device.findById(deviceId, {
         fields: {
           id: true,
@@ -584,21 +915,13 @@ module.exports = function(Device) {
       });
 
       if (device && device !== null) {
-        const authentification = await Device.authenticate(deviceId, tokenId);
-        if (authentification && authentification.keyType) {
-          return device;
-        }
-        // const foundToken = await device.accessTokens.findById(tokenId);
-        // //  console.log('getstate, token : ', tokenId, device.apiKey, foundToken);
-        // if (foundToken && foundToken !== null) {
-        //   return device;
-        // }
-        //  ctx.res.status(403);
-        return null;
+        logger.publish(4, `${collectionName}`, 'getState:res', device);
+        return device;
       }
-      //  ctx.res.status(404);
-      return null;
+      const error = utils.buildError(404, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
+      throw error;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'getState:err', error);
       throw error;
     }
   };
@@ -650,7 +973,7 @@ module.exports = function(Device) {
   };
 
   /**
-   * Find device related to incoming MQTT packet
+   * Find device and / or sensor related to incoming MQTT packet
    * @method module:Device.findByPattern
    * @param {object} pattern - IotAgent parsed pattern
    * @param {object} attributes - IotAgent parsed message
@@ -714,6 +1037,11 @@ module.exports = function(Device) {
           devAddr: { like: new RegExp(`.*${attributes.devAddr}.*`, 'i') },
         });
       }
+      if (attributes.ownerId && attributes.ownerId !== null) {
+        deviceFilter.include.scope.where.and.push({
+          ownerId: attributes.ownerId,
+        });
+      }
 
       const device = await Device.findOne(deviceFilter);
       if (!device || device === null || !device.id) {
@@ -736,23 +1064,130 @@ module.exports = function(Device) {
   };
 
   /**
-   * Dispatch incoming MQTT packet
-   * @method module:Device.onPublish
-   * @param {object} packet - MQTT bridge packet
-   * @param {object} client - MQTT client
-   * @param {object} pattern - Pattern detected by Iot-Agent
-   * @returns {functions} parseMessage
+   * Search device by address ( keyword )
+   * @method module:Device.search
+   * @param {object} filter - Requested filter
+   * @returns {array} devices
    */
-  Device.onPublish = async (packet, client, pattern) => {
+  Device.search = async filter => {
+    logger.publish(4, `${collectionName}`, 'search:req', filter);
     try {
-      if (!pattern || !pattern.params || !pattern.name || !client) {
-        const error = utils.buildError(403, 'INVALID_ARGS', 'Missing argument');
-        throw error;
+      if (!filter.text) return null;
+
+      filter.ownerType = 'Device';
+      filter.public = true;
+      // filter by ownerId if user role is not admin
+      let devices = await Device.find({
+        where: {
+          or: [
+            { name: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+            { fullAddress: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+          ],
+        },
+        include: 'address',
+        fields: {
+          id: true,
+          devEui: true,
+          apiKey: false,
+          clientKey: false,
+          frameCounter: true,
+          name: true,
+          fullAddress: true,
+          status: true,
+          icons: true,
+        },
+      });
+
+      if (!devices || devices === null) {
+        devices = [];
       }
-      logger.publish(4, `${collectionName}`, 'onPublish:res', pattern);
-      return parseMessage(Device.app, packet, pattern, client);
+      try {
+        const address = await Device.app.models.Address.verify(filter.text);
+        // console.log('address', address);
+        if (address) {
+          address.ownerType = filter.ownerType;
+          // address.public = filter.public;
+          const addresses = await Device.app.models.Address.search(address);
+          if (addresses.length > 0) {
+            const promises = await addresses.map(async addr =>
+              Device.findOne({
+                where: { id: addr.ownerId },
+                include: 'address',
+                fields: {
+                  id: true,
+                  devEui: true,
+                  apiKey: false,
+                  clientKey: false,
+                  frameCounter: true,
+                  name: true,
+                  fullAddress: true,
+                  status: true,
+                  icons: true,
+                },
+              }),
+            );
+            const moreDevices = await Promise.all(promises);
+            if (moreDevices && moreDevices !== null) {
+              devices.forEach(dev => {
+                const index = moreDevices.findIndex(d => d.id === dev.id);
+                if (index > -1) {
+                  moreDevices.splice(index, 1);
+                }
+              });
+              devices = [...moreDevices, ...devices];
+              console.log('DEVICES 2', devices);
+            }
+          }
+        }
+      } catch (error) {
+        logger.publish(4, `${collectionName}`, 'search:res', 'no address found');
+      }
+
+      logger.publish(4, `${collectionName}`, 'search:res', devices);
+      return devices;
     } catch (error) {
-      logger.publish(4, `${collectionName}`, 'onPublish:err', error);
+      logger.publish(2, `${collectionName}`, 'search:err', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Search devices by location ( GPS coordinates )
+   * @method module:Device.geoLocate
+   * @param {object} filter - Requested filter
+   * @returns {array} devices
+   */
+  Device.geoLocate = async filter => {
+    try {
+      logger.publish(4, `${collectionName}`, 'geoLocate:req', filter);
+      filter.ownerType = 'Device';
+      // filter.public = true;
+      const addresses = await Device.app.models.Address.geoLocate(filter);
+      let devices = [];
+      if (addresses.length > 0) {
+        const promises = await addresses.map(async address =>
+          Device.findOne({
+            where: { id: address.ownerId },
+            include: 'address',
+            fields: {
+              id: true,
+              devEui: true,
+              apiKey: false,
+              clientKey: false,
+              frameCounter: true,
+              name: true,
+              fullAddress: true,
+              status: true,
+              icons: true,
+            },
+          }),
+        );
+        devices = await Promise.all(promises);
+      }
+      logger.publish(4, `${collectionName}`, 'geoLocate:res', devices);
+      return devices;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'geoLocate:err', error);
       throw error;
     }
   };
@@ -836,6 +1271,81 @@ module.exports = function(Device) {
   };
 
   /**
+   * Endpoint for device authentification with APIKey
+   *
+   * @method module:Device.authenticate
+   * @param {any} deviceId
+   * @param {string} key
+   * @returns {string} matched The matching key; one of:
+   * - clientKey
+   * - apiKey
+   * - javaScriptKey
+   * - restApiKey
+   * - windowsKey
+   * - masterKey
+   */
+  Device.authenticate = async (deviceId, key) => {
+    try {
+      const device = await Device.findById(deviceId);
+      if (!device || device === null) {
+        return null;
+        // const error = utils.buildError(404, 'DEVICE_NOTFOUND', 'Wrong device');
+        // throw error;
+      }
+      let result = null;
+      const keyNames = [
+        'clientKey',
+        'apiKey',
+        // 'javaScriptKey',
+        // 'restApiKey',
+        // 'windowsKey',
+        // 'masterKey',
+      ];
+      keyNames.forEach(k => {
+        if (device[k] && device[k] === key) {
+          result = {
+            device,
+            keyType: k,
+          };
+        }
+      });
+      if (!result.device || !result.keyType) {
+        const error = utils.buildError(403, 'UNAUTHORIZED', 'Wrong key used');
+        throw error;
+      }
+      logger.publish(4, `${collectionName}`, 'authenticate:res', result);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  /**
+   * Dispatch incoming MQTT packet
+   * @method module:Device.onPublish
+   * @param {object} packet - MQTT bridge packet
+   * @param {object} pattern - Pattern detected by Iot-Agent
+   * @param {object} client - MQTT client
+   * @returns {functions} parseMessage
+   */
+  Device.onPublish = async (packet, pattern, client) => {
+    try {
+      logger.publish(4, `${collectionName}`, 'onPublish:req', pattern);
+      if (!pattern || !pattern.params || !pattern.name || !client || !packet || !packet.topic) {
+        const error = utils.buildError(403, 'INVALID_ARGS', 'Missing argument');
+        throw error;
+      }
+      // limit access base on client props ?
+
+      // logger.publish(4, `${collectionName}`, 'onPublish:res', pattern);
+      return parseMessage(Device.app, packet, pattern, client);
+    } catch (error) {
+      logger.publish(4, `${collectionName}`, 'onPublish:err', error);
+      throw error;
+    }
+  };
+
+  /**
    * When device found, execute method extracted from MQTT topic
    * @param {object} device - found Device instance
    * @param {string} method - MQTT API method
@@ -883,9 +1393,19 @@ module.exports = function(Device) {
       }
       return device;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
+
+  /**
+   * Update OTA if a firmware is available
+   * @method module:Device.getOTAUpdate
+   * @param {object} ctx - Loopback context
+   * @param {string} deviceId - Device instance id
+   * @param {string} [version] - Firmware version requested
+   * @returns {function} updateFirmware
+   */
+  Device.getOTAUpdate = async (ctx, deviceId, version) => updateFirmware(ctx, deviceId, version);
 
   /**
    * Event reporting that an device client connection status has changed.
@@ -931,7 +1451,7 @@ module.exports = function(Device) {
         return Device.execute(device, pattern.params.method, client);
       }
       if (!packet) throw new Error('Message missing packet');
-      return Device.onPublish(packet, client, pattern);
+      return Device.onPublish(packet, pattern, client);
     } catch (error) {
       return error;
     }
@@ -956,7 +1476,7 @@ module.exports = function(Device) {
    * @param {object} ctx.instance - Device instance
    * @returns {function} beforeSave
    */
-  Device.observe('before save', beforeSave);
+  Device.observe('before save', onBeforeSave);
 
   /**
    * Event reporting that a device instance has been created or updated.
@@ -967,10 +1487,10 @@ module.exports = function(Device) {
    * @param {object} ctx.instance - Device instance
    * @returns {function} afterSave
    */
-  Device.observe('after save', afterSave);
+  Device.observe('after save', onAfterSave);
 
   /**
-   * Event reporting that a / several device instance(s) will be deleted.
+   * Event reporting that one or several device instance(s) will be deleted.
    * @event before delete
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
@@ -978,13 +1498,7 @@ module.exports = function(Device) {
    * @param {object} ctx.where.id - Device instance
    * @returns {function} beforeDelete
    */
-  Device.observe('before delete', beforeDelete);
-
-  Device.afterRemoteError('*', async ctx => {
-    logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, '');
-    // publish on collectionName/ERROR
-    return ctx;
-  });
+  Device.observe('before delete', onBeforeDelete);
 
   /**
    * Event reporting that a device instance / collection is requested
@@ -994,376 +1508,23 @@ module.exports = function(Device) {
    * @param {object} ctx.res - Response
    * @returns {object} ctx
    */
-  Device.beforeRemote('**', async ctx => {
-    try {
-      if (ctx.req.headers.apikey) ctx.args.options.apikey = ctx.req.headers.apikey;
-      if (ctx.req.headers.appId) ctx.args.options.appId = ctx.req.headers.appId;
-      if (ctx.req.headers.devEui) ctx.args.options.devEui = ctx.req.headers.devEui;
-      if (
-        ctx.method.name.indexOf('find') !== -1 ||
-        ctx.method.name.indexOf('__get') !== -1 ||
-        ctx.method.name.indexOf('get') !== -1
-      ) {
-        logger.publish(4, `${collectionName}`, 'beforeFind:req', {
-          query: ctx.req.query,
-          params: ctx.req.params,
-        });
+  Device.beforeRemote('**', async ctx => onBeforeRemote(Device.app, ctx));
 
-        let getSensors = false;
-        let result;
+  // Device.afterRemote('**', async ctx => {
+  //   try {
+  //     if (ctx.method.name === 'authenticate') {
+  //       ctx.req.headers.apiKey = ctx.args.apiKey;
+  //       ctx.req.headers.deviceid = ctx.args.deviceId;
+  //     }
+  //     return ctx;
+  //   } catch (error) {
+  //     return error;
+  //   }
+  // });
 
-        if (ctx.method.name.startsWith('__get')) {
-          const methodParts = ctx.method.name.split('__');
-          const modelName = methodParts[2];
-          const params = ctx.req.params;
-          //  console.log('[DEVICE] beforeRemote get:req', modelName, params);
-          if (modelName === 'sensors' && params && params.id) {
-            getSensors = true;
-            const id = params.id;
-            const device = await Device.findById(id);
-            result = [JSON.parse(JSON.stringify(device))];
-          }
-        }
-
-        if (ctx.req.query.filter) {
-          const whereFilter = JSON.parse(ctx.req.query.filter);
-          //  console.log('[DEVICE] beforeRemote get:req', whereFilter);
-          if (whereFilter.include) {
-            if (typeof whereFilter.include === 'object') {
-              const index = whereFilter.include.indexOf('sensors');
-              getSensors = true;
-              if (index !== -1) {
-                whereFilter.include.splice(index, 1);
-              }
-            } else if (typeof whereFilter.include === 'string') {
-              if (whereFilter.include.search('sensor') !== -1) {
-                getSensors = true;
-                delete whereFilter.include;
-              }
-            } else if (
-              whereFilter.include.relation &&
-              typeof whereFilter.include.relation === 'string'
-            ) {
-              if (whereFilter.include.relation.search('sensor') !== -1) {
-                getSensors = true;
-                delete whereFilter.include;
-              }
-            }
-            // console.log('query filter: res', whereFilter);
-          }
-
-          if (whereFilter && whereFilter.id) {
-            const id = whereFilter.where.id;
-            const device = await Device.findById(id);
-            result = [JSON.parse(JSON.stringify(device))];
-          } else if (whereFilter.where && whereFilter.where.ownerId) {
-            const devices = await Device.find(whereFilter);
-            result = JSON.parse(JSON.stringify(devices));
-          }
-        }
-        //  console.log('result', result.length);
-        if (result && getSensors) {
-          const promises = await result.map(Device.app.models.SensorResource.includeCache);
-          result = await Promise.all(promises);
-          ctx.result = result;
-        } else if (result) {
-          ctx.result = result;
-        }
-        //  logger.publish(4, `${collectionName}`, 'beforeFind:res', ctx.result.length);
-        return ctx;
-      }
-      return ctx;
-    } catch (error) {
-      return error;
-    }
-  });
-
-  /**
-   * Endpoint for device authentification with APIKey
-   *
-   * @method module:Device.authenticate
-   * @param {any} deviceId
-   * @param {string} key
-   * @returns {string} matched The matching key; one of:
-   * - clientKey
-   * - apiKey
-   * - javaScriptKey
-   * - restApiKey
-   * - windowsKey
-   * - masterKey
-   */
-  Device.authenticate = async (deviceId, key) => {
-    try {
-      const device = await Device.findById(deviceId);
-      if (!device || device instanceof Error) {
-        throw new Error(' Cannot authenticate device');
-      }
-      let result = null;
-      const keyNames = [
-        'clientKey',
-        'apiKey',
-        // 'javaScriptKey',
-        // 'restApiKey',
-        // 'windowsKey',
-        // 'masterKey',
-      ];
-      keyNames.forEach(k => {
-        if (device[k] && device[k] === key) {
-          result = {
-            device,
-            keyType: k,
-          };
-        }
-      });
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  /**
-   * Update OTA if a firmware is available
-   * @method module:Device.getOTAUpdate
-   * @param {object} ctx - Loopback context
-   * @param {string} deviceId - Device instance id
-   * @param {string} [version] - Firmware version requested
-   * @returns {object}
-   */
-  Device.getOTAUpdate = async (ctx, deviceId, version) => {
-    try {
-      const checkHeader = (headers, key, value = false) => {
-        if (!headers[key]) {
-          return false;
-        }
-        if (value && headers[key] !== value) {
-          return false;
-        }
-        return true;
-      };
-
-      const headers = ctx.req.headers;
-      console.log('headers', headers);
-
-      if (checkHeader(headers, 'user-agent', 'ESP8266-http-Update')) {
-        if (
-          !checkHeader(headers, 'x-esp8266-sta-mac') ||
-          !checkHeader(headers, 'x-esp8266-ap-mac') ||
-          !checkHeader(headers, 'x-esp8266-free-space') ||
-          !checkHeader(headers, 'x-esp8266-sketch-size') ||
-          !checkHeader(headers, 'x-esp8266-sketch-md5') ||
-          !checkHeader(headers, 'x-esp8266-chip-size') ||
-          !checkHeader(headers, 'x-esp8266-sdk-version') ||
-          !checkHeader(headers, 'x-esp8266-mode')
-        ) {
-          ctx.res.status(403);
-          console.log('invalid ESP8266 header');
-          throw new Error('invalid ESP8266 header');
-        }
-
-        const devEui = headers['x-esp8266-sta-mac'].split(':').join('');
-        const filter = {
-          where: {
-            or: [
-              { id: deviceId },
-              {
-                devEui: {
-                  like: new RegExp(`.*${devEui}.*`, 'i'),
-                },
-              },
-            ],
-          },
-        };
-        const device = await Device.findOne(filter);
-        //  const device = await Device.findById(deviceId);
-        //  console.log('#device ', device);
-        if (!device || device === null) {
-          throw utils.buildError(404, 'NOT_FOUND', 'No device found');
-        }
-        // const token = await device.accessTokens.findById(device.apiKey);
-        // // console.log('getstate, token : ', token);
-        // if (!token || token !== null) {
-        //   ctx.res.status(403);
-        //   throw new Error('No valid token found');
-        // }
-        console.log('devEui', devEui, device.devEui);
-        ctx.res.set('Content-Type', `application/octet-stream`);
-        // look for meta containing firmware tag ?
-        //  const fileFilter = { where: { role: {like: new RegExp(`.*firmware.*`, 'i')} } };
-        // const fileFilter = { where: { name: { like: new RegExp(`.*bin.*`, 'i') } } };
-        // const fileMeta = await device.files.findOne(fileFilter);
-
-        const fileFilter = {
-          where: {
-            and: [
-              { ownerId: device.ownerId.toString() },
-              { name: { like: new RegExp(`.*bin.*`, 'i') } },
-              { name: { like: new RegExp(`.*${device.id}.*`, 'i') } },
-            ],
-          },
-        };
-
-        const fileMeta = await Device.app.models.files.findOne(fileFilter);
-        //  const fileMeta = await device.files.findOne(fileFilter);
-
-        if (version && fileMeta.version && fileMeta.version === version) {
-          throw utils.buildError(304, 'UNCHANGED', 'already up to date');
-        }
-        ctx.res.set('Content-Disposition', `attachment; filename=${fileMeta.name}`);
-
-        //  const readStream = Device.app.models.container.downloadStream(device.id.toString(), fileMeta.name);
-        const readStream = Device.app.models.container.downloadStream(
-          device.id.toString(),
-          fileMeta.name,
-        );
-        const md5sum = crypto.createHash('md5');
-
-        const endStream = new Promise((resolve, reject) => {
-          const bodyChunks = [];
-          readStream.on('data', d => {
-            bodyChunks.push(d);
-            md5sum.update(d);
-          });
-          readStream.on('end', () => {
-            const hash = md5sum.digest('hex');
-            const body = Buffer.concat(bodyChunks);
-            //  console.log('#hash ', hash, headers['x-esp8266-sketch-md5']);
-            // console.log('file', file);
-            ctx.res.set('Content-Length', readStream.bytesRead);
-            ctx.res.status(200);
-            ctx.res.set('x-MD5', hash);
-            resolve(body);
-          });
-          readStream.on('error', reject);
-        });
-
-        const result = await endStream;
-        if (result && !(result instanceof Error)) {
-          return result;
-        }
-        throw utils.buildError(304, 'ERROR_STREAMING', 'Error while reading stream');
-      }
-      throw utils.buildError(403, 'WRONG_TARGET', 'only for ESP8266 updater');
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  /**
-   * Helper for device search
-   * @method module:Device~findDevice
-   * @param {object} whereFilter - Device filter
-   * @returns {promise} Device.find
-   */
-  const findDevice = async whereFilter =>
-    new Promise((resolve, reject) => {
-      Device.find(whereFilter, (err, devices) => (err ? reject(err) : resolve(devices)));
-    });
-
-  /**
-   * Search device by location ( keyword )
-   * @method module:Device.search
-   * @param {object} filter - Requested filter
-   * @returns {array} devies
-   */
-  Device.search = async (ctx, filter) => {
-    logger.publish(4, `${collectionName}`, 'search:req', filter);
-    try {
-      if (!ctx.req.accessToken.userId || !filter.place) {
-        throw new Error('Invalid request');
-      }
-      let whereFilter;
-      if (filter.place && filter.place !== null) {
-        whereFilter = {
-          where: {
-            fullAddress: {
-              like: new RegExp(`.*${filter.place}.*`, 'i'),
-            },
-          },
-          include: 'deviceAddress',
-        };
-      } else {
-        throw new Error('No place selected');
-      }
-      const devices = await findDevice(whereFilter);
-      logger.publish(2, `${collectionName}`, 'search:res', devices);
-      return devices;
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'search:err', error);
-      throw error;
-    }
-  };
-
-  /**
-   * Helper for reverse geocoding
-   * @method module:Device~findAddresses
-   * @param {object} filter - Device location filter
-   * @returns {promise} Device.app.models.Address.find
-   */
-  const findAddresses = async filter =>
-    new Promise((resolve, reject) => {
-      Device.app.models.Address.find(
-        {
-          where: {
-            public: true,
-            coordinates: {
-              near: filter.location,
-              maxDistance: filter.maxDistance,
-              unit: filter.unit,
-            },
-          },
-        },
-        (err, addresses) => (err ? reject(err) : resolve(addresses)),
-      );
-    });
-
-  /**
-   * Search device by location ( GPS coordinates )
-   * @method module:Device.geoLocate
-   * @param {object} filter - Requested filter
-   * @returns {array} deviceAddresses
-   */
-  Device.geoLocate = async filter => {
-    try {
-      logger.publish(4, `${collectionName}`, 'geoLocate:req', filter);
-      const addresses = await findAddresses(filter);
-      //  logger.publish(4, `${collectionName}`, 'geoLocate:res', addresses);
-      if (!addresses) {
-        throw new Error('No match found');
-      }
-      const deviceAddresses = await addresses.filter(address => address.deviceId);
-      let devices = [];
-      logger.publish(4, `${collectionName}`, 'geoLocate:res', deviceAddresses);
-      if (deviceAddresses.length > 0) {
-        devices = await utils.composeGeoLocateResult(collectionName, deviceAddresses);
-      }
-      return devices;
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'geoLocate:err', error);
-      throw error;
-    }
-  };
-
-  const tick = async data => {
-    try {
-      logger.publish(4, `${collectionName}`, 'tick:res', data.time);
-      const devices = await Device.syncCache('UP');
-      return devices;
-    } catch (error) {
-      return error;
-    }
-  };
-
-  Device.setClock = interval => {
-    if (Device.timer && Device.timer !== null) {
-      Device.timer.stop();
-    }
-    Device.timer = new DeltaTimer(tick, {}, interval);
-    Device.start = Device.timer.start();
-    return Device.timer;
-  };
-
-  Device.once('attached', () => {
-    // const clockInterval = 5 * 60000;
-    // Device.setClock(clockInterval);
+  Device.afterRemoteError('*', async ctx => {
+    logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, '');
+    // publish on collectionName/ERROR
+    return ctx;
   });
 };

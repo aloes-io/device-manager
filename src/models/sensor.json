@@ -176,7 +176,7 @@
       "principalType": "ROLE",
       "principalId": "$authenticated",
       "permission": "ALLOW",
-      "property": ["create", "exists", "findById", "__get__measurements"]
+      "property": ["create", "exists", "onPublish", "findById", "__get__measurements"]
     },
     {
       "accessType": "*",
@@ -224,6 +224,40 @@
       "http": {
         "verb": "post",
         "path": "/compose"
+      }
+    },
+    "onPublish": {
+      "description": ["MQTT piping to Sensor model"],
+      "accepts": [
+        {
+          "arg": "device",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "attributes",
+          "type": "object",
+          "required": false
+        },
+        {
+          "arg": "sensor",
+          "type": "object",
+          "required": false
+        },
+        {
+          "arg": "client",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "sensor",
+        "type": "object",
+        "root": true
+      },
+      "http": {
+        "verb": "post",
+        "path": "/on-publish"
       }
     },
     "handlePresentations": {

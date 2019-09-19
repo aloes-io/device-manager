@@ -3,7 +3,6 @@ import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
 import testHelper from '../services/test-helper';
 
-require('@babel/register');
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
@@ -15,11 +14,10 @@ const sensorTest = () => {
   const collectionName = 'Sensors';
   const apiUrl = `/api/${collectionName}/`;
 
-  return describe(collectionName, () => {
+  describe(collectionName, () => {
     const DeviceModel = app.models.Device;
     const SensorModel = app.models.Sensor;
-
-    let devices, sensors, userIds;
+    let users, devices, sensors, userIds;
 
     const profiles = {
       admin: {
@@ -36,8 +34,8 @@ const sensorTest = () => {
       [`[TEST] ${collectionName} E2E Tests`]: {
         async before() {
           try {
-            this.timeout(5000);
-            const users = await Promise.all([
+            this.timeout(7000);
+            users = await Promise.all([
               testHelper.access.admin.create(app),
               testHelper.access.user.create(app),
             ]);
@@ -55,6 +53,7 @@ const sensorTest = () => {
               devices = res.map(model => model.toJSON());
               return res;
             });
+
             const sensorModels = Array(5)
               .fill('')
               .map((_, index) => {
@@ -64,12 +63,13 @@ const sensorTest = () => {
                 return sensorFactory(index + 1, devices[1], userIds[1]);
               });
             // console.log('CREATED SENSORS MODELS ', sensorModels);
-            return SensorModel.create(sensorModels).then(res => {
+            await SensorModel.create(sensorModels).then(res => {
               sensors = res.map(model => model.toJSON());
               return res;
             });
+            return sensors;
           } catch (error) {
-            console.log('[TEST] Sensors before:err', error);
+            console.log(`[TEST] ${collectionName} before:err`, error);
             return error;
           }
         },
@@ -81,7 +81,6 @@ const sensorTest = () => {
             SensorModel.destroyAll(),
             DeviceModel.destroyAll(),
             app.models.user.destroyAll(),
-            // process.kill(process.pid, 'SIGINT'),
           ]),
         tests: {
           '[TEST] Verifying "Create" access': {
@@ -208,6 +207,39 @@ const sensorTest = () => {
                 verb: 'delete',
                 auth: profiles.admin,
                 url: () => `${apiUrl}${sensors[4].id}`,
+                expect: 200,
+              },
+            ],
+          },
+          '[TEST] Verifying "Publish" access': {
+            tests: [
+              {
+                name: 'everyone CANNOT publish',
+                verb: 'post',
+                url: () => `${apiUrl}on-publish`,
+                body: () => ({
+                  device: { ...devices[2] },
+                  sensor: { ...sensors[0], value: 10, lastSignal: new Date() },
+                  client: {
+                    id: users[1].id,
+                    user: users[1].id,
+                  },
+                }),
+                expect: 401,
+              },
+              {
+                name: 'User CAN publish',
+                verb: 'post',
+                auth: profiles.user,
+                url: () => `${apiUrl}on-publish`,
+                body: () => ({
+                  device: { ...devices[2] },
+                  sensor: { ...sensors[0], value: 10, lastSignal: new Date() },
+                  client: {
+                    id: users[1].id,
+                    user: users[1].id,
+                  },
+                }),
                 expect: 200,
               },
             ],

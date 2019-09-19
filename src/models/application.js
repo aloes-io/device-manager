@@ -411,6 +411,10 @@ module.exports = Application => {
           };
         }
       });
+      if (!result.application || !result.keyType) {
+        const error = utils.buildError(403, 'UNAUTHORIZED', 'Wrong key used');
+        throw error;
+      }
       return result;
     } catch (error) {
       return error;

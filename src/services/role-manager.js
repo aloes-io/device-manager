@@ -25,7 +25,6 @@ roleManager.setAppRoles = async (app, roles) => {
       const role = await app.models.Role.findOrCreate({ where: obj }, obj);
       return role[0];
     });
-    // const savedRoles = await app.models.Role.create(rolesToCreate);
     const savedRoles = await Promise.all(promises);
     // cache role name for quick mapping
     savedRoles.forEach(role => {
@@ -68,7 +67,6 @@ roleManager.getUserRoles = (app, userId) =>
 roleManager.getUserRoleNames = async (app, userId) => {
   try {
     const userRolesIds = await roleManager.getUserRoles(app, userId);
-    // console.log('userRolesIds', userRolesIds);
     return userRolesIds.map(role => appRolesById[role] || role);
   } catch (error) {
     return null;
@@ -95,7 +93,7 @@ roleManager.setUserRole = async (app, userId, roleName, reset = false) => {
         return;
       }
       const appRoles = await roleManager.getAppRoles();
-      console.log('APP ROLES', appRoles);
+      // console.log('APP ROLES', appRoles);
       const roleToRevoke = roles.find(role => appRoles.includes(role));
       // call self without the reset
       const setRoleNoReset = async () => roleManager.setUserRole(app, userId, roleName);

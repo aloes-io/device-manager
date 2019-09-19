@@ -23,7 +23,7 @@ module.exports = {
       {
         type: 'smtp',
         host: process.env.SMTP_HOST,
-        secure: process.env.SMTP_SECURE,
+        secure: Boolean(process.env.SMTP_SECURE),
         port: Number(process.env.SMTP_PORT),
         auth: {
           user: process.env.SMTP_USER,
@@ -117,27 +117,5 @@ module.exports = {
     root: process.env.FS_PATH || './storage',
     nameConflict: 'makeUnique',
     maxFileSize: '10428800',
-  },
-  coinhive: {
-    name: 'coinhive',
-    connector: 'rest',
-    debug: true,
-    operations: [
-      {
-        template: {
-          method: 'POST',
-          url: 'https://api.coinhive.com/{path}',
-          headers: {
-            accept: 'application/json',
-            'content-type': 'application/x-www-form-urlencoded',
-          },
-          body: '{body}',
-        },
-        functions: {
-          verifyCaptcha: ['path', 'body'],
-          createLink: ['path', 'body'],
-        },
-      },
-    ],
   },
 };

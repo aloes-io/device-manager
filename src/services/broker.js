@@ -818,7 +818,7 @@ broker.init = () => {
   }
 };
 
-setTimeout(() => broker.init(), 1500);
+setTimeout(() => broker.init(), 2500);
 
 nodeCleanup((exitCode, signal) => {
   try {

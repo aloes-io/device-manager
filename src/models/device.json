@@ -111,6 +111,10 @@
       "type": "array",
       "description": "A list of client ids authentified as this device",
       "default": []
+    },
+    "public": {
+      "type": "boolean",
+      "default": false
     }
   },
   "indexes": {},
@@ -181,7 +185,26 @@
         "replaceById",
         "destroyById",
         "deleteById",
-        "delete"
+        "delete",
+        "onPublish",
+        "__get__address",
+        "__update__address",
+        "__get__sensors",
+        "__findById__sensors",
+        "__updateById__sensors",
+        "__destroyById__sensors",
+        "__get__collaborators",
+        "__create__collaborators",
+        "__add__collaborators",
+        "__findById__collaborators",
+        "__updateById__collaborators",
+        "__destroyById__collaborators",
+        "__get__applications",
+        "__create__applications",
+        "__add__applications",
+        "__findById__applications",
+        "__updateById__applications",
+        "__destroyById__applications"
       ]
     },
     {
@@ -195,7 +218,7 @@
       "principalType": "ROLE",
       "principalId": "$everyone",
       "permission": "ALLOW",
-      "property": ["getState", "getOTAUpdate"]
+      "property": ["updateStatus", "authenticate", "getState", "getOTAUpdate"]
     },
     {
       "accessType": "*",
@@ -205,14 +228,12 @@
       "property": [
         "create",
         "find",
-        "findById",
         "exists",
         "search",
+        "refreshToken",
         "geoLocate",
-        "__create__address",
-        "__get__address",
-        "__get__sensors",
-        "__findById__sensors"
+        "onPublish",
+        "__get__address"
       ]
     },
     {
@@ -221,7 +242,6 @@
       "principalId": "$collaborator",
       "permission": "ALLOW",
       "property": [
-        "create",
         "findById",
         "replaceById",
         "replaceOrCreate",
@@ -244,16 +264,11 @@
         "updateById",
         "updateAttributes",
         "patchAttributes",
-        "upsert",
         "exists",
-        "delete",
-        "refreshToken",
-        "find",
         "findById",
+        "find",
         "__get__address",
-        "__create__address",
         "__update__address",
-        "__destroy__address",
         "__get__sensors",
         "__findById__sensors",
         "__updateById__sensors",
@@ -278,35 +293,58 @@
       "description": ["MQTT piping to Device model"],
       "accepts": [
         {
+          "arg": "packet",
+          "type": "object",
+          "required": true
+        },
+        {
           "arg": "pattern",
           "type": "object",
           "required": true
         },
         {
-          "arg": "packet",
+          "arg": "client",
           "type": "object",
-          "required": true
+          "required": false
         }
       ],
       "returns": {
-        "arg": "result",
-        "type": "object"
+        "arg": "device",
+        "type": "object",
+        "root": true
       },
       "http": {
         "verb": "post",
         "path": "/on-publish"
       }
     },
-    "search": {
-      "description": ["Call the text search intern method"],
+    "updateStatus": {
+      "description": ["Update MQTT client attached to a device"],
       "accepts": [
         {
-          "arg": "ctx",
+          "arg": "client",
           "type": "object",
-          "http": {
-            "source": "context"
-          }
+          "required": true
         },
+        {
+          "arg": "status",
+          "type": "boolean",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "device",
+        "type": "object",
+        "root": true
+      },
+      "http": {
+        "verb": "post",
+        "path": "/update-status"
+      }
+    },
+    "search": {
+      "description": ["Find devices find address properties"],
+      "accepts": [
         {
           "arg": "filter",
           "type": "object",
@@ -315,7 +353,8 @@
       ],
       "returns": {
         "arg": "devices",
-        "type": "array"
+        "type": "array",
+        "root": true
       },
       "http": {
         "verb": "post",
@@ -323,7 +362,7 @@
       }
     },
     "geoLocate": {
-      "description": ["Find user by geopoint in coordinates property"],
+      "description": ["Find device by geopoint in coordinates property"],
       "accepts": [
         {
           "arg": "filter",
@@ -333,7 +372,8 @@
       ],
       "returns": {
         "arg": "devices",
-        "type": "array"
+        "type": "array",
+        "root": true
       },
       "http": {
         "verb": "post",
@@ -351,8 +391,8 @@
           }
         },
         {
-          "arg": "device",
-          "type": "object",
+          "arg": "deviceId",
+          "type": "string",
           "required": true
         }
       ],
@@ -362,7 +402,7 @@
       },
       "http": {
         "verb": "post",
-        "path": "/refresh-token"
+        "path": "/refresh-token/:deviceId"
       }
     },
     "authenticate": {

@@ -56,7 +56,7 @@
   },
   "Address": {
     "dataSource": "db",
-    "public": false
+    "public": true
   },
   "Application": {
     "dataSource": "db",

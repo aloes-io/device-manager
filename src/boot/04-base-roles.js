@@ -8,7 +8,7 @@ module.exports = async function createBaseRoles(app) {
     logger.publish(4, 'loopback', 'boot:createBaseRoles:res', roles);
     return roles;
   } catch (error) {
-    logger.publish(3, 'loopback', 'boot:createBaseRoles:err', error);
-    return error;
+    logger.publish(2, 'loopback', 'boot:createBaseRoles:err', error);
+    throw error;
   }
 };

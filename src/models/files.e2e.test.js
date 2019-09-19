@@ -3,23 +3,22 @@ import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
 import testHelper from '../services/test-helper';
 
-require('@babel/register');
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
 
 function fileTest() {
   const collectionName = 'Files';
+  const fileFactory = testHelper.factories.file;
+  const fileMetaFactory = testHelper.factories.fileMeta;
 
-  describe(collectionName, () => {
-    console.log('test is started', app.models.files);
+  describe(collectionName, function() {
+    this.timeout(4000);
     const FileModel = app.models.files;
-    const fileFactory = testHelper.factories.file;
-    const fileMetaFactory = testHelper.factories.fileMeta;
     const loginUrl = '/api/Users/login';
     const apiUrl = `/api/${collectionName}/`;
 
-    let defaultFile, filesMeta, userIds;
+    let defaultFile, formData, formDataBody, formDataHeaders, filesMeta, userIds;
 
     const profiles = {
       admin: {
@@ -36,15 +35,18 @@ function fileTest() {
       [`[TEST] ${collectionName} E2E Tests`]: {
         async before() {
           try {
-            this.timeout(7000);
+            this.timeout(9000);
             const result = await Promise.all([
               testHelper.access.admin.create(app),
               testHelper.access.user.create(app),
               fileFactory(),
+              fileFactory('formdata'),
             ]);
             userIds = [result[0].id, result[1].id];
             defaultFile = result[2];
-
+            formData = result[3];
+            formDataHeaders = formData.getHeaders();
+            formDataBody = formData.getBuffer();
             filesMeta = await Promise.all([
               FileModel.uploadBuffer(defaultFile, userIds[0], 'test1.png'),
               FileModel.uploadBuffer(defaultFile, userIds[1], 'test1.png'),
@@ -52,7 +54,7 @@ function fileTest() {
             ]);
             return filesMeta;
           } catch (error) {
-            console.log('[TEST] Files before:err', error);
+            console.log(`[TEST] ${collectionName} before:err`, error);
             return error;
           }
         },
@@ -88,7 +90,7 @@ function fileTest() {
           '[TEST] Verifying "Upload" access': {
             tests: [
               {
-                name: 'everyone CANNOT upload',
+                name: 'everyone CANNOT upload buffer',
                 verb: 'post',
                 url: () => `${apiUrl}${userIds[1]}/upload-buffer/test.png`,
                 headers: {
@@ -98,10 +100,33 @@ function fileTest() {
                 expect: 401,
               },
               {
-                name: 'user CAN upload',
+                name: 'user CAN upload formdata',
+                steps: [
+                  {
+                    verb: 'post',
+                    url: () => `${loginUrl}`,
+                    body: profiles.user,
+                    expect: 200,
+                  },
+                  step0Response => ({
+                    url: () => `${apiUrl}${userIds[1]}/upload/test.png`,
+                    verb: 'post',
+                    body: formDataBody,
+                    headers: {
+                      ...formDataHeaders,
+                      'accept-encoding': 'gzip, deflate',
+                      'user-agent': 'node-superagent/3.8.3',
+                      authorization: step0Response.body.id.toString(),
+                    },
+                    expect: 200,
+                  }),
+                ],
+              },
+              {
+                name: 'user CAN upload buffer',
                 verb: 'post',
                 auth: profiles.user,
-                url: () => `${apiUrl}${userIds[1]}/upload-buffer/test.png`,
+                url: () => `${apiUrl}${userIds[1]}/upload-buffer/test1.png`,
                 headers: {
                   'Content-Type': 'application/octet-stream',
                 },
@@ -109,7 +134,7 @@ function fileTest() {
                 expect: 200,
               },
               {
-                name: 'admin CAN upload',
+                name: 'admin CAN upload buffer',
                 verb: 'post',
                 auth: profiles.admin,
                 url: () => `${apiUrl}${userIds[0]}/upload-buffer/test.png`,
@@ -160,10 +185,39 @@ function fileTest() {
                 expect: 401,
               },
               {
+                name: 'user CAN download ( from formadata upload )',
+                steps: [
+                  {
+                    verb: 'post',
+                    url: () => `${loginUrl}`,
+                    body: profiles.user,
+                    expect: 200,
+                  },
+                  step0Response => ({
+                    url: () => `${apiUrl}${userIds[1]}/upload/test4.png`,
+                    verb: 'post',
+                    body: formDataBody,
+                    headers: {
+                      ...formDataHeaders,
+                      'accept-encoding': 'gzip, deflate',
+                      'user-agent': 'node-superagent/3.8.3',
+                      authorization: step0Response.body.id.toString(),
+                    },
+                    expect: 200,
+                  }),
+                  step1Response => ({
+                    url: () => `${step1Response.body.url}`,
+                    verb: 'get',
+                    auth: profiles.user,
+                    expect: 200,
+                  }),
+                ],
+              },
+              {
                 name: 'user CAN download',
                 verb: 'get',
                 auth: profiles.user,
-                url: () => `${apiUrl}${userIds[1]}/download/test.png`,
+                url: () => `${apiUrl}${userIds[1]}/download/test1.png`,
                 expect: 200,
               },
               {

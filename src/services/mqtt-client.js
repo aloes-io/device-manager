@@ -306,28 +306,13 @@ MQTTClient.init = async (app, config) => {
       logger.publish(4, 'mqtt-client', 'error', err);
     });
 
-    mqttClient.on('connect', async packet => {
-      try {
-        logger.publish(4, 'mqtt-client', 'connect:req', packet);
-        // MQTTClient.id = clientId;
-        return packet;
-      } catch (error) {
-        logger.publish(4, 'mqtt-client', 'connect:err', error);
-        return error;
-      }
+    mqttClient.on('connect', packet => {
+      logger.publish(4, 'mqtt-client', 'connect:req', packet);
+      // MQTTClient.id = clientId;
     });
 
-    mqttClient.on('offline', async packet => {
-      try {
-        logger.publish(4, 'mqtt-client', 'offline:req', packet);
-        // delete MQTTClient.id;
-        // await mqttClient.unsubscribe(`aloes-${process.env.ALOES_ID}/sync`);
-        // await mqttClient.unsubscribe(`${clientId}/status`);
-        // await mqttClient.unsubscribe(`${clientId}/rx/#`);
-        return packet;
-      } catch (error) {
-        return error;
-      }
+    mqttClient.on('offline', packet => {
+      logger.publish(4, 'mqtt-client', 'offline:req', packet);
     });
 
     mqttClient.on('message', async (topic, payload) => onMessage(app, topic, payload));
