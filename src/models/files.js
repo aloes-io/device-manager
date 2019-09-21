@@ -444,7 +444,7 @@ module.exports = function(Files) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} user - Files new instance
-   * @returns {function} beforeSave
+   * @returns {function} onBeforeSave
    */
   Files.observe('before save', onBeforeSave);
 
@@ -455,7 +455,7 @@ module.exports = function(Files) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - File meta instance
-   * @returns {function} beforeDelete
+   * @returns {function} onBeforeDelete
    */
   Files.observe('before delete', onBeforeDelete);
 
@@ -465,7 +465,7 @@ module.exports = function(Files) {
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @returns {object} ctx
+   * @returns {function} onBeforeRemote
    */
   Files.beforeRemote('**', onBeforeRemote);
 };

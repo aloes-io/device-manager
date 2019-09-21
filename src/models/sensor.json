@@ -162,6 +162,8 @@
         "create",
         "find",
         "findById",
+        "count",
+        "exists",
         "patchAttributes",
         "updateAttributes",
         "replaceAttributes",
@@ -176,7 +178,15 @@
       "principalType": "ROLE",
       "principalId": "$authenticated",
       "permission": "ALLOW",
-      "property": ["create", "exists", "onPublish", "findById", "__get__measurements"]
+      "property": [
+        "create",
+        "count",
+        "exists",
+        "search",
+        "onPublish",
+        "findById",
+        "__get__measurements"
+      ]
     },
     {
       "accessType": "*",
@@ -194,6 +204,7 @@
         "upsert",
         "exists",
         "findById",
+        "count",
         "delete",
         "__get__measurements",
         "__create__measurements",
@@ -331,6 +342,25 @@
       "http": {
         "verb": "post",
         "path": "/get-instance"
+      }
+    },
+    "search": {
+      "description": ["Find sensors from properties"],
+      "accepts": [
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "sensors",
+        "type": "array",
+        "root": true
+      },
+      "http": {
+        "verb": "post",
+        "path": "/search"
       }
     }
   }

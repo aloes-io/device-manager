@@ -92,15 +92,13 @@
       "principalId": "$owner",
       "permission": "ALLOW",
       "property": [
-        "upsert",
         "exists",
         "get",
         "findById",
         "patchAttributes",
         "updateAttributes",
         "replaceById",
-        "replaceOrCreate",
-        "upsertWithWhere"
+        "replaceOrCreate"
       ]
     },
     {

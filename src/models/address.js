@@ -229,6 +229,9 @@ module.exports = function(Address) {
         const error = utils.buildError(404, 'ADDRESSES_NOT_FOUND', 'No match found from filter');
         throw error;
       }
+      if (filter.limit && typeof filter.limit === 'number' && addresses.length > filter.limit) {
+        addresses.splice(filter.limit, addresses.length - 1);
+      }
       logger.publish(4, `${collectionName}`, 'search:res', addresses.length);
       return addresses;
     } catch (error) {
@@ -279,7 +282,9 @@ module.exports = function(Address) {
         throw error;
       }
       // console.log('ADRESSES', addresses);
-
+      if (filter.limit && typeof filter.limit === 'number' && addresses.length > filter.limit) {
+        addresses.splice(filter.limit, addresses.length - 1);
+      }
       logger.publish(4, `${collectionName}`, 'geoLocate:res', addresses.length);
       return addresses;
     } catch (error) {
@@ -295,10 +300,18 @@ module.exports = function(Address) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} user - User new instance
-   * @returns {function} afterSave
+   * @returns {function} onAfterSave
    */
   Address.observe('after save', onAfterSave);
 
+  /**
+   * Event reporting that an address instance / collection is requested
+   * @event before find
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @returns {function} onBeforeRemote
+   */
   Address.beforeRemote('**', onBeforeRemote);
 
   // Address.disableRemoteMethodByName('create');

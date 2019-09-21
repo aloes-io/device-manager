@@ -288,7 +288,7 @@ const deleteProps = async (app, sensor) => {
     logger.publish(2, `${collectionName}`, 'deleteProps:req', sensor);
     const device = await app.models.Device.findById(sensor.deviceId);
     await app.models.Measurement.destroyAll({
-      sensorId: sensor.id,
+      sensorId: sensor.id.toString(),
     });
     // not working properly, why ?
     //  await SensorResource.delete(instance.deviceId, instance.id);
@@ -320,6 +320,26 @@ const onBeforeDelete = async ctx => {
     return ctx;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'onBeforeDelete:err', error);
+    throw error;
+  }
+};
+
+const onBeforeRemote = async ctx => {
+  try {
+    if (ctx.method.name === 'search' || ctx.method.name === 'geoLocate') {
+      const options = ctx.args ? ctx.args.options : {};
+      if (!options || !options.currentUser) {
+        throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
+      }
+      const isAdmin = options.currentUser.roles.includes('admin');
+      if (!isAdmin) {
+        if (!ctx.args.filter) ctx.args.filter = {};
+        ctx.args.filter.ownerId = options.currentUser.id.toString();
+      }
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'onBeforeRemote:err', error);
     throw error;
   }
 };
@@ -415,7 +435,6 @@ module.exports = function(Sensor) {
 
   Sensor.validatesDateOf('lastSignal', { message: 'lastSignal is not a date' });
 
-  Sensor.disableRemoteMethodByName('count');
   Sensor.disableRemoteMethodByName('upsertWithWhere');
   Sensor.disableRemoteMethodByName('replaceOrCreate');
   Sensor.disableRemoteMethodByName('createChangeStream');
@@ -522,7 +541,6 @@ module.exports = function(Sensor) {
           lastSignal: attributes.lastSignal,
           resources: attributes.resources,
           resource: Number(attributes.resource),
-          // special check for key === value ?
           value: attributes.value,
           icons: attributes.icons,
           colors: attributes.colors,
@@ -544,7 +562,7 @@ module.exports = function(Sensor) {
           ownerId: device.ownerId,
           isNewInstance: true,
         };
-        logger.publish(5, `${collectionName}`, 'compose:create', {
+        logger.publish(4, `${collectionName}`, 'compose:create', {
           sensor,
         });
         let newSensor = await device.sensors.create(sensor);
@@ -838,7 +856,7 @@ module.exports = function(Sensor) {
       if (sensor && sensor !== null) {
         let method = sensor.method;
         if (!method) {
-          if (sensor.id) {
+          if (sensor.id && !sensor.isNewInstance) {
             method = 'PUT';
           } else {
             method = 'HEAD';
@@ -849,6 +867,58 @@ module.exports = function(Sensor) {
       const error = utils.buildError(400, 'INVALID_SENSOR', 'Error while building sensor instance');
       throw error;
     } catch (error) {
+      throw error;
+    }
+  };
+
+  /**
+   * Search sensor by keywords ( name, type, )
+   * @method module:Sensor.search
+   * @param {object} filter - Requested filter
+   * @returns {array} sensors
+   */
+  Sensor.search = async filter => {
+    logger.publish(4, `${collectionName}`, 'search:req', filter);
+    try {
+      if (!filter.text) return null;
+      // use OMA object description as lexic
+      const omaObjects = await Sensor.app.models.OmaObject.find({
+        where: {
+          or: [
+            { name: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+            { id: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+            { description: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+          ],
+        },
+      });
+
+      const promises = await omaObjects.map(async obj => {
+        const whereFilter = {
+          and: [{ name: { like: new RegExp(`.*${obj.name}.*`, 'i') } }, { type: obj.id }],
+        };
+        // if (filter.status !== undefined)
+        let sensors = await Sensor.find({
+          where: whereFilter,
+        });
+        if (!sensors || sensors === null) {
+          sensors = [];
+        }
+        sensors = JSON.parse(JSON.stringify(sensors));
+        return [...sensors];
+      });
+
+      const result = await Promise.all(promises);
+      if (!result || result === null) {
+        return [];
+      }
+      const sensors = utils.flatten(result);
+      if (filter.limit && typeof filter.limit === 'number' && sensors.length > filter.limit) {
+        sensors.splice(filter.limit, sensors.length - 1);
+      }
+      logger.publish(4, `${collectionName}`, 'search:res', sensors.length);
+      return sensors;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'search:err', error);
       throw error;
     }
   };
@@ -886,7 +956,7 @@ module.exports = function(Sensor) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Sensor instance
-   * @returns {function} beforeSave
+   * @returns {function} onBeforeSave
    */
   Sensor.observe('before save', onBeforeSave);
 
@@ -897,7 +967,7 @@ module.exports = function(Sensor) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Sensor instance
-   * @returns {function} afterSave
+   * @returns {function} onAfterSave
    */
   Sensor.observe('after save', onAfterSave);
 
@@ -908,9 +978,19 @@ module.exports = function(Sensor) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - Sensor id
-   * @returns {function} beforeDelete
+   * @returns {function} onBeforeDelete
    */
   Sensor.observe('before delete', onBeforeDelete);
+
+  /**
+   * Event reporting that a sensor instance / collection is requested
+   * @event before find
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @returns {function} onBeforeRemote
+   */
+  Sensor.beforeRemote('**', onBeforeRemote);
 
   Sensor.afterRemoteError('*', async ctx => {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, '');

@@ -586,7 +586,7 @@ module.exports = function(Scheduler) {
       const promises = await schedulers.map(async scheduler => {
         try {
           const timeLeft = Math.round((scheduler.stopTime - Date.now()) / 1000);
-          console.log('active scheduler timeLeft', timeLeft);
+          // console.log('active scheduler timeLeft', timeLeft);
           const device = await Scheduler.app.models.Device.findById(scheduler.deviceId);
           const sensor = await Scheduler.app.models.SensorResource.getCache(
             scheduler.deviceId,
@@ -614,7 +614,7 @@ module.exports = function(Scheduler) {
       return { payload, topic };
     } catch (error) {
       console.log(' onTick err', error);
-      return error;
+      throw error;
     }
   };
 
@@ -667,7 +667,7 @@ module.exports = function(Scheduler) {
 
       return onTick(payload);
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 

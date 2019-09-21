@@ -198,6 +198,17 @@ const updateProps = async (app, device) => {
     if (sensorsCount && sensorsCount > 0) {
       await app.models.SensorResource.updateCache(device);
     }
+    // check address state
+    // if (!device.address()) {
+    //   await device.address.create({
+    //     street: '',
+    //     streetNumber: null,
+    //     streetName: null,
+    //     postalCode: null,
+    //     city: null,
+    //     public: false,
+    //   });
+    // }
     logger.publish(4, `${collectionName}`, 'updateProps:res', {
       device,
     });
@@ -367,6 +378,7 @@ const onBeforeRemote = async (app, ctx) => {
       ctx.method.name.indexOf('find') !== -1 ||
       ctx.method.name.indexOf('__get') !== -1 ||
       ctx.method.name === 'get'
+      // count
       // ctx.method.name.indexOf('get') !== -1
     ) {
       const options = ctx.args ? ctx.args.options : {};
@@ -759,13 +771,12 @@ module.exports = function(Device) {
   Device.validatesUniquenessOf('name', { scopedTo: ['ownerId'] });
   // Device.validatesDateOf("lastSignal", {message: "lastSignal is not a date"});
 
-  Device.disableRemoteMethodByName('count');
   Device.disableRemoteMethodByName('upsertWithWhere');
   Device.disableRemoteMethodByName('replaceOrCreate');
   Device.disableRemoteMethodByName('createChangeStream');
 
   Device.disableRemoteMethodByName('prototype.__create__sensors');
-  Device.disableRemoteMethodByName('prototype.__count__sensors');
+  // Device.disableRemoteMethodByName('prototype.__count__sensors');
   Device.disableRemoteMethodByName('prototype.__updateById__sensors');
   Device.disableRemoteMethodByName('prototype.__delete__sensors');
   Device.disableRemoteMethodByName('prototype.__destroyById__sensors');
@@ -1064,7 +1075,7 @@ module.exports = function(Device) {
   };
 
   /**
-   * Search device by address ( keyword )
+   * Search device by keywords ( name, address, type  )
    * @method module:Device.search
    * @param {object} filter - Requested filter
    * @returns {array} devices
@@ -1076,14 +1087,24 @@ module.exports = function(Device) {
 
       filter.ownerType = 'Device';
       filter.public = true;
-      // filter by ownerId if user role is not admin
-      let devices = await Device.find({
-        where: {
-          or: [
-            { name: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
-            { fullAddress: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
-          ],
-        },
+
+      const whereFilter = {
+        or: [
+          { name: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+          { type: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+          { fullAddress: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+          { description: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+          {
+            transportProtocol: {
+              like: new RegExp(`.*${filter.text}.*`, 'i'),
+            },
+          },
+          // { devEui: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+        ],
+      };
+      // if (filter.status !== undefined)
+      let result = await Device.find({
+        where: whereFilter,
         include: 'address',
         fields: {
           id: true,
@@ -1098,8 +1119,8 @@ module.exports = function(Device) {
         },
       });
 
-      if (!devices || devices === null) {
-        devices = [];
+      if (!result || result === null) {
+        result = [];
       }
       try {
         const address = await Device.app.models.Address.verify(filter.text);
@@ -1128,23 +1149,25 @@ module.exports = function(Device) {
             );
             const moreDevices = await Promise.all(promises);
             if (moreDevices && moreDevices !== null) {
-              devices.forEach(dev => {
+              result.forEach(dev => {
                 const index = moreDevices.findIndex(d => d.id === dev.id);
                 if (index > -1) {
                   moreDevices.splice(index, 1);
                 }
               });
-              devices = [...moreDevices, ...devices];
-              console.log('DEVICES 2', devices);
+              result = [...moreDevices, ...result];
+              console.log('DEVICES 2', result);
             }
           }
         }
       } catch (error) {
         logger.publish(4, `${collectionName}`, 'search:res', 'no address found');
       }
-
-      logger.publish(4, `${collectionName}`, 'search:res', devices);
-      return devices;
+      if (filter.limit && typeof filter.limit === 'number' && result.length > filter.limit) {
+        result.splice(filter.limit, result.length - 1);
+      }
+      logger.publish(4, `${collectionName}`, 'search:res', result.length);
+      return result;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'search:err', error);
       throw error;
@@ -1184,7 +1207,10 @@ module.exports = function(Device) {
         );
         devices = await Promise.all(promises);
       }
-      logger.publish(4, `${collectionName}`, 'geoLocate:res', devices);
+      if (filter.limit && typeof filter.limit === 'number' && devices.length > filter.limit) {
+        devices.splice(filter.limit, devices.length - 1);
+      }
+      logger.publish(4, `${collectionName}`, 'geoLocate:res', devices.length);
       return devices;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'geoLocate:err', error);
@@ -1474,7 +1500,7 @@ module.exports = function(Device) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Device instance
-   * @returns {function} beforeSave
+   * @returns {function} onBeforeSave
    */
   Device.observe('before save', onBeforeSave);
 
@@ -1485,7 +1511,7 @@ module.exports = function(Device) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Device instance
-   * @returns {function} afterSave
+   * @returns {function} onAfterSave
    */
   Device.observe('after save', onAfterSave);
 
@@ -1496,7 +1522,7 @@ module.exports = function(Device) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - Device instance
-   * @returns {function} beforeDelete
+   * @returns {function} onBeforeDelete
    */
   Device.observe('before delete', onBeforeDelete);
 
@@ -1506,7 +1532,7 @@ module.exports = function(Device) {
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @returns {object} ctx
+   * @returns {function} onBeforeRemote
    */
   Device.beforeRemote('**', async ctx => onBeforeRemote(Device.app, ctx));
 

@@ -32,6 +32,108 @@
 <a name="module_Address"></a>
 
 ## Address
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| id | <code>string</code> | Database generated ID |
+| street | <code>string</code> |  |
+| streetName | <code>string</code> |  |
+| streetNumber | <code>string</code> |  |
+| postalCode | <code>number</code> |  |
+| city | <code>string</code> |  |
+| coordinates | <code>object</code> |  |
+| verified | <code>boolean</code> |  |
+| public | <code>boolean</code> |  |
+
+
+* [Address](#module_Address)
+    * _static_
+        * [.verifyAddress(address)](#module_Address.verifyAddress) ⇒ <code>object</code>
+        * [.search(filter)](#module_Address.search) ⇒ <code>array</code>
+        * [.geoLocate(filter)](#module_Address.geoLocate) ⇒ <code>array</code>
+    * _inner_
+        * [~onAfterSave(ctx)](#module_Address..onAfterSave) ⇒ <code>object</code>
+        * ["create" (ctx, user)](#event_create) ⇒ <code>function</code>
+        * ["before find" (ctx)](#event_before find) ⇒ <code>function</code>
+
+<a name="module_Address.verifyAddress"></a>
+
+### Address.verifyAddress(address) ⇒ <code>object</code>
+Validate input address; get coordinates and update address instance
+
+**Kind**: static method of [<code>Address</code>](#module_Address)  
+**Returns**: <code>object</code> - address  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| address | <code>any</code> | Instance address |
+
+<a name="module_Address.search"></a>
+
+### Address.search(filter) ⇒ <code>array</code>
+Search address by keyword
+
+**Kind**: static method of [<code>Address</code>](#module_Address)  
+**Returns**: <code>array</code> - addresses  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| filter | <code>object</code> | Requested filter |
+
+<a name="module_Address.geoLocate"></a>
+
+### Address.geoLocate(filter) ⇒ <code>array</code>
+Search addresses by location ( GPS coordinates )
+
+**Kind**: static method of [<code>Address</code>](#module_Address)  
+**Returns**: <code>array</code> - addresses  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| filter | <code>object</code> | Requested filter |
+
+<a name="module_Address..onAfterSave"></a>
+
+### Address~onAfterSave(ctx) ⇒ <code>object</code>
+Validate input address; get coordinates and update address instance
+
+**Kind**: inner method of [<code>Address</code>](#module_Address)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+
+<a name="event_create"></a>
+
+### "create" (ctx, user) ⇒ <code>function</code>
+Event reporting that a new user instance has been created.
+
+**Kind**: event emitted by [<code>Address</code>](#module_Address)  
+**Returns**: <code>function</code> - onAfterSave  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context. |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
+| user | <code>object</code> | User new instance |
+
+<a name="event_before find"></a>
+
+### "before find" (ctx) ⇒ <code>function</code>
+Event reporting that an address instance / collection is requested
+
+**Kind**: event emitted by [<code>Address</code>](#module_Address)  
+**Returns**: <code>function</code> - onBeforeRemote  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context. |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
+
 <a name="module_Application"></a>
 
 ## Application
@@ -372,31 +474,32 @@ Delete clients stored in cache
         * [.resetKeys()](#module_Device+resetKeys) ⇒ <code>object</code>
     * _static_
         * [.publish(device, method, [client])](#module_Device.publish)
-        * [.refreshToken(device)](#module_Device.refreshToken) ⇒ <code>functions</code>
+        * [.refreshToken(deviceId)](#module_Device.refreshToken) ⇒ <code>functions</code>
+        * [.getState(ctx, deviceId)](#module_Device.getState) ⇒ <code>object</code>
         * [.syncCache([direction])](#module_Device.syncCache)
         * [.findByPattern(pattern, attributes)](#module_Device.findByPattern) ⇒ <code>object</code>
-        * [.onPublish(packet, client, pattern)](#module_Device.onPublish) ⇒ <code>functions</code>
-        * [.updateStatus(client, status)](#module_Device.updateStatus) ⇒ <code>functions</code>
-        * [.authenticate(deviceId, key)](#module_Device.authenticate) ⇒ <code>string</code>
-        * [.getState(ctx, deviceId)](#module_Device.getState) ⇒ <code>object</code>
-        * [.getOTAUpdate(ctx, deviceId, [version])](#module_Device.getOTAUpdate) ⇒ <code>object</code>
         * [.search(filter)](#module_Device.search) ⇒ <code>array</code>
         * [.geoLocate(filter)](#module_Device.geoLocate) ⇒ <code>array</code>
+        * [.updateStatus(client, status)](#module_Device.updateStatus) ⇒ <code>functions</code>
+        * [.authenticate(deviceId, key)](#module_Device.authenticate) ⇒ <code>string</code>
+        * [.onPublish(packet, pattern, client)](#module_Device.onPublish) ⇒ <code>functions</code>
+        * [.getOTAUpdate(ctx, deviceId, [version])](#module_Device.getOTAUpdate) ⇒ <code>function</code>
     * _inner_
         * [~setDeviceQRCode(device)](#module_Device..setDeviceQRCode) ⇒ <code>object</code>
         * [~setDeviceIcons(device)](#module_Device..setDeviceIcons) ⇒ <code>object</code>
+        * [~onBeforeSave(ctx)](#module_Device..onBeforeSave) ⇒ <code>object</code>
         * [~createKeys(device)](#module_Device..createKeys) ⇒ <code>object</code>
         * [~createProps(app, device)](#module_Device..createProps) ⇒ <code>function</code>
         * [~updateProps(app, device)](#module_Device..updateProps) ⇒ <code>function</code>
-        * [~parseMessage(app, packet, pattern, client)](#module_Device..parseMessage)
-        * [~findDevice(whereFilter)](#module_Device..findDevice) ⇒ <code>promise</code>
-        * [~findAddresses(filter)](#module_Device..findAddresses) ⇒ <code>promise</code>
+        * [~onAfterSave(ctx)](#module_Device..onAfterSave) ⇒ <code>object</code>
+        * [~onBeforeDelete(ctx)](#module_Device..onBeforeDelete) ⇒ <code>object</code>
+        * [~parseMessage(app, packet, pattern, client)](#module_Device..parseMessage) ⇒ <code>object</code>
         * ["client" (message)](#event_client) ⇒ <code>functions</code>
         * ["publish" (message)](#event_publish)
-        * ["before save" (ctx)](#event_before save)
-        * ["after save" (ctx)](#event_after save)
-        * ["before delete" (ctx)](#event_before delete)
-        * ["before find" (ctx)](#event_before find) ⇒ <code>object</code>
+        * ["before save" (ctx)](#event_before save) ⇒ <code>function</code>
+        * ["after save" (ctx)](#event_after save) ⇒ <code>function</code>
+        * ["before delete" (ctx)](#event_before delete) ⇒ <code>function</code>
+        * ["before find" (ctx)](#event_before find) ⇒ <code>function</code>
 
 <a name="module_Device+resetKeys"></a>
 
@@ -421,7 +524,7 @@ Format packet and send it via MQTT broker
 
 <a name="module_Device.refreshToken"></a>
 
-### Device.refreshToken(device) ⇒ <code>functions</code>
+### Device.refreshToken(deviceId) ⇒ <code>functions</code>
 Create new keys, and update Device instance
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
@@ -429,7 +532,19 @@ Create new keys, and update Device instance
 
 | Param | Type | Description |
 | --- | --- | --- |
-| device | <code>object</code> | Device instance |
+| deviceId | <code>object</code> | Device instance id |
+
+<a name="module_Device.getState"></a>
+
+### Device.getState(ctx, deviceId) ⇒ <code>object</code>
+Endpoint for device requesting their own state
+
+**Kind**: static method of [<code>Device</code>](#module_Device)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+| deviceId | <code>string</code> | Device instance id |
 
 <a name="module_Device.syncCache"></a>
 
@@ -445,7 +560,7 @@ Synchronize cache memory with database on disk
 <a name="module_Device.findByPattern"></a>
 
 ### Device.findByPattern(pattern, attributes) ⇒ <code>object</code>
-Find device related to incoming MQTT packet
+Find device and / or sensor related to incoming MQTT packet
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
 **Returns**: <code>object</code> - device  
@@ -455,19 +570,29 @@ Find device related to incoming MQTT packet
 | pattern | <code>object</code> | IotAgent parsed pattern |
 | attributes | <code>object</code> | IotAgent parsed message |
 
-<a name="module_Device.onPublish"></a>
+<a name="module_Device.search"></a>
 
-### Device.onPublish(packet, client, pattern) ⇒ <code>functions</code>
-Dispatch incoming MQTT packet
+### Device.search(filter) ⇒ <code>array</code>
+Search device by keywords ( name, address, type  )
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>functions</code> - parseMessage  
+**Returns**: <code>array</code> - devices  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| packet | <code>object</code> | MQTT bridge packet |
-| client | <code>object</code> | MQTT client |
-| pattern | <code>object</code> | Pattern detected by Iot-Agent |
+| filter | <code>object</code> | Requested filter |
+
+<a name="module_Device.geoLocate"></a>
+
+### Device.geoLocate(filter) ⇒ <code>array</code>
+Search devices by location ( GPS coordinates )
+
+**Kind**: static method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>array</code> - devices  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| filter | <code>object</code> | Requested filter |
 
 <a name="module_Device.updateStatus"></a>
 
@@ -501,54 +626,33 @@ Endpoint for device authentification with APIKey
 | deviceId | <code>any</code> | 
 | key | <code>string</code> | 
 
-<a name="module_Device.getState"></a>
+<a name="module_Device.onPublish"></a>
 
-### Device.getState(ctx, deviceId) ⇒ <code>object</code>
-Endpoint for device requesting their own state
+### Device.onPublish(packet, pattern, client) ⇒ <code>functions</code>
+Dispatch incoming MQTT packet
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>functions</code> - parseMessage  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| ctx | <code>object</code> | Loopback context |
-| deviceId | <code>string</code> | Device instance id |
+| packet | <code>object</code> | MQTT bridge packet |
+| pattern | <code>object</code> | Pattern detected by Iot-Agent |
+| client | <code>object</code> | MQTT client |
 
 <a name="module_Device.getOTAUpdate"></a>
 
-### Device.getOTAUpdate(ctx, deviceId, [version]) ⇒ <code>object</code>
+### Device.getOTAUpdate(ctx, deviceId, [version]) ⇒ <code>function</code>
 Update OTA if a firmware is available
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>function</code> - updateFirmware  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | ctx | <code>object</code> | Loopback context |
 | deviceId | <code>string</code> | Device instance id |
 | [version] | <code>string</code> | Firmware version requested |
-
-<a name="module_Device.search"></a>
-
-### Device.search(filter) ⇒ <code>array</code>
-Search device by location ( keyword )
-
-**Kind**: static method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>array</code> - devies  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| filter | <code>object</code> | Requested filter |
-
-<a name="module_Device.geoLocate"></a>
-
-### Device.geoLocate(filter) ⇒ <code>array</code>
-Search device by location ( GPS coordinates )
-
-**Kind**: static method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>array</code> - deviceAddresses  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| filter | <code>object</code> | Requested filter |
 
 <a name="module_Device..setDeviceQRCode"></a>
 
@@ -573,6 +677,18 @@ Set device icons ( urls ) based on its type
 | Param | Type | Description |
 | --- | --- | --- |
 | device | <code>object</code> | Device instance |
+
+<a name="module_Device..onBeforeSave"></a>
+
+### Device~onBeforeSave(ctx) ⇒ <code>object</code>
+Validate instance before creation
+
+**Kind**: inner method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
 
 <a name="module_Device..createKeys"></a>
 
@@ -612,14 +728,39 @@ Update device depencies ( token, sensors )
 | app | <code>object</code> | Loopback app |
 | device | <code>object</code> | Device instance |
 
+<a name="module_Device..onAfterSave"></a>
+
+### Device~onAfterSave(ctx) ⇒ <code>object</code>
+Create relations on instance creation
+
+**Kind**: inner method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+
+<a name="module_Device..onBeforeDelete"></a>
+
+### Device~onBeforeDelete(ctx) ⇒ <code>object</code>
+Delete relations on instance(s) deletetion
+
+**Kind**: inner method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+
 <a name="module_Device..parseMessage"></a>
 
-### Device~parseMessage(app, packet, pattern, client)
+### Device~parseMessage(app, packet, pattern, client) ⇒ <code>object</code>
 Find properties and dispatch to the right function
 
 Adding device and sensor context to raw incoming data
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>object</code> - device  
 **Emits**: <code>module:Device~event:publish</code>, <code>module:Sensor~event:publish</code>  
 
 | Param | Type | Description |
@@ -628,30 +769,6 @@ Adding device and sensor context to raw incoming data
 | packet | <code>object</code> | MQTT packet |
 | pattern | <code>object</code> | Pattern detected by IotAgent |
 | client | <code>object</code> | MQTT client |
-
-<a name="module_Device..findDevice"></a>
-
-### Device~findDevice(whereFilter) ⇒ <code>promise</code>
-Helper for device search
-
-**Kind**: inner method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>promise</code> - Device.find  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| whereFilter | <code>object</code> | Device filter |
-
-<a name="module_Device..findAddresses"></a>
-
-### Device~findAddresses(filter) ⇒ <code>promise</code>
-Helper for reverse geocoding
-
-**Kind**: inner method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>promise</code> - Device.app.models.Address.find  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| filter | <code>object</code> | Device location filter |
 
 <a name="event_client"></a>
 
@@ -694,10 +811,11 @@ Event reporting that a device client sent a message.
 
 <a name="event_before save"></a>
 
-### "before save" (ctx)
+### "before save" (ctx) ⇒ <code>function</code>
 Event reporting that a device instance will be created or updated.
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
+**Returns**: <code>function</code> - onBeforeSave  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -708,10 +826,11 @@ Event reporting that a device instance will be created or updated.
 
 <a name="event_after save"></a>
 
-### "after save" (ctx)
+### "after save" (ctx) ⇒ <code>function</code>
 Event reporting that a device instance has been created or updated.
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
+**Returns**: <code>function</code> - onAfterSave  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -722,10 +841,11 @@ Event reporting that a device instance has been created or updated.
 
 <a name="event_before delete"></a>
 
-### "before delete" (ctx)
-Event reporting that a / several device instance(s) will be deleted.
+### "before delete" (ctx) ⇒ <code>function</code>
+Event reporting that one or several device instance(s) will be deleted.
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
+**Returns**: <code>function</code> - onBeforeDelete  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -736,11 +856,11 @@ Event reporting that a / several device instance(s) will be deleted.
 
 <a name="event_before find"></a>
 
-### "before find" (ctx) ⇒ <code>object</code>
+### "before find" (ctx) ⇒ <code>function</code>
 Event reporting that a device instance / collection is requested
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
-**Returns**: <code>object</code> - ctx  
+**Returns**: <code>function</code> - onBeforeRemote  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -751,11 +871,29 @@ Event reporting that a device instance / collection is requested
 <a name="module_Files"></a>
 
 ## Files
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| id | <code>string</code> | Database generated ID |
+| name | <code>string</code> |  |
+| type | <code>string</code> |  |
+| size | <code>string</code> |  |
+| role | <code>string</code> |  |
+| url | <code>string</code> |  |
+
 
 * [Files](#module_Files)
-    * [.upload(ctx, ownerId, [name])](#module_Files.upload) ⇒ <code>object</code>
-    * [.uploadBuffer(buffer, ownerId, name)](#module_Files.uploadBuffer) ⇒ <code>object</code>
-    * [.download(ownerId, name)](#module_Files.download) ⇒ <code>object</code>
+    * _static_
+        * [.upload(ctx, ownerId, [name])](#module_Files.upload) ⇒ <code>object</code>
+        * [.uploadBuffer(buffer, ownerId, name)](#module_Files.uploadBuffer) ⇒ <code>object</code>
+        * [.download(ownerId, name)](#module_Files.download) ⇒ <code>object</code>
+    * _inner_
+        * [~onBeforeSave(ctx)](#module_Files..onBeforeSave) ⇒ <code>object</code>
+        * [~onBeforeDelete(ctx)](#module_Files..onBeforeDelete) ⇒ <code>object</code>
+        * ["create" (ctx, user)](#event_create) ⇒ <code>function</code>
+        * ["before delete" (ctx)](#event_before delete) ⇒ <code>function</code>
+        * ["before find" (ctx)](#event_before find) ⇒ <code>function</code>
 
 <a name="module_Files.upload"></a>
 
@@ -788,7 +926,7 @@ Request to upload file in userId container via raw buffer
 <a name="module_Files.download"></a>
 
 ### Files.download(ownerId, name) ⇒ <code>object</code>
-Request to download file in userId container
+Request to download file in ownerId container
 
 **Kind**: static method of [<code>Files</code>](#module_Files)  
 **Returns**: <code>object</code> - fileMeta  
@@ -797,6 +935,74 @@ Request to download file in userId container
 | --- | --- | --- |
 | ownerId | <code>string</code> | Container owner and path |
 | name | <code>string</code> | File name |
+
+<a name="module_Files..onBeforeSave"></a>
+
+### Files~onBeforeSave(ctx) ⇒ <code>object</code>
+Validate instance before creation
+
+**Kind**: inner method of [<code>Files</code>](#module_Files)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+
+<a name="module_Files..onBeforeDelete"></a>
+
+### Files~onBeforeDelete(ctx) ⇒ <code>object</code>
+Delete relations on instance(s) deletetion
+
+**Kind**: inner method of [<code>Files</code>](#module_Files)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+
+<a name="event_create"></a>
+
+### "create" (ctx, user) ⇒ <code>function</code>
+Event reporting that a new Files instance will be created.
+
+**Kind**: event emitted by [<code>Files</code>](#module_Files)  
+**Returns**: <code>function</code> - onBeforeSave  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context. |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
+| user | <code>object</code> | Files new instance |
+
+<a name="event_before delete"></a>
+
+### "before delete" (ctx) ⇒ <code>function</code>
+Event reporting that a / several File instance(s) will be deleted.
+
+**Kind**: event emitted by [<code>Files</code>](#module_Files)  
+**Returns**: <code>function</code> - onBeforeDelete  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context. |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
+| ctx.where.id | <code>object</code> | File meta instance |
+
+<a name="event_before find"></a>
+
+### "before find" (ctx) ⇒ <code>function</code>
+Event reporting that a file instance / collection is requested
+
+**Kind**: event emitted by [<code>Files</code>](#module_Files)  
+**Returns**: <code>function</code> - onBeforeRemote  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context. |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
 
 <a name="module_Measurement"></a>
 
@@ -1179,27 +1385,27 @@ Update device's sensors stored in cache
 
 | Name | Type | Description |
 | --- | --- | --- |
-| id | <code>String</code> | Database generated ID. |
-| name | <code>String</code> | required. |
-| devEui | <code>String</code> | hardware generated Device Id required. |
-| lastSignal | <code>Date</code> |  |
-| lastSync | <code>Date</code> | last date when this sensor cache was synced |
-| frameCounter | <code>Number</code> | Number of messages since last connection |
-| type | <code>String</code> | OMA object ID, used to format resources schema |
-| resource | <code>String</code> | OMA resource ID used for last message |
-| resources | <code>Array</code> | OMA Resources ( formatted object where sensor value and settings are stored ) |
-| icons | <code>Array</code> | OMA Object icons URL |
-| colors | <code>Object</code> | OMA Resource colors |
-| transportProtocol | <code>String</code> | Framework used for message transportation |
-| transportProtocolVersion | <code>String</code> | Framework version |
-| messageProtocol | <code>String</code> | Framework used for message encoding |
-| messageProtocolVersion | <code>String</code> | Framework version |
-| nativeSensorId | <code>String</code> | Original sensor id ( stringified integer ) |
-| [nativeNodeId] | <code>String</code> | Original node id ( stringified integer ) |
-| nativeType | <code>String</code> | Original sensor type identifier |
-| nativeResource | <code>String</code> | Original sensor variables identifier |
-| ownerId | <code>String</code> | User ID of the developer who registers the application. |
-| deviceId | <code>String</code> | Device instance Id which has sent this measurement |
+| id | <code>string</code> | Database generated ID. |
+| name | <code>string</code> | required. |
+| devEui | <code>string</code> | hardware generated Device Id required. |
+| lastSignal | <code>date</code> |  |
+| lastSync | <code>date</code> | last date when this sensor cache was synced |
+| frameCounter | <code>number</code> | Number of messages since last connection |
+| type | <code>string</code> | OMA object ID, used to format resources schema |
+| resource | <code>string</code> | OMA resource ID used for last message |
+| resources | <code>array</code> | OMA Resources ( formatted object where sensor value and settings are stored ) |
+| icons | <code>array</code> | OMA Object icons URL |
+| colors | <code>bject</code> | OMA Resource colors |
+| transportProtocol | <code>string</code> | Framework used for message transportation |
+| transportProtocolVersion | <code>string</code> | Framework version |
+| messageProtocol | <code>string</code> | Framework used for message encoding |
+| messageProtocolVersion | <code>string</code> | Framework version |
+| nativeSensorId | <code>string</code> | Original sensor id ( stringified integer ) |
+| [nativeNodeId] | <code>string</code> | Original node id ( stringified integer ) |
+| nativeType | <code>string</code> | Original sensor type identifier |
+| nativeResource | <code>string</code> | Original sensor variables identifier |
+| ownerId | <code>string</code> | User ID of the developer who registers the application. |
+| deviceId | <code>string</code> | Device instance Id which has sent this measurement |
 
 
 * [Sensor](#module_Sensor)
@@ -1211,13 +1417,18 @@ Update device's sensors stored in cache
         * [.createOrUpdate(device, sensor, resourceKey, resourceValue, [client])](#module_Sensor.createOrUpdate) ⇒ <code>function</code>
         * [.getInstance(device, pattern, sensor)](#module_Sensor.getInstance) ⇒ <code>function</code>
         * [.onPublish(device, attributes, [sensor], client)](#module_Sensor.onPublish) ⇒ <code>functions</code>
+        * [.search(filter)](#module_Sensor.search) ⇒ <code>array</code>
     * _inner_
+        * [~onBeforeSave(ctx)](#module_Sensor..onBeforeSave) ⇒ <code>object</code>
         * [~getPersistingMethod(sensorType, resource, type)](#module_Sensor..getPersistingMethod) ⇒ <code>string</code>
         * [~persistingResource(app, device, sensor, [client])](#module_Sensor..persistingResource) ⇒ <code>object</code>
+        * [~onAfterSave(ctx)](#module_Sensor..onAfterSave) ⇒ <code>object</code>
+        * [~onBeforeDelete(ctx)](#module_Sensor..onBeforeDelete) ⇒ <code>object</code>
         * ["publish" (message)](#event_publish) ⇒ <code>functions</code>
-        * ["before save" (ctx)](#event_before save)
-        * ["after save" (ctx)](#event_after save)
-        * ["before delete" (ctx)](#event_before delete)
+        * ["before save" (ctx)](#event_before save) ⇒ <code>function</code>
+        * ["after save" (ctx)](#event_after save) ⇒ <code>function</code>
+        * ["before delete" (ctx)](#event_before delete) ⇒ <code>function</code>
+        * ["before find" (ctx)](#event_before find) ⇒ <code>function</code>
 
 <a name="module_Sensor.syncCache"></a>
 
@@ -1318,6 +1529,30 @@ Dispatch incoming MQTT packet
 | [sensor] | <code>object</code> | Found Sensor instance |
 | client | <code>object</code> | MQTT client |
 
+<a name="module_Sensor.search"></a>
+
+### Sensor.search(filter) ⇒ <code>array</code>
+Search sensor by keywords ( name, type, )
+
+**Kind**: static method of [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>array</code> - sensors  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| filter | <code>object</code> | Requested filter |
+
+<a name="module_Sensor..onBeforeSave"></a>
+
+### Sensor~onBeforeSave(ctx) ⇒ <code>object</code>
+Validate instance before creation
+
+**Kind**: inner method of [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+
 <a name="module_Sensor..getPersistingMethod"></a>
 
 ### Sensor~getPersistingMethod(sensorType, resource, type) ⇒ <code>string</code>
@@ -1351,6 +1586,30 @@ use filestorage for strings and buffers
 | sensor | <code>object</code> | Sensor instance |
 | [client] | <code>object</code> | MQTT client |
 
+<a name="module_Sensor..onAfterSave"></a>
+
+### Sensor~onAfterSave(ctx) ⇒ <code>object</code>
+Create relations on instance creation
+
+**Kind**: inner method of [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+
+<a name="module_Sensor..onBeforeDelete"></a>
+
+### Sensor~onBeforeDelete(ctx) ⇒ <code>object</code>
+Delete relations on instance(s) deletetion
+
+**Kind**: inner method of [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+
 <a name="event_publish"></a>
 
 ### "publish" (message) ⇒ <code>functions</code>
@@ -1375,10 +1634,11 @@ Event reporting that a device client sent sensors update.
 
 <a name="event_before save"></a>
 
-### "before save" (ctx)
+### "before save" (ctx) ⇒ <code>function</code>
 Event reporting that a sensor instance will be created or updated.
 
 **Kind**: event emitted by [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>function</code> - onBeforeSave  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1389,10 +1649,11 @@ Event reporting that a sensor instance will be created or updated.
 
 <a name="event_after save"></a>
 
-### "after save" (ctx)
+### "after save" (ctx) ⇒ <code>function</code>
 Event reporting that a sensor instance has been created or updated.
 
 **Kind**: event emitted by [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>function</code> - onAfterSave  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1403,10 +1664,11 @@ Event reporting that a sensor instance has been created or updated.
 
 <a name="event_before delete"></a>
 
-### "before delete" (ctx)
+### "before delete" (ctx) ⇒ <code>function</code>
 Event reporting that a/several sensor instance(s) will be deleted.
 
 **Kind**: event emitted by [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>function</code> - onBeforeDelete  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1415,20 +1677,54 @@ Event reporting that a/several sensor instance(s) will be deleted.
 | ctx.res | <code>object</code> | Response |
 | ctx.where.id | <code>object</code> | Sensor id |
 
+<a name="event_before find"></a>
+
+### "before find" (ctx) ⇒ <code>function</code>
+Event reporting that a sensor instance / collection is requested
+
+**Kind**: event emitted by [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>function</code> - onBeforeRemote  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context. |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
+
 <a name="module_User"></a>
 
 ## User
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| id | <code>string</code> | Database generated ID |
+| firstName | <code>string</code> |  |
+| lastName | <code>string</code> |  |
+| fullName | <code>string</code> |  |
+| fullAddress | <code>string</code> |  |
+| avatarImgUrl | <code>string</code> |  |
+| headerImgUrl | <code>string</code> |  |
+| status | <code>boolean</code> |  |
+| role | <code>string</code> | admin or user |
+
 
 * [User](#module_User)
     * _static_
         * [.findByEmail(email)](#module_User.findByEmail) ⇒ <code>object</code>
         * [.verifyEmail(user)](#module_User.verifyEmail) ⇒ <code>object</code>
     * _inner_
-        * ["after confirm" (ctx)](#event_after confirm)
-        * ["before confirm" (ctx)](#event_before confirm)
-        * ["create" (ctx, user)](#event_create)
-        * ["create" (ctx, user)](#event_create)
-        * ["before delete" (ctx)](#event_before delete)
+        * [~onBeforeSave(ctx)](#module_User..onBeforeSave) ⇒ <code>object</code>
+        * [~onAfterSave(ctx)](#module_User..onAfterSave) ⇒ <code>object</code>
+        * [~onBeforeDelete(ctx)](#module_User..onBeforeDelete) ⇒ <code>object</code>
+        * ["verifyEmail" (user)](#event_verifyEmail)
+        * ["sendContactForm" (options)](#event_sendContactForm)
+        * ["sendMailInvite" (options)](#event_sendMailInvite)
+        * ["resetPasswordRequest" (options)](#event_resetPasswordRequest)
+        * ["create" (ctx, user)](#event_create) ⇒ <code>function</code>
+        * ["create" (ctx, user)](#event_create) ⇒ <code>function</code>
+        * ["before delete" (ctx)](#event_before delete) ⇒ <code>function</code>
+        * ["before confirm" (ctx)](#event_before confirm) ⇒ <code>function</code>
 
 <a name="module_User.findByEmail"></a>
 
@@ -1454,38 +1750,93 @@ Send a confirmation link to confirm signup
 | --- | --- | --- |
 | user | <code>object</code> | User instance |
 
-<a name="event_after confirm"></a>
+<a name="module_User..onBeforeSave"></a>
 
-### "after confirm" (ctx)
-Event reporting that an user has confirmed mail validation
+### User~onBeforeSave(ctx) ⇒ <code>object</code>
+Validate instance before creation
+
+**Kind**: inner method of [<code>User</code>](#module_User)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+
+<a name="module_User..onAfterSave"></a>
+
+### User~onAfterSave(ctx) ⇒ <code>object</code>
+Create relations on instance creation
+
+**Kind**: inner method of [<code>User</code>](#module_User)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+
+<a name="module_User..onBeforeDelete"></a>
+
+### User~onBeforeDelete(ctx) ⇒ <code>object</code>
+Delete relations on instance(s) deletetion
+
+**Kind**: inner method of [<code>User</code>](#module_User)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+
+<a name="event_verifyEmail"></a>
+
+### "verifyEmail" (user)
+Event reporting to trigger mails.verifyEmail
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| ctx | <code>object</code> | Express context. |
-| ctx.req | <code>object</code> | Request |
-| ctx.res | <code>object</code> | Response |
+| user | <code>object</code> | User instance |
 
-<a name="event_before confirm"></a>
+<a name="event_sendContactForm"></a>
 
-### "before confirm" (ctx)
-Event reporting that an user attempts to login
+### "sendContactForm" (options)
+Event reporting to trigger mails.send
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| ctx | <code>object</code> | Express context. |
-| ctx.req | <code>object</code> | Request |
-| ctx.res | <code>object</code> | Response |
+| options | <code>object</code> | Form properties |
+
+<a name="event_sendMailInvite"></a>
+
+### "sendMailInvite" (options)
+Event reporting to trigger mails.send
+
+**Kind**: event emitted by [<code>User</code>](#module_User)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| options | <code>object</code> | Form properties |
+
+<a name="event_resetPasswordRequest"></a>
+
+### "resetPasswordRequest" (options)
+Event reporting to send password reset link when requested
+
+**Kind**: event emitted by [<code>User</code>](#module_User)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| options | <code>object</code> | Mail options |
 
 <a name="event_create"></a>
 
-### "create" (ctx, user)
+### "create" (ctx, user) ⇒ <code>function</code>
 Event reporting that a new user instance will be created.
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
+**Returns**: <code>function</code> - onBeforeSave  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1496,10 +1847,11 @@ Event reporting that a new user instance will be created.
 
 <a name="event_create"></a>
 
-### "create" (ctx, user)
+### "create" (ctx, user) ⇒ <code>function</code>
 Event reporting that a new user instance has been created.
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
+**Returns**: <code>function</code> - onAfterSave  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1510,10 +1862,11 @@ Event reporting that a new user instance has been created.
 
 <a name="event_before delete"></a>
 
-### "before delete" (ctx)
+### "before delete" (ctx) ⇒ <code>function</code>
 Event reporting that a user instance will be deleted.
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
+**Returns**: <code>function</code> - onBeforeDelete  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1521,4 +1874,18 @@ Event reporting that a user instance will be deleted.
 | ctx.req | <code>object</code> | Request |
 | ctx.res | <code>object</code> | Response |
 | ctx.where.id | <code>object</code> | User instance id |
+
+<a name="event_before confirm"></a>
+
+### "before confirm" (ctx) ⇒ <code>function</code>
+Event reporting that a remote user method has been requested
+
+**Kind**: event emitted by [<code>User</code>](#module_User)  
+**Returns**: <code>function</code> - onBeforeRemote  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context. |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
 

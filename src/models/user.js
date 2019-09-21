@@ -402,22 +402,6 @@ module.exports = function(User) {
     }
   };
 
-  User.afterRemoteError('confirm', async ctx => {
-    logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
-    ctx.res.redirect(process.env.HTTP_CLIENT_URL);
-    return ctx;
-  });
-
-  // User.afterRemoteError('*', async (ctx) => {
-  //   logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
-  //   // ctx.result = new Error(
-  //   //   `[${collectionName.toUpperCase()}]  error on this remote method : ${
-  //   //     ctx.methodString
-  //   //   }`,
-  //   // );
-  //   return null;
-  // });
-
   /**
    * Event reporting to trigger mails.verifyEmail
    * @event verifyEmail
@@ -453,7 +437,7 @@ module.exports = function(User) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} user - User new instance
-   * @returns {function} beforeSave
+   * @returns {function} onBeforeSave
    */
   User.observe('before save', onBeforeSave);
 
@@ -464,7 +448,7 @@ module.exports = function(User) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} user - User new instance
-   * @returns {function} afterSave
+   * @returns {function} onAfterSave
    */
   User.observe('after save', onAfterSave);
 
@@ -475,7 +459,7 @@ module.exports = function(User) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - User instance id
-   * @returns {function} beforeDelete
+   * @returns {function} onBeforeDelete
    */
   User.observe('before delete', onBeforeDelete);
 
@@ -485,8 +469,25 @@ module.exports = function(User) {
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
+   * @returns {function} onBeforeRemote
    */
   User.beforeRemote('**', async ctx => onBeforeRemote(User.app, ctx));
+
+  User.afterRemoteError('confirm', async ctx => {
+    logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
+    ctx.res.redirect(process.env.HTTP_CLIENT_URL);
+    return ctx;
+  });
+
+  // User.afterRemoteError('*', async (ctx) => {
+  //   logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
+  //   // ctx.result = new Error(
+  //   //   `[${collectionName.toUpperCase()}]  error on this remote method : ${
+  //   //     ctx.methodString
+  //   //   }`,
+  //   // );
+  //   return null;
+  // });
 
   User.disableRemoteMethodByName('count');
   User.disableRemoteMethodByName('upsertWithWhere');

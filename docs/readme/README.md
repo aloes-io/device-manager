@@ -163,8 +163,6 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 ## TODO
 
-- Improve file model access and backup
-- Update / improve device search engine
 - Finish account linking with github
 - Add user(s) in a team to easily share devices access ( via collaborators property )
 - Data exports ( devices selection by filter )

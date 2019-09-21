@@ -179,6 +179,8 @@
       "property": [
         "find",
         "findById",
+        "count",
+        "exists",
         "patchAttributes",
         "updateAttributes",
         "replaceAttributes",
@@ -189,6 +191,7 @@
         "onPublish",
         "__get__address",
         "__update__address",
+        "__count__sensors",
         "__get__sensors",
         "__findById__sensors",
         "__updateById__sensors",
@@ -228,6 +231,7 @@
       "property": [
         "create",
         "find",
+        "count",
         "exists",
         "search",
         "refreshToken",
@@ -270,6 +274,7 @@
         "__get__address",
         "__update__address",
         "__get__sensors",
+        "__count__sensors",
         "__findById__sensors",
         "__updateById__sensors",
         "__destroyById__sensors",
@@ -343,7 +348,7 @@
       }
     },
     "search": {
-      "description": ["Find devices find address properties"],
+      "description": ["Find devices from properties"],
       "accepts": [
         {
           "arg": "filter",
