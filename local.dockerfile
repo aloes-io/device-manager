@@ -1,4 +1,3 @@
-# FROM keymetrics/pm2:latest-alpine
 FROM node:lts-alpine
 
 ENV NODE_NAME device-manager
@@ -14,11 +13,9 @@ RUN mkdir -p /home/node/$NODE_NAME/storage
 WORKDIR /home/node/$NODE_NAME
 
 ENV NPM_CONFIG_LOGLEVEL warn
-# RUN npm install
 RUN npm ci 
 RUN npm run build
 
-# CMD ["pm2-runtime", "ecosystem.config.js"]
 CMD ["node","pm2.js", "--start"]
 
 # USER node

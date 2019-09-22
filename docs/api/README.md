@@ -29,6 +29,17 @@
 <dd></dd>
 </dl>
 
+## External
+
+<dl>
+<dt><a href="#external_OmaObjects">OmaObjects</a></dt>
+<dd><p>Oma Object References.</p>
+</dd>
+<dt><a href="#external_OmaResources">OmaResources</a></dt>
+<dd><p>Oma Resources References.</p>
+</dd>
+</dl>
+
 <a name="module_Address"></a>
 
 ## Address
@@ -1889,3 +1900,17 @@ Event reporting that a remote user method has been requested
 | ctx.req | <code>object</code> | Request |
 | ctx.res | <code>object</code> | Response |
 
+<a name="external_OmaObjects"></a>
+
+## OmaObjects
+Oma Object References.
+
+**Kind**: global external  
+**See**: [https://aloes.io/app/api/omaObjects](https://aloes.io/app/api/omaObjects)  
+<a name="external_OmaResources"></a>
+
+## OmaResources
+Oma Resources References.
+
+**Kind**: global external  
+**See**: [https://aloes.io/app/api/omaResources](https://aloes.io/app/api/omaResources)  

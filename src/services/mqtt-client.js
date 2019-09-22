@@ -300,7 +300,8 @@ MQTTClient.init = async (app, config) => {
       }
     }
 
-    mqttClient = mqtt.connect(mqttBrokerUrl, mqttClientOptions);
+    mqttClient = await mqtt.asyncConnect(mqttBrokerUrl, mqttClientOptions);
+    // mqttClient = mqtt.connect(mqttBrokerUrl, mqttClientOptions);
 
     mqttClient.on('error', err => {
       logger.publish(4, 'mqtt-client', 'error', err);

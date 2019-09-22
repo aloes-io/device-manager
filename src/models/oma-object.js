@@ -1,4 +1,10 @@
 /**
+ * Oma Object References.
+ * @external OmaObjects
+ * @see {@link https://aloes.io/app/api/omaObjects}
+ */
+
+/**
  * @module OmaObject
  * @property {String} id  OmaObject ID
  * @property {String} name OmaObject name
