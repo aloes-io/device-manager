@@ -264,9 +264,9 @@ MQTTClient.start = async () => {
 MQTTClient.init = async (app, config) => {
   try {
     if (typeof config.processId === 'number') {
-      MQTTClient.id = `aloes-${process.env.ALOES_ID}-${config.processId}`;
+      MQTTClient.id = `aloes-${config.ALOES_ID}-${config.processId}`;
     } else {
-      MQTTClient.id = `aloes-${process.env.ALOES_ID}`;
+      MQTTClient.id = `aloes-${config.ALOES_ID}`;
     }
 
     logger.publish(4, 'mqtt-client', 'init:req', { clientId: MQTTClient.id });
@@ -283,14 +283,14 @@ MQTTClient.init = async (app, config) => {
       connectTimeout: 30 * 1000,
       clean: false,
       clientId: MQTTClient.id,
-      username: process.env.ALOES_ID,
-      password: process.env.ALOES_KEY,
+      username: config.ALOES_ID,
+      password: config.ALOES_KEY,
     };
 
     if (config.MQTT_BROKER_URL) {
       if (config.MQTTS_BROKER_URL) {
         mqttClientOptions.port = Number(config.MQTTS_BROKER_PORT);
-        if (process.env.MQTTS_SELF_SIGNED_CERT) {
+        if (config.MQTTS_SELF_SIGNED_CERT) {
           mqttClientOptions.rejectUnauthorized = false;
         }
         mqttBrokerUrl = config.MQTTS_BROKER_URL;
