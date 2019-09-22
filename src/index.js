@@ -21,7 +21,7 @@ const boot = async processId => {
       // File Extensions for jest (strongloop/loopback#3204)
       scriptExtensions: ['.js', '.json', '.node', '.ejs'],
     };
-    logger.publish(2, 'loopback', 'boot:res', processId);
+    logger.publish(2, 'loopback', 'boot:res', processId, config.ALOES_ID, config.ALOES_KEY);
     return app.emit('start', config);
   } catch (error) {
     logger.publish(1, 'loopback', 'boot:error', error);

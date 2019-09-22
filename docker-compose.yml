@@ -32,7 +32,6 @@ services:
       - redis
       - influxdb
       - timer-proxy
-    restart: on-failure
     deploy:
       resources:
         limits:

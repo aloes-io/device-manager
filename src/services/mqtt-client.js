@@ -319,7 +319,7 @@ MQTTClient.init = async (app, config) => {
     mqttClient.on('message', async (topic, payload) => onMessage(app, topic, payload));
 
     await MQTTClient.start();
-    // logger.publish(4, 'mqtt-client', 'init:res', mqttClientOptions);
+    logger.publish(3, 'mqtt-client', 'init:res', mqttClientOptions);
     return true;
   } catch (error) {
     logger.publish(2, 'mqtt-client', 'init:err', error);

@@ -3,11 +3,11 @@ import logger from '../services/logger';
 
 export default async function createOmaApi(server) {
   try {
-    //  const foundOmaObjects = await server.models.OmaObject.find();
+    const foundOmaObjects = await server.models.OmaObject.find();
     // todo update models based on package.json version for oma-json
-    // if (foundOmaObjects.length === omaObjects.length) {
-    //   return null;
-    // }
+    if (foundOmaObjects.length === omaObjects.length) {
+      return null;
+    }
     await server.models.OmaObject.destroyAll();
     omaObjects.forEach(object => {
       object.id = object.value;
