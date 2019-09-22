@@ -1,11 +1,14 @@
 /* eslint-disable no-underscore-dangle */
 import mqtt from 'async-mqtt';
+import EventEmitter from 'events';
 import logger from './logger';
 
 /**
  * @module MQTTClient
  */
-const MQTTClient = { id: `aloes-${process.env.ALOES_ID}` };
+// event emitter
+const MQTTClient = new EventEmitter();
+// const MQTTClient = { id: `aloes-${process.env.ALOES_ID}` };
 let mqttClient;
 
 /**
@@ -240,20 +243,35 @@ const onMessage = async (app, topic, payload) => {
   }
 };
 
-MQTTClient.start = async () => {
+/**
+ * Event reporting that MQTTClient has to start.
+ * @event module:MQTTClient~start
+ */
+MQTTClient.on('start', async (clientId) => MQTTClient.start(clientId));
+
+MQTTClient.start = async (clientId) => {
   await mqttClient.subscribe(`aloes-${process.env.ALOES_ID}/sync`, {
     qos: 2,
     retain: false,
   });
-  await mqttClient.subscribe(`${MQTTClient.id}/status`, {
+  await mqttClient.subscribe(`${clientId}/status`, {
     qos: 0,
     retain: false,
   });
-  await mqttClient.subscribe(`${MQTTClient.id}/rx/#`, {
+  await mqttClient.subscribe(`${clientId}/rx/#`, {
     qos: 0,
     retain: false,
   });
 };
+
+/**
+ * Event reporting that MQTTClient has to init.
+ * @event module:MQTTClient~init
+ * @param {object} app - Loopback app
+ * @param {object} config - Formatted config.
+ */
+MQTTClient.on('init',async (app,config) => MQTTClient.init(app,config));
+
 /**
  * Setup MQTT client connection
  * @method module:MQTTClient.init
@@ -264,17 +282,16 @@ MQTTClient.start = async () => {
 MQTTClient.init = async (app, config) => {
   try {
     let clientId;
+    logger.publish(4, 'mqtt-client', 'init:req', {
+      aloesId: config.ALOES_ID,
+      processId: config.processId,
+    });
     if (typeof config.processId === 'number') {
       clientId = `aloes-${config.ALOES_ID}-${config.processId}`;
     } else {
       clientId = `aloes-${config.ALOES_ID}`;
     }
     MQTTClient.id = clientId;
-    logger.publish(4, 'mqtt-client', 'init:req', {
-      clientId,
-      aloesId: config.ALOES_ID,
-      processId: config.processId,
-    });
 
     let mqttBrokerUrl;
     const mqttClientOptions = {
@@ -323,7 +340,8 @@ MQTTClient.init = async (app, config) => {
 
     mqttClient.on('message', async (topic, payload) => onMessage(app, topic, payload));
 
-    await MQTTClient.start();
+    // await MQTTClient.start();
+    MQTTClient.emit('start', clientId);
     logger.publish(3, 'mqtt-client', 'init:res', mqttClientOptions);
     return true;
   } catch (error) {
@@ -365,6 +383,12 @@ MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
     // return false;
   }
 };
+
+/**
+ * Event reporting that MQTTClient has to stop.
+ * @event module:MQTTClient~init
+ */
+MQTTClient.on('stop',async () => MQTTClient.stop());
 
 /**
  * Stop MQTT client and unsubscribe

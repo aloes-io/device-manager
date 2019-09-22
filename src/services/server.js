@@ -144,7 +144,7 @@ app.start = async config => {
     // );
     // await startServer();
 
-    httpServer = app.listen(async () => {
+    httpServer = app.listen(() => {
       // EXTERNAL AUTH TESTS
       //  app.get('/auth/account', ensureLoggedIn('/login'), (req, res, next) => {
       app.get('/auth/account', (req, res, next) => {
@@ -190,7 +190,9 @@ app.start = async config => {
           // return next(error);
         }
       });
-      await MQTTClient.init(app, config);
+
+      // MQTTClient.init(app, config);
+      MQTTClient.emit('init', app, config);
       // logger.publish(2, 'loopback', 'start:res', baseUrl);
       app.emit('started', true);
     });
@@ -199,7 +201,7 @@ app.start = async config => {
   } catch (error) {
     logger.publish(2, 'loopback', 'start:err', error);
     app.emit('started', false);
-    return false;
+    throw error;
   }
 };
 
@@ -219,9 +221,8 @@ app.stop = async signal => {
     if (httpServer) {
       httpServer.close();
     }
-    if (process.env.MQTT_BROKER_URL) {
-      await MQTTClient.stop();
-    }
+    // await MQTTClient.stop();
+    MQTTClient.emit('stop', app);
     app.models.Scheduler.emit('stopped');
     app.models.Application.emit('stopped');
     app.models.Device.emit('stopped');
@@ -230,7 +231,7 @@ app.stop = async signal => {
     return true;
   } catch (error) {
     logger.publish(2, 'loopback', 'stop:err', error);
-    return false;
+    throw error;
   }
 };
 
@@ -278,7 +279,7 @@ app.init = async config => {
     return app.start(config);
   } catch (error) {
     logger.publish(2, 'loopback', 'init:err', error);
-    return false;
+    throw error;
   }
 };
 
@@ -307,6 +308,7 @@ app.on('started', state => {
     }
     //  process.send('ready');
   } else {
+    logger.publish(4, 'loopback', 'Setup', `Error, state invalid`);
     //  app.emit('error');
     //  process.send('error');
   }

@@ -26,6 +26,7 @@ services:
       - ./.env:/home/node/device-manager/.env:ro
       - ./deploy/device-manager-local.key:/home/node/device-manager/deploy/device-manager-local.key:ro
       - ./deploy/device-manager-local.crt:/home/node/device-manager/deploy/device-manager-local.crt:ro
+      - apivolume:/home/node/device-manager/storage
       # - /opt/device-manager-${NODE_ENV}-storage:/home/node/${NODE_NAME}/storage
     links:
       - mongo
@@ -214,6 +215,7 @@ volumes:
   mongovolume:
   redisvolume:
   influxvolume:
+  apivolume:
 
 networks:
   skyring:

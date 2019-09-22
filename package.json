@@ -33,7 +33,7 @@
     "log:pm2": "./node_modules/.bin/pm2 log",
     "start:docker": "cp deploy/.env_docker .env ; docker-compose --compatibility up -d",
     "stop:docker": "cp deploy/.env_docker .env ; docker-compose --compatibility down",
-    "log:docker": "cp deploy/.env_docker .env ; docker-compose logs -f --tail='100'",
+    "log:docker": "cp deploy/.env_docker .env ; docker-compose logs --follow --tail='100' api",
     "log:docker:api": "cp deploy/.env_docker .env ; docker-compose logs -f --tail='100' api"
   },
   "dependencies": {

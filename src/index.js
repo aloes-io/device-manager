@@ -8,8 +8,7 @@ import logger from './services/logger';
  * @param {string} [processId] - process id
  * @fires module:Server.start
  */
-const boot = async processId => {
-  try {
+const boot = processId => {
     const result = dotenv.config();
     if (result.error) {
       throw result.error;
@@ -26,11 +25,8 @@ const boot = async processId => {
       aloesId: config.ALOES_ID,
       aloesKey: config.ALOES_KEY,
     });
-    return app.emit('start', config);
-  } catch (error) {
-    logger.publish(1, 'loopback', 'boot:error', error);
-    throw error;
-  }
+    app.emit('start', config);
+  
 };
 
 /**

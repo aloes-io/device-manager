@@ -50,7 +50,7 @@ const startProcess = async (noDaemon = true) => {
     if (config.parsed.INSTANCES_COUNT > 1) {
       process.env.CLUSTER_MODE = true;
     } else {
-      process.env.CLUSTER_MODE = false;
+      // process.env.CLUSTER_MODE = false;
     }
 
     const apps = await startAppsList([
@@ -72,6 +72,7 @@ const startProcess = async (noDaemon = true) => {
         killTimeout: 5000,
         env: {
           NODE_ENV: config.parsed.NODE_ENV,
+          CLUSTER_MODE: process.env.CLUSTER_MODE,
         },
         envStaging: {
           NODE_ENV: 'staging',
@@ -92,6 +93,7 @@ const startProcess = async (noDaemon = true) => {
         killTimeout: 2500,
         env: {
           NODE_ENV: config.parsed.NODE_ENV,
+          CLUSTER_MODE: process.env.CLUSTER_MODE,
         },
       },
       {
