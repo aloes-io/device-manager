@@ -88,6 +88,11 @@ const authenticateInstance = async (client, username, password) => {
   }
 };
 
+const startServer = () =>
+  new Promise((resolve, reject) => {
+    app.listen(err => (err ? reject(err) : resolve(app)));
+  });
+
 /**
  * Init HTTP server with new Loopback instance
  *
@@ -137,57 +142,57 @@ app.start = async config => {
     //     model: app.models.accessToken,
     //   }),
     // );
+    await startServer();
 
-    httpServer = app.listen(() => {
-      // EXTERNAL AUTH TESTS
-      //  app.get('/auth/account', ensureLoggedIn('/login'), (req, res, next) => {
-      app.get('/auth/account', (req, res, next) => {
-        console.log('auth/account', req.url);
-        res.set('Access-Control-Allow-Origin', '*');
-        res.end();
-        // get origin
-        // compose user + access token res
-        //  console.log("user", req.user)
-        // how to redirect ?
-        //  res.redirect(`${process.env.HTTP_CLIENT_URL}`);
-        //  res.redirect(`${process.env.HTTP_CLIENT_URL}/account?userId=${res.id}?token=${}`);
-        //  res.json()
-        next();
-      });
+    // httpServer = app.listen(() => {
 
-      app.get('/login', (req, res, next) => {
-        console.log('login', req.url);
-        res.redirect(`${config.HTTP_CLIENT_URL}/login`);
-        next();
-      });
-
-      app.get('/api/auth/logout', (req, res, next) => {
-        console.log('auth/logout', req.url);
-        req.logout();
-        res.set('Access-Control-Allow-Origin', '*');
-        res.end();
-        next();
-      });
-
-      app.post('/api/auth/mqtt', async (req, res) => {
-        try {
-          // console.log('auth/mqtt', req.url, req.body);
-          const client = req.body.client;
-          const username = req.body.username;
-          const password = req.body.password;
-          const result = await authenticateInstance(client, username, password);
-          res.set('Access-Control-Allow-Origin', '*');
-          res.json(result);
-          return;
-        } catch (error) {
-          throw error;
-          // return next(error);
-        }
-      });
+    // });
+    
+    // EXTERNAL AUTH TESTS
+    //  app.get('/auth/account', ensureLoggedIn('/login'), (req, res, next) => {
+    app.get('/auth/account', (req, res, next) => {
+      console.log('auth/account', req.url);
+      res.set('Access-Control-Allow-Origin', '*');
+      res.end();
+      // get origin
+      // compose user + access token res
+      //  console.log("user", req.user)
+      // how to redirect ?
+      //  res.redirect(`${process.env.HTTP_CLIENT_URL}`);
+      //  res.redirect(`${process.env.HTTP_CLIENT_URL}/account?userId=${res.id}?token=${}`);
+      //  res.json()
+      next();
     });
 
-    // if (config.MQTT_BROKER_URL) {
-    // }
+    app.get('/login', (req, res, next) => {
+      console.log('login', req.url);
+      res.redirect(`${config.HTTP_CLIENT_URL}/login`);
+      next();
+    });
+
+    app.get('/api/auth/logout', (req, res, next) => {
+      console.log('auth/logout', req.url);
+      req.logout();
+      res.set('Access-Control-Allow-Origin', '*');
+      res.end();
+      next();
+    });
+
+    app.post('/api/auth/mqtt', async (req, res) => {
+      try {
+        // console.log('auth/mqtt', req.url, req.body);
+        const client = req.body.client;
+        const username = req.body.username;
+        const password = req.body.password;
+        const result = await authenticateInstance(client, username, password);
+        res.set('Access-Control-Allow-Origin', '*');
+        res.json(result);
+        return;
+      } catch (error) {
+        throw error;
+        // return next(error);
+      }
+    });
     await MQTTClient.init(app, config);
     // logger.publish(2, 'loopback', 'start:res', baseUrl);
     app.emit('started', true);
