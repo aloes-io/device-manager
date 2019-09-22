@@ -188,8 +188,9 @@ const updateClientStatus = async (client, status) => {
  */
 const authentificationRequest = data => {
   const options = {
-    hostname: process.env.HTTP_SERVER_HOST,
-    port: process.env.HTTP_SERVER_PORT,
+    // host: process.env.HTTP_SERVER_HOST,
+    hostname: process.env.DOMAIN,
+    port: Number(process.env.HTTP_SERVER_PORT),
     path: `${process.env.REST_API_ROOT}/auth/mqtt`,
     method: 'POST',
     headers: {
@@ -197,6 +198,10 @@ const authentificationRequest = data => {
       'content-type': 'application/json',
     },
   };
+
+  if (process.env.HTTP_SECURE) {
+    options.port = 443;
+  }
   return new Promise((resolve, reject) => {
     const httpClient = http;
     // if (options.port === 443) {
