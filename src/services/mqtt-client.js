@@ -263,13 +263,18 @@ MQTTClient.start = async () => {
  */
 MQTTClient.init = async (app, config) => {
   try {
+    let clientId;
     if (typeof config.processId === 'number') {
-      MQTTClient.id = `aloes-${config.ALOES_ID}-${config.processId}`;
+      clientId = `aloes-${config.ALOES_ID}-${config.processId}`;
     } else {
-      MQTTClient.id = `aloes-${config.ALOES_ID}`;
+      clientId = `aloes-${config.ALOES_ID}`;
     }
-
-    logger.publish(4, 'mqtt-client', 'init:req', { clientId: MQTTClient.id });
+    MQTTClient.id = clientId;
+    logger.publish(4, 'mqtt-client', 'init:req', {
+      clientId,
+      aloesId: config.ALOES_ID,
+      processId: config.processId,
+    });
 
     let mqttBrokerUrl;
     const mqttClientOptions = {
@@ -282,7 +287,7 @@ MQTTClient.init = async (app, config) => {
       reconnectPeriod: 1000,
       connectTimeout: 30 * 1000,
       clean: false,
-      clientId: MQTTClient.id,
+      clientId: clientId,
       username: config.ALOES_ID,
       password: config.ALOES_KEY,
     };
