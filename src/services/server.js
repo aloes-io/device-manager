@@ -195,6 +195,7 @@ app.start = async config => {
       MQTTClient.emit('init', app, config);
       // logger.publish(2, 'loopback', 'start:res', baseUrl);
       app.emit('started', true);
+      app.models.Scheduler.emit('started');
     });
 
     return true;

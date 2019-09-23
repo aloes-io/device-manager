@@ -199,7 +199,7 @@ const authentificationRequest = data => {
     },
   };
 
-  if (process.env.HTTP_SECURE) {
+  if (process.env.HTTP_SECURE === "true") {
     options.port = 443;
   }
   return new Promise((resolve, reject) => {

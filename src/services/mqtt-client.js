@@ -6,9 +6,8 @@ import logger from './logger';
 /**
  * @module MQTTClient
  */
-// event emitter
+ 
 const MQTTClient = new EventEmitter();
-// const MQTTClient = { id: `aloes-${process.env.ALOES_ID}` };
 let mqttClient;
 
 /**
@@ -247,9 +246,9 @@ const onMessage = async (app, topic, payload) => {
  * Event reporting that MQTTClient has to start.
  * @event module:MQTTClient~start
  */
-MQTTClient.on('start', async (clientId) => MQTTClient.start(clientId));
+MQTTClient.on('start', async clientId => MQTTClient.start(clientId));
 
-MQTTClient.start = async (clientId) => {
+MQTTClient.start = async clientId => {
   await mqttClient.subscribe(`aloes-${process.env.ALOES_ID}/sync`, {
     qos: 2,
     retain: false,
@@ -270,7 +269,7 @@ MQTTClient.start = async (clientId) => {
  * @param {object} app - Loopback app
  * @param {object} config - Formatted config.
  */
-MQTTClient.on('init',async (app,config) => MQTTClient.init(app,config));
+MQTTClient.on('init', async (app, config) => MQTTClient.init(app, config));
 
 /**
  * Setup MQTT client connection
@@ -297,8 +296,8 @@ MQTTClient.init = async (app, config) => {
     const mqttClientOptions = {
       //  keepalive: 60,
       // reschedulePings: true,
-      port: Number(config.MQTT_BROKER_PORT),
-      host: config.MQTT_BROKER_HOST,
+      // port: Number(config.MQTT_BROKER_PORT),
+      // host: config.MQTT_BROKER_HOST,
       protocolId: 'MQTT',
       protocolVersion: 4,
       reconnectPeriod: 1000,
@@ -388,7 +387,7 @@ MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
  * Event reporting that MQTTClient has to stop.
  * @event module:MQTTClient~init
  */
-MQTTClient.on('stop',async () => MQTTClient.stop());
+MQTTClient.on('stop', async () => MQTTClient.stop());
 
 /**
  * Stop MQTT client and unsubscribe

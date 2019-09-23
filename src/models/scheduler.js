@@ -745,7 +745,7 @@ module.exports = function(Scheduler) {
       }
       return Scheduler.setExternalClock(clockInterval);
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -790,7 +790,8 @@ module.exports = function(Scheduler) {
     return Scheduler.timer.stop();
   };
 
-  Scheduler.once('attached', () => setTimeout(() => Scheduler.setClock(clockInterval), 2500));
+  // Scheduler.once('attached', () => setTimeout(() => Scheduler.setClock(clockInterval), 2500));
+  Scheduler.once('started', () => setTimeout(() => Scheduler.setClock(clockInterval), 2500));
 
   Scheduler.on('stopped', async () => Scheduler.deleteAll());
 };
