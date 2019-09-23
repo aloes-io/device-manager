@@ -198,22 +198,16 @@ const authentificationRequest = data => {
       'content-type': 'application/json',
     },
   };
+  if (process.env.HTTP_SECURE === 'true') options.port = 443;
 
-  if (process.env.HTTP_SECURE === "true") {
-    options.port = 443;
-  }
   return new Promise((resolve, reject) => {
-    const httpClient = http;
-    // if (options.port === 443) {
-    //   httpClient = https;
-    // }
     // console.log('authenticate', data);
     if (typeof data === 'object') {
       if (!Buffer.isBuffer(data)) {
         data = JSON.stringify(data);
       }
     }
-    const req = httpClient.request(options, res => {
+    const req = http.request(options, res => {
       // console.log('REQUEST STATUS: ', res.statusCode);
       // console.log('HEADERS: ', JSON.stringify(res.headers));
       // res.setEncoding('utf8');

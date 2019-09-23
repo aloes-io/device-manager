@@ -27,16 +27,19 @@ const authenticateInstance = async (client, username, password) => {
     // todo : find a way to verify in auth request, against which model authenticate
     //  console.log("client parser", client.parser)
     let status = false;
-    let foundClient = JSON.parse(await Client.get(client.id));
-    let successPayload = status.toString();
-
-    if (!foundClient || !foundClient.id) {
+    let foundClient;
+    try {
+      foundClient = JSON.parse(await Client.get(client.id));
+      if (!foundClient || !foundClient.id) {
+        foundClient = { id: client.id, type: 'MQTT' };
+      }
+    } catch (e) {
       foundClient = { id: client.id, type: 'MQTT' };
     }
+
     const token = await app.models.accessToken.findById(password.toString());
     if (token && token.userId && token.userId.toString() === username) {
       status = true;
-      successPayload = token;
       foundClient.ownerId = token.userId.toString();
       foundClient.model = 'User';
       // console.log('OWNER MQTT CLIENT', Object.keys(foundClient));
@@ -49,7 +52,6 @@ const authenticateInstance = async (client, username, password) => {
         const instance = authentification.device;
         if (instance.devEui && instance.devEui !== null) {
           status = true;
-          successPayload = instance;
           foundClient.devEui = instance.devEui;
           foundClient.model = 'Device';
         }
@@ -63,7 +65,6 @@ const authenticateInstance = async (client, username, password) => {
         if (instance && instance.id) {
           foundClient.appId = instance.id.toString();
           foundClient.model = 'Application';
-          successPayload = instance;
           status = true;
           if (instance.appEui && instance.appEui !== null) {
             foundClient.appEui = instance.appEui;
@@ -73,17 +74,19 @@ const authenticateInstance = async (client, username, password) => {
     }
 
     if (status) {
-      if (!successPayload) {
-        successPayload = status.toString();
-      }
       const ttl = 1 * 60 * 60 * 1000;
       client.user = username;
       foundClient.user = username;
       await Client.set(client.id, JSON.stringify(foundClient), ttl);
+    } else {
+      // await Client.set(client.id, undefined);
+      await Client.delete(client.id);
     }
+    logger.publish(3, 'loopback', 'authenticateInstance:res', { status, client: foundClient });
     // const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to update this user');
-    return { client: foundClient, status, payload: successPayload };
+    return { client: foundClient, status };
   } catch (error) {
+    logger.publish(2, 'loopback', 'authenticateInstance:err', error);
     throw error;
   }
 };
