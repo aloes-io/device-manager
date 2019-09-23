@@ -282,6 +282,7 @@ const authenticate = async (client, username, password) => {
         status = result.status;
         foundClient = result.client;
         foundClient.user = username;
+        console.log('broker', 'Authenticate:result', { client: foundClient, status });
         Object.keys(foundClient).forEach(key => {
           client[key] = foundClient[key];
           return key;
@@ -290,13 +291,12 @@ const authenticate = async (client, username, password) => {
     }
 
     if (foundClient && foundClient.id) {
-      logger.publish(4, 'broker', 'Authenticate:res', { client: foundClient, status });
       if (status === true) {
         await updateClientStatus(client, status);
         return status;
       }
     }
-
+    logger.publish(3, 'broker', 'Authenticate:res', { client: foundClient, status });
     const error = new Error('Auth error');
     error.returnCode = 2;
     status = false;
