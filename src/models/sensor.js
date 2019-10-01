@@ -239,6 +239,8 @@ const persistingResource = async (app, device, sensor, client) => {
     } else if (method === 'buffer') {
       const Files = app.models.Files;
       const buffer = await Files.compose(sensor);
+      // todo limit buffer size !
+      // send error ?
       const fileMeta = await Files.uploadBuffer(
         buffer,
         sensor.ownerId.toString(),
@@ -464,7 +466,7 @@ module.exports = function(Sensor) {
       } else if (!publishMethod) {
         publishMethod = method || sensor.method || 'PUT';
       }
-      const packet = await iotAgent.publish({
+      const packet =  iotAgent.publish({
         userId: sensor.ownerId,
         collection: collectionName,
         modelId: sensor.id,
@@ -481,9 +483,9 @@ module.exports = function(Sensor) {
         //   return null;
         // }
         if (client && (client.ownerId || client.appId)) {
-          const pattern = await iotAgent.patternDetector(packet);
+          const pattern =  iotAgent.patternDetector(packet);
           let nativePacket = { topic: packet.topic, payload: JSON.stringify(sensor) };
-          nativePacket = await iotAgent.decode(nativePacket, pattern.params);
+          nativePacket =  iotAgent.decode(nativePacket, pattern.params);
           if (
             nativePacket.payload &&
             nativePacket.payload !== null &&
@@ -497,7 +499,7 @@ module.exports = function(Sensor) {
         }
 
         if (device.appIds && device.appIds.length > 0) {
-          const promises = await device.appIds.map(async appId => {
+          const promises =  device.appIds.map(async appId => {
             try {
               const parts = packet.topic.split('/');
               parts[0] = appId;
@@ -516,7 +518,7 @@ module.exports = function(Sensor) {
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -749,7 +751,7 @@ module.exports = function(Sensor) {
       //  const topic = `${params.appEui}/Sensor/HEAD`;
       return instance;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -945,7 +947,7 @@ module.exports = function(Sensor) {
       if (!device || (!attributes && !sensor)) throw new Error('Message missing properties');
       return Sensor.onPublish(device, attributes, sensor, client);
     } catch (error) {
-      return error;
+      throw error;
     }
   });
 

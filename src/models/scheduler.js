@@ -75,28 +75,27 @@ module.exports = function(Scheduler) {
     }
   };
 
-  const createTimer = async timer => {
-    const timerApi = Scheduler.app.datasources.timer;
-    return new Promise((resolve, reject) => {
-      timerApi.create(timer, (err, body, res) => (err ? reject(err) : resolve(res.headers)));
+  const createTimer = async timer =>
+    new Promise((resolve, reject) => {
+      Scheduler.app.datasources.timer.create(timer, (err, body, res) =>
+        err ? reject(err) : resolve(res.headers),
+      );
     });
-  };
 
   // const updateTimer = async (timerId, timer) => {
-  //   const timerApi = Scheduler.app.datasources.timer;
   //   return new Promise((resolve, reject) => {
-  //     timerApi.updateById(timerId, timer, (err, body, res) =>
+  //     Scheduler.app.datasources.timer.updateById(timerId, timer, (err, body, res) =>
   //       err ? reject(err) : resolve(res.headers),
   //     );
   //   });
   // };
 
-  const deleteTimer = async timerId => {
-    const timerApi = Scheduler.app.datasources.timer;
-    return new Promise((resolve, reject) => {
-      timerApi.deleteById(timerId, (err, body, res) => (err ? reject(err) : resolve(res.headers)));
+  const deleteTimer = async timerId =>
+    new Promise((resolve, reject) => {
+      Scheduler.app.datasources.timer.deleteById(timerId, (err, body, res) =>
+        err ? reject(err) : resolve(res.headers),
+      );
     });
-  };
 
   const stopExternalTimer = async (device, sensor, client, scheduler) => {
     try {
@@ -108,7 +107,7 @@ module.exports = function(Scheduler) {
       await deleteTimer(scheduler.timerId);
       return scheduler.lastTime;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -130,7 +129,7 @@ module.exports = function(Scheduler) {
       if (!timer && !scheduler) throw new Error('Missing timer');
       return lastTime;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -166,7 +165,7 @@ module.exports = function(Scheduler) {
       sensor.resources['5850'] = 0;
       return { sensor, scheduler };
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -224,7 +223,7 @@ module.exports = function(Scheduler) {
       );
     } catch (error) {
       console.log('onTimeout err:', error);
-      return error;
+      throw error;
     }
   };
 
@@ -267,7 +266,7 @@ module.exports = function(Scheduler) {
       }
       return lastTime;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -299,7 +298,7 @@ module.exports = function(Scheduler) {
       await Scheduler.publish(device, timer, 'POST', client);
       return lastTime;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -341,7 +340,7 @@ module.exports = function(Scheduler) {
       sensor.resources['5850'] = 1;
       return { sensor, scheduler };
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -412,7 +411,7 @@ module.exports = function(Scheduler) {
       }
       return result;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -440,7 +439,7 @@ module.exports = function(Scheduler) {
       }
       return result;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -497,7 +496,7 @@ module.exports = function(Scheduler) {
       return scheduler;
     } catch (error) {
       console.log('scheduler err:', error);
-      return error;
+      throw error;
     }
   };
 
@@ -542,7 +541,7 @@ module.exports = function(Scheduler) {
       }
       return schedulers;
     } catch (err) {
-      return err;
+      throw err;
     }
   };
 
@@ -564,7 +563,7 @@ module.exports = function(Scheduler) {
       }
       return schedulers;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -732,7 +731,7 @@ module.exports = function(Scheduler) {
       }
       return scheduler;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -760,7 +759,7 @@ module.exports = function(Scheduler) {
       logger.publish(4, `${collectionName}`, 'setInternalClock:res', Scheduler.start);
       return Scheduler.timer;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 

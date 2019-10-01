@@ -47,7 +47,7 @@ module.exports = function(SensorResource) {
 
       throw new Error('No sensor found in cache');
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -75,7 +75,7 @@ module.exports = function(SensorResource) {
       logger.publish(5, `${collectionName}`, 'setCache:res', sensor);
       return sensor;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -93,7 +93,7 @@ module.exports = function(SensorResource) {
       logger.publish(5, `${collectionName}`, 'deleteCache:res', key);
       return true;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -152,7 +152,7 @@ module.exports = function(SensorResource) {
       return sensors;
     } catch (error) {
       logger.publish(3, `${collectionName}`, 'syncCache:err', error);
-      return error;
+      throw error;
     }
   };
 
@@ -199,7 +199,7 @@ module.exports = function(SensorResource) {
       }
       return device;
     } catch (err) {
-      return err;
+      throw err;
     }
   };
 
@@ -232,7 +232,7 @@ module.exports = function(SensorResource) {
 
       return sensors;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 };

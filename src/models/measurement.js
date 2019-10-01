@@ -63,9 +63,9 @@ module.exports = function(Measurement) {
    * @param {object} [client] - MQTT client target
    * @fires {event} module:Server.publish
    */
-  Measurement.publish = async (device, measurement, method) => {
+  Measurement.publish = (device, measurement, method) => {
     try {
-      const packet = await publish({
+      const packet = publish({
         userId: measurement.ownerId,
         collection: collectionName,
         modelId: measurement.id,
@@ -83,16 +83,12 @@ module.exports = function(Measurement) {
         //   return null;
         // }
         if (device.appIds && device.appIds.length > 0) {
-          await device.appIds.map(async appId => {
-            try {
-              const parts = packet.topic.split('/');
-              parts[0] = appId;
-              const topic = parts.join('/');
-              Measurement.app.emit('publish', topic, packet.payload, false, 0);
-              return topic;
-            } catch (error) {
-              return error;
-            }
+          device.appIds.map(appId => {
+            const parts = packet.topic.split('/');
+            parts[0] = appId;
+            const topic = parts.join('/');
+            Measurement.app.emit('publish', topic, packet.payload, false, 0);
+            return topic;
           });
         }
         Measurement.app.emit('publish', packet.topic, packet.payload, false, 0);
@@ -149,7 +145,7 @@ module.exports = function(Measurement) {
       });
       return measurement;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -262,7 +258,7 @@ module.exports = function(Measurement) {
         logger.publish(4, `${collectionName}`, 'findMeasurements:res', { result });
         return result;
       } catch (error) {
-        return error;
+        throw error;
       }
     };
 
@@ -336,7 +332,7 @@ module.exports = function(Measurement) {
         //  const result = await influxConnector.client.query(query);
         return query;
       } catch (error) {
-        return error;
+        throw error;
       }
     };
 
@@ -408,6 +404,7 @@ module.exports = function(Measurement) {
         return result;
       } catch (error) {
         return error;
+        // throw error;
       }
     };
 

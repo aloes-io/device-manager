@@ -27,7 +27,7 @@ const authenticateInstance = async (client, username, password) => {
     // todo : find a way to verify in auth request, against which model authenticate
     //  console.log("client parser", client.parser)
     let status = false;
-    let foundClient;
+    let authentification, foundClient;
     try {
       foundClient = JSON.parse(await Client.get(client.id));
       if (!foundClient || !foundClient.id) {
@@ -45,7 +45,6 @@ const authenticateInstance = async (client, username, password) => {
       // console.log('OWNER MQTT CLIENT', Object.keys(foundClient));
     }
 
-    let authentification;
     if (!status) {
       authentification = await app.models.Device.authenticate(username, password.toString());
       if (authentification && authentification.device && authentification.keyType) {
@@ -91,11 +90,6 @@ const authenticateInstance = async (client, username, password) => {
   }
 };
 
-const startServer = () =>
-  new Promise((resolve, reject) => {
-    app.listen(err => (err ? reject(err) : resolve(app)));
-  });
-
 /**
  * Init HTTP server with new Loopback instance
  *
@@ -115,7 +109,6 @@ app.start = async config => {
         baseUrl = `http://${config.NODE_NAME}-${config.NODE_ENV}.${config.TUNNEL_HOST}`;
       }
     }
-    logger.publish(2, 'loopback', 'start:req', baseUrl);
 
     app.set('originUrl', config.HTTP_SERVER_URL);
     app.set('url', baseUrl);
@@ -137,7 +130,6 @@ app.start = async config => {
       ),
     );
 
-    // logger.publish(2, 'loopback', 'start', `${app.get('host')}:${app.get('port')}`);
     logger.publish(2, 'loopback', 'start', `${app.get('url')}`);
 
     // app.use(
@@ -190,13 +182,10 @@ app.start = async config => {
           return;
         } catch (error) {
           throw error;
-          // return next(error);
         }
       });
 
-      // MQTTClient.init(app, config);
       MQTTClient.emit('init', app, config);
-      // logger.publish(2, 'loopback', 'start:res', baseUrl);
       app.emit('started', true);
       app.models.Scheduler.emit('started');
     });
@@ -276,7 +265,6 @@ app.init = async config => {
       scriptExtensions: config.scriptExtensions,
     };
     await bootApp(app, options);
-    //  logger.publish(4, 'loopback', 'init:res', state);
     // if (require.main === module) {
     //   return app.start(config);
     // }

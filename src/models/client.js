@@ -63,7 +63,7 @@ module.exports = function(Client) {
       }
       return clients;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -72,7 +72,7 @@ module.exports = function(Client) {
       await Client.deleteAll();
       return true;
     } catch (error) {
-      return error;
+      throw error;
     }
   });
 };

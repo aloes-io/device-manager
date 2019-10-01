@@ -38,7 +38,7 @@ module.exports = Application => {
   Application.publish = async (application, method, client) => {
     try {
       if (!application || !application.ownerId) throw new Error('Wrong application instance');
-      const packet = await publish({
+      const packet = publish({
         userId: application.ownerId,
         collection: collectionName,
         data: application,
@@ -102,7 +102,7 @@ module.exports = Application => {
       }
       return application;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -155,7 +155,7 @@ module.exports = Application => {
       throw new Error('Missing Application instance');
     } catch (error) {
       logger.publish(4, `${collectionName}`, 'refreshToken:err', error);
-      return error;
+      throw error;
     }
   };
 
@@ -178,7 +178,7 @@ module.exports = Application => {
       //  logger.publish(4, `${collectionName}`, 'createDeviceProps:res', container);
       return Application.publish(application, 'POST');
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -195,7 +195,7 @@ module.exports = Application => {
       const application = await createKeys(ctx.instance);
       return Application.publish(application, 'PUT');
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -266,7 +266,7 @@ module.exports = Application => {
       return null;
     } catch (error) {
       logger.publish(4, `${collectionName}`, 'onPublish:err', error);
-      return error;
+      throw error;
     }
   };
 
@@ -294,12 +294,12 @@ module.exports = Application => {
       if (!application || application === null) {
         throw new Error('No application found');
       }
-      const pattern = await appPatternDetector(packet, application);
+      const pattern = appPatternDetector(packet, application);
       logger.publish(5, collectionName, 'detector:res', pattern);
       return pattern;
     } catch (error) {
       logger.publish(2, collectionName, 'detector:err', error);
-      return error;
+      throw error;
     }
   };
 
@@ -367,7 +367,7 @@ module.exports = Application => {
       throw new Error('No application found');
     } catch (error) {
       logger.publish(5, collectionName, 'updateStatus:err', error);
-      return error;
+      throw error;
     }
   };
 
@@ -417,7 +417,7 @@ module.exports = Application => {
       }
       return result;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -455,7 +455,7 @@ module.exports = Application => {
       throw new Error('Failed to authenticate application');
     } catch (error) {
       console.log('getstate, err : ', error);
-      return error;
+      throw error;
     }
   };
 
@@ -477,7 +477,7 @@ module.exports = Application => {
       }
       return Application.updateStatus(client, status);
     } catch (error) {
-      return error;
+      throw error;
     }
   });
 
@@ -499,7 +499,7 @@ module.exports = Application => {
       if (!packet || !pattern) throw new Error('Message missing properties');
       return Application.onPublish(packet, client, pattern);
     } catch (error) {
-      return error;
+      throw error;
     }
   });
 
@@ -508,7 +508,7 @@ module.exports = Application => {
       await Application.updateAll({ status: true }, { status: false, clients: [] });
       return true;
     } catch (error) {
-      return error;
+      throw error;
     }
   });
 
@@ -541,7 +541,7 @@ module.exports = Application => {
       return ctx;
     } catch (error) {
       logger.publish(3, `${collectionName}`, 'beforeSave:err', error);
-      return error;
+      throw error;
     }
   });
 
@@ -558,7 +558,7 @@ module.exports = Application => {
       if (ctx.hookState.updateData) {
         logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
         const updatedProps = Object.keys(ctx.hookState.updateData);
-        if (updatedProps.some(prop => prop === 'status')) {
+        if (updatedProps.some(prop => prop === 'status') && ctx.instance) {
           await Application.publish(ctx.instance, 'PUT');
         }
         return ctx;
@@ -573,7 +573,7 @@ module.exports = Application => {
       return ctx;
     } catch (error) {
       logger.publish(3, `${collectionName}`, 'afterSave:err', error);
-      return error;
+      throw error;
     }
   });
 
@@ -602,7 +602,7 @@ module.exports = Application => {
       }
       return ctx;
     } catch (error) {
-      return error;
+      throw error;
     }
   });
 
@@ -615,12 +615,8 @@ module.exports = Application => {
   });
 
   Application.afterRemoteError('*', async ctx => {
-    try {
-      logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
-      // publish on collectionName/ERROR
-      return ctx;
-    } catch (error) {
-      return error;
-    }
+    logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
+    // publish on collectionName/ERROR
+    return ctx;
   });
 };

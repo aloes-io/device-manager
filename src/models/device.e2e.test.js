@@ -394,6 +394,31 @@ const deviceTest = () => {
                   }),
                 ],
               },
+              {
+                name: 'device CAN read its full state (with sensors and address)',
+                steps: [
+                  {
+                    verb: 'post',
+                    url: () => `${apiUrl}authenticate`,
+                    body: () => ({
+                      deviceId: devices[0].id.toString(),
+                      apiKey: devices[0].apiKey,
+                    }),
+                    expect: 200,
+                  },
+                  () => ({
+                    verb: 'get',
+                    headers: {
+                      'accept-encoding': 'gzip, deflate',
+                      'user-agent': 'node-superagent/3.8.3',
+                      deveui: devices[0].devEui,
+                      apikey: devices[0].apiKey,
+                    },
+                    url: () => `${apiUrl}get-full-state/${devices[0].id}`,
+                    expect: 200,
+                  }),
+                ],
+              },
             ],
           },
           '[TEST] Verifying "Authentification" access': {

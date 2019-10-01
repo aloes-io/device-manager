@@ -433,7 +433,8 @@ module.exports = function(Files) {
       // logger.publish(3, `${collectionName}`, 'compose:res', buffer);
       return buffer;
     } catch (error) {
-      return error;
+      logger.publish(2, `${collectionName}`, 'compose:er', error);
+      throw error;
     }
   };
 

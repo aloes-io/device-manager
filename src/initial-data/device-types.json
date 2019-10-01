@@ -43,6 +43,10 @@
     "name": "Light controller",
     "icons": ["/icons/aloes/light-output.png", "/icons/aloes/light-output-white.png"]
   },
+  "mcu": {
+    "name": "Micro computer",
+    "icons": ["/icons/aloes/mcu.png", "/icons/aloes/mcu-white.png"]
+  },
   "measurement": {
     "name": "Measurement",
     "icons": ["/icons/aloes/measurement.png", "/icons/aloes/measurement-white.png"]
@@ -54,10 +58,6 @@
   "midi-output": {
     "name": "MIDI player",
     "icons": ["/icons/aloes/midi-output.png", "/icons/aloes/midi-output-white.png"]
-  },
-  "mcu": {
-    "name": "Micro computer",
-    "icons": ["/icons/aloes/mcu.png", "/icons/aloes/mcu-white.png"]
   },
   "node": {
     "name": "Node",

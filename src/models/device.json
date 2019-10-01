@@ -221,7 +221,7 @@
       "principalType": "ROLE",
       "principalId": "$everyone",
       "permission": "ALLOW",
-      "property": ["updateStatus", "authenticate", "getState", "getOTAUpdate"]
+      "property": ["updateStatus", "authenticate", "getState", "getFullState", "getOTAUpdate"]
     },
     {
       "accessType": "*",
@@ -450,6 +450,25 @@
       "http": {
         "verb": "get",
         "path": "/get-state/:deviceId"
+      }
+    },
+    "getFullState": {
+      "description": ["End point for device requesting their own state"],
+      "accepts": [
+        {
+          "arg": "deviceId",
+          "type": "string",
+          "required": true
+        },
+        { "arg": "options", "type": "object", "http": "optionsFromRequest" }
+      ],
+      "returns": {
+        "root": true,
+        "type": "object"
+      },
+      "http": {
+        "verb": "get",
+        "path": "/get-full-state/:deviceId"
       }
     },
     "getOTAUpdate": {

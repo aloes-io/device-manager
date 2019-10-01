@@ -76,7 +76,7 @@ mails.send = async options => {
 
 const verifyUser = (user, options) =>
   new Promise((resolve, reject) => {
-    user.verify(options, (opts, err, res) => (err ? reject(err) : resolve({ ...options, ...res })));
+    user.verify(options, (err, res) => (err ? reject(err) : resolve({ ...options, ...res })));
   });
 
 mails.verifyEmail = async user => {
@@ -97,7 +97,7 @@ mails.verifyEmail = async user => {
     // if (!result.email.accepted) {
     //   const error = new Error('Email rejected');
     //   logger.publish(2, `${collectionName}`, 'verifyEmail:err', error);
-    //   return error;
+    //   throw error;
     // }
     logger.publish(2, `${collectionName}`, 'verifyEmail:res', result);
     return result;

@@ -222,14 +222,6 @@ const onBeforeRemote = async (app, ctx) => {
         return token;
       } catch (err) {
         logger.publish(2, `${collectionName}`, 'beforeLogin:err', err);
-        if (err.code && err.code === 'LOGIN_FAILED_EMAIL_NOT_VERIFIED') {
-          const error = utils.buildError(
-            401,
-            'LOGIN_FAILED_EMAIL_NOT_VERIFIED',
-            `user has not confirmed the account yet`,
-          );
-          throw error;
-        }
         throw err;
       }
     }
@@ -311,13 +303,6 @@ module.exports = function(User) {
       }
       logger.publish(4, `${collectionName}`, 'verifyEmail:res', instance);
       User.app.emit('verifyEmail', user);
-      // const result = await mails.verifyEmail(instance);
-      // if (result && !result.email.accepted) {
-      //   const error = new Error('Email rejected');
-      //   logger.publish(2, `${collectionName}`, 'findByEmail:err', error);
-      //   throw error;
-      // }
-      // logger.publish(4, `${collectionName}`, 'verifyEmail:res', result);
       return user;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'verifyEmail:err', error);
@@ -382,8 +367,6 @@ module.exports = function(User) {
     logger.publish(4, `${collectionName}`, 'sendContactForm:req', form);
     try {
       User.app.emit('sendContactForm', form);
-      // const response = await mails.sendContactForm(form);
-      // logger.publish(4, `${collectionName}`, 'sendContactForm:res', response);
       return true;
     } catch (error) {
       logger.publish(4, `${collectionName}`, 'sendContactForm:err', error);
@@ -393,7 +376,6 @@ module.exports = function(User) {
 
   User.sendInvite = async (ctx, options) => {
     try {
-      // const result = await mails.sendMailInvite(options);
       User.app.emit('sendMailInvite', options);
       return true;
     } catch (error) {

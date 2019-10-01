@@ -285,7 +285,7 @@ const appendCachedSensors = async (app, ctx) => {
         result = [JSON.parse(JSON.stringify(device))];
       }
     }
-    //  console.log('result', result.length);
+    // console.log('result', result.length);
     if (result && getSensors) {
       const promises = await result.map(app.models.SensorResource.includeCache);
       result = await Promise.all(promises);
@@ -309,7 +309,7 @@ const onAfterSave = async ctx => {
     if (ctx.hookState.updateData) {
       logger.publish(4, `${collectionName}`, 'onAfterPartialSave:req', ctx.hookState.updateData);
       const updatedProps = Object.keys(ctx.hookState.updateData);
-      if (updatedProps.some(prop => prop === 'status')) {
+      if (updatedProps.some(prop => prop === 'status') && ctx.instance) {
         await ctx.Model.publish(ctx.instance, 'HEAD');
       }
     } else if (ctx.instance && ctx.Model.app) {
@@ -452,7 +452,7 @@ const onBeforeRemote = async (app, ctx) => {
           ctx.args.client.devEui = options.currentUser.devEui;
         }
       }
-    } else if (ctx.method.name === 'getState') {
+    } else if (ctx.method.name === 'getState' || ctx.method.name === 'getFullState') {
       const options = ctx.args ? ctx.args.options : {};
       if (!options || !options.currentUser) {
         throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
@@ -904,39 +904,6 @@ module.exports = function(Device) {
     }
   };
 
-  /**
-   * Endpoint for device requesting their own state
-   * @method module:Device.getState
-   * @param {object} ctx - Loopback context
-   * @param {string} deviceId - Device instance id
-   * @returns {object}
-   */
-  Device.getState = async deviceId => {
-    try {
-      logger.publish(4, `${collectionName}`, 'getState:req', { deviceId });
-      const device = await Device.findById(deviceId, {
-        fields: {
-          id: true,
-          devEui: true,
-          apiKey: true,
-          frameCounter: true,
-          name: true,
-          status: true,
-        },
-      });
-
-      if (device && device !== null) {
-        logger.publish(4, `${collectionName}`, 'getState:res', device);
-        return device;
-      }
-      const error = utils.buildError(404, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
-      throw error;
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'getState:err', error);
-      throw error;
-    }
-  };
-
   Device.createOrUpdate = async device => {
     try {
       logger.publish(4, `${collectionName}`, 'createOrUpdate:req', {
@@ -979,7 +946,7 @@ module.exports = function(Device) {
       }
       return null;
     } catch (error) {
-      return error;
+      throw error;
     }
   };
 
@@ -1297,56 +1264,6 @@ module.exports = function(Device) {
   };
 
   /**
-   * Endpoint for device authentification with APIKey
-   *
-   * @method module:Device.authenticate
-   * @param {any} deviceId
-   * @param {string} key
-   * @returns {string} matched The matching key; one of:
-   * - clientKey
-   * - apiKey
-   * - javaScriptKey
-   * - restApiKey
-   * - windowsKey
-   * - masterKey
-   */
-  Device.authenticate = async (deviceId, key) => {
-    try {
-      const device = await Device.findById(deviceId);
-      if (!device || device === null) {
-        return null;
-        // const error = utils.buildError(404, 'DEVICE_NOTFOUND', 'Wrong device');
-        // throw error;
-      }
-      let result = null;
-      const keyNames = [
-        'clientKey',
-        'apiKey',
-        // 'javaScriptKey',
-        // 'restApiKey',
-        // 'windowsKey',
-        // 'masterKey',
-      ];
-      keyNames.forEach(k => {
-        if (device[k] && device[k] === key) {
-          result = {
-            device,
-            keyType: k,
-          };
-        }
-      });
-      if (!result.device || !result.keyType) {
-        const error = utils.buildError(403, 'UNAUTHORIZED', 'Wrong key used');
-        throw error;
-      }
-      logger.publish(4, `${collectionName}`, 'authenticate:res', result);
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  /**
    * Dispatch incoming MQTT packet
    * @method module:Device.onPublish
    * @param {object} packet - MQTT bridge packet
@@ -1424,6 +1341,135 @@ module.exports = function(Device) {
   };
 
   /**
+   * Endpoint for device authentification with APIKey
+   *
+   * @method module:Device.authenticate
+   * @param {any} deviceId
+   * @param {string} key
+   * @returns {string} matched The matching key; one of:
+   * - clientKey
+   * - apiKey
+   * - javaScriptKey
+   * - restApiKey
+   * - windowsKey
+   * - masterKey
+   */
+  Device.authenticate = async (deviceId, key) => {
+    try {
+      const device = await Device.findById(deviceId);
+      if (!device || !device.id) {
+        const error = utils.buildError(404, 'DEVICE_NOTFOUND', 'Wrong device');
+        throw error;
+      }
+      let result = null;
+      const keyNames = [
+        'clientKey',
+        'apiKey',
+        // 'javaScriptKey',
+        // 'restApiKey',
+        // 'windowsKey',
+        // 'masterKey',
+      ];
+      keyNames.forEach(k => {
+        if (device[k] && device[k] === key) {
+          result = {
+            device,
+            keyType: k,
+          };
+        }
+      });
+      if (!result || !result.device || !result.keyType) {
+        const error = utils.buildError(403, 'UNAUTHORIZED', 'Wrong key used');
+        throw error;
+      }
+      logger.publish(4, `${collectionName}`, 'authenticate:res', result);
+      return result;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'authenticate:err', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Endpoint for device requesting their own state ( small memory )
+   * @method module:Device.getState
+   * @param {string} deviceId - Device instance id
+   * @returns {object}
+   */
+  Device.getState = async deviceId => {
+    try {
+      logger.publish(4, `${collectionName}`, 'getState:req', { deviceId });
+      const resFilter = {
+        fields: {
+          id: true,
+          devEui: true,
+          apiKey: true,
+          frameCounter: true,
+          name: true,
+          status: true,
+        },
+      };
+      const device = await Device.findById(deviceId, resFilter);
+
+      if (device && device !== null) {
+        logger.publish(4, `${collectionName}`, 'getState:res', device);
+        return device;
+      }
+      const error = utils.buildError(404, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
+      throw error;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'getState:err', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Endpoint for device requesting their own state, including relations
+   * @method module:Device.getFullState
+   * @param {string} deviceId - Device instance id
+   * @returns {object}
+   */
+  Device.getFullState = async deviceId => {
+    try {
+      logger.publish(4, `${collectionName}`, 'getFullState:req', { deviceId });
+      const resFilter = {
+        // include: ['sensors', 'address'],
+        include: ['address'],
+        fields: {
+          id: true,
+          devEui: true,
+          apiKey: true,
+          name: true,
+          status: true,
+          description: true,
+          frameCounter: true,
+          icons: true,
+          lastSignal: true,
+          transportProtocol: true,
+          transportProtocolVersion: true,
+        },
+      };
+      const device = await Device.findById(deviceId, resFilter);
+
+      if (device && device !== null && device.id) {
+        logger.publish(4, `${collectionName}`, 'getFullState:res', device);
+        const result = await Device.app.models.SensorResource.includeCache(
+          JSON.parse(JSON.stringify(device)),
+        );
+        if (result && result.id) {
+          return result;
+        }
+        return device;
+      }
+      const error = utils.buildError(404, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
+      throw error;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'getFullState:err', error);
+      throw error;
+    }
+  };
+
+  /**
    * Update OTA if a firmware is available
    * @method module:Device.getOTAUpdate
    * @param {object} ctx - Loopback context
@@ -1451,7 +1497,7 @@ module.exports = function(Device) {
       }
       return Device.updateStatus(client, status);
     } catch (error) {
-      return error;
+      throw error;
     }
   });
 
@@ -1479,7 +1525,7 @@ module.exports = function(Device) {
       if (!packet) throw new Error('Message missing packet');
       return Device.onPublish(packet, pattern, client);
     } catch (error) {
-      return error;
+      throw error;
     }
   });
 
@@ -1489,7 +1535,7 @@ module.exports = function(Device) {
       await Device.syncCache('UP');
       return true;
     } catch (error) {
-      return error;
+      throw error;
     }
   });
 
@@ -1535,18 +1581,6 @@ module.exports = function(Device) {
    * @returns {function} onBeforeRemote
    */
   Device.beforeRemote('**', async ctx => onBeforeRemote(Device.app, ctx));
-
-  // Device.afterRemote('**', async ctx => {
-  //   try {
-  //     if (ctx.method.name === 'authenticate') {
-  //       ctx.req.headers.apiKey = ctx.args.apiKey;
-  //       ctx.req.headers.deviceid = ctx.args.deviceId;
-  //     }
-  //     return ctx;
-  //   } catch (error) {
-  //     return error;
-  //   }
-  // });
 
   Device.afterRemoteError('*', async ctx => {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, '');

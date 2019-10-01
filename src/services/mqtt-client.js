@@ -6,7 +6,7 @@ import logger from './logger';
 /**
  * @module MQTTClient
  */
- 
+
 const MQTTClient = new EventEmitter();
 let mqttClient;
 
@@ -280,7 +280,7 @@ MQTTClient.on('init', async (app, config) => MQTTClient.init(app, config));
  */
 MQTTClient.init = async (app, config) => {
   try {
-    let clientId;
+    let mqttBrokerUrl, clientId;
     logger.publish(4, 'mqtt-client', 'init:req', {
       aloesId: config.ALOES_ID,
       processId: config.processId,
@@ -292,7 +292,6 @@ MQTTClient.init = async (app, config) => {
     }
     MQTTClient.id = clientId;
 
-    let mqttBrokerUrl;
     const mqttClientOptions = {
       //  keepalive: 60,
       // reschedulePings: true,
@@ -303,7 +302,7 @@ MQTTClient.init = async (app, config) => {
       reconnectPeriod: 1000,
       connectTimeout: 30 * 1000,
       clean: false,
-      clientId: clientId,
+      clientId,
       username: config.ALOES_ID,
       password: config.ALOES_KEY,
     };
@@ -339,7 +338,6 @@ MQTTClient.init = async (app, config) => {
 
     mqttClient.on('message', async (topic, payload) => onMessage(app, topic, payload));
 
-    // await MQTTClient.start();
     MQTTClient.emit('start', clientId);
     logger.publish(3, 'mqtt-client', 'init:res', mqttClientOptions);
     return true;
@@ -379,7 +377,6 @@ MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
   } catch (error) {
     logger.publish(2, 'mqtt-client', 'publish:err', error);
     throw error;
-    // return false;
   }
 };
 

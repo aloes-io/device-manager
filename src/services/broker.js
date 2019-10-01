@@ -3,6 +3,7 @@ import aedesPersistenceRedis from 'aedes-persistence-redis';
 import aedes from 'aedes';
 import Redis from 'ioredis';
 import http from 'http';
+import https from 'https';
 import net from 'net';
 import tls from 'tls';
 import ws from 'websocket-stream';
@@ -187,19 +188,24 @@ const updateClientStatus = async (client, status) => {
  * @returns {Promise}
  */
 const authentificationRequest = data => {
+  let httpClient = http;
   const options = {
     // host: process.env.HTTP_SERVER_HOST,
     hostname: process.env.DOMAIN,
     port: Number(process.env.HTTP_SERVER_PORT),
-    path: `${process.env.REST_API_ROOT}/auth/mqtt`,
+    path: process.env.HTTP_SERVER_URL_SUFFIX
+      ? `${process.env.HTTP_SERVER_URL_SUFFIX}${process.env.REST_API_ROOT}/auth/mqtt`
+      : `${process.env.REST_API_ROOT}/auth/mqtt`,
     method: 'POST',
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
     },
   };
-  if (process.env.HTTP_SECURE === 'true') options.port = 443;
-
+  if (process.env.HTTP_SECURE === 'true') {
+    options.port = 443;
+    httpClient = https;
+  }
   return new Promise((resolve, reject) => {
     // console.log('authenticate', data);
     if (typeof data === 'object') {
@@ -207,7 +213,7 @@ const authentificationRequest = data => {
         data = JSON.stringify(data);
       }
     }
-    const req = http.request(options, res => {
+    const req = httpClient.request(options, res => {
       // console.log('REQUEST STATUS: ', res.statusCode);
       // console.log('HEADERS: ', JSON.stringify(res.headers));
       // res.setEncoding('utf8');
@@ -282,7 +288,6 @@ const authenticate = async (client, username, password) => {
         status = result.status;
         foundClient = result.client;
         foundClient.user = username;
-        console.log('broker', 'Authenticate:result', { client: foundClient, status });
         Object.keys(foundClient).forEach(key => {
           client[key] = foundClient[key];
           return key;
@@ -615,22 +620,18 @@ broker.start = () => {
      * @returns {functions} updateModelsStatus
      */
     broker.instance.on('keepaliveTimeout', client => {
-      try {
-        logger.publish(4, 'broker', 'keepaliveTimeout:req', client.id);
-        return updateClientStatus(client, false);
-      } catch (error) {
-        return error;
-      }
+      logger.publish(4, 'broker', 'keepaliveTimeout:req', client.id);
+      // return updateClientStatus(client, false);
     });
 
     broker.instance.on('clientError', (client, err) => {
       console.log('broker : client error', client.id, err.message);
-      updateClientStatus(client, false);
+      // updateClientStatus(client, false);
     });
 
     broker.instance.on('connectionError', (client, err) => {
       console.log('broker : connection error', client.clean, err.message);
-      updateClientStatus(client, false);
+      // updateClientStatus(client, false);
       // client.close();
       //  console.log('broker : connection error', client, err.message, err.stack);
     });
