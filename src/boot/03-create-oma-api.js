@@ -33,9 +33,13 @@ export default async function createOmaApi(server) {
       savedOmaResources,
       savedOmaViews,
     });
-    return { savedOmaObjects, savedOmaResources, savedOmaViews };
+    return {
+      omaObjects: savedOmaObjects,
+      omaResources: savedOmaResources,
+      omaViews: savedOmaViews,
+    };
   } catch (error) {
-    logger.publish(4, 'loopback', 'boot:createOmaApi:err', error);
-    return error;
+    logger.publish(2, 'loopback', 'boot:createOmaApi:err', error);
+    throw error;
   }
 }

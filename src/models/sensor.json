@@ -9,7 +9,7 @@
   "properties": {
     "name": {
       "type": "string",
-      "required": false,
+      "required": true,
       "description": "example Digital Input"
     },
     "type": {
@@ -51,7 +51,7 @@
     },
     "icons": {
       "type": "array",
-      "required": false,
+      "required": true,
       "description": "url pointing to icon image"
     },
     "colors": {
@@ -86,7 +86,7 @@
     "nativeNodeId": {
       "type": "string",
       "required": false,
-      "default": null
+      "default": "0"
     },
     "nativeType": {
       "type": "number",
@@ -156,9 +156,38 @@
     {
       "accessType": "*",
       "principalType": "ROLE",
+      "principalId": "admin",
+      "permission": "ALLOW",
+      "property": [
+        "create",
+        "find",
+        "findById",
+        "count",
+        "exists",
+        "patchAttributes",
+        "updateAttributes",
+        "replaceAttributes",
+        "replaceById",
+        "destroyById",
+        "deleteById",
+        "delete"
+      ]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
       "principalId": "$authenticated",
       "permission": "ALLOW",
-      "property": ["exists", "find", "findById", "__get__measurements"]
+      "property": [
+        "create",
+        "count",
+        "exists",
+        "search",
+        "export",
+        "onPublish",
+        "findById",
+        "__get__measurements"
+      ]
     },
     {
       "accessType": "*",
@@ -166,17 +195,17 @@
       "principalId": "$owner",
       "permission": "ALLOW",
       "property": [
-        "replaceById",
         "destroyById",
         "deleteById",
         "replaceOrCreate",
+        "replaceById",
         "updateById",
         "updateAttributes",
         "patchAttributes",
         "upsert",
         "exists",
-        "find",
         "findById",
+        "count",
         "delete",
         "__get__measurements",
         "__create__measurements",
@@ -207,6 +236,40 @@
       "http": {
         "verb": "post",
         "path": "/compose"
+      }
+    },
+    "onPublish": {
+      "description": ["MQTT piping to Sensor model"],
+      "accepts": [
+        {
+          "arg": "device",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "attributes",
+          "type": "object",
+          "required": false
+        },
+        {
+          "arg": "sensor",
+          "type": "object",
+          "required": false
+        },
+        {
+          "arg": "client",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "sensor",
+        "type": "object",
+        "root": true
+      },
+      "http": {
+        "verb": "post",
+        "path": "/on-publish"
       }
     },
     "handlePresentations": {
@@ -280,6 +343,53 @@
       "http": {
         "verb": "post",
         "path": "/get-instance"
+      }
+    },
+    "search": {
+      "description": ["Find sensors from properties"],
+      "accepts": [
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "sensors",
+        "type": "array",
+        "root": true
+      },
+      "http": {
+        "verb": "post",
+        "path": "/search"
+      }
+    },
+    "export": {
+      "description": ["Export Sensors list from JSON to format selected ( default : csv )"],
+      "accepts": [
+        {
+          "arg": "sensors",
+          "type": "array",
+          "required": true
+        },
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": false
+        },
+        {
+          "arg": "format",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "returns": {
+        "root": true,
+        "type": "string"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/export"
       }
     }
   }

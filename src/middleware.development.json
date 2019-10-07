@@ -5,9 +5,6 @@
     }
   },
   "final:after": {
-    "./middleware/log-error": {
-      "params": {"enabled": true}
-    },
     "strong-error-handler": {
       "params": {
         "debug": false,

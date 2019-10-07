@@ -23,7 +23,7 @@ module.exports = {
       {
         type: 'smtp',
         host: process.env.SMTP_HOST,
-        secure: process.env.SMTP_SECURE,
+        secure: Boolean(process.env.SMTP_SECURE),
         port: Number(process.env.SMTP_PORT),
         auth: {
           user: process.env.SMTP_USER,
@@ -38,18 +38,77 @@ module.exports = {
     port: Number(process.env.REDIS_PORT) || 6379,
     name: 'cache',
     connector: 'kv-redis',
-    pass: process.env.REDIS_PASS,
+    password: process.env.REDIS_PASS,
     lazyConnect: true,
   },
   points: {
     name: 'points',
     connector: 'influxdata',
-    username: process.env.INFLUX_USER || '',
-    password: process.env.INFLUX_PASS || '',
+    username: process.env.INFLUX_USER,
+    password: process.env.INFLUX_PASS,
     database: process.env.INFLUX_COLLECTION || 'aloes_prod',
     host: process.env.INFLUX_HOST || 'localhost',
     port: Number(process.env.INFLUX_PORT) || 8086,
     protocol: process.env.INFLUX_PROTOCOL || 'http',
+    failoverTimeout: 60000,
+    maxRetries: 5,
+    timePrecision: 'ms',
+  },
+  timer: {
+    name: 'timer',
+    connector: 'rest',
+    baseURL: process.env.TIMER_BASE_URL || 'http://localhost:8080/timer',
+    debug: true,
+    options: {
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      strictSSL: false,
+    },
+    operations: [
+      {
+        template: {
+          method: 'POST',
+          url: `${process.env.TIMER_BASE_URL || 'http://localhost:8080/timer'}`,
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+          body: '{instance}',
+        },
+        functions: {
+          create: ['instance'],
+        },
+      },
+      {
+        template: {
+          method: 'PUT',
+          url: `${process.env.TIMER_BASE_URL || 'http://localhost:8080/timer'}/{timerId}`,
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+          body: '{instance}',
+        },
+        functions: {
+          updateById: ['timerId', 'instance'],
+        },
+      },
+      {
+        template: {
+          method: 'DELETE',
+          url: `${process.env.TIMER_BASE_URL || 'http://localhost:8080/timer'}/{timerId}`,
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+        },
+        functions: {
+          deleteById: ['timerId'],
+        },
+      },
+    ],
   },
   storage: {
     name: 'storage',
@@ -58,37 +117,5 @@ module.exports = {
     root: process.env.FS_PATH || './storage',
     nameConflict: 'makeUnique',
     maxFileSize: '10428800',
-  },
-  coinhive: {
-    name: 'coinhive',
-    connector: 'rest',
-    debug: false,
-    options: {
-      headers: {
-        accept: 'application/json',
-        'content-type': 'application/json',
-        //  'content-type': 'application/x-www-form-urlencoded',
-      },
-    },
-    operations: [
-      {
-        template: {
-          method: 'POST',
-          url: 'https://api.coinhive.com/token/verify',
-          headers: {
-            'content-type': 'application/x-www-form-urlencoded',
-          },
-          body: {
-            hashes: '{hashes=256:number}',
-            token: '{!token:string}',
-            secret: `{!secret=${process.env.COINHIVE_API_KEY.toString()}:string}`,
-          },
-          //  responsePath: '$.results',
-        },
-        functions: {
-          verifyCaptcha: ['hashes', 'token'],
-        },
-      },
-    ],
   },
 };

@@ -1,4 +1,10 @@
 /**
+ * Oma Resources References.
+ * @external OmaResources
+ * @see {@link https://aloes.io/app/api/omaResources}
+ */
+
+/**
  * @module OmaResource
  * @property {String} id OmaResource ID
  * @property {String} name OmaResource name

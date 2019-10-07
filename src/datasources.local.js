@@ -5,10 +5,10 @@ module.exports = {
     database: process.env.MONGO_COLLECTION || 'aloes_local',
     host: process.env.MONGO_HOST || 'localhost',
     port: Number(process.env.MONGO_PORT) || 27017,
-    auth: {
-      user: process.env.MONGO_USER || '',
-      password: process.env.MONGO_PASS || '',
-    },
+    // auth: {
+    //   user: process.env.MONGO_USER,
+    //   password: process.env.MONGO_PASS,
+    // },
     useNewUrlParser: true,
     lazyConnect: true,
     maxDepthOfQuery: 12,
@@ -23,7 +23,7 @@ module.exports = {
       {
         type: 'smtp',
         host: process.env.SMTP_HOST,
-        secure: process.env.SMTP_SECURE,
+        secure: Boolean(process.env.SMTP_SECURE),
         port: Number(process.env.SMTP_PORT),
         auth: {
           user: process.env.SMTP_USER,
@@ -38,7 +38,7 @@ module.exports = {
     port: Number(process.env.REDIS_PORT) || 6379,
     name: 'cache',
     connector: 'kv-redis',
-    pass: process.env.REDIS_PASS,
+    password: process.env.REDIS_PASS,
     lazyConnect: true,
   },
   points: {
@@ -54,6 +54,62 @@ module.exports = {
     maxRetries: 5,
     timePrecision: 'ms',
   },
+  timer: {
+    name: 'timer',
+    connector: 'rest',
+    baseURL: process.env.TIMER_BASE_URL || 'http://localhost:8080/timer',
+    debug: true,
+    options: {
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      strictSSL: false,
+    },
+    operations: [
+      {
+        template: {
+          method: 'POST',
+          url: `${process.env.TIMER_BASE_URL || 'http://localhost:8080/timer'}`,
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+          body: '{instance}',
+        },
+        functions: {
+          create: ['instance'],
+        },
+      },
+      {
+        template: {
+          method: 'PUT',
+          url: `${process.env.TIMER_BASE_URL || 'http://localhost:8080/timer'}/{timerId}`,
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+          body: '{instance}',
+        },
+        functions: {
+          updateById: ['timerId', 'instance'],
+        },
+      },
+      {
+        template: {
+          method: 'DELETE',
+          url: `${process.env.TIMER_BASE_URL || 'http://localhost:8080/timer'}/{timerId}`,
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+        },
+        functions: {
+          deleteById: ['timerId'],
+        },
+      },
+    ],
+  },
   storage: {
     name: 'storage',
     connector: 'loopback-component-storage',
@@ -61,27 +117,5 @@ module.exports = {
     root: process.env.FS_PATH || './storage',
     nameConflict: 'makeUnique',
     maxFileSize: '10428800',
-  },
-  coinhive: {
-    name: 'coinhive',
-    connector: 'rest',
-    debug: true,
-    operations: [
-      {
-        template: {
-          method: 'POST',
-          url: 'https://api.coinhive.com/{path}',
-          headers: {
-            accept: 'application/json',
-            'content-type': 'application/x-www-form-urlencoded',
-          },
-          body: '{body}',
-        },
-        functions: {
-          verifyCaptcha: ['path', 'body'],
-          createLink: ['path', 'body'],
-        },
-      },
-    ],
   },
 };

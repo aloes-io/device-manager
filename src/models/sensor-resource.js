@@ -30,24 +30,11 @@ module.exports = function(SensorResource) {
         logger.publish(5, `${collectionName}`, 'getCache:res', cachedSensor);
         return JSON.parse(cachedSensor);
       }
-      // ctx.res.setHeader("Cache-Hit", true);
-      // const data = await ttlAsync(cacheKey);
-      // console.log("[CACHE] beforeRemote:res1", data);
-      // if (data) {
-      //   ctx.res.setHeader("Cache-TTL", data);
-      //   const expires = new Date();
-      //   expires.setSeconds(expires.getSeconds() + Number(data));
-      //   ctx.res.setHeader("Expires", expires);
 
-      // ctx.res.setHeader('Cache-Hit', false);
-      // ctx.res.setHeader('Cache-TTL', cacheExpire);
-      // const expires = new Date();
-      // expires.setSeconds(expires.getSeconds() + Number(cacheExpire));
-      // ctx.res.setHeader('Expires', expires);
-
-      throw new Error('No sensor found in cache');
+      return null;
     } catch (error) {
-      return error;
+      logger.publish(2, `${collectionName}`, 'getCache:err', error);
+      throw error;
     }
   };
 
@@ -75,7 +62,8 @@ module.exports = function(SensorResource) {
       logger.publish(5, `${collectionName}`, 'setCache:res', sensor);
       return sensor;
     } catch (error) {
-      return error;
+      logger.publish(2, `${collectionName}`, 'setCache:err', error);
+      throw error;
     }
   };
 
@@ -93,7 +81,8 @@ module.exports = function(SensorResource) {
       logger.publish(5, `${collectionName}`, 'deleteCache:res', key);
       return true;
     } catch (error) {
-      return error;
+      logger.publish(2, `${collectionName}`, 'deleteCache:err', error);
+      throw error;
     }
   };
 
@@ -115,7 +104,8 @@ module.exports = function(SensorResource) {
       logger.publish(5, `${collectionName}`, 'expireCache:res', { key, ttl });
       return true;
     } catch (error) {
-      return error;
+      logger.publish(2, `${collectionName}`, 'expireCache:err', error);
+      return null;
     }
   };
 
@@ -132,7 +122,7 @@ module.exports = function(SensorResource) {
       if (sensors && sensors !== null) {
         if (direction === 'UP') {
           // sync redis with mongo
-          const result = await sensors.map(async sensor => {
+          const promises = await sensors.map(async sensor => {
             const cachedSensor = await SensorResource.getCache(device.id, sensor.id);
             if (cachedSensor && cachedSensor !== null) {
               delete cachedSensor.id;
@@ -140,19 +130,19 @@ module.exports = function(SensorResource) {
             }
             return null;
           });
-          sensors = await Promise.all(result);
+          sensors = await Promise.all(promises);
         } else if (direction === 'DOWN') {
           // sync mongo with redis
-          const result = await sensors.map(async sensor =>
+          const promises = await sensors.map(async sensor =>
             SensorResource.setCache(device.id, sensor),
           );
-          sensors = await Promise.all(result);
+          sensors = await Promise.all(promises);
         }
       }
       return sensors;
     } catch (error) {
       logger.publish(3, `${collectionName}`, 'syncCache:err', error);
-      return error;
+      throw error;
     }
   };
 
@@ -161,6 +151,7 @@ module.exports = function(SensorResource) {
    * @method module:SensorResource.cacheIterator
    * @param {object} filter - Key filter
    * @property {string} filter.match - glob string
+   * @returns {string} key - Cached key
    */
   SensorResource.cacheIterator = async function*(filter) {
     const iterator = SensorResource.iterateKeys(filter);
@@ -191,12 +182,15 @@ module.exports = function(SensorResource) {
       logger.publish(5, `${collectionName}`, 'includeCache:req', { filter });
       device.sensors = [];
       for await (const key of SensorResource.cacheIterator(filter)) {
-        const sensor = JSON.parse(await SensorResource.get(key));
-        device.sensors.push(sensor);
+        if (key && key !== null) {
+          const sensor = JSON.parse(await SensorResource.get(key));
+          device.sensors.push(sensor);
+        }
       }
       return device;
-    } catch (err) {
-      throw err;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'includeCache:err', error);
+      throw error;
     }
   };
 
@@ -204,7 +198,7 @@ module.exports = function(SensorResource) {
    * Update device's sensors stored in cache
    * @method module:SensorResource.updateCache
    * @param {object} device - Device instance
-   * returns {array} sensor
+   * @returns {array} sensor
    */
   SensorResource.updateCache = async device => {
     try {
@@ -218,7 +212,6 @@ module.exports = function(SensorResource) {
         sensor = {
           ...sensor,
           devEui: device.devEui,
-          devAddr: device.devAddr,
           transportProtocol: device.transportProtocol,
           transportProtocolVersion: device.transportProtocolVersion,
           messageProtocol: device.messageProtocol,
@@ -230,7 +223,8 @@ module.exports = function(SensorResource) {
 
       return sensors;
     } catch (error) {
-      return error;
+      logger.publish(2, `${collectionName}`, 'updateCache:err', error);
+      throw error;
     }
   };
 };

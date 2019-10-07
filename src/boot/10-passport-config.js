@@ -27,7 +27,7 @@ module.exports = async function passportConfig(app) {
         passportConfigurator.configureProvider(provider, c);
         return c;
       } catch (error) {
-        return error;
+        throw error;
       }
     });
     //  const configuredProviders = await Promise.all(promises);
@@ -35,6 +35,6 @@ module.exports = async function passportConfig(app) {
     return configuredProviders;
   } catch (error) {
     logger.publish(2, 'loopback', 'boot:passportConfig:err', error);
-    return error;
+    throw error;
   }
 };

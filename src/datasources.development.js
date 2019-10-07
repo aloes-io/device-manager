@@ -13,7 +13,7 @@ module.exports = {
       {
         type: 'smtp',
         host: process.env.SMTP_HOST,
-        secure: process.env.SMTP_SECURE,
+        secure: Boolean(process.env.SMTP_SECURE),
         port: Number(process.env.SMTP_PORT),
         auth: {
           user: process.env.SMTP_USER,
@@ -22,14 +22,23 @@ module.exports = {
       },
     ],
   },
-  // redis: {
-  //   name: 'redis',
-  //   connector: 'redis',
-  //   db: process.env.REDIS_COLLECTION || 'ymc',
-  //   host: process.env.REDIS_HOST || 'localhost',
-  //   port: Number(process.env.REDIS_PORT) || 6379,
-  //   password: process.env.REDIS_PASS || '',
-  // },
+  cache: {
+    name: 'cache',
+    connector: 'kv-memory',
+  },
+  points: {
+    name: 'points',
+    connector: 'influxdata',
+    username: process.env.INFLUX_USER,
+    password: process.env.INFLUX_PASS,
+    database: process.env.INFLUX_COLLECTION || 'aloes_dev',
+    host: process.env.INFLUX_HOST || 'localhost',
+    port: Number(process.env.INFLUX_PORT) || 8086,
+    protocol: process.env.INFLUX_PROTOCOL || 'http',
+    failoverTimeout: 60000,
+    maxRetries: 5,
+    timePrecision: 'ms',
+  },
   storage: {
     name: 'storage',
     connector: 'loopback-component-storage',

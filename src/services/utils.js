@@ -2,19 +2,24 @@
 import ejs from 'ejs';
 import * as fs from 'fs';
 import crypto from 'crypto';
-import stream from 'stream';
 import path from 'path';
-import app from './server';
-import logger from './logger';
-//  import createVue from "./views/create-vue";
+import Papa from 'papaparse';
+import JSONFilter from 'simple-json-filter';
 
-const collectionName = 'Utils';
 const utils = {};
 
-utils.buildError = (code, message) => {
-  const err = new Error(message);
-  err.statusCode = 400;
-  err.code = code;
+const codeNames = {
+  400: 'Bad Request',
+  401: 'Unauthorized',
+  403: 'Forbidden',
+  404: 'Not Found',
+};
+
+utils.buildError = (statusCode, code, message) => {
+  const err = new Error(code || codeNames[statusCode] || message || 'An error occurred!');
+  // const err = new Error(message);
+  err.statusCode = statusCode;
+  // err.code = code;
   return err;
 };
 
@@ -53,148 +58,15 @@ utils.renderTemplate = options =>
     );
   });
 
-// generate sensors and virtual object template ( .vue )
-// utils.renderVueTemplate = async (template, context) => {
-//   const app = createVue(context, options.template);
-//   const renderer = require("vue-server-renderer").createRenderer();
-
-//   const filledTemplate = await renderer
-//     .renderToString(app)
-//     .then((html) => {
-//       console.log(html);
-//       return html;
-//     })
-//     .catch((err) => {
-//       console.error(err);
-//     });
-//   return filledTemplate;
-// };
-
-utils.roleResolver = async (user, subcribeType) => {
-  try {
-    logger.publish(4, `${collectionName}`, 'roleResolver:req', {
-      subcribeType,
-    });
-    const Role = app.models.Role;
-    const RoleMapping = app.models.RoleMapping;
-    const adminRole = await Role.findOne({ where: { name: 'admin' } });
-    const payload = await Role.find({ where: { name: subcribeType } })
-      .then(role => ({ user, role: role[0] }))
-      .then(res => res);
-
-    const response = { ...payload };
-    logger.publish(4, `${collectionName}`, 'roleResolver:res1', response);
-    const foundRole = await RoleMapping.findOrCreate(
-      {
-        where: {
-          and: [{ principalId: response.user.id }, { roleId: { neq: adminRole.id } }],
-        },
-      },
-      {
-        principalType: RoleMapping.USER,
-        principalId: response.user.id,
-        roleId: response.role.id,
-      },
-    );
-    logger.publish(4, `${collectionName}`, 'roleResolver:res2', foundRole[0]);
-    if (!foundRole) {
-      return new Error('no role found or created !');
-    }
-
-    const result = await RoleMapping.replaceById(foundRole[0].id, {
-      ...foundRole[0],
-      principalType: RoleMapping.USER,
-      principalId: response.user.id,
-      roleId: response.role.id,
-    });
-    logger.publish(4, collectionName, 'roleResolver:res', {
-      result,
-    });
-    return result;
-  } catch (error) {
-    logger.publish(4, collectionName, 'roleResolver:err', {
-      error,
-    });
-    return error;
-  }
-};
-
-const findCollection = (filter, collectionIdsList) =>
+utils.readFile = (filePath, opts = 'utf8') =>
   new Promise((resolve, reject) => {
-    app.models[filter.collectionType].find(
-      {
-        where: { id: { inq: collectionIdsList } },
-        include: {
-          relation: filter.relationName,
-          scope: {
-            where: { public: true },
-          },
-        },
-      },
-      (err, collection) => (err ? reject(err) : resolve(collection)),
-    );
+    fs.readFile(filePath, opts, (err, data) => (err ? reject(err) : resolve(data)));
   });
 
-utils.composeGeoLocateResult = async (filter, collectionIdsList) => {
-  try {
-    if (filter.collectionType.toLowerCase() === 'device') filter.relationName = 'deviceAddress';
-    else filter.relationName = 'profileAddress';
-    const result = await findCollection(filter, collectionIdsList);
-    logger.publish(4, `${collectionName}`, 'composeGeoLocateResult:res3', result);
-    return result;
-  } catch (error) {
-    logger.publish(4, `${collectionName}`, 'composeGeoLocateResult:err', error);
-    return error;
-  }
-};
-
-utils.verifyCaptcha = async (coinhive, hashes, token) => {
-  const temp = {
-    token,
-    hashes,
-    secret: process.env.COINHIVE_API_KEY,
-  };
-  const body = Object.keys(temp)
-    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(temp[key])}`)
-    .join('&');
-  //  console.log(`[${collectionName.toUpperCase()}] verifyCaptcha req : ${body}`);
-  if (coinhive) {
-    return coinhive
-      .verifyCaptcha('token/verify', body)
-      .then(res => JSON.parse(res))
-      .catch(err => err);
-    // console.log(
-    //   `[${collectionName.toUpperCase()}] verifyCaptcha res :`,
-    //   JSON.parse(res),
-    // );
-    //  return result;
-  }
-  return false;
-};
-
-utils.createLink = async (coinhive, user, url) => {
-  let result;
-  const temp = {
-    url,
-    hashes: process.env.COINHIVE_HASHES,
-    secret: process.env.COINHIVE_API_KEY,
-  };
-  const body = Object.keys(temp)
-    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(temp[key])}`)
-    .join('&');
-  if (coinhive) {
-    console.log('creating link', body);
-    await coinhive
-      .createLink('link/create', body)
-      .then(res => {
-        console.log(`[${collectionName.toUpperCase()}] createLink res :`, res);
-        result = JSON.parse(res);
-      })
-      .catch(err => err);
-    return result;
-  }
-  return false;
-};
+utils.writeFile = (filePath, data, opts = 'utf8') =>
+  new Promise((resolve, reject) => {
+    fs.appendFile(filePath, data, opts, err => (err ? reject(err) : resolve()));
+  });
 
 utils.generateKey = (hmacKey, algorithm, encoding) => {
   hmacKey = hmacKey || 'loopback';
@@ -207,33 +79,63 @@ utils.generateKey = (hmacKey, algorithm, encoding) => {
   return key;
 };
 
-utils.liner = new stream.Transform({ objectMode: true });
-// https://strongloop.com/strongblog/practical-examples-of-the-new-node-js-streams-api/
-// example
-// const source = fs.createReadStream('./access_log')
-// source.pipe(utils.liner)
-// utils.liner.on('readable', () => {
-//      var line = ""
-//      while (null !== (line = utils.liner.read())) {
-//           // do something with line
-//      }
-// })
-
-utils.liner._transform = function(chunk, encoding, done) {
-  let data = chunk.toString();
-  if (this._lastLineData) data = this._lastLineData + data;
-
-  const lines = data.split('\n');
-  this._lastLineData = lines.splice(lines.length - 1, 1)[0];
-
-  lines.forEach(this.push.bind(this));
-  done();
+utils.flatten = input => {
+  const stack = [...input];
+  const res = [];
+  while (stack.length) {
+    // pop value from stack
+    const next = stack.pop();
+    if (Array.isArray(next)) {
+      // push back array items, won't modify the original input
+      stack.push(...next);
+    } else {
+      res.push(next);
+    }
+  }
+  // reverse to restore input order
+  return res.reverse();
 };
 
-utils.liner._flush = function(done) {
-  if (this._lastLineData) this.push(this._lastLineData);
-  this._lastLineData = null;
-  done();
+utils.exportToCSV = (input, filter) => {
+  try {
+    let selection;
+
+    if (filter && Object.keys(filter).length > 0) {
+      const sjf = new JSONFilter();
+      // const exportBuffer = [];
+      // sjf.addHandler(/^(.*)$/, (key, val, data) => {
+      //   const str = data[key] + '';
+      //   // console.log(val);
+      //   for (let i = 0; i < str.length; i++) {
+      //     if (data[key] !== undefined && data[key].includes(val)) {
+      //       exportBuffer.push(data);
+      //       //return data;
+      //     }
+      //   }
+      // });
+
+      const filterTemplate = {};
+      Object.keys(filter).forEach(key => {
+        filterTemplate[key] = filter[key];
+      });
+
+      selection = sjf
+        .filter(filterTemplate)
+        .data(input)
+        .wantArray()
+        .exec();
+
+      // console.log('export selection', selection);
+    } else {
+      selection = input;
+    }
+
+    const csv = Papa.unparse(selection);
+    // console.log('export csv', csv);
+    return csv;
+  } catch (error) {
+    throw error;
+  }
 };
 
 export default utils;

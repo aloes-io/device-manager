@@ -5,7 +5,7 @@ cache:
     - node_modules/
 
 before_script:
-  - npm install
+  - npm ci
 
 pages:
   stage: deploy
@@ -14,3 +14,5 @@ pages:
   artifacts:
     paths:
       - public
+  only:
+    - master

@@ -2,6 +2,7 @@
   "name": "user",
   "plural": "users",
   "base": "User",
+  "resourceName": "Users",
   "ownerRelations": true,
   "idInjection": true,
   "options": {
@@ -9,12 +10,8 @@
   },
   "mixins": {},
   "restrictResetPasswordTokenScope": true,
-  "emailVerificationRequired": true,
+  "emailVerificationRequired": false,
   "properties": {
-    "type": {
-      "type": "string",
-      "required": false
-    },
     "firstName": {
       "type": "string",
       "required": false
@@ -38,20 +35,15 @@
     "status": {
       "type": "boolean"
     },
-    "subscribed": {
-      "type": "string",
-      "default": "new"
-    },
-    "currentSubscribedEnd": {
-      "type": "string",
-      "required": false
+    "role": {
+      "type": "string"
     },
     "deleted": {
       "type": "boolean",
       "default": false
     }
   },
-  "hidden": ["deleted, emailVerified"],
+  "hidden": ["deleted"],
   "validations": [],
   "relations": {
     "accessTokens": {
@@ -119,7 +111,17 @@
       "accessType": "*",
       "principalType": "ROLE",
       "principalId": "admin",
-      "permission": "ALLOW"
+      "permission": "ALLOW",
+      "property": [
+        "find",
+        "findById",
+        "patchAttributes",
+        "updateAttributes",
+        "replaceAttributes",
+        "replaceById",
+        "__get__address",
+        "__update__address"
+      ]
     },
     {
       "accessType": "*",
@@ -139,13 +141,9 @@
         "updateAttributes",
         "upsert",
         "exists",
-        "find",
         "findById",
-        "setNewPassword",
-        "__create__address",
         "__get__address",
         "__update__address",
-        "__destroy__address",
         "__get__devices",
         "__create__devices",
         "__findById__devices",
@@ -171,6 +169,8 @@
       "principalId": "$everyone",
       "permission": "ALLOW",
       "property": [
+        "login",
+        "logout",
         "create",
         "verifyEmail",
         "findByEmail",
@@ -186,12 +186,8 @@
       "principalId": "$authenticated",
       "permission": "ALLOW",
       "property": [
-        "findById",
-        "find",
-        "verifyAddress",
-        "setNewPassword",
         "sendInvite",
-        "__create__address",
+        "setNewPassword",
         "__get__address",
         "__get__devices",
         "__create__devices",
@@ -216,8 +212,9 @@
         }
       ],
       "returns": {
-        "arg": "result",
-        "type": "object"
+        "arg": "user",
+        "type": "object",
+        "root": true
       },
       "http": {
         "verb": "post",
@@ -234,35 +231,13 @@
         }
       ],
       "returns": {
-        "arg": "result",
-        "type": "object"
+        "arg": "user",
+        "type": "object",
+        "root": true
       },
       "http": {
         "verb": "post",
         "path": "/find-by-email"
-      }
-    },
-    "verifyCaptcha": {
-      "description": ["Verify captcha response ( coinhive ) "],
-      "accepts": [
-        {
-          "arg": "hashes",
-          "type": "string",
-          "required": true
-        },
-        {
-          "arg": "token",
-          "type": "string",
-          "required": true
-        }
-      ],
-      "returns": {
-        "arg": "result",
-        "type": "object"
-      },
-      "http": {
-        "verb": "post",
-        "path": "/verify-captcha"
       }
     },
     "resetPassword": {
@@ -300,7 +275,7 @@
           "required": true
         }
       ],
-      "returns": { "type": "boolean", "arg": "passwordChanged" },
+      "returns": { "type": "boolean", "arg": "success" },
       "http": { "path": "/update-password-from-token", "verb": "post" }
     },
     "setNewPassword": {
@@ -343,8 +318,8 @@
         }
       ],
       "returns": {
-        "arg": "response",
-        "type": "object"
+        "arg": "success",
+        "type": "boolean"
       },
       "http": {
         "verb": "post",
@@ -373,23 +348,6 @@
       "http": {
         "verb": "post",
         "path": "/invite-studio"
-      }
-    },
-    "verifyAddress": {
-      "description": ["Call the address model"],
-      "accepts": [
-        {
-          "arg": "address",
-          "type": "object"
-        }
-      ],
-      "returns": {
-        "arg": "updatedAddress",
-        "type": "object"
-      },
-      "http": {
-        "verb": "post",
-        "path": "/verify-address"
       }
     }
   }

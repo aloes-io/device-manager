@@ -19,7 +19,13 @@ module.exports = function(Client) {
   Client.disableRemoteMethodByName('replaceOrCreate');
   Client.disableRemoteMethodByName('createChangeStream');
 
-  Client.cacheIterator = function*(filter) {
+  /**
+   * Iterate over each Client keys found in cache
+   * @method module:Client.cacheIterator
+   * @param {object} [filter] - Client filter
+   * @returns {string} key - Cached key
+   */
+  Client.cacheIterator = async function*(filter) {
     let iterator;
     if (filter && filter.match) {
       iterator = Client.iterateKeys(filter);
@@ -41,21 +47,33 @@ module.exports = function(Client) {
   };
 
   /**
-   * Update clients stored in cache
-   * @method module:Client.updateCache
-   * returns {array} clients - Cached clients keys
+   * Delete clients stored in cache
+   * @method module:Client.deleteAll
+   * @returns {array} clients - Cached clients keys
    */
-  Client.updateCache = async () => {
+  Client.deleteAll = async () => {
     try {
       const clients = [];
-      logger.publish(4, `${collectionName}`, 'updateCache:req', '');
+      logger.publish(4, `${collectionName}`, 'deleteAll:req', '');
       for await (const key of Client.cacheIterator()) {
-        clients.push(key);
-        await Client.delete(key);
+        if (key && key !== null) {
+          clients.push(key);
+          await Client.delete(key);
+        }
       }
       return clients;
     } catch (error) {
-      return error;
+      logger.publish(2, `${collectionName}`, 'deleteAll:err', error);
+      throw error;
     }
   };
+
+  Client.on('stopped', async () => {
+    try {
+      await Client.deleteAll();
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  });
 };

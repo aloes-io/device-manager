@@ -1,5 +1,6 @@
 {
   "name": "files",
+  "resourceName": "Files",
   "base": "PersistedModel",
   "idInjection": true,
   "options": {
@@ -43,7 +44,24 @@
       "accessType": "*",
       "principalType": "ROLE",
       "principalId": "admin",
-      "permission": "ALLOW"
+      "permission": "ALLOW",
+      "property": [
+        "find",
+        "findById",
+        "getFileFromContainer",
+        "getFilesFromContainer",
+        "upload",
+        "uploadBuffer",
+        "download",
+        "patchAttributes",
+        "updateAttributes",
+        "replaceAttributes",
+        "replaceById",
+        "destroyById",
+        "deleteById",
+        "delete",
+        "removeFileFromContainer"
+      ]
     },
     {
       "accessType": "*",
@@ -56,33 +74,30 @@
       "principalType": "ROLE",
       "principalId": "$authenticated",
       "permission": "ALLOW",
-      "property": ["download", "upload", "uploadBuffer", "exists", "find", "findById"]
+      "property": ["download", "upload", "uploadBuffer", "exists", "findById"]
     },
+
     {
       "accessType": "EXECUTE",
       "principalType": "ROLE",
       "principalId": "$owner",
       "permission": "ALLOW",
       "property": [
+        "exists",
+        "findById",
+        "getFileFromContainer",
+        "getFilesFromContainer",
         "download",
         "upload",
         "uploadBuffer",
-        "remove",
-        "exists",
-        "find",
-        "findById",
         "replaceById",
         "replaceOrCreate",
         "updateById",
-        "updateAttributes"
+        "updateAttributes",
+        "destroyById",
+        "deleteById",
+        "removeFileFromContainer"
       ]
-    },
-    {
-      "accessType": "EXECUTE",
-      "principalType": "ROLE",
-      "principalId": "$everyone",
-      "permission": "ALLOW",
-      "property": "download"
     }
   ],
   "methods": {
@@ -98,7 +113,7 @@
           }
         },
         {
-          "arg": "fk",
+          "arg": "ownerId",
           "type": "string",
           "required": true
         },
@@ -114,7 +129,7 @@
         "root": true
       },
       "http": {
-        "path": "/:fk/upload/:name",
+        "path": "/:ownerId/upload/:name",
         "verb": "post"
       }
     },
@@ -130,7 +145,7 @@
           }
         },
         {
-          "arg": "fk",
+          "arg": "ownerId",
           "type": "string",
           "required": true
         },
@@ -145,7 +160,7 @@
         "type": "object"
       },
       "http": {
-        "path": "/:fk/upload-buffer/:name/",
+        "path": "/:ownerId/upload-buffer/:name/",
         "verb": "post"
       }
     },
@@ -160,7 +175,7 @@
           }
         },
         {
-          "arg": "fk",
+          "arg": "ownerId",
           "type": "string",
           "required": true
         },
@@ -180,15 +195,56 @@
         }
       },
       "http": {
-        "path": "/:fk/download/:name",
+        "path": "/:ownerId/download/:name",
         "verb": "get"
       }
     },
-    "remove": {
+    "getFileFromContainer": {
+      "description": ["Read a file from container"],
+      "accepts": [
+        {
+          "arg": "ownerId",
+          "type": "string",
+          "required": true
+        },
+        {
+          "arg": "name",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "file",
+        "type": "object"
+      },
+      "http": {
+        "path": "/:ownerId/get-file/:name",
+        "verb": "get"
+      }
+    },
+    "getFilesFromContainer": {
+      "description": ["List files from container"],
+      "accepts": [
+        {
+          "arg": "ownerId",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "file",
+        "type": "array"
+      },
+      "http": {
+        "path": "/:ownerId/get-files",
+        "verb": "get"
+      }
+    },
+    "removeFileFromContainer": {
       "description": ["Removes a file"],
       "accepts": [
         {
-          "arg": "fk",
+          "arg": "ownerId",
           "type": "string",
           "required": true
         },
@@ -203,7 +259,7 @@
         "type": "boolean"
       },
       "http": {
-        "path": "/:fk/remove/:name",
+        "path": "/:ownerId/remove-file/:name",
         "verb": "post"
       }
     }
