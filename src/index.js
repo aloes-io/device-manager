@@ -6,7 +6,7 @@ import logger from './services/logger';
 /**
  * Initialize application and services
  * @param {string} [processId] - process id
- * @fires module:Server.start
+ * @fires Server.start
  */
 const boot = processId => {
   const result = dotenv.config();
@@ -30,7 +30,7 @@ const boot = processId => {
 
 /**
  * Watch for interrupt signal
- * @fires module:Server.stop
+ * @fires Server.stop
  */
 nodeCleanup((exitCode, signal) => {
   try {

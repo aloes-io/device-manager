@@ -63,6 +63,7 @@ module.exports = function(Client) {
       }
       return clients;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'deleteAll:err', error);
       throw error;
     }
   };

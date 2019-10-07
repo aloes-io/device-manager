@@ -3,6 +3,8 @@ import ejs from 'ejs';
 import * as fs from 'fs';
 import crypto from 'crypto';
 import path from 'path';
+import Papa from 'papaparse';
+import JSONFilter from 'simple-json-filter';
 
 const utils = {};
 
@@ -92,6 +94,48 @@ utils.flatten = input => {
   }
   // reverse to restore input order
   return res.reverse();
+};
+
+utils.exportToCSV = (input, filter) => {
+  try {
+    let selection;
+
+    if (filter && Object.keys(filter).length > 0) {
+      const sjf = new JSONFilter();
+      // const exportBuffer = [];
+      // sjf.addHandler(/^(.*)$/, (key, val, data) => {
+      //   const str = data[key] + '';
+      //   // console.log(val);
+      //   for (let i = 0; i < str.length; i++) {
+      //     if (data[key] !== undefined && data[key].includes(val)) {
+      //       exportBuffer.push(data);
+      //       //return data;
+      //     }
+      //   }
+      // });
+
+      const filterTemplate = {};
+      Object.keys(filter).forEach(key => {
+        filterTemplate[key] = filter[key];
+      });
+
+      selection = sjf
+        .filter(filterTemplate)
+        .data(input)
+        .wantArray()
+        .exec();
+
+      // console.log('export selection', selection);
+    } else {
+      selection = input;
+    }
+
+    const csv = Papa.unparse(selection);
+    // console.log('export csv', csv);
+    return csv;
+  } catch (error) {
+    throw error;
+  }
 };
 
 export default utils;

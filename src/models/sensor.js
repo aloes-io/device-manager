@@ -34,6 +34,9 @@ const onBeforeSave = async ctx => {
 
 /**
  * Define the way to persist data based on OMA resource type
+ *
+ * Methods = "measurement" || "buffer" || "log" || "scheduler" || "location"
+ *
  * @method module:Sensor~getPersistingMethod
  * @param {string} sensorType - OMA object Id
  * @param {number} resource - OMA resource ID
@@ -41,159 +44,157 @@ const onBeforeSave = async ctx => {
  * @returns {string} method
  */
 const getPersistingMethod = (sensorType, resource, type) => {
-  try {
-    // savingProcess = "measurement" || "buffer" || "log"
-    logger.publish(4, `${collectionName}`, 'getPersistingMethod:req', {
-      type,
-    });
-    let saveMethod;
-    if (!sensorType || !resource) return null;
-    if (!type || type === null) {
-      switch (resource) {
-        case 5505:
-          // Reset the counter value
+  logger.publish(4, `${collectionName}`, 'getPersistingMethod:req', {
+    type,
+  });
+  let saveMethod;
+  if (!sensorType || !resource) return null;
+  if (!type || type === null) {
+    switch (resource) {
+      case 5505:
+        // Reset the counter value
+        saveMethod = 'log';
+        break;
+      case 5523:
+        // Trigger initing actuation
+        if (sensorType === 3339) {
           saveMethod = 'log';
-          break;
-        case 5523:
-          // Trigger initing actuation
+        } else {
           saveMethod = 'scheduler';
-          break;
-        case 5530:
-          // Command to clear display
-          saveMethod = 'log';
-          break;
-        case 5650:
-          // Reset min and max current values
-          saveMethod = 'log';
-          break;
-        case 5822:
-          // Reset cumulative energy
-          saveMethod = 'log';
-          break;
-        case 5911:
-          // Reset bitmap input value
-          saveMethod = 'log';
-          break;
-        default:
-          saveMethod = null;
-      }
-    } else {
-      switch (type.toLowerCase()) {
-        case 'string':
-          switch (resource) {
-            case 5514:
-              // latitude
-              saveMethod = 'location';
-              break;
-            case 5515:
-              // longitude
-              saveMethod = 'location';
-              break;
-            default:
-              saveMethod = 'log';
-          }
-          break;
-        case 'integer':
-          switch (resource) {
-            case 5526:
-              // scheduler mode
-              saveMethod = 'scheduler';
-              break;
-            case 5534:
-              // scheduler output transitions counter
-              saveMethod = 'scheduler';
-              break;
-            case 5910:
-              // bitmap input
-              saveMethod = 'buffer';
-              break;
-            default:
-              saveMethod = 'measurement';
-          }
-          break;
-        case 'float':
-          switch (resource) {
-            case 5521:
-              // duration of the time delay
-              saveMethod = 'scheduler';
-              break;
-            case 5524:
-              // sound duration
-              saveMethod = 'scheduler';
-              break;
-            case 5525:
-              // minimum off time
-              saveMethod = 'scheduler';
-              break;
-            case 5538:
-              // remaining time
-              saveMethod = 'scheduler';
-              break;
-            case 5544:
-              // cumulative time that timer input is true
-              saveMethod = 'scheduler';
-              break;
-            case 5824:
-              // Time when the load control event will start started.
-              saveMethod = 'scheduler';
-              break;
-            case 5825:
-              // The duration of the load control event.
-              saveMethod = 'scheduler';
-              break;
-            default:
-              saveMethod = 'measurement';
-          }
-          break;
-        case 'boolean':
-          switch (resource) {
-            case 5532:
-              // increase input state
-              saveMethod = 'log';
-              break;
-            case 5533:
-              // decrease input state
-              saveMethod = 'log';
-              break;
-            case 5543:
-              // timer output state
-              saveMethod = 'scheduler';
-              break;
-            case 5850:
-              // switch state
-              if (sensorType === 3340) {
-                saveMethod = 'scheduler';
-              } else {
-                saveMethod = 'measurement';
-              }
-              break;
-            default:
-              saveMethod = 'measurement';
-          }
-          break;
-        case 'time':
-          saveMethod = 'log';
-          break;
-        case 'opaque':
-          if (resource === 5917) {
-            saveMethod = 'measurement';
-          } else if (resource === 5922) {
-            saveMethod = 'buffer';
-          }
-          break;
-        default:
-          saveMethod = null;
-      }
+        }
+        break;
+      case 5530:
+        // Command to clear display
+        saveMethod = 'log';
+        break;
+      case 5650:
+        // Reset min and max current values
+        saveMethod = 'log';
+        break;
+      case 5822:
+        // Reset cumulative energy
+        saveMethod = 'log';
+        break;
+      case 5911:
+        // Reset bitmap input value
+        saveMethod = 'log';
+        break;
+      default:
+        saveMethod = null;
     }
-
-    logger.publish(4, `${collectionName}`, 'getPersistingMethod:res', {
-      method: saveMethod,
-    });
-    return saveMethod;
-  } catch (error) {
-    console.log('persistingmethod:err', error);
-    return null;
+  } else {
+    switch (type.toLowerCase()) {
+      case 'string':
+        switch (resource) {
+          case 5514:
+            // latitude
+            saveMethod = 'location';
+            break;
+          case 5515:
+            // longitude
+            saveMethod = 'location';
+            break;
+          default:
+            saveMethod = 'log';
+        }
+        break;
+      case 'integer':
+        switch (resource) {
+          case 5526:
+            // scheduler mode
+            saveMethod = 'scheduler';
+            break;
+          case 5534:
+            // scheduler output transitions counter
+            saveMethod = 'scheduler';
+            break;
+          case 5910:
+            // bitmap input
+            saveMethod = 'buffer';
+            break;
+          default:
+            saveMethod = 'measurement';
+        }
+        break;
+      case 'float':
+        switch (resource) {
+          case 5521:
+            // duration of the time delay
+            saveMethod = 'scheduler';
+            break;
+          case 5524:
+            // sound duration
+            saveMethod = 'scheduler';
+            break;
+          case 5525:
+            // minimum off time
+            saveMethod = 'scheduler';
+            break;
+          case 5538:
+            // remaining time
+            saveMethod = 'scheduler';
+            break;
+          case 5544:
+            // cumulative time that timer input is true
+            saveMethod = 'scheduler';
+            break;
+          case 5824:
+            // Time when the load control event will start started.
+            saveMethod = 'scheduler';
+            break;
+          case 5825:
+            // The duration of the load control event.
+            saveMethod = 'scheduler';
+            break;
+          default:
+            saveMethod = 'measurement';
+        }
+        break;
+      case 'boolean':
+        switch (resource) {
+          case 5532:
+            // increase input state
+            saveMethod = 'log';
+            break;
+          case 5533:
+            // decrease input state
+            saveMethod = 'log';
+            break;
+          case 5543:
+            // timer output state
+            saveMethod = 'scheduler';
+            break;
+          case 5850:
+            // switch state
+            if (sensorType === 3340) {
+              saveMethod = 'scheduler';
+            } else {
+              saveMethod = 'measurement';
+            }
+            break;
+          default:
+            saveMethod = 'measurement';
+        }
+        break;
+      case 'time':
+        saveMethod = 'log';
+        break;
+      case 'opaque':
+        if (resource === 5917) {
+          saveMethod = 'measurement';
+        } else if (resource === 5522) {
+          saveMethod = 'buffer';
+        }
+        break;
+      default:
+        saveMethod = null;
+    }
   }
+
+  logger.publish(4, `${collectionName}`, 'getPersistingMethod:res', {
+    method: saveMethod,
+  });
+  return saveMethod;
 };
 
 /**
@@ -220,16 +221,17 @@ const persistingResource = async (app, device, sensor, client) => {
     let result;
     let persistedResource = {};
     if (!method || method === null) return null;
-    //  if (!method || method === null) throw new Error('Invalid saving method');
     if (method === 'measurement') {
       const Measurement = app.models.Measurement;
       const measurement = await Measurement.compose(sensor);
       if (measurement && measurement !== null) {
         const point = await Measurement.create(measurement);
-        //  console.log('influx measurement : ', point.id);
-        // todo fix id generation error
-        await Measurement.publish(device, point.id, 'POST', client);
-        persistedResource = point;
+        if (point && point.id) {
+          //  console.log('influx measurement : ', point.id);
+          // todo fix id generation error
+          await Measurement.publish(device, point.id, 'POST');
+          persistedResource = point;
+        }
       }
     } else if (method === 'log') {
       // in the future add to elastic search db ?
@@ -256,7 +258,7 @@ const persistingResource = async (app, device, sensor, client) => {
     return { persistedResource, sensor };
   } catch (error) {
     logger.publish(3, `${collectionName}`, 'persist:err', error);
-    return error;
+    return null;
   }
 };
 
@@ -437,18 +439,6 @@ module.exports = function(Sensor) {
 
   Sensor.validatesDateOf('lastSignal', { message: 'lastSignal is not a date' });
 
-  Sensor.disableRemoteMethodByName('upsertWithWhere');
-  Sensor.disableRemoteMethodByName('replaceOrCreate');
-  Sensor.disableRemoteMethodByName('createChangeStream');
-
-  Sensor.disableRemoteMethodByName('prototype.__create__measurements');
-  Sensor.disableRemoteMethodByName('prototype.__count__measurements');
-  Sensor.disableRemoteMethodByName('prototype.__updateById__measurements');
-  Sensor.disableRemoteMethodByName('prototype.__delete__measurements');
-  Sensor.disableRemoteMethodByName('prototype.__deleteById__measurements');
-  Sensor.disableRemoteMethodByName('prototype.__link__measurements');
-  Sensor.disableRemoteMethodByName('prototype.__unlink__measurements');
-
   /**
    * Format packet and send it via MQTT broker
    * @method module:Sensor.publish
@@ -456,7 +446,7 @@ module.exports = function(Sensor) {
    * @param {object} sensor - Sensor instance
    * @param {string} [method] - MQTT API method
    * @param {object} [client] - MQTT client target
-   * @fires {event} module:Server.publish
+   * @fires Server.publish
    */
   Sensor.publish = async (device, sensor, method, client) => {
     try {
@@ -464,9 +454,9 @@ module.exports = function(Sensor) {
       if (sensor.isNewInstance && !publishMethod) {
         publishMethod = 'POST';
       } else if (!publishMethod) {
-        publishMethod = method || sensor.method || 'PUT';
+        publishMethod = 'PUT';
       }
-      const packet =  iotAgent.publish({
+      const packet = iotAgent.publish({
         userId: sensor.ownerId,
         collection: collectionName,
         modelId: sensor.id,
@@ -483,9 +473,9 @@ module.exports = function(Sensor) {
         //   return null;
         // }
         if (client && (client.ownerId || client.appId)) {
-          const pattern =  iotAgent.patternDetector(packet);
+          const pattern = iotAgent.patternDetector(packet);
           let nativePacket = { topic: packet.topic, payload: JSON.stringify(sensor) };
-          nativePacket =  iotAgent.decode(nativePacket, pattern.params);
+          nativePacket = iotAgent.decode(nativePacket, pattern.params);
           if (
             nativePacket.payload &&
             nativePacket.payload !== null &&
@@ -499,7 +489,7 @@ module.exports = function(Sensor) {
         }
 
         if (device.appIds && device.appIds.length > 0) {
-          const promises =  device.appIds.map(async appId => {
+          const promises = device.appIds.map(async appId => {
             try {
               const parts = packet.topic.split('/');
               parts[0] = appId;
@@ -518,6 +508,7 @@ module.exports = function(Sensor) {
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'publish:err', error);
       throw error;
     }
   };
@@ -575,7 +566,7 @@ module.exports = function(Sensor) {
         sensor = JSON.parse(JSON.stringify(sensor));
         const keys = Object.keys(attributes);
         keys.forEach(key => {
-          // special check for key === value ?
+          // special check for key === "value" ?
           if (key === 'resources') {
             sensor[key] = { ...attributes[key], ...sensor[key] };
           } else {
@@ -598,18 +589,18 @@ module.exports = function(Sensor) {
       }
       throw new Error('no sensor found and no known type to register a new one');
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'compose:err', error);
       throw error;
     }
   };
 
   /**
-   * When HEAD detected, validate sensor.resource and value, then save sensor instance
+   * When HEAD method detected, update sensor instance ( not the value )
    * @method module:Sensor.handlePresentation
    * @param {object} device - found device instance
    * @param {object} sensor - Incoming sensor instance
    * @param {object} [client] - MQTT client
-   * @returns {function} sensor.create
-   * @returns {function} sensor.updateAttributes
+   * @returns {function} Sensor.publish
    */
   Sensor.handlePresentation = async (device, sensor, client) => {
     try {
@@ -639,7 +630,7 @@ module.exports = function(Sensor) {
       }
       throw utils.buildError(400, 'INVALID_SENSOR', 'No valid sensor to register');
     } catch (error) {
-      console.log('Presentation err:', error);
+      logger.publish(2, `${collectionName}`, 'handlePresentation:req', error);
       throw error;
     }
   };
@@ -652,7 +643,7 @@ module.exports = function(Sensor) {
    * @param {number} resourceKey - Sensor resource name ( OMA )
    * @param {object} resourceValue - Sensor resource value to save
    * @param {object} [client] - MQTT client
-   * @returns {function} sensor.publish
+   * @returns {object} sensor
    */
   Sensor.createOrUpdate = async (device, sensor, resourceKey, resourceValue, client) => {
     try {
@@ -705,7 +696,6 @@ module.exports = function(Sensor) {
           lastSignal > updatedSensor.lastSync + 30 * 1000
         ) {
           updatedSensor.lastSync = lastSignal;
-          // delete updatedSensor.id;
           await device.sensors.updateById(sensor.id, updatedSensor);
         }
         // TODO : Define cache TTL with env vars ?
@@ -729,16 +719,16 @@ module.exports = function(Sensor) {
    * @param {object} sensor - Incoming sensor instance
    * @returns {function} Sensor.publish
    */
-  Sensor.getInstance = async (device, pattern, sensor) => {
+  Sensor.getInstance = async (device, pattern, sensor, client) => {
     try {
+      logger.publish(4, `${collectionName}`, 'getInstance:req', {
+        pattern,
+      });
       const SensorResource = Sensor.app.models.SensorResource;
-      let instance = SensorResource.getCache(sensor.deviceId, sensor.id);
+      let instance = await SensorResource.getCache(sensor.deviceId, sensor.id);
       if (!instance) {
         instance = await Sensor.findById(sensor.id);
       }
-      logger.publish(4, `${collectionName}`, 'getInstance:res', {
-        pattern,
-      });
       if (!instance) throw new Error('Sensor not found');
       // if (pattern.name.toLowerCase() !== 'aloesclient') {
       //   let packet = { payload: JSON.stringify(instance) };
@@ -749,6 +739,7 @@ module.exports = function(Sensor) {
       //   throw new Error('no packet payload to publish');
       // }
       //  const topic = `${params.appEui}/Sensor/HEAD`;
+      await Sensor.publish(device, instance, 'GET', client);
       return instance;
     } catch (error) {
       throw error;
@@ -801,7 +792,7 @@ module.exports = function(Sensor) {
    * @param {object} sensor - Parsed external app message
    * @param {string} method - method from MQTT topic
    * @param {object} [client] - MQTT client
-   * @returns {functions}
+   * @returns {object} sensor
    */
   Sensor.execute = async (device, sensor, method, client) => {
     try {
@@ -812,8 +803,8 @@ module.exports = function(Sensor) {
           await Sensor.handlePresentation(device, sensor, client);
           break;
         case 'GET':
-          sensor = await Sensor.getInstance(device, sensor);
-          await Sensor.publish(device, sensor, 'POST', client);
+          // await Sensor.getInstance(device, sensor, client);
+          await Sensor.publish(device, sensor, 'GET', client);
           break;
         case 'POST':
           await Sensor.createOrUpdate(device, sensor, sensor.resource, sensor.value, client);
@@ -834,6 +825,7 @@ module.exports = function(Sensor) {
       }
       return sensor;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'execute:err', error);
       throw error;
     }
   };
@@ -845,7 +837,7 @@ module.exports = function(Sensor) {
    * @param {object} attributes - Sensor attributes detected by Iot-Agent
    * @param {object} [sensor] - Found Sensor instance
    * @param {object} client - MQTT client
-   * @returns {functions} Sensor.execute
+   * @returns {function} Sensor.execute
    */
   Sensor.onPublish = async (device, attributes, sensor, client) => {
     try {
@@ -896,7 +888,10 @@ module.exports = function(Sensor) {
 
       const promises = await omaObjects.map(async obj => {
         const whereFilter = {
-          and: [{ name: { like: new RegExp(`.*${obj.name}.*`, 'i') } }, { type: obj.id }],
+          or: [
+            { and: [{ name: { like: new RegExp(`.*${obj.name}.*`, 'i') } }, { type: obj.id }] },
+            { transportProtocol: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+          ],
         };
         // if (filter.status !== undefined)
         let sensors = await Sensor.find({
@@ -904,8 +899,9 @@ module.exports = function(Sensor) {
         });
         if (!sensors || sensors === null) {
           sensors = [];
+        } else {
+          sensors = JSON.parse(JSON.stringify(sensors));
         }
-        sensors = JSON.parse(JSON.stringify(sensors));
         return [...sensors];
       });
 
@@ -926,15 +922,33 @@ module.exports = function(Sensor) {
   };
 
   /**
+   * Export sensors list from JSON to {format}
+   * @method module:Sensor.export
+   * @param {array} sensors
+   * @param {string} [format]
+   */
+  Sensor.export = async (sensors, filter, format = 'csv') => {
+    if (!sensors || sensors.length < 1) return null;
+    if (format === 'csv') {
+      sensors.forEach(sensor => {
+        ['measurement', 'icons', 'resources', 'colors'].forEach(p => delete sensor[p]);
+      });
+      const result = utils.exportToCSV(sensors, filter);
+      return result;
+    }
+    return null;
+  };
+
+  /**
    * Event reporting that a device client sent sensors update.
    * @event publish
    * @param {object} message - Parsed MQTT message.
-   * @property {object} message.device - found device instancet.
+   * @property {object} message.device - found device instance.
    * @property {object} message.pattern - Pattern detected by Iot-Agent
    * @property {object} message.attributes - IotAgent parsed message
    * @property {object} [message.sensor] - Found sensor instance
    * @property {object} message.client - MQTT client
-   * @returns {functions} Sensor.onPublish
+   * @returns {function} Sensor.onPublish
    */
   Sensor.on('publish', async message => {
     try {
@@ -953,44 +967,44 @@ module.exports = function(Sensor) {
 
   /**
    * Event reporting that a sensor instance will be created or updated.
-   * @event before save
+   * @event before_save
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Sensor instance
-   * @returns {function} onBeforeSave
+   * @returns {function} Sensor~onBeforeSave
    */
   Sensor.observe('before save', onBeforeSave);
 
   /**
    * Event reporting that a sensor instance has been created or updated.
-   * @event after save
+   * @event after_save
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Sensor instance
-   * @returns {function} onAfterSave
+   * @returns {function} Sensor~onAfterSave
    */
   Sensor.observe('after save', onAfterSave);
 
   /**
    * Event reporting that a/several sensor instance(s) will be deleted.
-   * @event before delete
+   * @event before_delete
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - Sensor id
-   * @returns {function} onBeforeDelete
+   * @returns {function} Sensor~onBeforeDelete
    */
   Sensor.observe('before delete', onBeforeDelete);
 
   /**
    * Event reporting that a sensor instance / collection is requested
-   * @event before find
+   * @event before_*
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @returns {function} onBeforeRemote
+   * @returns {function} Sensor~onBeforeRemote
    */
   Sensor.beforeRemote('**', onBeforeRemote);
 
@@ -998,4 +1012,61 @@ module.exports = function(Sensor) {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, '');
     return ctx;
   });
+
+  /**
+   * Find sensors
+   * @method module:Sensor.find
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  /**
+   * Returns sensors length
+   * @method module:Sensor.count
+   * @param {object} where
+   * @returns {number}
+   */
+
+  /**
+   * Find sensor by id
+   * @method module:Sensor.findById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  /**
+   * Create sensor
+   * @method module:Sensor.create
+   * @param {object} sensor
+   * @returns {object}
+   */
+
+  /**
+   * Update sensor by id
+   * @method module:Sensor.updateById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  /**
+   * Delete sensor by id
+   * @method module:Sensor.deleteById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  Sensor.disableRemoteMethodByName('upsertWithWhere');
+  Sensor.disableRemoteMethodByName('replaceOrCreate');
+  Sensor.disableRemoteMethodByName('createChangeStream');
+
+  Sensor.disableRemoteMethodByName('prototype.__create__measurements');
+  Sensor.disableRemoteMethodByName('prototype.__count__measurements');
+  Sensor.disableRemoteMethodByName('prototype.__updateById__measurements');
+  Sensor.disableRemoteMethodByName('prototype.__delete__measurements');
+  Sensor.disableRemoteMethodByName('prototype.__deleteById__measurements');
+  Sensor.disableRemoteMethodByName('prototype.__link__measurements');
+  Sensor.disableRemoteMethodByName('prototype.__unlink__measurements');
 };

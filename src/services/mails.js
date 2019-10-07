@@ -2,8 +2,6 @@ import app from './server';
 import utils from './utils';
 import logger from './logger';
 
-const mails = {};
-
 const emailFrom = process.env.CONTACT_EMAIL;
 const verifyTemplate = `${__dirname}/../views/verify.ejs`;
 const resetTemplate = `${__dirname}/../views/reset-password.ejs`;
@@ -48,11 +46,27 @@ const config = {
   },
 };
 
+/**
+ * @module Mails
+ */
+const mails = {};
+
+/**
+ * Promise wrapper to send email using Email datasource
+ * @method module:Mails~sendMail
+ * @returns {promise}
+ */
 const sendMail = updatedOptions =>
   new Promise((resolve, reject) => {
     app.models.Email.send(updatedOptions, (err, mail) => (err ? reject(err) : resolve(mail)));
   });
 
+/**
+ * Generate HTML template and send email
+ * @method module:Mails.send
+ * @param {object} options - Mail options
+ * @returns {object} result - Mail result
+ */
 mails.send = async options => {
   try {
     const updatedOptions = await utils.renderTemplate(options);
@@ -74,11 +88,22 @@ mails.send = async options => {
   }
 };
 
+/**
+ * Promise wrapper to send verification email after user registration
+ * @method module:Mails~verifyUser
+ * @returns {promise}
+ */
 const verifyUser = (user, options) =>
   new Promise((resolve, reject) => {
     user.verify(options, (err, res) => (err ? reject(err) : resolve({ ...options, ...res })));
   });
 
+/**
+ * Sending a verification email to confirm account creation
+ * @method module:Mails.verifyEmail
+ * @param {object} user - Account created
+ * @returns {object} result - Mail result
+ */
 mails.verifyEmail = async user => {
   try {
     logger.publish(4, `${collectionName}`, 'verifyEmail:req', { verifyTemplate, user });
@@ -107,6 +132,11 @@ mails.verifyEmail = async user => {
   }
 };
 
+/**
+ * Sending a mail to set a new password
+ * @method module:Mails.sendResetPasswordMail
+ * @param {object} options - Mail options
+ */
 mails.sendResetPasswordMail = async options => {
   try {
     const newOptions = {
@@ -126,6 +156,11 @@ mails.sendResetPasswordMail = async options => {
   }
 };
 
+/**
+ * Sending a mail to admin
+ * @method module:Mails.sendContactForm
+ * @param {object} options - Mail options
+ */
 mails.sendContactForm = async options => {
   try {
     const newOptions = {

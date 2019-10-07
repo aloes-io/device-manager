@@ -440,33 +440,33 @@ module.exports = function(Files) {
 
   /**
    * Event reporting that a new Files instance will be created.
-   * @event create
+   * @event before_save
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} user - Files new instance
-   * @returns {function} onBeforeSave
+   * @returns {function} Files~onBeforeSave
    */
   Files.observe('before save', onBeforeSave);
 
   /**
    * Event reporting that a / several File instance(s) will be deleted.
-   * @event before delete
+   * @event before_delete
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - File meta instance
-   * @returns {function} onBeforeDelete
+   * @returns {function} Files~onBeforeDelete
    */
   Files.observe('before delete', onBeforeDelete);
 
   /**
    * Event reporting that a file instance / collection is requested
-   * @event before find
+   * @event before_*
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @returns {function} onBeforeRemote
+   * @returns {function} Files~onBeforeRemote
    */
   Files.beforeRemote('**', onBeforeRemote);
 };

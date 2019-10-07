@@ -158,7 +158,7 @@ const createKeys = async device => {
  * @method module:Device~createProps
  * @param {object} app - Loopback app
  * @param {object} device - Device instance
- * @returns {function} module:Device.publish
+ * @returns {function} Device.publish
  */
 const createProps = async (app, device) => {
   try {
@@ -188,7 +188,7 @@ const createProps = async (app, device) => {
  * @method module:Device~updateProps
  * @param {object} app - Loopback app
  * @param {object} device - Device instance
- * @returns {function} module:Device.publish
+ * @returns {function} Device.publish
  */
 const updateProps = async (app, device) => {
   try {
@@ -252,7 +252,7 @@ const appendCachedSensors = async (app, ctx) => {
       } else if (typeof ctx.req.query.filter === 'object') {
         whereFilter = ctx.req.query.filter;
       }
-      console.log('[DEVICE] appendCachedSensors:req', whereFilter);
+      // console.log('[DEVICE] appendCachedSensors:req', whereFilter);
 
       if (whereFilter.include) {
         if (typeof whereFilter.include === 'object') {
@@ -489,8 +489,8 @@ const onBeforeRemote = async (app, ctx) => {
  * @param {object} packet - MQTT packet
  * @param {object} pattern - Pattern detected by IotAgent
  * @param {object} client - MQTT client
- * @fires module:Device~publish
- * @fires module:Sensor~publish
+ * @fires Device.publish
+ * @fires Sensor.publish
  * @returns {object} device
  */
 const parseMessage = async (app, packet, pattern, client) => {
@@ -561,7 +561,7 @@ const parseMessage = async (app, packet, pattern, client) => {
     const error = utils.buildError(400, 'DECODING_ERROR', 'No attributes retrieved from Iot Agent');
     throw error;
   } catch (error) {
-    logger.publish(4, `${collectionName}`, 'parseMessage:err', error);
+    // logger.publish(4, `${collectionName}`, 'parseMessage:err', error);
     throw error;
   }
 };
@@ -686,7 +686,7 @@ const updateFirmware = async (ctx, deviceId, version) => {
   }
 };
 
-// const onTick = async data => {
+// const onSync = async data => {
 //   try {
 //     logger.publish(4, `${collectionName}`, 'tick:res', data.time);
 //     const devices = await Device.syncCache('UP');
@@ -771,29 +771,13 @@ module.exports = function(Device) {
   Device.validatesUniquenessOf('name', { scopedTo: ['ownerId'] });
   // Device.validatesDateOf("lastSignal", {message: "lastSignal is not a date"});
 
-  Device.disableRemoteMethodByName('upsertWithWhere');
-  Device.disableRemoteMethodByName('replaceOrCreate');
-  Device.disableRemoteMethodByName('createChangeStream');
-
-  Device.disableRemoteMethodByName('prototype.__create__sensors');
-  // Device.disableRemoteMethodByName('prototype.__count__sensors');
-  Device.disableRemoteMethodByName('prototype.__updateById__sensors');
-  Device.disableRemoteMethodByName('prototype.__delete__sensors');
-  Device.disableRemoteMethodByName('prototype.__destroyById__sensors');
-  Device.disableRemoteMethodByName('prototype.__deleteById__sensors');
-  Device.disableRemoteMethodByName('prototype.__link__sensors');
-  Device.disableRemoteMethodByName('prototype.__unlink__sensors');
-
-  Device.disableRemoteMethodByName('prototype.__link__collaborators');
-  Device.disableRemoteMethodByName('prototype.__unlink__collaborators');
-
   /**
    * Format packet and send it via MQTT broker
    * @method module:Device.publish
    * @param {object} device - Device instance
    * @param {string} method - MQTT method
    * @param {object} [client] - MQTT client target
-   * @fires {event} module:Server.publish
+   * @fires Server.publish
    */
   Device.publish = async (device, method, client) => {
     try {
@@ -846,7 +830,7 @@ module.exports = function(Device) {
       }
       throw utils.buildError(403, 'INVALID_PACKET', 'Invalid MQTT Packet encoding');
     } catch (error) {
-      logger.publish(3, `${collectionName}`, 'publish:err', error);
+      logger.publish(2, `${collectionName}`, 'publish:err', error);
       throw error;
     }
   };
@@ -873,7 +857,7 @@ module.exports = function(Device) {
    * Create new keys, and update Device instance
    * @method module:Device.refreshToken
    * @param {object} deviceId - Device instance id
-   * @returns {functions} device.updateAttributes
+   * @returns {object} device
    */
   Device.refreshToken = async (ctx, deviceId) => {
     try {
@@ -899,11 +883,18 @@ module.exports = function(Device) {
       const error = utils.buildError(404, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
       throw error;
     } catch (error) {
-      logger.publish(4, `${collectionName}`, 'refreshToken:err', error);
+      logger.publish(2, `${collectionName}`, 'refreshToken:err', error);
       throw error;
     }
   };
 
+  /**
+   * When POST or PUT method detected, update device instance
+   * @method module:Sensor.createOrUpdate
+   * @param {object} device - detected Device instance
+   * @param {object} [client] - MQTT client
+   * @returns {object} device
+   */
   Device.createOrUpdate = async device => {
     try {
       logger.publish(4, `${collectionName}`, 'createOrUpdate:req', {
@@ -923,7 +914,7 @@ module.exports = function(Device) {
       }
       return device;
     } catch (error) {
-      logger.publish(4, `${collectionName}`, 'createOrUpdate:err', error);
+      logger.publish(2, `${collectionName}`, 'createOrUpdate:err', error);
       throw error;
     }
   };
@@ -1037,6 +1028,7 @@ module.exports = function(Device) {
       });
       return device;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'findByPattern:err', error);
       throw error;
     }
   };
@@ -1123,7 +1115,7 @@ module.exports = function(Device) {
                 }
               });
               result = [...moreDevices, ...result];
-              console.log('DEVICES 2', result);
+              // console.log('DEVICES 2', result);
             }
           }
         }
@@ -1186,6 +1178,24 @@ module.exports = function(Device) {
   };
 
   /**
+   * Export devices list from JSON to {format}
+   * @method module:Device.export
+   * @param {array} devices
+   * @param {string} [format]
+   */
+  Device.export = async (devices, filter, format = 'csv') => {
+    if (!devices || devices.length < 1) return null;
+    if (format === 'csv') {
+      devices.forEach(device => {
+        ['address', 'icons', 'sensors', 'collaborators', 'appIds'].forEach(p => delete device[p]);
+      });
+      const result = utils.exportToCSV(devices, filter);
+      return result;
+    }
+    return null;
+  };
+
+  /**
    * Detect application known pattern and load the application instance
    * @method module:Application~detector
    * @param {object} packet - MQTT packet
@@ -1211,7 +1221,7 @@ module.exports = function(Device) {
    * @method module:Device.updateStatus
    * @param {object} client - MQTT client
    * @param {boolean} status - MQTT connection status
-   * @returns {functions} device.updateAttributes
+   * @returns {function} device.updateAttributes
    */
   Device.updateStatus = async (client, status) => {
     try {
@@ -1259,6 +1269,7 @@ module.exports = function(Device) {
       }
       return client;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'updateStatus:err', error);
       return error;
     }
   };
@@ -1269,7 +1280,7 @@ module.exports = function(Device) {
    * @param {object} packet - MQTT bridge packet
    * @param {object} pattern - Pattern detected by Iot-Agent
    * @param {object} client - MQTT client
-   * @returns {functions} parseMessage
+   * @returns {function} Device~parseMessage
    */
   Device.onPublish = async (packet, pattern, client) => {
     try {
@@ -1279,11 +1290,10 @@ module.exports = function(Device) {
         throw error;
       }
       // limit access base on client props ?
-
       // logger.publish(4, `${collectionName}`, 'onPublish:res', pattern);
       return parseMessage(Device.app, packet, pattern, client);
     } catch (error) {
-      logger.publish(4, `${collectionName}`, 'onPublish:err', error);
+      logger.publish(2, `${collectionName}`, 'onPublish:err', error);
       throw error;
     }
   };
@@ -1293,7 +1303,7 @@ module.exports = function(Device) {
    * @param {object} device - found Device instance
    * @param {string} method - MQTT API method
    * @param {object} [client] - MQTT client target
-   * @returns {functions}
+   * @returns {object} device
    */
   Device.execute = async (device, method, client) => {
     try {
@@ -1324,7 +1334,7 @@ module.exports = function(Device) {
           device = await Device.createOrUpdate(device);
           break;
         case 'STREAM':
-          await Device.publish(device, 'STREAM');
+          await Device.publish(device, 'STREAM', client);
           break;
         case 'DELETE':
           //  await Device.deleteById(device.id);
@@ -1346,7 +1356,7 @@ module.exports = function(Device) {
    * @method module:Device.authenticate
    * @param {any} deviceId
    * @param {string} key
-   * @returns {string} matched The matching key; one of:
+   * @returns {object} matched The matching device and key; one of:
    * - clientKey
    * - apiKey
    * - javaScriptKey
@@ -1427,7 +1437,7 @@ module.exports = function(Device) {
    * Endpoint for device requesting their own state, including relations
    * @method module:Device.getFullState
    * @param {string} deviceId - Device instance id
-   * @returns {object}
+   * @returns {object} device
    */
   Device.getFullState = async deviceId => {
     try {
@@ -1475,7 +1485,7 @@ module.exports = function(Device) {
    * @param {object} ctx - Loopback context
    * @param {string} deviceId - Device instance id
    * @param {string} [version] - Firmware version requested
-   * @returns {function} updateFirmware
+   * @returns {function} Device~updateFirmware
    */
   Device.getOTAUpdate = async (ctx, deviceId, version) => updateFirmware(ctx, deviceId, version);
 
@@ -1485,7 +1495,7 @@ module.exports = function(Device) {
    * @param {object} message - Parsed MQTT message.
    * @property {object} message.client - MQTT client
    * @property {boolean} message.status - MQTT client status.
-   * @returns {functions} Device.updateStatus
+   * @returns {function} Device.updateStatus
    */
   Device.on('client', async message => {
     try {
@@ -1495,7 +1505,7 @@ module.exports = function(Device) {
       if (!client || !client.user || status === undefined) {
         throw new Error('Message missing properties');
       }
-      return Device.updateStatus(client, status);
+      await Device.updateStatus(client, status);
     } catch (error) {
       throw error;
     }
@@ -1507,8 +1517,10 @@ module.exports = function(Device) {
    * @param {object} message - Parsed MQTT message.
    * @property {object} message.packet - MQTT packet.
    * @property {object} message.pattern - Pattern detected by Iot-Agent
-   * @property {object} message.device- Found Device instance
+   * @property {object} message.device - Found Device instance
    * @property {object}[message.client] - MQTT client
+   * @returns {functions} Device.execute
+   * @returns {functions} Device.onPublish
    */
   Device.on('publish', async message => {
     try {
@@ -1520,10 +1532,10 @@ module.exports = function(Device) {
       logger.publish(5, collectionName, 'on:publish', pattern.name);
       if (!pattern) throw new Error('Message is missing pattern');
       if (device && device !== null) {
-        return Device.execute(device, pattern.params.method, client);
+        await Device.execute(device, pattern.params.method, client);
+      } else if (packet) {
+        await Device.onPublish(packet, pattern, client);
       }
-      if (!packet) throw new Error('Message missing packet');
-      return Device.onPublish(packet, pattern, client);
     } catch (error) {
       throw error;
     }
@@ -1533,7 +1545,6 @@ module.exports = function(Device) {
     try {
       await Device.updateAll({ status: true }, { status: false, clients: [] });
       await Device.syncCache('UP');
-      return true;
     } catch (error) {
       throw error;
     }
@@ -1541,44 +1552,44 @@ module.exports = function(Device) {
 
   /**
    * Event reporting that a device instance will be created or updated.
-   * @event before save
+   * @event before_save
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Device instance
-   * @returns {function} onBeforeSave
+   * @returns {function} Device~onBeforeSave
    */
   Device.observe('before save', onBeforeSave);
 
   /**
    * Event reporting that a device instance has been created or updated.
-   * @event after save
+   * @event after_save
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Device instance
-   * @returns {function} onAfterSave
+   * @returns {function} Device~onAfterSave
    */
   Device.observe('after save', onAfterSave);
 
   /**
    * Event reporting that one or several device instance(s) will be deleted.
-   * @event before delete
+   * @event before_delete
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - Device instance
-   * @returns {function} onBeforeDelete
+   * @returns {function} Device~onBeforeDelete
    */
   Device.observe('before delete', onBeforeDelete);
 
   /**
    * Event reporting that a device instance / collection is requested
-   * @event before find
+   * @event before_*
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @returns {function} onBeforeRemote
+   * @returns {function} Device~onBeforeRemote
    */
   Device.beforeRemote('**', async ctx => onBeforeRemote(Device.app, ctx));
 
@@ -1587,4 +1598,65 @@ module.exports = function(Device) {
     // publish on collectionName/ERROR
     return ctx;
   });
+
+  /**
+   * Find devices
+   * @method module:Device.find
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  /**
+   * Returns devices length
+   * @method module:Device.count
+   * @param {object} where
+   * @returns {number}
+   */
+
+  /**
+   * Find device by id
+   * @method module:Device.findById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  /**
+   * Create device
+   * @method module:Device.create
+   * @param {object} device
+   * @returns {object}
+   */
+
+  /**
+   * Update device by id
+   * @method module:Device.updateById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  /**
+   * Delete device by id
+   * @method module:Device.deleteById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  Device.disableRemoteMethodByName('upsertWithWhere');
+  Device.disableRemoteMethodByName('replaceOrCreate');
+  Device.disableRemoteMethodByName('createChangeStream');
+
+  Device.disableRemoteMethodByName('prototype.__create__sensors');
+  // Device.disableRemoteMethodByName('prototype.__count__sensors');
+  Device.disableRemoteMethodByName('prototype.__updateById__sensors');
+  Device.disableRemoteMethodByName('prototype.__delete__sensors');
+  Device.disableRemoteMethodByName('prototype.__destroyById__sensors');
+  Device.disableRemoteMethodByName('prototype.__deleteById__sensors');
+  Device.disableRemoteMethodByName('prototype.__link__sensors');
+  Device.disableRemoteMethodByName('prototype.__unlink__sensors');
+
+  Device.disableRemoteMethodByName('prototype.__link__collaborators');
+  Device.disableRemoteMethodByName('prototype.__unlink__collaborators');
 };

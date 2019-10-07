@@ -96,8 +96,10 @@ const authenticateInstance = async (client, username, password) => {
  * Init external services ( MQTT broker )
  * @method module:Server.start
  * @param {object} config - Parsed env variables
- * @fires module:Server.started
- * @returns {object} httpServer
+ * @fires Server.started
+ * @fires MQTTClient.start
+ * @fires Scheduler.started
+ * @returns {boolean}
  */
 app.start = async config => {
   try {
@@ -202,10 +204,12 @@ app.start = async config => {
  * Close the app and services
  * @method module:Server.stop
  * @param {string} signal - process signal
- * @fires module:Scheduler.stopped
- * @fires module:Application.stopped
- * @fires module:Device.stopped
- * @fires module:Client.stopped
+ * @fires MQTTClient.stop
+ * @fires Scheduler.stopped
+ * @fires Application.stopped
+ * @fires Device.stopped
+ * @fires Client.stopped
+ * @returns {boolean}
  */
 app.stop = async signal => {
   try {
@@ -214,7 +218,6 @@ app.stop = async signal => {
     if (httpServer) {
       httpServer.close();
     }
-    // await MQTTClient.stop();
     MQTTClient.emit('stop', app);
     app.models.Scheduler.emit('stopped');
     app.models.Application.emit('stopped');
@@ -231,7 +234,7 @@ app.stop = async signal => {
 /**
  * Emit publish event
  * @method module:Server.publish
- * @returns {function} module:MQTTClient.publish
+ * @returns {function} MQTTClient.publish
  */
 app.publish = async (topic, payload, retain = false, qos = 0) => {
   try {
@@ -279,7 +282,7 @@ app.init = async config => {
  * Event reporting that the application and all subservices should start.
  * @event started
  * @param {object} config - Parsed env variables
- * @returns {functions} Server.init(config)
+ * @returns {function} Server.init
  */
 app.on('start', app.init);
 
@@ -287,7 +290,7 @@ app.on('start', app.init);
  * Event reporting that the application and all subservices have started.
  * @event started
  * @param {boolean} state - application state
- * @returns {functions} Server.stop()
+ * @returns {function} Server.start
  */
 app.on('started', state => {
   app.bootState = state;
@@ -310,8 +313,8 @@ app.on('started', state => {
  * Event reporting that the application and all subservice should stop.
  * @event stop
  * @param {string} signal - process signal
- * @returns {functions} Server.stop()
+ * @returns {function} Server.stop
  */
-app.on('stop', async signal => app.stop(signal));
+app.on('stop', app.stop);
 
 export default app;

@@ -1,4 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
+import { expect } from 'chai';
 import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
 import testHelper from '../services/test-helper';
@@ -207,6 +208,50 @@ const sensorTest = () => {
                 verb: 'delete',
                 auth: profiles.admin,
                 url: () => `${apiUrl}${sensors[4].id}`,
+                expect: 200,
+              },
+            ],
+          },
+          '[TEST] Verifying "Search" access': {
+            tests: [
+              {
+                name: 'user CAN search sensors by type',
+                verb: 'post',
+                auth: profiles.user,
+                url: () => `${apiUrl}search`,
+                body: () => ({
+                  filter: { text: sensors[0].type },
+                }),
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                },
+              },
+            ],
+          },
+          '[TEST] Verifying "Export" access': {
+            tests: [
+              {
+                name: 'user CAN export to CSV',
+                auth: profiles.user,
+                verb: 'post',
+                url: () => `${apiUrl}export`,
+                body: () => ({
+                  sensors,
+                  filter: {},
+                }),
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                },
+              },
+              {
+                name: 'user CAN export to CSV',
+                auth: profiles.user,
+                verb: 'post',
+                url: () => `${apiUrl}export`,
+                body: () => ({
+                  sensors,
+                  filter: { ownerId: sensors[0].ownerId, name: sensors[0].name },
+                }),
                 expect: 200,
               },
             ],

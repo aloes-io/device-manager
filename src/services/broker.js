@@ -18,82 +18,52 @@ import logger from './logger';
 const broker = {};
 
 /**
- * Find in cache clients subscribed to a specific topic pattern
- * @method module:Broker.getClients
- * @param {string} [id] - Client id
- * @returns {array|object}
+ * Aedes persistence layer
+ * @method module:Broker~persistence
+ * @param {object} config - Environment variables
+ * @returns {function} aedesPersistenceRedis
  */
-broker.getClients = id => {
-  if (typeof id === 'string') {
-    return broker.instance.clients[id];
-  }
-  return broker.instance.clients;
-};
-
-/**
- * Find in cache client ids subscribed to a specific topic pattern
- * @method module:Broker.getClientsByTopic
- * @param {string} topic - Topic pattern
- * @returns {Promise}
- */
-broker.getClientsByTopic = topic =>
-  new Promise((resolve, reject) => {
-    const stream = broker.persistence.getClientList(topic);
-    const clients = [];
-    stream
-      .on('data', client => {
-        try {
-          clients.push(client);
-        } catch (error) {
-          reject(error);
-        }
-      })
-      .on('end', () => {
-        resolve(clients);
-      })
-      .on('error', e => {
-        reject(e);
-      });
-  });
-
-/**
- * Remove subscriptions for a specific client
- * @method module:Broker.cleanSubscriptions
- * @param {object} client - MQTT client
- * @returns {Promise}
- */
-broker.cleanSubscriptions = client =>
-  new Promise((resolve, reject) => {
-    broker.persistence.cleanSubscriptions(client, (err, res) => (err ? reject(err) : resolve(res)));
-  });
-
-/**
- * Convert payload before publish
- * @method module:broker.publish
- * @param {object} packet - MQTT Packet
- * @returns {functions} broker.instance.publish(packet)
- */
-broker.publish = packet => {
-  try {
-    if (typeof packet.payload === 'boolean') {
-      packet.payload = packet.payload.toString();
-    } else if (typeof packet.payload === 'number') {
-      packet.payload = packet.payload.toString();
-    } else if (typeof packet.payload === 'string') {
-      packet.payload = Buffer.from(packet.payload);
-    } else if (typeof packet.payload === 'object') {
-      // console.log('publish buffer ?', !Buffer.isBuffer(packet.payload));
-      if (!Buffer.isBuffer(packet.payload)) {
-        //  packet.payload = JSON.stringify(packet.payload);
-        packet.payload = Buffer.from(packet.payload);
+const persistence = config =>
+  aedesPersistenceRedis({
+    port: Number(config.REDIS_PORT),
+    host: config.REDIS_HOST,
+    // family: 4, // 4 (IPv4) or 6 (IPv6)
+    db: config.REDIS_MQTT_PERSISTENCE,
+    lazyConnect: false,
+    password: config.REDIS_PASS,
+    retryStrategy(times) {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+    maxSessionDelivery: 100, //   maximum offline messages deliverable on client CONNECT, default is 1000
+    packetTTL(packet) {
+      //  offline message TTL ( in seconds )
+      const ttl = 1 * 60 * 60;
+      if (packet && packet.topic.search(/device/i) !== -1) {
+        return ttl;
       }
-    }
-    logger.publish(4, 'broker', 'publish:res', { topic: packet.topic });
-    return broker.instance.publish(packet);
-  } catch (error) {
-    throw error;
-  }
-};
+      return ttl / 2;
+    },
+  });
+
+/**
+ * Aedes event emitter
+ * @method module:Broker~emitter
+ * @param {object} config - Environment variables
+ * @returns {function} MQEmitterRedis
+ */
+const emitter = config =>
+  MQEmitterRedis({
+    host: config.REDIS_HOST,
+    port: Number(config.REDIS_PORT),
+    db: config.REDIS_MQTT_EVENTS,
+    password: config.REDIS_PASS,
+    lazyConnect: false,
+    retryStrategy(times) {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+  });
 
 /**
  * Transform circular MQTT client in JSON
@@ -123,7 +93,7 @@ const getClient = client => {
 };
 
 /**
- * Give a range of clientIds, find a connected client
+ * Give an array of clientIds, find a connected client
  * @method module:Broker~pickRandomClient
  * @param {string[]} clientIds - MQTT client Ids
  * @param {number} attempts - Number of tryouts before returning null
@@ -185,7 +155,7 @@ const updateClientStatus = async (client, status) => {
  * HTTP request to Aloes to validate credentials
  * @method module:Broker~authentificationRequest
  * @param {object} data - Client instance
- * @returns {Promise}
+ * @returns {promise}
  */
 const authentificationRequest = data => {
   let httpClient = http;
@@ -242,9 +212,7 @@ const authentificationRequest = data => {
         });
     });
 
-    req.on('error', e => {
-      reject(e);
-    });
+    req.on('error', reject);
     req.write(data);
     req.end();
   });
@@ -448,8 +416,7 @@ const onPublished = async (packet, client) => {
     if (client.user && !client.aloesId) {
       const foundClient = getClient(client);
       const aloesClientIds = await broker.getClientsByTopic(`aloes-${process.env.ALOES_ID}/sync`);
-      // console.log('mqtt client source: ', foundClient);
-      console.log('mqtt client targets: ', aloesClientIds);
+      // console.log('mqtt client targets: ', aloesClientIds);
       if (!aloesClientIds || aloesClientIds === null) {
         throw new Error('No Aloes client connected');
       }
@@ -480,9 +447,86 @@ const onPublished = async (packet, client) => {
 };
 
 /**
+ * Find clients connected to the broker
+ * @method module:Broker.getClients
+ * @param {string} [id] - Client id
+ * @returns {array|object}
+ */
+broker.getClients = id => {
+  if (typeof id === 'string') {
+    return broker.instance.clients[id];
+  }
+  return broker.instance.clients;
+};
+
+/**
+ * Find in cache client ids subscribed to a specific topic pattern
+ * @method module:Broker.getClientsByTopic
+ * @param {string} topic - Topic pattern
+ * @returns {promise}
+ */
+broker.getClientsByTopic = topic =>
+  new Promise((resolve, reject) => {
+    const stream = broker.persistence.getClientList(topic);
+    const clients = [];
+    stream
+      .on('data', client => {
+        try {
+          clients.push(client);
+        } catch (error) {
+          reject(error);
+        }
+      })
+      .on('end', () => {
+        resolve(clients);
+      })
+      .on('error', e => {
+        reject(e);
+      });
+  });
+
+/**
+ * Remove subscriptions for a specific client
+ * @method module:Broker.cleanSubscriptions
+ * @param {object} client - MQTT client
+ * @returns {promise}
+ */
+broker.cleanSubscriptions = client =>
+  new Promise((resolve, reject) => {
+    broker.persistence.cleanSubscriptions(client, (err, res) => (err ? reject(err) : resolve(res)));
+  });
+
+/**
+ * Convert payload before publish
+ * @method module:broker.publish
+ * @param {object} packet - MQTT Packet
+ * @returns {function} broker.instance.publish
+ */
+broker.publish = packet => {
+  try {
+    if (typeof packet.payload === 'boolean') {
+      packet.payload = packet.payload.toString();
+    } else if (typeof packet.payload === 'number') {
+      packet.payload = packet.payload.toString();
+    } else if (typeof packet.payload === 'string') {
+      packet.payload = Buffer.from(packet.payload);
+    } else if (typeof packet.payload === 'object') {
+      // console.log('publish buffer ?', !Buffer.isBuffer(packet.payload));
+      if (!Buffer.isBuffer(packet.payload)) {
+        //  packet.payload = JSON.stringify(packet.payload);
+        packet.payload = Buffer.from(packet.payload);
+      }
+    }
+    logger.publish(4, 'broker', 'publish:res', { topic: packet.topic });
+    return broker.instance.publish(packet);
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * Setup broker connection
  * @method module:Broker.start
- * @param {object} app - Loopback app
  * @returns {boolean} status
  */
 broker.start = () => {
@@ -494,12 +538,12 @@ broker.start = () => {
 
     /**
      * Aedes authentification callback
-     * @method module:Broker~authenticate
+     * @method module:Broker.instance.authenticate
      * @param {object} client - MQTT client
      * @param {string} [username] - MQTT username
      * @param {object} [password] - MQTT password
      * @param {function} cb - callback
-     * @returns {function}
+     * @returns {function} Broker~authenticate
      */
     broker.instance.authenticate = async (client, username, password, cb) => {
       try {
@@ -512,11 +556,11 @@ broker.start = () => {
 
     /**
      * Aedes publish authorization callback
-     * @method module:Broker~authorizePublish
+     * @method module:Broker.instance.authorizePublish
      * @param {object} client - MQTT client
      * @param {object} packet - MQTT packet
      * @param {function} cb - callback
-     * @returns {function}
+     * @returns {function} Broker~authorizePublish
      */
     broker.instance.authorizePublish = (client, packet, cb) => {
       try {
@@ -529,11 +573,11 @@ broker.start = () => {
 
     /**
      * Aedes subscribe authorization callback
-     * @method module:Broker~authorizeSubscribe
+     * @method module:Broker.instance.authorizeSubscribe
      * @param {object} client - MQTT client
      * @param {object} packet - MQTT packet
      * @param {function} cb - callback
-     * @returns {function}
+     * @returns {function} Broker~authorizeSubscribe
      */
     broker.instance.authorizeSubscribe = (client, packet, cb) => {
       try {
@@ -591,7 +635,6 @@ broker.start = () => {
      * On client connected to Aedes broker
      * @event client
      * @param {object} client - MQTT client
-     * @returns {functions} updateModelsStatus
      */
     broker.instance.on('client', client => {
       logger.publish(4, 'broker', 'clientConnect:req', client.id);
@@ -602,7 +645,7 @@ broker.start = () => {
      * On client disconnected from Aedes broker
      * @event clientDisconnect
      * @param {object} client - MQTT client
-     * @returns {functions} updateModelsStatus
+     * @returns {function} Broker~updateModelsStatus
      */
     broker.instance.on('clientDisconnect', client => {
       try {
@@ -617,21 +660,17 @@ broker.start = () => {
      * When client keep alive timeout
      * @event keepaliveTimeout
      * @param {object} client - MQTT client
-     * @returns {functions} updateModelsStatus
      */
     broker.instance.on('keepaliveTimeout', client => {
       logger.publish(4, 'broker', 'keepaliveTimeout:req', client.id);
-      // return updateClientStatus(client, false);
     });
 
     broker.instance.on('clientError', (client, err) => {
       console.log('broker : client error', client.id, err.message);
-      // updateClientStatus(client, false);
     });
 
     broker.instance.on('connectionError', (client, err) => {
       console.log('broker : connection error', client.clean, err.message);
-      // updateClientStatus(client, false);
       // client.close();
       //  console.log('broker : connection error', client, err.message, err.stack);
     });
@@ -671,42 +710,6 @@ broker.stop = () => {
     return false;
   }
 };
-
-const persistence = config =>
-  aedesPersistenceRedis({
-    port: Number(config.REDIS_PORT),
-    host: config.REDIS_HOST,
-    // family: 4, // 4 (IPv4) or 6 (IPv6)
-    db: config.REDIS_MQTT_PERSISTENCE,
-    lazyConnect: false,
-    password: config.REDIS_PASS,
-    retryStrategy(times) {
-      const delay = Math.min(times * 50, 2000);
-      return delay;
-    },
-    maxSessionDelivery: 100, //   maximum offline messages deliverable on client CONNECT, default is 1000
-    packetTTL(packet) {
-      //  offline message TTL ( in seconds )
-      const ttl = 1 * 60 * 60;
-      if (packet && packet.topic.search(/device/i) !== -1) {
-        return ttl;
-      }
-      return ttl / 2;
-    },
-  });
-
-const emitter = config =>
-  MQEmitterRedis({
-    host: config.REDIS_HOST,
-    port: Number(config.REDIS_PORT),
-    db: config.REDIS_MQTT_EVENTS,
-    password: config.REDIS_PASS,
-    lazyConnect: false,
-    retryStrategy(times) {
-      const delay = Math.min(times * 50, 2000);
-      return delay;
-    },
-  });
 
 /**
  * Init MQTT Broker with new Aedes instance
@@ -760,13 +763,6 @@ broker.init = () => {
           `MQTT broker ready, up and running @: ${config.MQTT_BROKER_URL}`,
         );
       });
-
-    // const httpServer = http
-    //   .createServer((req, res) => {
-    //     res.write('Hello World!');
-    //     res.end();
-    //   })
-    //   .listen(brokerConfig.interfaces[1].port);
 
     const httpServer = http.createServer().listen(brokerConfig.interfaces[1].port);
 

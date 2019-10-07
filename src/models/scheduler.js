@@ -34,7 +34,7 @@ module.exports = function(Scheduler) {
    * @param {object} measurement - Scheduler instance
    * @param {string} [method] - MQTT method
    * @param {object} [client] - MQTT client target
-   * @fires {event} module:Server.publish
+   * @fires Server.publish
    */
   Scheduler.publish = async (device, scheduler, method) => {
     try {
@@ -71,6 +71,7 @@ module.exports = function(Scheduler) {
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'publish:err', error);
       throw error;
     }
   };
@@ -165,6 +166,7 @@ module.exports = function(Scheduler) {
       sensor.resources['5850'] = 0;
       return { sensor, scheduler };
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'stopTimer:err', error);
       throw error;
     }
   };
@@ -222,7 +224,7 @@ module.exports = function(Scheduler) {
         //  client,
       );
     } catch (error) {
-      console.log('onTimeout err:', error);
+      logger.publish(2, `${collectionName}`, 'onTimeout:err', error);
       throw error;
     }
   };
@@ -340,6 +342,7 @@ module.exports = function(Scheduler) {
       sensor.resources['5850'] = 1;
       return { sensor, scheduler };
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'startTimer:err', error);
       throw error;
     }
   };
@@ -350,7 +353,7 @@ module.exports = function(Scheduler) {
    * Endpoint for Sensor timers hooks
    * @method module:Scheduler.onTimeout
    * @param {object} body - Timer callback data
-   * @returns {functions} module:Scheduler~onTimeout
+   * @returns {function} Scheduler~onTimeout
    */
   Scheduler.onTimeout = async body => {
     try {
@@ -364,7 +367,7 @@ module.exports = function(Scheduler) {
       await onTimeout(body);
       return true;
     } catch (error) {
-      console.log('onTimeout err:', error);
+      logger.publish(2, `${collectionName}`, 'onTimeout:err', error);
       throw error;
     }
   };
@@ -411,6 +414,7 @@ module.exports = function(Scheduler) {
       }
       return result;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'parseTimerEvent:err', error);
       throw error;
     }
   };
@@ -439,6 +443,7 @@ module.exports = function(Scheduler) {
       }
       return result;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'parseTimerState:err', error);
       throw error;
     }
   };
@@ -495,7 +500,7 @@ module.exports = function(Scheduler) {
       }
       return scheduler;
     } catch (error) {
-      console.log('scheduler err:', error);
+      logger.publish(2, `${collectionName}`, 'createOrUpdate:err', error);
       throw error;
     }
   };
@@ -540,8 +545,9 @@ module.exports = function(Scheduler) {
         }
       }
       return schedulers;
-    } catch (err) {
-      throw err;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'includeCache:err', error);
+      throw error;
     }
   };
 
@@ -563,6 +569,7 @@ module.exports = function(Scheduler) {
       }
       return schedulers;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'deleteAll:err', error);
       throw error;
     }
   };
@@ -612,7 +619,7 @@ module.exports = function(Scheduler) {
       Scheduler.app.emit('publish', topic, payload, false, 0);
       return { payload, topic };
     } catch (error) {
-      console.log(' onTick err', error);
+      logger.publish(2, `${collectionName}`, 'onTick:err', error);
       throw error;
     }
   };
@@ -624,7 +631,7 @@ module.exports = function(Scheduler) {
    *
    * @method module:Scheduler~onTickHook
    * @param {object} body - Timer callback data
-   * @returns {functions} module:Scheduler~onTick
+   * @returns {function} Scheduler~onTick
    */
   const onTickHook = async body => {
     try {
@@ -676,7 +683,7 @@ module.exports = function(Scheduler) {
    * Endpoint for Scheduler external timeout hooks
    * @method module:Scheduler.onTick
    * @param {object} body - Timer callback data
-   * @returns {functions} module:Scheduler~onTickHook
+   * @returns {function} Scheduler~onTickHook
    */
   Scheduler.onTick = async body => {
     try {
@@ -686,6 +693,7 @@ module.exports = function(Scheduler) {
       }
       return Scheduler.onTickHook(body);
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'onTick:err', error);
       throw error;
     }
   };
@@ -731,6 +739,7 @@ module.exports = function(Scheduler) {
       }
       return scheduler;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'setExternalClock:err', error);
       throw error;
     }
   };
@@ -775,11 +784,16 @@ module.exports = function(Scheduler) {
    * @returns {functions} setInternalClock
    */
   Scheduler.setClock = async interval => {
-    if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
-      await Scheduler.setExternalClock(interval);
-      return Scheduler.setInternalClock(checkExternalClock, interval * 2);
+    try {
+      if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
+        await Scheduler.setExternalClock(interval);
+        return Scheduler.setInternalClock(checkExternalClock, interval * 2);
+      }
+      return Scheduler.setInternalClock(onTick, interval);
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'setClock:err', error);
+      return null;
     }
-    return Scheduler.setInternalClock(onTick, interval);
   };
 
   Scheduler.delClock = async () => {

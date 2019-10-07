@@ -35,13 +35,6 @@ module.exports = function(Measurement) {
     err();
   }
 
-  Measurement.disableRemoteMethodByName('exists');
-  Measurement.disableRemoteMethodByName('upsert');
-  Measurement.disableRemoteMethodByName('replaceOrCreate');
-  //  Measurement.disableRemoteMethodByName('prototype.updateAttributes');
-  //  Measurement.disableRemoteMethodByName('prototype.patchAttributes');
-  Measurement.disableRemoteMethodByName('createChangeStream');
-
   Measurement.validatesPresenceOf('sensorId');
   Measurement.validatesPresenceOf('deviceId');
   Measurement.validatesPresenceOf('ownerId');
@@ -61,14 +54,14 @@ module.exports = function(Measurement) {
    * @param {object} measurement - Measurement instance
    * @param {string} [method] - MQTT method
    * @param {object} [client] - MQTT client target
-   * @fires {event} module:Server.publish
+   * @fires Server.publish
    */
   Measurement.publish = (device, measurement, method) => {
     try {
       const packet = publish({
         userId: measurement.ownerId,
         collection: collectionName,
-        modelId: measurement.id,
+        // modelId: measurement.id,
         data: measurement,
         method: method || 'POST',
         pattern: 'aloesclient',
@@ -96,6 +89,7 @@ module.exports = function(Measurement) {
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'publish:err', error);
       throw error;
     }
   };
@@ -145,6 +139,7 @@ module.exports = function(Measurement) {
       });
       return measurement;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'compose:err', error);
       throw error;
     }
   };
@@ -283,6 +278,7 @@ module.exports = function(Measurement) {
         const result = await findMeasurements(filter);
         return result[0];
       } catch (error) {
+        logger.publish(2, `${collectionName}`, 'findById:err', error);
         throw error;
       }
     };
@@ -436,6 +432,7 @@ module.exports = function(Measurement) {
         const result = await deleteMeasurement(filter);
         return result;
       } catch (error) {
+        logger.publish(2, `${collectionName}`, 'deleteById:err', error);
         throw error;
       }
     };
@@ -449,6 +446,7 @@ module.exports = function(Measurement) {
         const result = await deleteMeasurement(filter);
         return result;
       } catch (error) {
+        logger.publish(2, `${collectionName}`, 'destroyAll:err', error);
         throw error;
       }
     };
@@ -497,4 +495,11 @@ module.exports = function(Measurement) {
     // publish on collectionName/ERROR
     return ctx;
   });
+
+  Measurement.disableRemoteMethodByName('exists');
+  Measurement.disableRemoteMethodByName('upsert');
+  Measurement.disableRemoteMethodByName('replaceOrCreate');
+  //  Measurement.disableRemoteMethodByName('prototype.updateAttributes');
+  //  Measurement.disableRemoteMethodByName('prototype.patchAttributes');
+  Measurement.disableRemoteMethodByName('createChangeStream');
 };

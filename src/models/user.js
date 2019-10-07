@@ -99,7 +99,11 @@ const onAfterSave = async ctx => {
       if (!updatedUser || !updatedUser.id) {
         // await ctx.Model.app.User.destroyById(user.id);
         await ctx.instance.destroy();
-        const error = utils.buildError(404, 'FAILED_ACCOUNT_CREATION', `Email couldn't be sent`);
+        const error = utils.buildError(
+          404,
+          'FAILED_ACCOUNT_CREATION',
+          `Failed to create account properly, try again`,
+        );
         throw error;
       }
     }
@@ -276,7 +280,7 @@ module.exports = function(User) {
       logger.publish(4, `${collectionName}`, 'findByEmail:res', user);
       return user;
     } catch (error) {
-      logger.publish(4, `${collectionName}`, 'findByEmail:err', error);
+      logger.publish(2, `${collectionName}`, 'findByEmail:err', error);
       throw error;
     }
   };
@@ -310,6 +314,13 @@ module.exports = function(User) {
     }
   };
 
+  /**
+   * Updating user password using an authorization token
+   * @method module:User.updatePasswordFromToken
+   * @param {object} accessToken - User instance
+   * @param {string} newPassword - User new password
+   * @returns {boolean} result
+   */
   User.updatePasswordFromToken = async (accessToken, newPassword) => {
     try {
       logger.publish(3, `${collectionName}`, 'updatePasswordFromToken:req', accessToken);
@@ -331,11 +342,19 @@ module.exports = function(User) {
       await user.updateAttribute('password', newPassword);
       return true;
     } catch (error) {
-      logger.publish(3, `${collectionName}`, 'updatePasswordFromToken:err', error);
+      logger.publish(2, `${collectionName}`, 'updatePasswordFromToken:err', error);
       throw error;
     }
   };
 
+  /**
+   * Updating user password
+   * @method module:User.setNewPassword
+   * @param {object} ctx - Loopback context
+   * @param {string} oldPassword
+   * @param {string} newPassword
+   * @returns {object} user
+   */
   User.setNewPassword = async (ctx, oldPassword, newPassword) => {
     try {
       let error;
@@ -359,27 +378,42 @@ module.exports = function(User) {
       //  logger.publish(3, `${collectionName}`, 'setNewPassword:res', res);
       return user;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'setNewPassword:err', error);
       throw error;
     }
   };
 
+  /**
+   * Sending a request to admin
+   * @method module:User.sendContactForm
+   * @param {object} form - Client form options
+   * @fires User.sendContactForm
+   */
   User.sendContactForm = async form => {
     logger.publish(4, `${collectionName}`, 'sendContactForm:req', form);
     try {
+      if (!form || !form.email || !form.subject || !form.content) {
+        const error = utils.buildError(400, 'INVALID_ARGS', 'Form is invalid');
+        throw error;
+      }
       User.app.emit('sendContactForm', form);
       return true;
     } catch (error) {
-      logger.publish(4, `${collectionName}`, 'sendContactForm:err', error);
+      logger.publish(2, `${collectionName}`, 'sendContactForm:err', error);
       throw error;
     }
   };
 
   User.sendInvite = async (ctx, options) => {
     try {
+      if (!options || !options.email || !options.profile) {
+        const error = utils.buildError(400, 'INVALID_ARGS', 'Options are invalid');
+        throw error;
+      }
       User.app.emit('sendMailInvite', options);
       return true;
     } catch (error) {
-      logger.publish(4, collectionName, ' sendInvite:err', error);
+      logger.publish(2, collectionName, ' sendInvite:err', error);
       throw error;
     }
   };
@@ -388,6 +422,7 @@ module.exports = function(User) {
    * Event reporting to trigger mails.verifyEmail
    * @event verifyEmail
    * @param {object} user - User instance
+   * @returns {function} Mails.verifyEmail
    */
   User.on('verifyEmail', mails.verifyEmail);
 
@@ -395,6 +430,7 @@ module.exports = function(User) {
    * Event reporting to trigger mails.send
    * @event sendContactForm
    * @param {object} options - Form properties
+   * @returns {function} Mails.sendContactForm
    */
   User.on('sendContactForm', mails.sendContactForm);
 
@@ -402,6 +438,7 @@ module.exports = function(User) {
    * Event reporting to trigger mails.send
    * @event sendMailInvite
    * @param {object} options - Form properties
+   * @returns {function} Mails.sendMailInvite
    */
   User.on('sendMailInvite', mails.sendMailInvite);
 
@@ -409,49 +446,50 @@ module.exports = function(User) {
    * Event reporting to send password reset link when requested
    * @event resetPasswordRequest
    * @param {object} options - Mail options
+   * @returns {function} Mails.sendResetPasswordMail
    */
   User.on('resetPasswordRequest', mails.sendResetPasswordMail);
 
   /**
    * Event reporting that a new user instance will be created.
-   * @event create
+   * @event before_save
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} user - User new instance
-   * @returns {function} onBeforeSave
+   * @returns {function} User~onBeforeSave
    */
   User.observe('before save', onBeforeSave);
 
   /**
    * Event reporting that a new user instance has been created.
-   * @event create
+   * @event after_save
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} user - User new instance
-   * @returns {function} onAfterSave
+   * @returns {function} User~onAfterSave
    */
   User.observe('after save', onAfterSave);
 
   /**
    * Event reporting that a user instance will be deleted.
-   * @event before delete
+   * @event before_delete
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - User instance id
-   * @returns {function} onBeforeDelete
+   * @returns {function} User~onBeforeDelete
    */
   User.observe('before delete', onBeforeDelete);
 
   /**
    * Event reporting that a remote user method has been requested
-   * @event before confirm
+   * @event before_*
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @returns {function} onBeforeRemote
+   * @returns {function} User~onBeforeRemote
    */
   User.beforeRemote('**', async ctx => onBeforeRemote(User.app, ctx));
 

@@ -177,15 +177,15 @@ const userTest = () => {
                 name: "everyone CANNOT update user's details",
                 verb: 'patch',
                 url: getUser0Url,
-                body: { firstName: 'coffee' },
+                body: { firstName: 'test' },
                 expect: 401,
               },
               {
-                name: "user CANNOT update user's details",
+                name: "user CANNOT update another user's details",
                 verb: 'patch',
                 url: () => `${apiUrl}${userModels[1].id}`,
                 auth: profiles.user, // user 0
-                body: { firstName: 'coffee' },
+                body: { firstName: 'test' },
                 expect: 401,
               },
               {
@@ -193,7 +193,7 @@ const userTest = () => {
                 verb: 'patch',
                 url: getUser0Url,
                 auth: profiles.user,
-                body: { firstName: 'coffee' },
+                body: { firstName: 'test' },
                 expect: 200,
               },
               {
@@ -210,7 +210,7 @@ const userTest = () => {
                 verb: 'patch',
                 url: getUser0Url,
                 auth: profiles.admin,
-                body: { firstName: 'coffee' },
+                body: { firstName: 'test' },
                 expect: 200,
               },
               {

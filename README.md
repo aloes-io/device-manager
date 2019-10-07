@@ -11,7 +11,7 @@
 - Interact with external application and share selection of devices
 - Automatically store sensors value in timeseries ( InfluxDB ), in file, or trigger some timers
 
-[Swagger Explorer](https://supervisor.aloes.io/explorer)
+[Swagger Explorer](https://aloes.io/app/explorer)
 
 [Full Docs](https://aloes.frama.io/device-manager/)
 
@@ -165,5 +165,4 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 - Finish account linking with github
 - Add user(s) in a team to easily share devices access ( via collaborators property )
-- Data exports ( devices selection by filter )
 - Catch and store data related to MQTT traffic ( via Specific sensor instance ? )

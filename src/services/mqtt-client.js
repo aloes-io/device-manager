@@ -11,21 +11,24 @@ const MQTTClient = new EventEmitter();
 let mqttClient;
 
 /**
- * Update models status from MQTT conection status and client properties
+ * Update models status from MQTT connection status and client properties
  * @method module:MQTTClient~updateModelsStatus
  * @param {object} app - Loopback app
  * @param {object} client - MQTT client
  * @param {boolean} status - MQTT conection status
  */
-const updateModelsStatus = async (app, client, status) => {
+const updateModelsStatus = (app, client, status) => {
   try {
-    if (client.user) {
-      await app.models.Device.emit('client', { client, status });
-      await app.models.Application.emit('client', { client, status });
+    if (client && client.user) {
+      if (client.devEui) {
+        app.models.Device.emit('client', { client, status });
+      } else if (client.appId) {
+        app.models.Application.emit('client', { client, status });
+      }
     }
     return null;
   } catch (error) {
-    return error;
+    return null;
   }
 };
 
@@ -62,14 +65,13 @@ const findPattern = async (app, packet, client) => {
       pattern === null ||
       !pattern.name ||
       pattern.name === 'empty' ||
-      !pattern.params ||
-      pattern instanceof Error
+      !pattern.params
     ) {
-      throw new Error('invalid pattern');
+      return null;
     }
     return pattern;
   } catch (error) {
-    return error;
+    return null;
   }
 };
 
@@ -111,7 +113,7 @@ const redirectMessage = async (packet, client, pattern) => {
     }
     return serviceName;
   } catch (error) {
-    return error;
+    return null;
   }
 };
 
@@ -169,7 +171,7 @@ const setInstancePayload = payload => {
  * @param {object} app - Loopback app
  * @param {object} topic - MQTT topic
  * @param {object} payload - MQTT payload
- * @returns {functions} module:MQTTClient~updateModelsStatus
+ * @returns {function} module:MQTTClient~updateModelsStatus
  */
 const onStatus = async (app, topic, payload) => {
   try {
@@ -179,7 +181,8 @@ const onStatus = async (app, topic, payload) => {
     const status = payload.status;
     return updateModelsStatus(app, client, status);
   } catch (error) {
-    return error;
+    logger.publish(2, 'mqtt-client', 'onStatus:err', error);
+    throw error;
   }
 };
 
@@ -189,7 +192,8 @@ const onStatus = async (app, topic, payload) => {
  * @param {object} app - Loopback app
  * @param {object} topic - MQTT topic
  * @param {object} payload - MQTT payload
- * @fires {functions} publish
+ * @fires Application.publish
+ * @fires Device.publish
  */
 const onReceive = async (app, topic, payload) => {
   try {
@@ -198,19 +202,20 @@ const onReceive = async (app, topic, payload) => {
     const client = payload.client;
     const packet = { topic, payload: setInstancePayload(payload.payload) };
     const pattern = await findPattern(app, packet, client);
-    if (!pattern || !pattern.name || pattern instanceof Error) {
+    if (!pattern || !pattern.name) {
       return null;
       //  throw new Error('no pattern found');
     }
     // set payload based on pattern found ?
     const serviceName = await redirectMessage(packet, client, pattern);
-    if (!serviceName || serviceName === null || serviceName instanceof Error) {
+    if (!serviceName || serviceName === null) {
       throw new Error('no service redirection');
     }
     logger.publish(4, 'mqtt-client', 'onPublished:service', serviceName);
     return app.models[serviceName].emit('publish', { pattern, packet, client });
   } catch (error) {
-    return error;
+    logger.publish(2, 'mqtt-client', 'onReceive:err', error);
+    throw error;
   }
 };
 
@@ -220,8 +225,8 @@ const onReceive = async (app, topic, payload) => {
  * @param {object} app - Loopback app
  * @param {object} topic - MQTT topic
  * @param {object} payload - MQTT payload
- * @returns {functions} module:MQTTClient~onStatus
- * @returns {functions} module:MQTTClient~onReceive
+ * @returns {functions} MQTTClient~onStatus
+ * @returns {functions} MQTTClient~onReceive
  */
 const onMessage = async (app, topic, payload) => {
   try {
@@ -237,18 +242,17 @@ const onMessage = async (app, topic, payload) => {
     }
     return null;
   } catch (error) {
-    logger.publish(4, 'mqtt-client', 'onMessage:err', error);
-    return error;
+    logger.publish(2, 'mqtt-client', 'onMessage:err', error);
+    throw error;
   }
 };
 
 /**
- * Event reporting that MQTTClient has to start.
- * @event module:MQTTClient~start
+ * Setup MQTT client listeners
+ * @method module:MQTTClient~startClient
+ * @param {string} clientId - MQTT clientId
  */
-MQTTClient.on('start', async clientId => MQTTClient.start(clientId));
-
-MQTTClient.start = async clientId => {
+const startClient = async clientId => {
   await mqttClient.subscribe(`aloes-${process.env.ALOES_ID}/sync`, {
     qos: 2,
     retain: false,
@@ -264,21 +268,21 @@ MQTTClient.start = async clientId => {
 };
 
 /**
- * Event reporting that MQTTClient has to init.
- * @event module:MQTTClient~init
- * @param {object} app - Loopback app
- * @param {object} config - Formatted config.
+ * Event reporting that MQTTClient has to start.
+ * @event module:MQTTClient.start
+ * @returns {function} MQTTClient~startClient
  */
-MQTTClient.on('init', async (app, config) => MQTTClient.init(app, config));
+MQTTClient.on('start', startClient);
+// MQTTClient.on('start', async clientId => MQTTClient.start(clientId));
 
 /**
  * Setup MQTT client connection
- * @method module:MQTTClient.init
+ * @method module:MQTTClient~initClient
  * @param {object} app - Loopback app
  * @param {object} config - Environment variables
  * @returns {boolean} status
  */
-MQTTClient.init = async (app, config) => {
+const initClient = async (app, config) => {
   try {
     let mqttBrokerUrl, clientId;
     logger.publish(4, 'mqtt-client', 'init:req', {
@@ -348,6 +352,16 @@ MQTTClient.init = async (app, config) => {
 };
 
 /**
+ * Event reporting that MQTTClient has to init.
+ * @event module:MQTTClient.init
+ * @param {object} app - Loopback app
+ * @param {object} config - Formatted config.
+ * @returns {function} MQTTClient~initClient
+ */
+// MQTTClient.on('init', async (app, config) => MQTTClient.init(app, config));
+MQTTClient.on('init', initClient);
+
+/**
  * Convert payload and topic before publish
  * @method module:MQTTClient.publish
  * @param {string} topic - Packet topic
@@ -381,17 +395,11 @@ MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
 };
 
 /**
- * Event reporting that MQTTClient has to stop.
- * @event module:MQTTClient~init
- */
-MQTTClient.on('stop', async () => MQTTClient.stop());
-
-/**
  * Stop MQTT client and unsubscribe
- * @method module:MQTTClient.stop
+ * @method module:MQTTClient~stopClient
  * @returns {boolean} status
  */
-MQTTClient.stop = async () => {
+const stopClient = async () => {
   try {
     if (mqttClient) {
       await mqttClient.unsubscribe(`aloes-${process.env.ALOES_ID}/sync`);
@@ -406,5 +414,12 @@ MQTTClient.stop = async () => {
     return false;
   }
 };
+
+/**
+ * Event reporting that MQTTClient has to stop.
+ * @event module:MQTTClient.stop
+ * @returns {function} MQTTClient~stopClient
+ */
+MQTTClient.on('stop', stopClient);
 
 export default MQTTClient;

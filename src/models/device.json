@@ -234,6 +234,7 @@
         "count",
         "exists",
         "search",
+        "export",
         "refreshToken",
         "geoLocate",
         "onPublish",
@@ -506,6 +507,34 @@
       "http": {
         "verb": "get",
         "path": "/get-ota-update/:deviceId"
+      }
+    },
+    "export": {
+      "description": ["Export Devices list from JSON to format selected ( default : csv )"],
+      "accepts": [
+        {
+          "arg": "devices",
+          "type": "array",
+          "required": true
+        },
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": false
+        },
+        {
+          "arg": "format",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "returns": {
+        "root": true,
+        "type": "string"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/export"
       }
     }
   }

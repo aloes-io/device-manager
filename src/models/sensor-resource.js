@@ -30,23 +30,10 @@ module.exports = function(SensorResource) {
         logger.publish(5, `${collectionName}`, 'getCache:res', cachedSensor);
         return JSON.parse(cachedSensor);
       }
-      // ctx.res.setHeader("Cache-Hit", true);
-      // const data = await ttlAsync(cacheKey);
-      // console.log("[CACHE] beforeRemote:res1", data);
-      // if (data) {
-      //   ctx.res.setHeader("Cache-TTL", data);
-      //   const expires = new Date();
-      //   expires.setSeconds(expires.getSeconds() + Number(data));
-      //   ctx.res.setHeader("Expires", expires);
 
-      // ctx.res.setHeader('Cache-Hit', false);
-      // ctx.res.setHeader('Cache-TTL', cacheExpire);
-      // const expires = new Date();
-      // expires.setSeconds(expires.getSeconds() + Number(cacheExpire));
-      // ctx.res.setHeader('Expires', expires);
-
-      throw new Error('No sensor found in cache');
+      return null;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'getCache:err', error);
       throw error;
     }
   };
@@ -75,6 +62,7 @@ module.exports = function(SensorResource) {
       logger.publish(5, `${collectionName}`, 'setCache:res', sensor);
       return sensor;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'setCache:err', error);
       throw error;
     }
   };
@@ -93,6 +81,7 @@ module.exports = function(SensorResource) {
       logger.publish(5, `${collectionName}`, 'deleteCache:res', key);
       return true;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'deleteCache:err', error);
       throw error;
     }
   };
@@ -115,7 +104,8 @@ module.exports = function(SensorResource) {
       logger.publish(5, `${collectionName}`, 'expireCache:res', { key, ttl });
       return true;
     } catch (error) {
-      return error;
+      logger.publish(2, `${collectionName}`, 'expireCache:err', error);
+      return null;
     }
   };
 
@@ -198,8 +188,9 @@ module.exports = function(SensorResource) {
         }
       }
       return device;
-    } catch (err) {
-      throw err;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'includeCache:err', error);
+      throw error;
     }
   };
 
@@ -232,6 +223,7 @@ module.exports = function(SensorResource) {
 
       return sensors;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'updateCache:err', error);
       throw error;
     }
   };

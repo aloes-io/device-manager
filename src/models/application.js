@@ -33,7 +33,7 @@ module.exports = Application => {
    * @method module:Application.publish
    * @param {object} application - Application instance
    * @param {object} [client] - MQTT client target
-   * @fires {event} module:Server.publish
+   * @fires Server.publish
    */
   Application.publish = async (application, method, client) => {
     try {
@@ -63,6 +63,7 @@ module.exports = Application => {
       }
       throw new Error('Invalid MQTT Packet encoding');
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'publish:err', error);
       throw error;
     }
   };
@@ -128,7 +129,7 @@ module.exports = Application => {
    * Create new keys, and update Application instance
    * @method module:Application.refreshToken
    * @param {object} application - Application instance
-   * @returns {functions} application.updateAttributes
+   * @returns {function} application.updateAttributes
    */
   Application.refreshToken = async (ctx, application) => {
     try {
@@ -154,7 +155,7 @@ module.exports = Application => {
       }
       throw new Error('Missing Application instance');
     } catch (error) {
-      logger.publish(4, `${collectionName}`, 'refreshToken:err', error);
+      logger.publish(2, `${collectionName}`, 'refreshToken:err', error);
       throw error;
     }
   };
@@ -165,7 +166,7 @@ module.exports = Application => {
    * @param {object} ctx - Application context
    * @param {object} ctx.req - HTTP request
    * @param {object} ctx.res - HTTP response
-   * @returns {function} module:Device.publish
+   * @returns {function} Application.publish
    */
   const createProps = async ctx => {
     try {
@@ -188,7 +189,7 @@ module.exports = Application => {
    * @param {object} ctx - Application context
    * @param {object} ctx.req - HTTP request
    * @param {object} ctx.res - HTTP response
-   * @returns {function} module:Application.publish
+   * @returns {function} Application.publish
    */
   const updateProps = async ctx => {
     try {
@@ -205,7 +206,7 @@ module.exports = Application => {
    * @param {object} packet - MQTT bridge packet
    * @param {object} client - MQTT client
    * @param {object} pattern - Pattern detected by Iot-Agent
-   * @returns {functions} parseApplicationMessage
+   * @returns {functions} Application~parseApplicationMessage
    */
   Application.onPublish = async (packet, client, pattern) => {
     try {
@@ -265,7 +266,7 @@ module.exports = Application => {
       // update gateway states ?
       return null;
     } catch (error) {
-      logger.publish(4, `${collectionName}`, 'onPublish:err', error);
+      logger.publish(2, `${collectionName}`, 'onPublish:err', error);
       throw error;
     }
   };
@@ -308,7 +309,7 @@ module.exports = Application => {
    * @method module:Application.updateStatus
    * @param {object} client - MQTT client
    * @param {boolean} status - MQTT conection status
-   * @returns {function}
+   * @returns {function} application.updateAttributes
    */
   Application.updateStatus = async (client, status) => {
     try {
@@ -366,7 +367,7 @@ module.exports = Application => {
       }
       throw new Error('No application found');
     } catch (error) {
-      logger.publish(5, collectionName, 'updateStatus:err', error);
+      logger.publish(2, collectionName, 'updateStatus:err', error);
       throw error;
     }
   };
@@ -375,17 +376,15 @@ module.exports = Application => {
    * Endpoint for application authentification with APIKey
    *
    * @method module:Application.authenticate
-   * @param {Any} applicationId
-   * @param {String} key
-   * @param {Error} err
-   * @param {String} matched The matching key; one of:
+   * @param {any} applicationId
+   * @param {string} key
+   * @returns {object} matched The matching application and key; one of:
    * - clientKey
    * - apiKey
    * - javaScriptKey
    * - restApiKey
    * - windowsKey
    * - masterKey
-   * @promise
    */
   Application.authenticate = async (appId, key) => {
     try {
@@ -417,6 +416,7 @@ module.exports = Application => {
       }
       return result;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'authenticate:err', error);
       throw error;
     }
   };
@@ -424,8 +424,8 @@ module.exports = Application => {
   /**
    * Endpoint to get resources attached to an application
    * @method module:Application.getState
-   * @param {String} applicationId
-   * @param {Error} error
+   * @param {string} applicationId
+   * @returns {object} application
    */
   Application.getState = async (appId, options) => {
     try {
@@ -454,7 +454,7 @@ module.exports = Application => {
       //  ctx.res.status(403);
       throw new Error('Failed to authenticate application');
     } catch (error) {
-      console.log('getstate, err : ', error);
+      logger.publish(2, `${collectionName}`, 'getState:err', error);
       throw error;
     }
   };
@@ -465,7 +465,7 @@ module.exports = Application => {
    * @param {object} message - Parsed MQTT message.
    * @property {object} message.client - MQTT client
    * @property {boolean} message.status - MQTT client status.
-   * @returns {functions} Application.updateStatus
+   * @returns {function} Application.updateStatus
    */
   Application.on('client', async message => {
     try {
@@ -475,7 +475,7 @@ module.exports = Application => {
       if (!client || !client.user) {
         throw new Error('Message missing properties');
       }
-      return Application.updateStatus(client, status);
+      await Application.updateStatus(client, status);
     } catch (error) {
       throw error;
     }
@@ -488,6 +488,7 @@ module.exports = Application => {
    * @property {object} message.packet - MQTT packet.
    * @property {object} message.pattern - Pattern detected
    * @property {object} message.client - MQTT client
+   * @returns {function} Application.onPublish
    */
   Application.on('publish', async message => {
     try {
@@ -497,7 +498,7 @@ module.exports = Application => {
       const pattern = message.pattern;
       const client = message.client;
       if (!packet || !pattern) throw new Error('Message missing properties');
-      return Application.onPublish(packet, client, pattern);
+      await Application.onPublish(packet, client, pattern);
     } catch (error) {
       throw error;
     }
@@ -506,7 +507,6 @@ module.exports = Application => {
   Application.on('stopped', async () => {
     try {
       await Application.updateAll({ status: true }, { status: false, clients: [] });
-      return true;
     } catch (error) {
       throw error;
     }
@@ -514,7 +514,7 @@ module.exports = Application => {
 
   /**
    * Event reporting that an application instance will be created or updated.
-   * @event before save
+   * @event before_save
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
@@ -547,7 +547,7 @@ module.exports = Application => {
 
   /**
    * Event reporting that a device instance has been created or updated.
-   * @event after save
+   * @event after_save
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
@@ -579,7 +579,7 @@ module.exports = Application => {
 
   /**
    * Event reporting that an application instance will be deleted.
-   * @event before delete
+   * @event before_delete
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response

@@ -206,7 +206,7 @@ const deviceTest = () => {
               },
             ],
           },
-          '[TEST] Verifying "Location" access': {
+          '[TEST] Verifying "Search" access': {
             tests: [
               {
                 name: 'user CAN search devices by address',
@@ -287,6 +287,34 @@ const deviceTest = () => {
                     expect: 200,
                   }),
                 ],
+              },
+            ],
+          },
+          '[TEST] Verifying "Export" access': {
+            tests: [
+              {
+                name: 'user CAN export to CSV',
+                auth: profiles.user,
+                verb: 'post',
+                url: () => `${apiUrl}export`,
+                body: () => ({
+                  devices,
+                  filter: {},
+                }),
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                },
+              },
+              {
+                name: 'user CAN export to CSV',
+                auth: profiles.user,
+                verb: 'post',
+                url: () => `${apiUrl}export`,
+                body: () => ({
+                  devices,
+                  filter: { ownerId: devices[0].ownerId, name: devices[0].name },
+                }),
+                expect: 200,
               },
             ],
           },

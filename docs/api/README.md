@@ -164,22 +164,22 @@ Event reporting that an address instance / collection is requested
         * [.resetKeys()](#module_Application+resetKeys) ⇒ <code>object</code>
     * _static_
         * [.publish(application, [client])](#module_Application.publish)
-        * [.refreshToken(application)](#module_Application.refreshToken) ⇒ <code>functions</code>
+        * [.refreshToken(application)](#module_Application.refreshToken) ⇒ <code>function</code>
         * [.onPublish(packet, client, pattern)](#module_Application.onPublish) ⇒ <code>functions</code>
         * [.updateStatus(client, status)](#module_Application.updateStatus) ⇒ <code>function</code>
-        * [.authenticate(applicationId, key, err, matched)](#module_Application.authenticate)
-        * [.getState(applicationId, error)](#module_Application.getState)
+        * [.authenticate(applicationId, key)](#module_Application.authenticate) ⇒ <code>object</code>
+        * [.getState(applicationId)](#module_Application.getState) ⇒ <code>object</code>
     * _inner_
         * [~createKeys(application)](#module_Application..createKeys) ⇒ <code>object</code>
         * [~createProps(ctx)](#module_Application..createProps) ⇒ <code>function</code>
         * [~updateProps(ctx)](#module_Application..updateProps) ⇒ <code>function</code>
         * [~detector(packet, client)](#module_Application..detector) ⇒ <code>object</code>
         * [~detector(packet, client)](#module_Application..detector) ⇒ <code>object</code>
-        * ["client" (message)](#event_client) ⇒ <code>functions</code>
-        * ["publish" (message)](#event_publish)
-        * ["before save" (ctx)](#event_before save)
-        * ["after save" (ctx)](#event_after save)
-        * ["before delete" (ctx)](#event_before delete)
+        * ["client" (message)](#event_client) ⇒ <code>function</code>
+        * ["publish" (message)](#event_publish) ⇒ <code>function</code>
+        * ["before_save" (ctx)](#event_before_save)
+        * ["after_save" (ctx)](#event_after_save)
+        * ["before_delete" (ctx)](#event_before_delete)
 
 <a name="module_Application+resetKeys"></a>
 
@@ -194,7 +194,7 @@ Reset keys for this application instance
 Format packet and send it via MQTT broker
 
 **Kind**: static method of [<code>Application</code>](#module_Application)  
-**Emits**: <code>{event} module:Server.event:publish</code>  
+**Emits**: <code>Server.event:publish</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -203,11 +203,11 @@ Format packet and send it via MQTT broker
 
 <a name="module_Application.refreshToken"></a>
 
-### Application.refreshToken(application) ⇒ <code>functions</code>
+### Application.refreshToken(application) ⇒ <code>function</code>
 Create new keys, and update Application instance
 
 **Kind**: static method of [<code>Application</code>](#module_Application)  
-**Returns**: <code>functions</code> - application.updateAttributes  
+**Returns**: <code>function</code> - application.updateAttributes  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -219,7 +219,7 @@ Create new keys, and update Application instance
 Dispatch incoming MQTT packet
 
 **Kind**: static method of [<code>Application</code>](#module_Application)  
-**Returns**: <code>functions</code> - parseApplicationMessage  
+**Returns**: <code>functions</code> - Application~parseApplicationMessage  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -233,6 +233,7 @@ Dispatch incoming MQTT packet
 Update application status from MQTT conection status
 
 **Kind**: static method of [<code>Application</code>](#module_Application)  
+**Returns**: <code>function</code> - application.updateAttributes  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -241,30 +242,34 @@ Update application status from MQTT conection status
 
 <a name="module_Application.authenticate"></a>
 
-### Application.authenticate(applicationId, key, err, matched)
+### Application.authenticate(applicationId, key) ⇒ <code>object</code>
 Endpoint for application authentification with APIKey
 
 **Kind**: static method of [<code>Application</code>](#module_Application)  
-**Promise**:   
-
-| Param | Type | Description |
-| --- | --- | --- |
-| applicationId | <code>Any</code> |  |
-| key | <code>String</code> |  |
-| err | <code>Error</code> |  |
-| matched | <code>String</code> | The matching key; one of: - clientKey - apiKey - javaScriptKey - restApiKey - windowsKey - masterKey |
-
-<a name="module_Application.getState"></a>
-
-### Application.getState(applicationId, error)
-Endpoint to get resources attached to an application
-
-**Kind**: static method of [<code>Application</code>](#module_Application)  
+**Returns**: <code>object</code> - matched The matching application and key; one of:
+- clientKey
+- apiKey
+- javaScriptKey
+- restApiKey
+- windowsKey
+- masterKey  
 
 | Param | Type |
 | --- | --- |
-| applicationId | <code>String</code> | 
-| error | <code>Error</code> | 
+| applicationId | <code>any</code> | 
+| key | <code>string</code> | 
+
+<a name="module_Application.getState"></a>
+
+### Application.getState(applicationId) ⇒ <code>object</code>
+Endpoint to get resources attached to an application
+
+**Kind**: static method of [<code>Application</code>](#module_Application)  
+**Returns**: <code>object</code> - application  
+
+| Param | Type |
+| --- | --- |
+| applicationId | <code>string</code> | 
 
 <a name="module_Application..createKeys"></a>
 
@@ -284,7 +289,7 @@ Keys creation helper - update application attributes
 Init device depencies ( token )
 
 **Kind**: inner method of [<code>Application</code>](#module_Application)  
-**Returns**: <code>function</code> - module:Device.publish  
+**Returns**: <code>function</code> - Application.publish  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -298,7 +303,7 @@ Init device depencies ( token )
 Update application depencies
 
 **Kind**: inner method of [<code>Application</code>](#module_Application)  
-**Returns**: <code>function</code> - module:Application.publish  
+**Returns**: <code>function</code> - Application.publish  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -334,11 +339,11 @@ Detect application known pattern and load the application instance
 
 <a name="event_client"></a>
 
-### "client" (message) ⇒ <code>functions</code>
+### "client" (message) ⇒ <code>function</code>
 Event reporting that an application client connection status has changed.
 
 **Kind**: event emitted by [<code>Application</code>](#module_Application)  
-**Returns**: <code>functions</code> - Application.updateStatus  
+**Returns**: <code>function</code> - Application.updateStatus  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -353,10 +358,11 @@ Event reporting that an application client connection status has changed.
 
 <a name="event_publish"></a>
 
-### "publish" (message)
+### "publish" (message) ⇒ <code>function</code>
 Event reporting that an application client sent a message.
 
 **Kind**: event emitted by [<code>Application</code>](#module_Application)  
+**Returns**: <code>function</code> - Application.onPublish  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -370,9 +376,9 @@ Event reporting that an application client sent a message.
 | message.pattern | <code>object</code> | Pattern detected |
 | message.client | <code>object</code> | MQTT client |
 
-<a name="event_before save"></a>
+<a name="event_before_save"></a>
 
-### "before save" (ctx)
+### "before_save" (ctx)
 Event reporting that an application instance will be created or updated.
 
 **Kind**: event emitted by [<code>Application</code>](#module_Application)  
@@ -384,9 +390,9 @@ Event reporting that an application instance will be created or updated.
 | ctx.res | <code>object</code> | Response |
 | ctx.instance | <code>object</code> | Application instance |
 
-<a name="event_after save"></a>
+<a name="event_after_save"></a>
 
-### "after save" (ctx)
+### "after_save" (ctx)
 Event reporting that a device instance has been created or updated.
 
 **Kind**: event emitted by [<code>Application</code>](#module_Application)  
@@ -398,9 +404,9 @@ Event reporting that a device instance has been created or updated.
 | ctx.res | <code>object</code> | Response |
 | ctx.instance | <code>object</code> | Application instance |
 
-<a name="event_before delete"></a>
+<a name="event_before_delete"></a>
 
-### "before delete" (ctx)
+### "before_delete" (ctx)
 Event reporting that an application instance will be deleted.
 
 **Kind**: event emitted by [<code>Application</code>](#module_Application)  
@@ -485,15 +491,16 @@ Delete clients stored in cache
         * [.resetKeys()](#module_Device+resetKeys) ⇒ <code>object</code>
     * _static_
         * [.publish(device, method, [client])](#module_Device.publish)
-        * [.refreshToken(deviceId)](#module_Device.refreshToken) ⇒ <code>functions</code>
-        * [.getState(ctx, deviceId)](#module_Device.getState) ⇒ <code>object</code>
+        * [.refreshToken(deviceId)](#module_Device.refreshToken) ⇒ <code>object</code>
         * [.syncCache([direction])](#module_Device.syncCache)
         * [.findByPattern(pattern, attributes)](#module_Device.findByPattern) ⇒ <code>object</code>
         * [.search(filter)](#module_Device.search) ⇒ <code>array</code>
         * [.geoLocate(filter)](#module_Device.geoLocate) ⇒ <code>array</code>
-        * [.updateStatus(client, status)](#module_Device.updateStatus) ⇒ <code>functions</code>
-        * [.authenticate(deviceId, key)](#module_Device.authenticate) ⇒ <code>string</code>
-        * [.onPublish(packet, pattern, client)](#module_Device.onPublish) ⇒ <code>functions</code>
+        * [.updateStatus(client, status)](#module_Device.updateStatus) ⇒ <code>function</code>
+        * [.onPublish(packet, pattern, client)](#module_Device.onPublish) ⇒ <code>function</code>
+        * [.authenticate(deviceId, key)](#module_Device.authenticate) ⇒ <code>object</code>
+        * [.getState(deviceId)](#module_Device.getState) ⇒ <code>object</code>
+        * [.getFullState(deviceId)](#module_Device.getFullState) ⇒ <code>object</code>
         * [.getOTAUpdate(ctx, deviceId, [version])](#module_Device.getOTAUpdate) ⇒ <code>function</code>
     * _inner_
         * [~setDeviceQRCode(device)](#module_Device..setDeviceQRCode) ⇒ <code>object</code>
@@ -505,12 +512,12 @@ Delete clients stored in cache
         * [~onAfterSave(ctx)](#module_Device..onAfterSave) ⇒ <code>object</code>
         * [~onBeforeDelete(ctx)](#module_Device..onBeforeDelete) ⇒ <code>object</code>
         * [~parseMessage(app, packet, pattern, client)](#module_Device..parseMessage) ⇒ <code>object</code>
-        * ["client" (message)](#event_client) ⇒ <code>functions</code>
-        * ["publish" (message)](#event_publish)
-        * ["before save" (ctx)](#event_before save) ⇒ <code>function</code>
-        * ["after save" (ctx)](#event_after save) ⇒ <code>function</code>
-        * ["before delete" (ctx)](#event_before delete) ⇒ <code>function</code>
-        * ["before find" (ctx)](#event_before find) ⇒ <code>function</code>
+        * ["client" (message)](#event_client) ⇒ <code>function</code>
+        * ["publish" (message)](#event_publish) ⇒ <code>functions</code> \| <code>functions</code>
+        * ["before_save" (ctx)](#event_before_save) ⇒ <code>function</code>
+        * ["after_save" (ctx)](#event_after_save) ⇒ <code>function</code>
+        * ["before_delete" (ctx)](#event_before_delete) ⇒ <code>function</code>
+        * ["before_*" (ctx)](#event_before_*) ⇒ <code>function</code>
 
 <a name="module_Device+resetKeys"></a>
 
@@ -525,7 +532,7 @@ Reset keys for this device instance
 Format packet and send it via MQTT broker
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
-**Emits**: <code>{event} module:Server.event:publish</code>  
+**Emits**: <code>Server.event:publish</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -535,27 +542,15 @@ Format packet and send it via MQTT broker
 
 <a name="module_Device.refreshToken"></a>
 
-### Device.refreshToken(deviceId) ⇒ <code>functions</code>
+### Device.refreshToken(deviceId) ⇒ <code>object</code>
 Create new keys, and update Device instance
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>functions</code> - device.updateAttributes  
+**Returns**: <code>object</code> - device  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | deviceId | <code>object</code> | Device instance id |
-
-<a name="module_Device.getState"></a>
-
-### Device.getState(ctx, deviceId) ⇒ <code>object</code>
-Endpoint for device requesting their own state
-
-**Kind**: static method of [<code>Device</code>](#module_Device)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| ctx | <code>object</code> | Loopback context |
-| deviceId | <code>string</code> | Device instance id |
 
 <a name="module_Device.syncCache"></a>
 
@@ -607,24 +602,38 @@ Search devices by location ( GPS coordinates )
 
 <a name="module_Device.updateStatus"></a>
 
-### Device.updateStatus(client, status) ⇒ <code>functions</code>
+### Device.updateStatus(client, status) ⇒ <code>function</code>
 Update device status from MQTT connection status
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>functions</code> - device.updateAttributes  
+**Returns**: <code>function</code> - device.updateAttributes  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | client | <code>object</code> | MQTT client |
 | status | <code>boolean</code> | MQTT connection status |
 
+<a name="module_Device.onPublish"></a>
+
+### Device.onPublish(packet, pattern, client) ⇒ <code>function</code>
+Dispatch incoming MQTT packet
+
+**Kind**: static method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>function</code> - parseMessage  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| packet | <code>object</code> | MQTT bridge packet |
+| pattern | <code>object</code> | Pattern detected by Iot-Agent |
+| client | <code>object</code> | MQTT client |
+
 <a name="module_Device.authenticate"></a>
 
-### Device.authenticate(deviceId, key) ⇒ <code>string</code>
+### Device.authenticate(deviceId, key) ⇒ <code>object</code>
 Endpoint for device authentification with APIKey
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>string</code> - matched The matching key; one of:
+**Returns**: <code>object</code> - matched The matching device and key; one of:
 - clientKey
 - apiKey
 - javaScriptKey
@@ -637,19 +646,28 @@ Endpoint for device authentification with APIKey
 | deviceId | <code>any</code> | 
 | key | <code>string</code> | 
 
-<a name="module_Device.onPublish"></a>
+<a name="module_Device.getState"></a>
 
-### Device.onPublish(packet, pattern, client) ⇒ <code>functions</code>
-Dispatch incoming MQTT packet
+### Device.getState(deviceId) ⇒ <code>object</code>
+Endpoint for device requesting their own state ( small memory )
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>functions</code> - parseMessage  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| packet | <code>object</code> | MQTT bridge packet |
-| pattern | <code>object</code> | Pattern detected by Iot-Agent |
-| client | <code>object</code> | MQTT client |
+| deviceId | <code>string</code> | Device instance id |
+
+<a name="module_Device.getFullState"></a>
+
+### Device.getFullState(deviceId) ⇒ <code>object</code>
+Endpoint for device requesting their own state, including relations
+
+**Kind**: static method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>object</code> - device  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| deviceId | <code>string</code> | Device instance id |
 
 <a name="module_Device.getOTAUpdate"></a>
 
@@ -657,7 +675,7 @@ Dispatch incoming MQTT packet
 Update OTA if a firmware is available
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>function</code> - updateFirmware  
+**Returns**: <code>function</code> - Device~updateFirmware  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -719,7 +737,7 @@ Keys creation helper - update device attributes
 Init device depencies ( token, address )
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>function</code> - module:Device.publish  
+**Returns**: <code>function</code> - Device.publish  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -732,7 +750,7 @@ Init device depencies ( token, address )
 Update device depencies ( token, sensors )
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>function</code> - module:Device.publish  
+**Returns**: <code>function</code> - Device.publish  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -772,7 +790,7 @@ Adding device and sensor context to raw incoming data
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
 **Returns**: <code>object</code> - device  
-**Emits**: <code>module:Device~event:publish</code>, <code>module:Sensor~event:publish</code>  
+**Emits**: <code>Device.event:publish</code>, <code>Sensor.event:publish</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -783,11 +801,11 @@ Adding device and sensor context to raw incoming data
 
 <a name="event_client"></a>
 
-### "client" (message) ⇒ <code>functions</code>
+### "client" (message) ⇒ <code>function</code>
 Event reporting that an device client connection status has changed.
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
-**Returns**: <code>functions</code> - Device.updateStatus  
+**Returns**: <code>function</code> - Device.updateStatus  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -802,10 +820,11 @@ Event reporting that an device client connection status has changed.
 
 <a name="event_publish"></a>
 
-### "publish" (message)
+### "publish" (message) ⇒ <code>functions</code> \| <code>functions</code>
 Event reporting that a device client sent a message.
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
+**Returns**: <code>functions</code> - Device.execute<code>functions</code> - Device.onPublish  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -817,16 +836,16 @@ Event reporting that a device client sent a message.
 | --- | --- | --- |
 | message.packet | <code>object</code> | MQTT packet. |
 | message.pattern | <code>object</code> | Pattern detected by Iot-Agent |
-| message.device- | <code>object</code> | Found Device instance |
+| message.device | <code>object</code> | Found Device instance |
 | [message.client] | <code>object</code> | MQTT client |
 
-<a name="event_before save"></a>
+<a name="event_before_save"></a>
 
-### "before save" (ctx) ⇒ <code>function</code>
+### "before_save" (ctx) ⇒ <code>function</code>
 Event reporting that a device instance will be created or updated.
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
-**Returns**: <code>function</code> - onBeforeSave  
+**Returns**: <code>function</code> - Device~onBeforeSave  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -835,13 +854,13 @@ Event reporting that a device instance will be created or updated.
 | ctx.res | <code>object</code> | Response |
 | ctx.instance | <code>object</code> | Device instance |
 
-<a name="event_after save"></a>
+<a name="event_after_save"></a>
 
-### "after save" (ctx) ⇒ <code>function</code>
+### "after_save" (ctx) ⇒ <code>function</code>
 Event reporting that a device instance has been created or updated.
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
-**Returns**: <code>function</code> - onAfterSave  
+**Returns**: <code>function</code> - Device~onAfterSave  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -850,13 +869,13 @@ Event reporting that a device instance has been created or updated.
 | ctx.res | <code>object</code> | Response |
 | ctx.instance | <code>object</code> | Device instance |
 
-<a name="event_before delete"></a>
+<a name="event_before_delete"></a>
 
-### "before delete" (ctx) ⇒ <code>function</code>
+### "before_delete" (ctx) ⇒ <code>function</code>
 Event reporting that one or several device instance(s) will be deleted.
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
-**Returns**: <code>function</code> - onBeforeDelete  
+**Returns**: <code>function</code> - Device~onBeforeDelete  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -865,13 +884,13 @@ Event reporting that one or several device instance(s) will be deleted.
 | ctx.res | <code>object</code> | Response |
 | ctx.where.id | <code>object</code> | Device instance |
 
-<a name="event_before find"></a>
+<a name="event_before_*"></a>
 
-### "before find" (ctx) ⇒ <code>function</code>
+### "before_*" (ctx) ⇒ <code>function</code>
 Event reporting that a device instance / collection is requested
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
-**Returns**: <code>function</code> - onBeforeRemote  
+**Returns**: <code>function</code> - Device~onBeforeRemote  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -902,9 +921,9 @@ Event reporting that a device instance / collection is requested
     * _inner_
         * [~onBeforeSave(ctx)](#module_Files..onBeforeSave) ⇒ <code>object</code>
         * [~onBeforeDelete(ctx)](#module_Files..onBeforeDelete) ⇒ <code>object</code>
-        * ["create" (ctx, user)](#event_create) ⇒ <code>function</code>
-        * ["before delete" (ctx)](#event_before delete) ⇒ <code>function</code>
-        * ["before find" (ctx)](#event_before find) ⇒ <code>function</code>
+        * ["before_save" (ctx, user)](#event_before_save) ⇒ <code>function</code>
+        * ["before_delete" (ctx)](#event_before_delete) ⇒ <code>function</code>
+        * ["before_*" (ctx)](#event_before_*) ⇒ <code>function</code>
 
 <a name="module_Files.upload"></a>
 
@@ -971,13 +990,13 @@ Delete relations on instance(s) deletetion
 | --- | --- | --- |
 | ctx | <code>object</code> | Loopback context |
 
-<a name="event_create"></a>
+<a name="event_before_save"></a>
 
-### "create" (ctx, user) ⇒ <code>function</code>
+### "before_save" (ctx, user) ⇒ <code>function</code>
 Event reporting that a new Files instance will be created.
 
 **Kind**: event emitted by [<code>Files</code>](#module_Files)  
-**Returns**: <code>function</code> - onBeforeSave  
+**Returns**: <code>function</code> - Files~onBeforeSave  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -986,13 +1005,13 @@ Event reporting that a new Files instance will be created.
 | ctx.res | <code>object</code> | Response |
 | user | <code>object</code> | Files new instance |
 
-<a name="event_before delete"></a>
+<a name="event_before_delete"></a>
 
-### "before delete" (ctx) ⇒ <code>function</code>
+### "before_delete" (ctx) ⇒ <code>function</code>
 Event reporting that a / several File instance(s) will be deleted.
 
 **Kind**: event emitted by [<code>Files</code>](#module_Files)  
-**Returns**: <code>function</code> - onBeforeDelete  
+**Returns**: <code>function</code> - Files~onBeforeDelete  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1001,13 +1020,13 @@ Event reporting that a / several File instance(s) will be deleted.
 | ctx.res | <code>object</code> | Response |
 | ctx.where.id | <code>object</code> | File meta instance |
 
-<a name="event_before find"></a>
+<a name="event_before_*"></a>
 
-### "before find" (ctx) ⇒ <code>function</code>
+### "before_*" (ctx) ⇒ <code>function</code>
 Event reporting that a file instance / collection is requested
 
 **Kind**: event emitted by [<code>Files</code>](#module_Files)  
-**Returns**: <code>function</code> - onBeforeRemote  
+**Returns**: <code>function</code> - Files~onBeforeRemote  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1042,7 +1061,7 @@ Event reporting that a file instance / collection is requested
 Format packet and send it via MQTT broker
 
 **Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
-**Emits**: <code>{event} module:Server.event:publish</code>  
+**Emits**: <code>Server.event:publish</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1118,17 +1137,17 @@ On sensor update, if an OMA resource is of float or integer type
 * [Scheduler](#module_Scheduler)
     * _static_
         * [.publish(device, measurement, [method], [client])](#module_Scheduler.publish)
-        * [.onTimeout(body)](#module_Scheduler.onTimeout) ⇒ <code>functions</code>
+        * [.onTimeout(body)](#module_Scheduler.onTimeout) ⇒ <code>function</code>
         * [.createOrUpdate(device, sensor, [client])](#module_Scheduler.createOrUpdate) ⇒ <code>object</code>
         * [.cacheIterator([filter])](#module_Scheduler.cacheIterator) ⇒ <code>string</code>
         * [.getAll([filter])](#module_Scheduler.getAll) ⇒ <code>array</code>
         * [.deleteAll([filter])](#module_Scheduler.deleteAll) ⇒ <code>array</code>
-        * [.onTick(body)](#module_Scheduler.onTick) ⇒ <code>functions</code>
+        * [.onTick(body)](#module_Scheduler.onTick) ⇒ <code>function</code>
         * [.setClock(interval)](#module_Scheduler.setClock) ⇒ <code>functions</code> \| <code>functions</code>
     * _inner_
         * [~onTimeout(data)](#module_Scheduler..onTimeout) ⇒ <code>object</code>
         * [~onTick(data)](#module_Scheduler..onTick) ⇒ <code>object</code>
-        * [~onTickHook(body)](#module_Scheduler..onTickHook) ⇒ <code>functions</code>
+        * [~onTickHook(body)](#module_Scheduler..onTickHook) ⇒ <code>function</code>
 
 <a name="module_Scheduler.publish"></a>
 
@@ -1136,7 +1155,7 @@ On sensor update, if an OMA resource is of float or integer type
 Format packet and send it via MQTT broker
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Emits**: <code>{event} module:Server.event:publish</code>  
+**Emits**: <code>Server.event:publish</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1147,11 +1166,11 @@ Format packet and send it via MQTT broker
 
 <a name="module_Scheduler.onTimeout"></a>
 
-### Scheduler.onTimeout(body) ⇒ <code>functions</code>
+### Scheduler.onTimeout(body) ⇒ <code>function</code>
 Endpoint for Sensor timers hooks
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>functions</code> - module:Scheduler~onTimeout  
+**Returns**: <code>function</code> - Scheduler~onTimeout  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1209,11 +1228,11 @@ Delete schedulers stored in cache
 
 <a name="module_Scheduler.onTick"></a>
 
-### Scheduler.onTick(body) ⇒ <code>functions</code>
+### Scheduler.onTick(body) ⇒ <code>function</code>
 Endpoint for Scheduler external timeout hooks
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>functions</code> - module:Scheduler~onTickHook  
+**Returns**: <code>function</code> - Scheduler~onTickHook  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1263,13 +1282,13 @@ Update every sensor having an active scheduler
 
 <a name="module_Scheduler..onTickHook"></a>
 
-### Scheduler~onTickHook(body) ⇒ <code>functions</code>
+### Scheduler~onTickHook(body) ⇒ <code>function</code>
 Scheduler timeout callback ( scheduler clock )
 
 validate webhook content before dispatch
 
 **Kind**: inner method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>functions</code> - module:Scheduler~onTick  
+**Returns**: <code>function</code> - Scheduler~onTick  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1421,13 +1440,14 @@ Update device's sensors stored in cache
 
 * [Sensor](#module_Sensor)
     * _static_
+        * [.createOrUpdate(device, [client])](#module_Sensor.createOrUpdate) ⇒ <code>object</code>
         * [.syncCache(device, [direction])](#module_Sensor.syncCache)
         * [.publish(device, sensor, [method], [client])](#module_Sensor.publish)
         * [.compose(device, attributes)](#module_Sensor.compose) ⇒ <code>object</code>
-        * [.handlePresentation(device, sensor, [client])](#module_Sensor.handlePresentation) ⇒ <code>function</code> \| <code>function</code>
-        * [.createOrUpdate(device, sensor, resourceKey, resourceValue, [client])](#module_Sensor.createOrUpdate) ⇒ <code>function</code>
+        * [.handlePresentation(device, sensor, [client])](#module_Sensor.handlePresentation) ⇒ <code>function</code>
+        * [.createOrUpdate(device, sensor, resourceKey, resourceValue, [client])](#module_Sensor.createOrUpdate) ⇒ <code>object</code>
         * [.getInstance(device, pattern, sensor)](#module_Sensor.getInstance) ⇒ <code>function</code>
-        * [.onPublish(device, attributes, [sensor], client)](#module_Sensor.onPublish) ⇒ <code>functions</code>
+        * [.onPublish(device, attributes, [sensor], client)](#module_Sensor.onPublish) ⇒ <code>function</code>
         * [.search(filter)](#module_Sensor.search) ⇒ <code>array</code>
     * _inner_
         * [~onBeforeSave(ctx)](#module_Sensor..onBeforeSave) ⇒ <code>object</code>
@@ -1435,11 +1455,24 @@ Update device's sensors stored in cache
         * [~persistingResource(app, device, sensor, [client])](#module_Sensor..persistingResource) ⇒ <code>object</code>
         * [~onAfterSave(ctx)](#module_Sensor..onAfterSave) ⇒ <code>object</code>
         * [~onBeforeDelete(ctx)](#module_Sensor..onBeforeDelete) ⇒ <code>object</code>
-        * ["publish" (message)](#event_publish) ⇒ <code>functions</code>
-        * ["before save" (ctx)](#event_before save) ⇒ <code>function</code>
-        * ["after save" (ctx)](#event_after save) ⇒ <code>function</code>
-        * ["before delete" (ctx)](#event_before delete) ⇒ <code>function</code>
-        * ["before find" (ctx)](#event_before find) ⇒ <code>function</code>
+        * ["publish" (message)](#event_publish) ⇒ <code>function</code>
+        * ["before_save" (ctx)](#event_before_save) ⇒ <code>function</code>
+        * ["after_save" (ctx)](#event_after_save) ⇒ <code>function</code>
+        * ["before_delete" (ctx)](#event_before_delete) ⇒ <code>function</code>
+        * ["before_*" (ctx)](#event_before_*) ⇒ <code>function</code>
+
+<a name="module_Sensor.createOrUpdate"></a>
+
+### Sensor.createOrUpdate(device, [client]) ⇒ <code>object</code>
+When POST or PUT method detected, update device instance
+
+**Kind**: static method of [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>object</code> - device  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| device | <code>object</code> | detected Device instance |
+| [client] | <code>object</code> | MQTT client |
 
 <a name="module_Sensor.syncCache"></a>
 
@@ -1459,7 +1492,7 @@ Synchronize cache memory with database on disk
 Format packet and send it via MQTT broker
 
 **Kind**: static method of [<code>Sensor</code>](#module_Sensor)  
-**Emits**: <code>{event} module:Server.event:publish</code>  
+**Emits**: <code>Server.event:publish</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1483,11 +1516,11 @@ When device found,validate sensor instance produced by IoTAgent
 
 <a name="module_Sensor.handlePresentation"></a>
 
-### Sensor.handlePresentation(device, sensor, [client]) ⇒ <code>function</code> \| <code>function</code>
-When HEAD detected, validate sensor.resource and value, then save sensor instance
+### Sensor.handlePresentation(device, sensor, [client]) ⇒ <code>function</code>
+When HEAD method detected, update sensor instance ( not the value )
 
 **Kind**: static method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>function</code> - sensor.create<code>function</code> - sensor.updateAttributes  
+**Returns**: <code>function</code> - Sensor.publish  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1497,11 +1530,11 @@ When HEAD detected, validate sensor.resource and value, then save sensor instanc
 
 <a name="module_Sensor.createOrUpdate"></a>
 
-### Sensor.createOrUpdate(device, sensor, resourceKey, resourceValue, [client]) ⇒ <code>function</code>
+### Sensor.createOrUpdate(device, sensor, resourceKey, resourceValue, [client]) ⇒ <code>object</code>
 When POST or PUT method detected, validate sensor.resource and value, then save sensor instance
 
 **Kind**: static method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>function</code> - sensor.publish  
+**Returns**: <code>object</code> - sensor  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1527,11 +1560,11 @@ When GET method detected, find and publish instance
 
 <a name="module_Sensor.onPublish"></a>
 
-### Sensor.onPublish(device, attributes, [sensor], client) ⇒ <code>functions</code>
+### Sensor.onPublish(device, attributes, [sensor], client) ⇒ <code>function</code>
 Dispatch incoming MQTT packet
 
 **Kind**: static method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>functions</code> - Sensor.execute  
+**Returns**: <code>function</code> - Sensor.execute  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1568,6 +1601,8 @@ Validate instance before creation
 
 ### Sensor~getPersistingMethod(sensorType, resource, type) ⇒ <code>string</code>
 Define the way to persist data based on OMA resource type
+
+Methods = "measurement" || "buffer" || "log" || "scheduler" || "location"
 
 **Kind**: inner method of [<code>Sensor</code>](#module_Sensor)  
 **Returns**: <code>string</code> - method  
@@ -1623,11 +1658,11 @@ Delete relations on instance(s) deletetion
 
 <a name="event_publish"></a>
 
-### "publish" (message) ⇒ <code>functions</code>
+### "publish" (message) ⇒ <code>function</code>
 Event reporting that a device client sent sensors update.
 
 **Kind**: event emitted by [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>functions</code> - Sensor.onPublish  
+**Returns**: <code>function</code> - Sensor.onPublish  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1637,19 +1672,19 @@ Event reporting that a device client sent sensors update.
 
 | Name | Type | Description |
 | --- | --- | --- |
-| message.device | <code>object</code> | found device instancet. |
+| message.device | <code>object</code> | found device instance. |
 | message.pattern | <code>object</code> | Pattern detected by Iot-Agent |
 | message.attributes | <code>object</code> | IotAgent parsed message |
 | [message.sensor] | <code>object</code> | Found sensor instance |
 | message.client | <code>object</code> | MQTT client |
 
-<a name="event_before save"></a>
+<a name="event_before_save"></a>
 
-### "before save" (ctx) ⇒ <code>function</code>
+### "before_save" (ctx) ⇒ <code>function</code>
 Event reporting that a sensor instance will be created or updated.
 
 **Kind**: event emitted by [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>function</code> - onBeforeSave  
+**Returns**: <code>function</code> - Sensor~onBeforeSave  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1658,13 +1693,13 @@ Event reporting that a sensor instance will be created or updated.
 | ctx.res | <code>object</code> | Response |
 | ctx.instance | <code>object</code> | Sensor instance |
 
-<a name="event_after save"></a>
+<a name="event_after_save"></a>
 
-### "after save" (ctx) ⇒ <code>function</code>
+### "after_save" (ctx) ⇒ <code>function</code>
 Event reporting that a sensor instance has been created or updated.
 
 **Kind**: event emitted by [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>function</code> - onAfterSave  
+**Returns**: <code>function</code> - Sensor~onAfterSave  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1673,13 +1708,13 @@ Event reporting that a sensor instance has been created or updated.
 | ctx.res | <code>object</code> | Response |
 | ctx.instance | <code>object</code> | Sensor instance |
 
-<a name="event_before delete"></a>
+<a name="event_before_delete"></a>
 
-### "before delete" (ctx) ⇒ <code>function</code>
+### "before_delete" (ctx) ⇒ <code>function</code>
 Event reporting that a/several sensor instance(s) will be deleted.
 
 **Kind**: event emitted by [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>function</code> - onBeforeDelete  
+**Returns**: <code>function</code> - Sensor~onBeforeDelete  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1688,13 +1723,13 @@ Event reporting that a/several sensor instance(s) will be deleted.
 | ctx.res | <code>object</code> | Response |
 | ctx.where.id | <code>object</code> | Sensor id |
 
-<a name="event_before find"></a>
+<a name="event_before_*"></a>
 
-### "before find" (ctx) ⇒ <code>function</code>
+### "before_*" (ctx) ⇒ <code>function</code>
 Event reporting that a sensor instance / collection is requested
 
 **Kind**: event emitted by [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>function</code> - onBeforeRemote  
+**Returns**: <code>function</code> - Sensor~onBeforeRemote  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1724,18 +1759,21 @@ Event reporting that a sensor instance / collection is requested
     * _static_
         * [.findByEmail(email)](#module_User.findByEmail) ⇒ <code>object</code>
         * [.verifyEmail(user)](#module_User.verifyEmail) ⇒ <code>object</code>
+        * [.updatePasswordFromToken(accessToken, newPassword)](#module_User.updatePasswordFromToken) ⇒ <code>boolean</code>
+        * [.setNewPassword(ctx, oldPassword, newPassword)](#module_User.setNewPassword) ⇒ <code>object</code>
+        * [.sendContactForm(form)](#module_User.sendContactForm)
     * _inner_
         * [~onBeforeSave(ctx)](#module_User..onBeforeSave) ⇒ <code>object</code>
         * [~onAfterSave(ctx)](#module_User..onAfterSave) ⇒ <code>object</code>
         * [~onBeforeDelete(ctx)](#module_User..onBeforeDelete) ⇒ <code>object</code>
-        * ["verifyEmail" (user)](#event_verifyEmail)
-        * ["sendContactForm" (options)](#event_sendContactForm)
-        * ["sendMailInvite" (options)](#event_sendMailInvite)
-        * ["resetPasswordRequest" (options)](#event_resetPasswordRequest)
-        * ["create" (ctx, user)](#event_create) ⇒ <code>function</code>
-        * ["create" (ctx, user)](#event_create) ⇒ <code>function</code>
-        * ["before delete" (ctx)](#event_before delete) ⇒ <code>function</code>
-        * ["before confirm" (ctx)](#event_before confirm) ⇒ <code>function</code>
+        * ["verifyEmail" (user)](#event_verifyEmail) ⇒ <code>function</code>
+        * ["sendContactForm" (options)](#event_sendContactForm) ⇒ <code>function</code>
+        * ["sendMailInvite" (options)](#event_sendMailInvite) ⇒ <code>function</code>
+        * ["resetPasswordRequest" (options)](#event_resetPasswordRequest) ⇒ <code>function</code>
+        * ["before_save" (ctx, user)](#event_before_save) ⇒ <code>function</code>
+        * ["after_save" (ctx, user)](#event_after_save) ⇒ <code>function</code>
+        * ["before_delete" (ctx)](#event_before_delete) ⇒ <code>function</code>
+        * ["before_*" (ctx)](#event_before_*) ⇒ <code>function</code>
 
 <a name="module_User.findByEmail"></a>
 
@@ -1760,6 +1798,45 @@ Send a confirmation link to confirm signup
 | Param | Type | Description |
 | --- | --- | --- |
 | user | <code>object</code> | User instance |
+
+<a name="module_User.updatePasswordFromToken"></a>
+
+### User.updatePasswordFromToken(accessToken, newPassword) ⇒ <code>boolean</code>
+Updating user password using an authorization token
+
+**Kind**: static method of [<code>User</code>](#module_User)  
+**Returns**: <code>boolean</code> - result  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| accessToken | <code>object</code> | User instance |
+| newPassword | <code>string</code> | User new password |
+
+<a name="module_User.setNewPassword"></a>
+
+### User.setNewPassword(ctx, oldPassword, newPassword) ⇒ <code>object</code>
+Updating user password
+
+**Kind**: static method of [<code>User</code>](#module_User)  
+**Returns**: <code>object</code> - user  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+| oldPassword | <code>string</code> |  |
+| newPassword | <code>string</code> |  |
+
+<a name="module_User.sendContactForm"></a>
+
+### User.sendContactForm(form)
+Sending a request to admin
+
+**Kind**: static method of [<code>User</code>](#module_User)  
+**Emits**: <code>User.event:sendContactForm</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| form | <code>object</code> | Client form options |
 
 <a name="module_User..onBeforeSave"></a>
 
@@ -1799,10 +1876,11 @@ Delete relations on instance(s) deletetion
 
 <a name="event_verifyEmail"></a>
 
-### "verifyEmail" (user)
+### "verifyEmail" (user) ⇒ <code>function</code>
 Event reporting to trigger mails.verifyEmail
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
+**Returns**: <code>function</code> - Mails.verifyEmail  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1810,10 +1888,11 @@ Event reporting to trigger mails.verifyEmail
 
 <a name="event_sendContactForm"></a>
 
-### "sendContactForm" (options)
+### "sendContactForm" (options) ⇒ <code>function</code>
 Event reporting to trigger mails.send
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
+**Returns**: <code>function</code> - Mails.sendContactForm  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1821,10 +1900,11 @@ Event reporting to trigger mails.send
 
 <a name="event_sendMailInvite"></a>
 
-### "sendMailInvite" (options)
+### "sendMailInvite" (options) ⇒ <code>function</code>
 Event reporting to trigger mails.send
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
+**Returns**: <code>function</code> - Mails.sendMailInvite  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1832,22 +1912,23 @@ Event reporting to trigger mails.send
 
 <a name="event_resetPasswordRequest"></a>
 
-### "resetPasswordRequest" (options)
+### "resetPasswordRequest" (options) ⇒ <code>function</code>
 Event reporting to send password reset link when requested
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
+**Returns**: <code>function</code> - Mails.sendResetPasswordMail  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | options | <code>object</code> | Mail options |
 
-<a name="event_create"></a>
+<a name="event_before_save"></a>
 
-### "create" (ctx, user) ⇒ <code>function</code>
+### "before_save" (ctx, user) ⇒ <code>function</code>
 Event reporting that a new user instance will be created.
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
-**Returns**: <code>function</code> - onBeforeSave  
+**Returns**: <code>function</code> - User~onBeforeSave  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1856,13 +1937,13 @@ Event reporting that a new user instance will be created.
 | ctx.res | <code>object</code> | Response |
 | user | <code>object</code> | User new instance |
 
-<a name="event_create"></a>
+<a name="event_after_save"></a>
 
-### "create" (ctx, user) ⇒ <code>function</code>
+### "after_save" (ctx, user) ⇒ <code>function</code>
 Event reporting that a new user instance has been created.
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
-**Returns**: <code>function</code> - onAfterSave  
+**Returns**: <code>function</code> - User~onAfterSave  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1871,13 +1952,13 @@ Event reporting that a new user instance has been created.
 | ctx.res | <code>object</code> | Response |
 | user | <code>object</code> | User new instance |
 
-<a name="event_before delete"></a>
+<a name="event_before_delete"></a>
 
-### "before delete" (ctx) ⇒ <code>function</code>
+### "before_delete" (ctx) ⇒ <code>function</code>
 Event reporting that a user instance will be deleted.
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
-**Returns**: <code>function</code> - onBeforeDelete  
+**Returns**: <code>function</code> - User~onBeforeDelete  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1886,13 +1967,13 @@ Event reporting that a user instance will be deleted.
 | ctx.res | <code>object</code> | Response |
 | ctx.where.id | <code>object</code> | User instance id |
 
-<a name="event_before confirm"></a>
+<a name="event_before_*"></a>
 
-### "before confirm" (ctx) ⇒ <code>function</code>
+### "before_*" (ctx) ⇒ <code>function</code>
 Event reporting that a remote user method has been requested
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
-**Returns**: <code>function</code> - onBeforeRemote  
+**Returns**: <code>function</code> - User~onBeforeRemote  
 
 | Param | Type | Description |
 | --- | --- | --- |

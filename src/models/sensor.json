@@ -183,6 +183,7 @@
         "count",
         "exists",
         "search",
+        "export",
         "onPublish",
         "findById",
         "__get__measurements"
@@ -361,6 +362,34 @@
       "http": {
         "verb": "post",
         "path": "/search"
+      }
+    },
+    "export": {
+      "description": ["Export Sensors list from JSON to format selected ( default : csv )"],
+      "accepts": [
+        {
+          "arg": "sensors",
+          "type": "array",
+          "required": true
+        },
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": false
+        },
+        {
+          "arg": "format",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "returns": {
+        "root": true,
+        "type": "string"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/export"
       }
     }
   }
