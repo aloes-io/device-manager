@@ -1,5 +1,0 @@
---require @babel/register 
---recursive
---check-leaks
---delay
---globals __core-js_shared__,fetch,Response,Headers,Request,STRONGLOOP_GLB

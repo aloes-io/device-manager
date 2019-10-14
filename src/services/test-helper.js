@@ -104,13 +104,14 @@ function fileMetaFactory(id, file, ownerId) {
   }
   ownerId = ownerId || lastUserId;
 
-  const CONTAINERS_URL = `${process.env.REST_API_ROOT}/Files/`;
+  const baseUrl = `${process.env.REST_API_ROOT}/Files/`;
+  // const baseUrl = `${process.env.REST_API_ROOT}/${process.env.API_VERSION}/Files/`
   return {
     name: file.name,
     type: 'image/png',
     size: file.size,
     role: file.role,
-    url: `${CONTAINERS_URL}${ownerId}/download/${file.name}`,
+    url: `${baseUrl}${ownerId}/download/${file.name}`,
     ownerId,
   };
 }

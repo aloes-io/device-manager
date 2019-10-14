@@ -1,16 +1,17 @@
-import MQEmitterRedis from 'mqemitter-redis';
-import aedesPersistenceRedis from 'aedes-persistence-redis';
+/* eslint-disable import/no-extraneous-dependencies */
+/* eslint-disable global-require */
 import aedes from 'aedes';
-import Redis from 'ioredis';
+import axios from 'axios';
 import http from 'http';
-import https from 'https';
 import net from 'net';
-import tls from 'tls';
 import ws from 'websocket-stream';
-import fs from 'fs';
 import dotenv from 'dotenv';
 import nodeCleanup from 'node-cleanup';
 import logger from './logger';
+import envVariablesKeys from '../initial-data/variables-keys.json';
+// import { version } from '../package.json';
+
+// process.env.PUBSUB_API_VERSION = `v${version.substr(0,3)}`;
 
 /**
  * @module Broker
@@ -23,13 +24,18 @@ const broker = {};
  * @param {object} config - Environment variables
  * @returns {function} aedesPersistenceRedis
  */
-const persistence = config =>
-  aedesPersistenceRedis({
+const persistence = config => {
+  if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+    const aedesPersistence = require('aedes-persistence');
+    return aedesPersistence();
+  }
+  const aedesPersistence = require('aedes-persistence-redis');
+  return aedesPersistence({
     port: Number(config.REDIS_PORT),
     host: config.REDIS_HOST,
     // family: 4, // 4 (IPv4) or 6 (IPv6)
     db: config.REDIS_MQTT_PERSISTENCE,
-    lazyConnect: false,
+    lazyConnect: true,
     password: config.REDIS_PASS,
     retryStrategy(times) {
       const delay = Math.min(times * 50, 2000);
@@ -45,6 +51,7 @@ const persistence = config =>
       return ttl / 2;
     },
   });
+};
 
 /**
  * Aedes event emitter
@@ -52,18 +59,27 @@ const persistence = config =>
  * @param {object} config - Environment variables
  * @returns {function} MQEmitterRedis
  */
-const emitter = config =>
-  MQEmitterRedis({
+const emitter = config => {
+  if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+    const MQEmitter = require('mqemitter');
+    return MQEmitter({
+      concurrency: 100,
+    });
+  }
+  const MQEmitter = require('mqemitter-redis');
+  return MQEmitter({
     host: config.REDIS_HOST,
     port: Number(config.REDIS_PORT),
     db: config.REDIS_MQTT_EVENTS,
     password: config.REDIS_PASS,
-    lazyConnect: false,
+    lazyConnect: true,
+    concurrency: 100,
     retryStrategy(times) {
       const delay = Math.min(times * 50, 2000);
       return delay;
     },
   });
+};
 
 /**
  * Transform circular MQTT client in JSON
@@ -93,25 +109,71 @@ const getClient = client => {
 };
 
 /**
+ * Find clients connected to the broker
+ * @method module:Broker~getClients
+ * @param {string} [id] - Client id
+ * @returns {array|object}
+ */
+const getClients = id => {
+  if (typeof id === 'string') {
+    return broker.instance.clients[id];
+  }
+  return broker.instance.clients;
+};
+
+/**
+ * Find in cache client ids subscribed to a specific topic pattern
+ * @method module:Broker~getClientsByTopic
+ * @param {string} topic - Topic pattern
+ * @returns {promise}
+ */
+const getClientsByTopic = topic =>
+  new Promise((resolve, reject) => {
+    const stream = broker.persistence.getClientList(topic);
+    const clients = [];
+    stream
+      .on('data', clientId => {
+        try {
+          logger.publish(5, 'broker', 'getClientsByTopic:res', { clientId });
+          clients.push(clientId);
+        } catch (error) {
+          // reject(error);
+        }
+      })
+      .on('end', () => {
+        logger.publish(3, 'broker', 'getClientsByTopic:res', { clients });
+        resolve(clients);
+      })
+      .on('error', e => {
+        reject(e);
+      });
+  });
+
+/**
  * Give an array of clientIds, find a connected client
  * @method module:Broker~pickRandomClient
  * @param {string[]} clientIds - MQTT client Ids
- * @param {number} attempts - Number of tryouts before returning null
  * @returns {object} client
  */
-const pickRandomClient = (clientIds, attempts) => {
+const pickRandomClient = clientIds => {
   if (!clientIds || clientIds === null) {
     return null;
   }
-  const clientId = clientIds[Math.floor(Math.random() * clientIds.length)];
-  const client = broker.getClients(clientId);
-  if (!client || client === null || !client.connected) {
-    if (typeof attempts === 'number' && attempts - 1 > 0) {
-      return pickRandomClient(clientIds, attempts);
-    }
-    return null;
-  }
-  logger.publish(4, 'broker', 'pickRandomClient:res', { clientId });
+
+  const connectedClients = clientIds
+    .map(clientId => {
+      const client = getClients(clientId);
+      if (client) {
+        // if (client && client.connected) {
+        return clientId;
+      }
+      return null;
+    })
+    .filter(val => val !== null);
+  logger.publish(4, 'broker', 'pickRandomClient:req', { clientIds: connectedClients });
+  const clientId = connectedClients[Math.floor(Math.random() * connectedClients.length)];
+  const client = getClients(clientId);
+  logger.publish(3, 'broker', 'pickRandomClient:res', { clientId });
   return client;
 };
 
@@ -120,16 +182,15 @@ const updateClientStatus = async (client, status) => {
     if (client && client.user) {
       const foundClient = getClient(client);
       logger.publish(4, 'broker', 'updateClientStatus:req', { client: foundClient, status });
-      const aloesClientsIds = await broker.getClientsByTopic(`aloes-${process.env.ALOES_ID}/sync`);
+      const aloesClientsIds = await getClientsByTopic(`aloes-${process.env.ALOES_ID}/sync`);
       if (!aloesClientsIds || aloesClientsIds === null) {
         throw new Error('No Aloes app client subscribed');
       }
-      if (client.aloesId) {
-        if (!status) {
-          // client.close()
-          await broker.cleanSubscriptions(client);
-        }
-      }
+      // if (client.aloesId) {
+      //   if (!status) {
+      //     await cleanSubscriptions(client);
+      //   }
+      // }
       if (!client.aloesId) {
         const aloesClient = pickRandomClient(aloesClientsIds);
         if (!aloesClient || aloesClient === null || !aloesClient.id) {
@@ -146,8 +207,8 @@ const updateClientStatus = async (client, status) => {
     }
     return client;
   } catch (error) {
-    logger.publish(4, 'broker', 'updateClientStatus:er', error);
-    return error;
+    logger.publish(2, 'broker', 'updateClientStatus:er', error);
+    return null;
   }
 };
 
@@ -157,70 +218,30 @@ const updateClientStatus = async (client, status) => {
  * @param {object} data - Client instance
  * @returns {promise}
  */
-const authentificationRequest = data => {
-  let httpClient = http;
-  const options = {
-    // host: process.env.HTTP_SERVER_HOST,
-    hostname: process.env.DOMAIN,
-    port: Number(process.env.HTTP_SERVER_PORT),
-    path: process.env.HTTP_SERVER_URL_SUFFIX
-      ? `${process.env.HTTP_SERVER_URL_SUFFIX}${process.env.REST_API_ROOT}/auth/mqtt`
-      : `${process.env.REST_API_ROOT}/auth/mqtt`,
-    method: 'POST',
-    headers: {
-      accept: 'application/json',
-      'content-type': 'application/json',
-    },
-  };
-  if (process.env.HTTP_SECURE === 'true') {
-    options.port = 443;
-    httpClient = https;
-  }
-  return new Promise((resolve, reject) => {
-    // console.log('authenticate', data);
-    if (typeof data === 'object') {
-      if (!Buffer.isBuffer(data)) {
-        data = JSON.stringify(data);
-      }
-    }
-    const req = httpClient.request(options, res => {
-      // console.log('REQUEST STATUS: ', res.statusCode);
-      // console.log('HEADERS: ', JSON.stringify(res.headers));
-      // res.setEncoding('utf8');
-      const bodyChunks = [];
-      res
-        .on('data', chunk => {
-          bodyChunks.push(chunk);
-        })
-        .on('end', () => {
-          try {
-            const body = Buffer.concat(bodyChunks);
-            let result;
-            try {
-              result = JSON.parse(body);
-            } catch (error) {
-              result = body;
-            }
-            if (!result) {
-              resolve(false);
-            } else {
-              resolve(result);
-            }
-          } catch (e) {
-            reject(e);
-          }
-        });
+const authentificationRequest = async data => {
+  try {
+    const baseUrl = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}`;
+    // const baseUrl = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
+    const res = await axios.post(`${baseUrl}/auth/mqtt`, data, {
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
     });
-
-    req.on('error', reject);
-    req.write(data);
-    req.end();
-  });
+    if (res && res.data) {
+      logger.publish(4, 'broker', 'authentificationRequest:res', res.data);
+      return res.data;
+    }
+    return null;
+  } catch (error) {
+    logger.publish(2, 'broker', 'authentificationRequest:err', error);
+    throw error;
+  }
 };
 
 const authenticate = async (client, username, password) => {
   try {
-    logger.publish(4, 'broker', 'Authenticate:req', {
+    logger.publish(3, 'broker', 'Authenticate:req', {
       client: client.id,
       username,
     });
@@ -230,7 +251,7 @@ const authenticate = async (client, username, password) => {
       //  client.user = 'guest';
       const error = new Error('Auth error');
       error.returnCode = 4;
-      logger.publish(4, 'broker', 'Authenticate:res', 'missing credentials');
+      logger.publish(2, 'broker', 'Authenticate:res', 'missing credentials');
       status = false;
       throw error;
     }
@@ -269,11 +290,11 @@ const authenticate = async (client, username, password) => {
         return status;
       }
     }
-    logger.publish(3, 'broker', 'Authenticate:res', { client: foundClient, status });
+    logger.publish(2, 'broker', 'Authenticate:res', { client: foundClient, status });
     const error = new Error('Auth error');
     error.returnCode = 2;
     status = false;
-    logger.publish(4, 'broker', 'Authenticate:res', 'invalid token');
+    logger.publish(2, 'broker', 'Authenticate:res', 'invalid token');
     throw error;
   } catch (error) {
     logger.publish(2, 'broker', 'Authenticate:err', error);
@@ -298,7 +319,7 @@ const authorizePublish = (client, packet) => {
         topicParts[0].startsWith(`aloes-${client.aloesId}`) &&
         (topicParts[1] === `tx` || topicParts[1] === `sync`)
       ) {
-        logger.publish(4, 'broker', 'authorizePublish:req', {
+        logger.publish(5, 'broker', 'authorizePublish:req', {
           user: client.user,
           aloesApp: client.id,
         });
@@ -332,6 +353,7 @@ const authorizePublish = (client, packet) => {
     logger.publish(3, 'broker', 'authorizePublish:res', { topic, auth });
     return packet;
   } catch (error) {
+    logger.publish(2, 'broker', 'authorizePublish:err', error);
     throw error;
   }
 };
@@ -415,12 +437,11 @@ const onPublished = async (packet, client) => {
 
     if (client.user && !client.aloesId) {
       const foundClient = getClient(client);
-      const aloesClientIds = await broker.getClientsByTopic(`aloes-${process.env.ALOES_ID}/sync`);
-      // console.log('mqtt client targets: ', aloesClientIds);
-      if (!aloesClientIds || aloesClientIds === null) {
+      const aloesClientsIds = await getClientsByTopic(`aloes-${process.env.ALOES_ID}/sync`);
+      if (!aloesClientsIds || aloesClientsIds === null) {
         throw new Error('No Aloes client connected');
       }
-      const aloesClient = pickRandomClient(aloesClientIds);
+      const aloesClient = pickRandomClient(aloesClientsIds);
       if (!aloesClient || aloesClient === null || !aloesClient.id) {
         throw new Error('No Aloes client connected');
       }
@@ -434,8 +455,6 @@ const onPublished = async (packet, client) => {
       packet.payload = Buffer.from(
         JSON.stringify({ payload: packet.payload, client: foundClient }),
       );
-      // packet.retain = false;
-      // packet.qos = 0;
       broker.publish(packet);
       return;
     }
@@ -447,54 +466,15 @@ const onPublished = async (packet, client) => {
 };
 
 /**
- * Find clients connected to the broker
- * @method module:Broker.getClients
- * @param {string} [id] - Client id
- * @returns {array|object}
- */
-broker.getClients = id => {
-  if (typeof id === 'string') {
-    return broker.instance.clients[id];
-  }
-  return broker.instance.clients;
-};
-
-/**
- * Find in cache client ids subscribed to a specific topic pattern
- * @method module:Broker.getClientsByTopic
- * @param {string} topic - Topic pattern
- * @returns {promise}
- */
-broker.getClientsByTopic = topic =>
-  new Promise((resolve, reject) => {
-    const stream = broker.persistence.getClientList(topic);
-    const clients = [];
-    stream
-      .on('data', client => {
-        try {
-          clients.push(client);
-        } catch (error) {
-          reject(error);
-        }
-      })
-      .on('end', () => {
-        resolve(clients);
-      })
-      .on('error', e => {
-        reject(e);
-      });
-  });
-
-/**
  * Remove subscriptions for a specific client
  * @method module:Broker.cleanSubscriptions
  * @param {object} client - MQTT client
  * @returns {promise}
  */
-broker.cleanSubscriptions = client =>
-  new Promise((resolve, reject) => {
-    broker.persistence.cleanSubscriptions(client, (err, res) => (err ? reject(err) : resolve(res)));
-  });
+// const cleanSubscriptions = client =>
+//   new Promise((resolve, reject) => {
+//     broker.persistence.cleanSubscriptions(client, (err, res) => (err ? reject(err) : resolve(res)));
+//   });
 
 /**
  * Convert payload before publish
@@ -517,7 +497,9 @@ broker.publish = packet => {
         packet.payload = Buffer.from(packet.payload);
       }
     }
-    logger.publish(4, 'broker', 'publish:res', { topic: packet.topic });
+
+    // logger.publish(2, 'broker', 'publish:res', { topic: `${pubsubVersion}/${packet.topic}` });
+    logger.publish(2, 'broker', 'publish:res', { topic: packet.topic });
     return broker.instance.publish(packet);
   } catch (error) {
     throw error;
@@ -637,8 +619,7 @@ broker.start = () => {
      * @param {object} client - MQTT client
      */
     broker.instance.on('client', client => {
-      logger.publish(4, 'broker', 'clientConnect:req', client.id);
-      // updateClientStatus(client, true);
+      logger.publish(3, 'broker', 'clientConnect:req', client.id);
     });
 
     /**
@@ -649,7 +630,7 @@ broker.start = () => {
      */
     broker.instance.on('clientDisconnect', client => {
       try {
-        logger.publish(4, 'broker', 'clientDisconnect:req', client.id);
+        logger.publish(3, 'broker', 'clientDisconnect:req', client.id);
         return updateClientStatus(client, false);
       } catch (error) {
         return error;
@@ -662,7 +643,7 @@ broker.start = () => {
      * @param {object} client - MQTT client
      */
     broker.instance.on('keepaliveTimeout', client => {
-      logger.publish(4, 'broker', 'keepaliveTimeout:req', client.id);
+      logger.publish(3, 'broker', 'keepaliveTimeout:req', client.id);
     });
 
     broker.instance.on('clientError', (client, err) => {
@@ -693,17 +674,17 @@ broker.start = () => {
  */
 broker.stop = () => {
   try {
-    const aloesTopicPrefix = `aloes-${process.env.ALOES_ID}`;
-    const packet = {
-      topic: `${aloesTopicPrefix}/stop`,
-      payload: Buffer.from(JSON.stringify({ status: false })),
-      retain: false,
-      qos: 0,
-    };
-    broker.publish(packet);
-    logger.publish(4, 'broker', 'stopped', `${process.env.MQTT_BROKER_URL}`);
+    // const aloesTopicPrefix = `aloes-${process.env.ALOES_ID}`;
+    // const packet = {
+    //   topic: `${aloesTopicPrefix}/stop`,
+    //   payload: Buffer.from(JSON.stringify({ status: false })),
+    //   retain: false,
+    //   qos: 0,
+    // };
+    // broker.publish(packet);
+    logger.publish(2, 'broker', 'stopped', `${process.env.MQTT_BROKER_URL}`);
     broker.instance.close();
-    broker.redis.flushdb();
+    if (broker.redis) broker.redis.flushdb();
     return true;
   } catch (error) {
     logger.publish(2, 'broker', 'stop:err', error);
@@ -718,11 +699,19 @@ broker.stop = () => {
  */
 broker.init = () => {
   try {
-    const result = dotenv.config();
-    if (result.error) {
-      throw result.error;
+    let config;
+    if (!process.env.CI) {
+      const result = dotenv.config();
+      if (result.error) {
+        throw result.error;
+      }
+      config = result.parsed;
+    } else {
+      envVariablesKeys.forEach(key => {
+        config[key] = process.env[key];
+      });
     }
-    const config = result.parsed;
+
     const brokerConfig = {
       interfaces: [
         { type: 'mqtt', port: Number(config.MQTT_BROKER_PORT) },
@@ -731,17 +720,20 @@ broker.init = () => {
     };
     broker.emitter = emitter(config);
     broker.persistence = persistence(config);
-    broker.redis = new Redis({
-      host: config.REDIS_HOST,
-      port: Number(config.REDIS_PORT),
-      db: config.REDIS_MQTT_PERSISTENCE,
-      password: config.REDIS_PASS,
-      // lazyConnect: true,
-      retryStrategy(times) {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-    });
+    if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
+      const Redis = require('ioredis');
+      broker.redis = new Redis({
+        host: config.REDIS_HOST,
+        port: Number(config.REDIS_PORT),
+        db: config.REDIS_MQTT_PERSISTENCE,
+        password: config.REDIS_PASS,
+        lazyConnect: true,
+        retryStrategy(times) {
+          const delay = Math.min(times * 50, 2000);
+          return delay;
+        },
+      });
+    }
 
     const aedesConf = {
       mq: broker.emitter,
@@ -760,11 +752,18 @@ broker.init = () => {
           2,
           'broker',
           'Setup',
-          `MQTT broker ready, up and running @: ${config.MQTT_BROKER_URL}`,
+          `MQTT broker ready, up and running @: ${brokerConfig.interfaces[0].port}`,
         );
       });
 
-    const httpServer = http.createServer().listen(brokerConfig.interfaces[1].port);
+    const httpServer = http.createServer().listen(brokerConfig.interfaces[1].port, () => {
+      logger.publish(
+        2,
+        'broker',
+        'Setup',
+        `WS broker ready, up and running @: ${brokerConfig.interfaces[1].port}`,
+      );
+    });
 
     const wsBroker = ws.createServer(
       {
@@ -773,38 +772,12 @@ broker.init = () => {
       broker.instance.handle,
     );
 
-    let mqttsBroker;
-    if (config.MQTTS_BROKER_URL) {
-      brokerConfig.interfaces[2] = {
-        type: 'mqtts',
-        port: Number(config.MQTTS_BROKER_PORT),
-        credentials: {
-          //  key: fs.readFileSync(`${__dirname}/../../deploy/${config.MQTTS_BROKER_KEY}`),
-          key: fs.readFileSync(`${config.MQTTS_BROKER_KEY}`),
-          cert: fs.readFileSync(`${config.MQTTS_BROKER_CERT}`),
-        },
-      };
-      mqttsBroker = tls
-        .createServer(brokerConfig.interfaces[2].credentials, broker.instance.handle)
-        .listen(brokerConfig.interfaces[2].port, () => {
-          logger.publish(
-            2,
-            'broker',
-            'Setup',
-            `MQTT broker ready, up and running @: ${config.MQTTS_BROKER_URL}`,
-          );
-        });
-    }
-
     broker.instance.on('closed', () => {
       wsBroker.close();
       httpServer.close();
       httpServer.close();
       mqttBroker.close();
-      if (config.MQTTS_BROKER_URL && mqttsBroker) {
-        mqttsBroker.close();
-      }
-      logger.publish(4, 'broker', 'closed');
+      logger.publish(2, 'broker', 'MQTT broker closed');
     });
 
     return broker.start();
@@ -814,12 +787,37 @@ broker.init = () => {
   }
 };
 
-setTimeout(() => broker.init(), 1000);
+if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
+  logger.publish(1, 'broker', 'init:single', { pid: process.pid });
+  setTimeout(() => broker.init(), 1000);
+} else {
+  logger.publish(1, 'broker', 'init:cluster', { pid: process.pid });
+
+  process.on('message', packet => {
+    console.log('PROCESS PACKET ', packet);
+    if (typeof packet.id === 'number' && packet.data.ready) {
+      broker.init();
+      process.send({
+        type: 'process:msg',
+        data: {
+          isStarted: true,
+        },
+      });
+    }
+  });
+
+  process.send({
+    type: 'process:msg',
+    data: {
+      isStarted: false,
+    },
+  });
+}
 
 nodeCleanup((exitCode, signal) => {
   try {
     if (signal && signal !== null) {
-      logger.publish(1, 'process', 'exit:req', { exitCode, signal, pid: process.pid });
+      logger.publish(1, 'broker', 'exit:req', { exitCode, signal, pid: process.pid });
       if (broker && broker.instance) {
         broker.stop();
       }
@@ -829,8 +827,7 @@ nodeCleanup((exitCode, signal) => {
     }
     return true;
   } catch (error) {
-    logger.publish(1, 'process', 'exit:err', error);
-    // setTimeout(() => process.kill(process.pid, signal), 2500);
+    logger.publish(1, 'broker', 'exit:err', error);
     process.kill(process.pid, signal);
     throw error;
   }

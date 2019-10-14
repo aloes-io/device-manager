@@ -83,7 +83,7 @@ module.exports = {
       },
       {
         template: {
-          method: 'PUT',
+          method: 'POST', // 'PUT'
           url: `${process.env.TIMER_BASE_URL || 'http://localhost:8080/timer'}/{timerId}`,
           headers: {
             accept: 'application/json',

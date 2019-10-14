@@ -2,16 +2,19 @@
 import { expect } from 'chai';
 import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
+import broker from '../services/broker';
 import testHelper from '../services/test-helper';
 // import mails from '../services/mails';
 
 const delayBeforeTesting = 7000;
+const restApiPath = `${process.env.REST_API_ROOT}`;
+// const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
 const userTest = () => {
   const userFactory = testHelper.factories.user;
-  const loginUrl = '/api/Users/login';
+  const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Users';
-  const apiUrl = `/api/${collectionName}/`;
+  const apiUrl = `${restApiPath}/${collectionName}/`;
 
   describe(collectionName, function() {
     this.timeout(7000);
@@ -69,7 +72,19 @@ const userTest = () => {
             return error;
           }
         },
-        after: () => Promise.all([UserModel.destroyAll()]),
+        // after: () => Promise.all([UserModel.destroyAll()]).then(() => process.exit(0)),
+        async after() {
+          try {
+            // this.timeout(5000);
+            console.log(`[TEST] ${collectionName} after:req`);
+            await Promise.all([UserModel.destroyAll(), app.stop(), broker.stop()]);
+            process.exit(0);
+            return null;
+          } catch (error) {
+            console.log(`[TEST] ${collectionName} after:err`, error);
+            return null;
+          }
+        },
         tests: {
           '[TEST] Verifying "Create" access': {
             tests: [

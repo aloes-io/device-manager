@@ -5,6 +5,10 @@ import deviceTypes from '../initial-data/device-types.json';
 // generate slot device_names for snips assistant
 export default async function deviceWatcher(app) {
   try {
+    if (process.env.CLUSTER_MODE) {
+      if (process.env.PROCESS_ID !== '0') return null;
+      if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+    }
     const Device = app.models.Device;
 
     const sortByType = async instances => {

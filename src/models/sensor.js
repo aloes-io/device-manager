@@ -191,7 +191,7 @@ const getPersistingMethod = (sensorType, resource, type) => {
     }
   }
 
-  logger.publish(4, `${collectionName}`, 'getPersistingMethod:res', {
+  logger.publish(3, `${collectionName}`, 'getPersistingMethod:res', {
     method: saveMethod,
   });
   return saveMethod;
@@ -257,7 +257,7 @@ const persistingResource = async (app, device, sensor, client) => {
     }
     return { persistedResource, sensor };
   } catch (error) {
-    logger.publish(3, `${collectionName}`, 'persist:err', error);
+    logger.publish(2, `${collectionName}`, 'persist:err', error);
     return null;
   }
 };
@@ -270,7 +270,7 @@ const persistingResource = async (app, device, sensor, client) => {
  */
 const onAfterSave = async ctx => {
   try {
-    logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.hookState);
+    logger.publish(3, `${collectionName}`, 'onAfterSave:req', ctx.hookState);
     if (ctx.hookState.updateData) {
       return ctx;
       //  } else if (ctx.instance.id && !ctx.isNewInstance && ctx.instance.ownerId) {
@@ -312,7 +312,7 @@ const deleteProps = async (app, sensor) => {
  */
 const onBeforeDelete = async ctx => {
   try {
-    logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
+    logger.publish(3, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
     if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
       const sensor = await ctx.Model.findById(ctx.where.id);
       await deleteProps(ctx.Model.app, sensor);
@@ -330,7 +330,54 @@ const onBeforeDelete = async ctx => {
 
 const onBeforeRemote = async ctx => {
   try {
-    if (ctx.method.name === 'search' || ctx.method.name === 'geoLocate') {
+    if (
+      ctx.method.name.indexOf('find') !== -1 ||
+      ctx.method.name.indexOf('__get') !== -1 ||
+      ctx.method.name.indexOf('get') !== -1
+    ) {
+      // let sensors;
+      // let result = [];
+      const options = ctx.args ? ctx.args.options : {};
+      if (!options || !options.currentUser) {
+        throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
+      }
+      const isAdmin = options.currentUser.roles.includes('admin');
+      if (ctx.req.query && ctx.req.query.filter) {
+        if (!isAdmin) {
+          if (typeof ctx.req.query.filter === 'string') {
+            ctx.req.query.filter = JSON.parse(ctx.req.query.filter);
+          }
+          if (!ctx.req.query.filter.where) ctx.req.query.filter.where = {};
+          ctx.req.query.filter.where.ownerId = options.currentUser.id.toString();
+          // sensors = await Sensor.find(ctx.req.query.filter);
+        }
+      }
+      // if (ctx.req.params && ctx.req.params.id) {
+      //   if (!isAdmin) {
+      //     ctx.req.params.ownerId = options.currentUser.id.toString();
+      //   }
+      //   if (params.ownerId) {
+      //     sensors = await Sensor.find({
+      //       where: { and: [{ id: ctx.req.params.id }, { ownerId: ctx.req.params.ownerId }] },
+      //     });
+      //   } else {
+      //     sensors = await Sensor.findById(id);
+      //   }
+      // }
+      // // find in mongo and replace by cached ones
+      // if (sensors && Array.isArray(sensors)) {
+      //   const cachedSensors = await sensors.map(
+      //     async sensor => await SensorResource.getCache(sensor.deviceId, sensor.id),
+      //   );
+      //   result = await Promise.all(cachedSensors);
+      // } else if (sensors && typeof sensors === 'object') {
+      //   result = await SensorResource.getCache(sensors.deviceId, sensors.id);
+      // }
+
+      // if (result && result !== null) {
+      //   ctx.result = result;
+      // }
+    } else if (ctx.method.name === 'search' || ctx.method.name === 'geoLocate') {
       const options = ctx.args ? ctx.args.options : {};
       if (!options || !options.currentUser) {
         throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
@@ -604,7 +651,7 @@ module.exports = function(Sensor) {
    */
   Sensor.handlePresentation = async (device, sensor, client) => {
     try {
-      logger.publish(4, `${collectionName}`, 'handlePresentation:req', {
+      logger.publish(3, `${collectionName}`, 'handlePresentation:req', {
         deviceId: device.id,
         deviceName: device.name,
         sensorId: sensor.id,
@@ -647,7 +694,7 @@ module.exports = function(Sensor) {
    */
   Sensor.createOrUpdate = async (device, sensor, resourceKey, resourceValue, client) => {
     try {
-      logger.publish(4, `${collectionName}`, 'createOrUpdate:req', {
+      logger.publish(3, `${collectionName}`, 'createOrUpdate:req', {
         sensorId: sensor.id,
         resourceKey,
         name: sensor.name,
@@ -674,7 +721,7 @@ module.exports = function(Sensor) {
           Number(resourceKey),
           resourceValue,
         );
-        logger.publish(4, `${collectionName}`, 'createOrUpdate:res', {
+        logger.publish(3, `${collectionName}`, 'createOrUpdate:res', {
           inType: typeof resourceValue,
           outType: typeof updatedSensor.resources[updatedSensor.resource],
         });
@@ -796,7 +843,7 @@ module.exports = function(Sensor) {
    */
   Sensor.execute = async (device, sensor, method, client) => {
     try {
-      logger.publish(4, `${collectionName}`, 'execute:req', method);
+      logger.publish(3, `${collectionName}`, 'execute:req', method);
       // also  replace sensor when they share same nativeSensorId and nativeNodeId but type has changed ?
       switch (method.toUpperCase()) {
         case 'HEAD':
@@ -913,7 +960,7 @@ module.exports = function(Sensor) {
       if (filter.limit && typeof filter.limit === 'number' && sensors.length > filter.limit) {
         sensors.splice(filter.limit, sensors.length - 1);
       }
-      logger.publish(4, `${collectionName}`, 'search:res', sensors.length);
+      logger.publish(3, `${collectionName}`, 'search:res', sensors.length);
       return sensors;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'search:err', error);

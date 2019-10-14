@@ -20,26 +20,51 @@ const setDeviceQRCode = device => {
         if (device.accessPointUrl && device.accessPointUrl.endsWith('/#!1')) {
           device.qrCode = `${device.accessPointUrl}`;
         } else if (device.accessPointUrl && device.id && device.apiKey) {
-          device.qrCode = `${device.accessPointUrl}/param?mqtt_server=${
-            process.env.MQTT_BROKER_HOST
-          }&mqtt_port=${process.env.MQTT_BROKER_PORT}&mqtt_secure=${
-            process.env.MQTT_SECURE
-          }&http_server=${process.env.HTTP_SERVER_HOST}&http_port=${
-            process.env.HTTP_SERVER_PORT
-          }&http_secure=${process.env.HTTP_SECURE}&device_id=${device.id}&apikey=${device.apiKey}`;
+          if (process.env.HTTP_SECURE) {
+            device.qrCode = `${device.qrCode}http_server=${
+              process.env.DOMAIN
+            }&http_port=443&http_secure=true`;
+          } else {
+            device.qrCode = `${device.qrCode}http_server=${
+              process.env.DOMAIN
+            }&http_port=80&http_secure=false`;
+          }
+          if (process.env.MQTT_SECURE) {
+            device.qrCode = `${device.qrCode}&mqtt_server=${
+              process.env.DOMAIN
+            }&mqtt_port=443&mqtt_secure=true`;
+          } else {
+            device.qrCode = `${device.qrCode}&mqtt_server=${
+              process.env.DOMAIN
+            }&mqtt_port=80&mqtt_secure=false`;
+          }
+          device.qrCode = `${device.accessPointUrl}&device_id=${device.id}&apikey=${device.apiKey}`;
         }
         break;
       case 'aloeslight':
         if (device.accessPointUrl && device.accessPointUrl.endsWith('/#!1')) {
           device.qrCode = `${device.accessPointUrl}`;
         } else if (device.accessPointUrl && device.id && device.apiKey) {
-          device.qrCode = `${device.accessPointUrl}/param?mqtt_server=${
-            process.env.MQTT_BROKER_HOST
-          }&mqtt_port=${process.env.MQTT_BROKER_PORT}&mqtt_secure=${
-            process.env.MQTT_SECURE
-          }&http_server=${process.env.HTTP_SERVER_HOST}&http_port=${
-            process.env.HTTP_SERVER_PORT
-          }&http_secure=${process.env.HTTP_SECURE}&device_id=${device.id}&apikey=${device.apiKey}`;
+          device.qrCode = `${device.accessPointUrl}/param?`;
+          if (process.env.HTTP_SECURE) {
+            device.qrCode = `${device.qrCode}http_server=${
+              process.env.DOMAIN
+            }&http_port=443&http_secure=true`;
+          } else {
+            device.qrCode = `${device.qrCode}http_server=${
+              process.env.DOMAIN
+            }&http_port=80&http_secure=false`;
+          }
+          if (process.env.MQTT_SECURE) {
+            device.qrCode = `${device.qrCode}&mqtt_server=${
+              process.env.DOMAIN
+            }&mqtt_port=8883&mqtt_secure=true`;
+          } else {
+            device.qrCode = `${device.qrCode}&mqtt_server=${
+              process.env.DOMAIN
+            }&mqtt_port=1883&mqtt_secure=false`;
+          }
+          device.qrCode = `${device.accessPointUrl}&device_id=${device.id}&apikey=${device.apiKey}`;
         }
         break;
       default:
@@ -178,7 +203,7 @@ const createProps = async (app, device) => {
     }
     return app.models.Device.publish(device, 'POST');
   } catch (error) {
-    logger.publish(3, `${collectionName}`, 'createProps:err', error);
+    logger.publish(2, `${collectionName}`, 'createProps:err', error);
     throw error;
   }
 };
@@ -214,6 +239,7 @@ const updateProps = async (app, device) => {
     });
     return app.models.Device.publish(device, 'PUT');
   } catch (error) {
+    logger.publish(2, `${collectionName}`, 'updateProps:err', error);
     throw error;
   }
 };
@@ -279,7 +305,7 @@ const appendCachedSensors = async (app, ctx) => {
       if (whereFilter.where) {
         const devices = await Device.find(whereFilter);
         result = JSON.parse(JSON.stringify(devices));
-      } else if (whereFilter && whereFilter.id) {
+      } else if (whereFilter && whereFilter.id && !whereFilter.id.inq) {
         const id = whereFilter.id;
         const device = await Device.findById(id);
         result = [JSON.parse(JSON.stringify(device))];
@@ -307,13 +333,13 @@ const appendCachedSensors = async (app, ctx) => {
 const onAfterSave = async ctx => {
   try {
     if (ctx.hookState.updateData) {
-      logger.publish(4, `${collectionName}`, 'onAfterPartialSave:req', ctx.hookState.updateData);
+      logger.publish(3, `${collectionName}`, 'onAfterPartialSave:req', ctx.hookState.updateData);
       const updatedProps = Object.keys(ctx.hookState.updateData);
       if (updatedProps.some(prop => prop === 'status') && ctx.instance) {
         await ctx.Model.publish(ctx.instance, 'HEAD');
       }
     } else if (ctx.instance && ctx.Model.app) {
-      logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.instance);
+      logger.publish(3, `${collectionName}`, 'onAfterSave:req', ctx.instance);
       if (ctx.isNewInstance) {
         await createProps(ctx.Model.app, ctx.instance);
       } else {
@@ -388,6 +414,9 @@ const onBeforeRemote = async (app, ctx) => {
       const isAdmin = options.currentUser.roles.includes('admin');
       if (ctx.req.query && ctx.req.query.filter) {
         if (!isAdmin) {
+          if (typeof ctx.req.query.filter === 'string') {
+            ctx.req.query.filter = JSON.parse(ctx.req.query.filter);
+          }
           if (!ctx.req.query.filter.where) ctx.req.query.filter.where = {};
           ctx.req.query.filter.where.ownerId = options.currentUser.id.toString();
         }
@@ -502,17 +531,16 @@ const parseMessage = async (app, packet, pattern, client) => {
     const Device = app.models.Device;
     if (pattern.name.toLowerCase() === 'aloesclient') {
       if (pattern.subType === 'iot') {
-        const newPacket = await iotAgent.decode(packet, pattern.params);
+        const newPacket = iotAgent.decode(packet, pattern.params);
         if (newPacket && newPacket.topic) {
           // todo use client.publish instead ?
           logger.publish(4, `${collectionName}`, 'parseMessage:redirect to', newPacket.topic);
-          // await app.publish(newPacket.topic, newPacket.payload, false, 1);
           app.emit('publish', newPacket.topic, newPacket.payload, false, 0);
           return newPacket;
         }
       }
     }
-    const attributes = await iotAgent.encode(packet, pattern);
+    const attributes = iotAgent.encode(packet, pattern);
     logger.publish(4, `${collectionName}`, 'parseMessage:attributes', attributes);
 
     if (
@@ -1093,17 +1121,17 @@ module.exports = function(Device) {
               Device.findOne({
                 where: { id: addr.ownerId },
                 include: 'address',
-                fields: {
-                  id: true,
-                  devEui: true,
-                  apiKey: false,
-                  clientKey: false,
-                  frameCounter: true,
-                  name: true,
-                  fullAddress: true,
-                  status: true,
-                  icons: true,
-                },
+                // fields: {
+                //   id: true,
+                //   devEui: true,
+                //   apiKey: false,
+                //   clientKey: false,
+                //   frameCounter: true,
+                //   name: true,
+                //   fullAddress: true,
+                //   status: true,
+                //   icons: true,
+                // },
               }),
             );
             const moreDevices = await Promise.all(promises);
@@ -1151,17 +1179,17 @@ module.exports = function(Device) {
           Device.findOne({
             where: { id: address.ownerId },
             include: 'address',
-            fields: {
-              id: true,
-              devEui: true,
-              apiKey: false,
-              clientKey: false,
-              frameCounter: true,
-              name: true,
-              fullAddress: true,
-              status: true,
-              icons: true,
-            },
+            // fields: {
+            //   id: true,
+            //   devEui: true,
+            //   apiKey: false,
+            //   clientKey: false,
+            //   frameCounter: true,
+            //   name: true,
+            //   fullAddress: true,
+            //   status: true,
+            //   icons: true,
+            // },
           }),
         );
         devices = await Promise.all(promises);

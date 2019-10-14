@@ -5,6 +5,7 @@ import utils from '../services/utils';
 
 const collectionName = 'Files';
 const CONTAINERS_URL = `${process.env.REST_API_ROOT}/${collectionName}/`;
+// const CONTAINERS_URL = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}/${collectionName}/`;
 
 const createContainer = (app, options) =>
   new Promise((resolve, reject) =>

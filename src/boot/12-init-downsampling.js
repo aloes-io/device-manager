@@ -2,6 +2,10 @@ import logger from '../services/logger';
 
 module.exports = async function initializeDownSampling(app) {
   try {
+    if (process.env.CLUSTER_MODE) {
+      if (process.env.PROCESS_ID !== '0') return null;
+      if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+    }
     const influxConnector = app.datasources.points.connector;
     const models = app.models;
     influxConnector.retentionPolicies = {};

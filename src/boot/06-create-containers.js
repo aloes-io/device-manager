@@ -3,6 +3,10 @@ import logger from '../services/logger';
 
 module.exports = async function(server) {
   try {
+    if (process.env.CLUSTER_MODE) {
+      if (process.env.PROCESS_ID !== '0') return null;
+      if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+    }
     const User = server.models.user;
     const Files = server.models.Files;
     //  const Application = server.models.Application;

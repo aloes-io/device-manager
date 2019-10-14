@@ -6,6 +6,8 @@ import testHelper from '../services/test-helper';
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
+const restApiPath = `${process.env.REST_API_ROOT}`;
+// const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
 function fileTest() {
   const collectionName = 'Files';
@@ -15,8 +17,8 @@ function fileTest() {
   describe(collectionName, function() {
     this.timeout(4000);
     const FileModel = app.models.files;
-    const loginUrl = '/api/Users/login';
-    const apiUrl = `/api/${collectionName}/`;
+    const loginUrl = `${restApiPath}/Users/login`;
+    const apiUrl = `${restApiPath}/${collectionName}/`;
 
     let defaultFile, formData, formDataBody, formDataHeaders, filesMeta, userIds;
 
@@ -35,7 +37,7 @@ function fileTest() {
       [`[TEST] ${collectionName} E2E Tests`]: {
         async before() {
           try {
-            this.timeout(9000);
+            this.timeout(7000);
             const result = await Promise.all([
               testHelper.access.admin.create(app),
               testHelper.access.user.create(app),

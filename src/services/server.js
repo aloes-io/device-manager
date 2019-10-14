@@ -103,17 +103,7 @@ const authenticateInstance = async (client, username, password) => {
  */
 app.start = async config => {
   try {
-    let baseUrl = `${config.HTTP_SERVER_URL}`;
-    if (config.TUNNEL_HOST) {
-      if (config.TUNNEL_SECURE) {
-        baseUrl = `https://${config.NODE_NAME}-${config.NODE_ENV}.${config.TUNNEL_HOST}`;
-      } else {
-        baseUrl = `http://${config.NODE_NAME}-${config.NODE_ENV}.${config.TUNNEL_HOST}`;
-      }
-    }
-
-    app.set('originUrl', config.HTTP_SERVER_URL);
-    app.set('url', baseUrl);
+    app.set('url', config.HTTP_SERVER_URL);
     app.set('host', config.HTTP_SERVER_HOST);
     app.set('port', Number(config.HTTP_SERVER_PORT));
     //  app.set('cookieSecret', config.COOKIE_SECRET);
@@ -125,9 +115,11 @@ app.start = async config => {
     app.use(flash());
 
     const clientPath = path.resolve(__dirname, '/../client');
+    const apiPath = config.REST_API_ROOT;
+    // const apiPath = `${config.REST_API_ROOT}${config.REST_API_VERSION}`;
     app.use(
       unless(
-        [config.REST_API_ROOT, '/auth', '/explorer', '/components'],
+        [apiPath, '/auth', '/link', '/explorer', '/components'],
         fallback('index.html', { root: clientPath }),
       ),
     );
@@ -164,7 +156,7 @@ app.start = async config => {
         next();
       });
 
-      app.get('/api/auth/logout', (req, res, next) => {
+      app.get(`${apiPath}/auth/logout`, (req, res, next) => {
         console.log('auth/logout', req.url);
         req.logout();
         res.set('Access-Control-Allow-Origin', '*');
@@ -172,7 +164,7 @@ app.start = async config => {
         next();
       });
 
-      app.post('/api/auth/mqtt', async (req, res) => {
+      app.post(`${apiPath}/auth/mqtt`, async (req, res) => {
         try {
           // console.log('auth/mqtt', req.url, req.body);
           const client = req.body.client;
@@ -263,11 +255,10 @@ app.isStarted = () => app.bootState;
 app.init = async config => {
   try {
     logger.publish(2, 'loopback', 'init', `${config.NODE_NAME} / ${config.NODE_ENV}`);
-    const options = {
+    await bootApp(app, {
       appRootDir: config.appRootDir,
       scriptExtensions: config.scriptExtensions,
-    };
-    await bootApp(app, options);
+    });
     // if (require.main === module) {
     //   return app.start(config);
     // }

@@ -7,15 +7,17 @@ import testHelper from '../services/test-helper';
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
+const restApiPath = `${process.env.REST_API_ROOT}`;
+// const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
 const addressTest = () => {
   const deviceFactory = testHelper.factories.device;
   const addressFactory = testHelper.factories.address;
-  const loginUrl = '/api/Users/login';
+  const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Addresses';
-  const apiUrl = `/api/${collectionName}/`;
-  const deviceApiUrl = `/api/Devices/`;
-  const userApiUrl = `/api/Users/`;
+  const apiUrl = `${restApiPath}/${collectionName}/`;
+  const deviceApiUrl = `${restApiPath}/Devices/`;
+  const userApiUrl = `${restApiPath}/Users/`;
 
   describe(collectionName, function() {
     this.timeout(4000);

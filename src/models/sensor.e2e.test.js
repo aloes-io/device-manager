@@ -7,13 +7,15 @@ import testHelper from '../services/test-helper';
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
+const restApiPath = `${process.env.REST_API_ROOT}`;
+// const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
 const sensorTest = () => {
   const deviceFactory = testHelper.factories.device;
   const sensorFactory = testHelper.factories.sensor;
-  const loginUrl = '/api/Users/login';
+  const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Sensors';
-  const apiUrl = `/api/${collectionName}/`;
+  const apiUrl = `${restApiPath}/${collectionName}/`;
 
   describe(collectionName, () => {
     const DeviceModel = app.models.Device;

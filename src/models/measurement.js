@@ -250,7 +250,7 @@ module.exports = function(Measurement) {
         await Promise.all(promises);
         result.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
         //  console.log('MEASUREMENTS 2 ', result);
-        logger.publish(4, `${collectionName}`, 'findMeasurements:res', { result });
+        logger.publish(3, `${collectionName}`, 'findMeasurements:res', { count: result.length });
         return result;
       } catch (error) {
         throw error;
@@ -259,7 +259,7 @@ module.exports = function(Measurement) {
 
     Model.findById = async (id, options) => {
       try {
-        logger.publish(4, `${collectionName}`, 'find:req', { id });
+        logger.publish(4, `${collectionName}`, 'findById:req', { id });
         if (!options.accessToken && !options.apikey) {
           throw utils.buildError(403, 'INVALID_AUTH', 'No token found in HTTP Options');
         }
