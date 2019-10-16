@@ -208,7 +208,7 @@ app.start = async config => {
         }
       });
 
-      app.emit('started', true);
+      app.emit('started', true, config);
     });
 
     return true;
@@ -303,10 +303,11 @@ app.on('start', app.init);
  * Event reporting that the application and all subservices have started.
  * @event started
  * @param {boolean} state - application state
+ * @param {object} config - application config
  * @fires MQTTClient.start
  * @fires Scheduler.started
  */
-app.on('started', state => {
+app.on('started', (state, config) => {
   app.bootState = state;
   if (state) {
     const baseUrl = app.get('url').replace(/\/$/, '');

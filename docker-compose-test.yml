@@ -8,7 +8,6 @@ services:
       - influxvolume:/var/lib/influxdb
 
   api:
-    # env_file: .env
     environment:
       - CI=true
       - NODE_ENV=development
