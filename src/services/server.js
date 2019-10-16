@@ -52,11 +52,9 @@ const authenticateInstance = async (client, username, password) => {
       token = null;
     }
     if (token && token.userId && token.userId.toString() === username) {
-      // status = true;
       status = 0;
       foundClient.ownerId = token.userId.toString();
       foundClient.model = 'User';
-      // console.log('OWNER MQTT CLIENT', Object.keys(foundClient));
     } else {
       status = 4;
     }
@@ -70,7 +68,6 @@ const authenticateInstance = async (client, username, password) => {
       if (authentification && authentification.device && authentification.keyType) {
         const instance = authentification.device;
         if (instance.devEui && instance.devEui !== null) {
-          // status = true;
           status = 0;
           foundClient.devEui = instance.devEui;
           foundClient.model = 'Device';
@@ -108,12 +105,10 @@ const authenticateInstance = async (client, username, password) => {
       // await Client.set(client.id, JSON.stringify(foundClient), ttl);
     }
     logger.publish(3, 'loopback', 'authenticateInstance:res', { status, client: foundClient });
-    // const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to update this user');
     return { client: foundClient, status };
   } catch (error) {
     logger.publish(2, 'loopback', 'authenticateInstance:err', error);
     status = 2;
-    // throw error;
     return { client: foundClient, status };
   }
 };
@@ -125,8 +120,6 @@ const authenticateInstance = async (client, username, password) => {
  * @method module:Server.start
  * @param {object} config - Parsed env variables
  * @fires Server.started
- * @fires MQTTClient.start
- * @fires Scheduler.started
  * @returns {boolean}
  */
 app.start = async config => {
@@ -215,9 +208,7 @@ app.start = async config => {
         }
       });
 
-      MQTTClient.emit('init', app, config);
       app.emit('started', true);
-      app.models.Scheduler.emit('started');
     });
 
     return true;
@@ -302,7 +293,7 @@ app.init = async config => {
 
 /**
  * Event reporting that the application and all subservices should start.
- * @event started
+ * @event start
  * @param {object} config - Parsed env variables
  * @returns {function} Server.init
  */
@@ -312,7 +303,8 @@ app.on('start', app.init);
  * Event reporting that the application and all subservices have started.
  * @event started
  * @param {boolean} state - application state
- * @returns {function} Server.start
+ * @fires MQTTClient.start
+ * @fires Scheduler.started
  */
 app.on('started', state => {
   app.bootState = state;
@@ -323,6 +315,8 @@ app.on('started', state => {
       const explorerPath = app.get('loopback-component-explorer').mountPath;
       logger.publish(4, 'loopback', 'Setup', `Explore REST API @: ${baseUrl}${explorerPath}`);
     }
+    MQTTClient.emit('init', app, config);
+    app.models.Scheduler.emit('started');
     //  process.send('ready');
   } else {
     logger.publish(4, 'loopback', 'Setup', `Error, state invalid`);

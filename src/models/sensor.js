@@ -258,7 +258,7 @@ const persistingResource = async (app, device, sensor, client) => {
     }
     return { persistedResource, sensor };
   } catch (error) {
-    logger.publish(2, `${collectionName}`, 'persist:err', error);
+    logger.publish(2, `${collectionName}`, 'persistingResource:err', error);
     return null;
   }
 };
@@ -300,7 +300,8 @@ const deleteProps = async (app, sensor) => {
     await app.models.Sensor.publish(device, sensor, 'DELETE');
     return sensor;
   } catch (error) {
-    throw error;
+    logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
+    return null;
   }
 };
 

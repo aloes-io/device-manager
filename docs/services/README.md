@@ -19,9 +19,6 @@
 
 * [Broker](#module_Broker)
     * _static_
-        * [.getClients([id])](#module_Broker.getClients) ⇒ <code>array</code> \| <code>object</code>
-        * [.getClientsByTopic(topic)](#module_Broker.getClientsByTopic) ⇒ <code>promise</code>
-        * [.cleanSubscriptions(client)](#module_Broker.cleanSubscriptions) ⇒ <code>promise</code>
         * [.start()](#module_Broker.start) ⇒ <code>boolean</code>
         * [.stop()](#module_Broker.stop) ⇒ <code>boolean</code>
         * [.init()](#module_Broker.init) ⇒ <code>function</code>
@@ -29,45 +26,18 @@
         * [~persistence(config)](#module_Broker..persistence) ⇒ <code>function</code>
         * [~emitter(config)](#module_Broker..emitter) ⇒ <code>function</code>
         * [~getClient(client)](#module_Broker..getClient) ⇒ <code>object</code>
-        * [~pickRandomClient(clientIds, attempts)](#module_Broker..pickRandomClient) ⇒ <code>object</code>
+        * [~getClients([id])](#module_Broker..getClients) ⇒ <code>array</code> \| <code>object</code>
+        * [~getClientsByTopic(topic)](#module_Broker..getClientsByTopic) ⇒ <code>promise</code>
+        * [~pickRandomClient(clientIds)](#module_Broker..pickRandomClient) ⇒ <code>object</code>
         * [~authentificationRequest(data)](#module_Broker..authentificationRequest) ⇒ <code>promise</code>
-        * ["published" (packet, client)](#event_published)
+        * [~authenticate(client, [username], [password])](#module_Broker..authenticate) ⇒ <code>number</code>
+        * [~authorizePublish(client, packet)](#module_Broker..authorizePublish) ⇒ <code>boolean</code>
+        * [~onPublished(packet, client)](#module_Broker..onPublished)
+        * [~cleanSubscriptions(client)](#module_Broker..cleanSubscriptions) ⇒ <code>promise</code>
         * ["client" (client)](#event_client)
         * ["clientDisconnect" (client)](#event_clientDisconnect) ⇒ <code>function</code>
         * ["keepaliveTimeout" (client)](#event_keepaliveTimeout)
-
-<a name="module_Broker.getClients"></a>
-
-### Broker.getClients([id]) ⇒ <code>array</code> \| <code>object</code>
-Find clients connected to the broker
-
-**Kind**: static method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| [id] | <code>string</code> | Client id |
-
-<a name="module_Broker.getClientsByTopic"></a>
-
-### Broker.getClientsByTopic(topic) ⇒ <code>promise</code>
-Find in cache client ids subscribed to a specific topic pattern
-
-**Kind**: static method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| topic | <code>string</code> | Topic pattern |
-
-<a name="module_Broker.cleanSubscriptions"></a>
-
-### Broker.cleanSubscriptions(client) ⇒ <code>promise</code>
-Remove subscriptions for a specific client
-
-**Kind**: static method of [<code>Broker</code>](#module_Broker)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>object</code> | MQTT client |
+        * ["clientError" (client, err)](#event_clientError)
 
 <a name="module_Broker.start"></a>
 
@@ -85,7 +55,7 @@ Stop broker and update models status
 <a name="module_Broker.init"></a>
 
 ### Broker.init() ⇒ <code>function</code>
-Init MQTT Broker with new Aedes instance
+Init MQTT and WS Broker with new Aedes instance
 
 **Kind**: static method of [<code>Broker</code>](#module_Broker)  
 **Returns**: <code>function</code> - broker.start  
@@ -125,9 +95,31 @@ Transform circular MQTT client in JSON
 | --- | --- | --- |
 | client | <code>object</code> | MQTT client |
 
+<a name="module_Broker..getClients"></a>
+
+### Broker~getClients([id]) ⇒ <code>array</code> \| <code>object</code>
+Find clients connected to the broker
+
+**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| [id] | <code>string</code> | Client id |
+
+<a name="module_Broker..getClientsByTopic"></a>
+
+### Broker~getClientsByTopic(topic) ⇒ <code>promise</code>
+Find in cache client ids subscribed to a specific topic pattern
+
+**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| topic | <code>string</code> | Topic pattern |
+
 <a name="module_Broker..pickRandomClient"></a>
 
-### Broker~pickRandomClient(clientIds, attempts) ⇒ <code>object</code>
+### Broker~pickRandomClient(clientIds) ⇒ <code>object</code>
 Give an array of clientIds, find a connected client
 
 **Kind**: inner method of [<code>Broker</code>](#module_Broker)  
@@ -136,7 +128,6 @@ Give an array of clientIds, find a connected client
 | Param | Type | Description |
 | --- | --- | --- |
 | clientIds | <code>Array.&lt;string&gt;</code> | MQTT client Ids |
-| attempts | <code>number</code> | Number of tryouts before returning null |
 
 <a name="module_Broker..authentificationRequest"></a>
 
@@ -149,16 +140,60 @@ HTTP request to Aloes to validate credentials
 | --- | --- | --- |
 | data | <code>object</code> | Client instance |
 
-<a name="event_published"></a>
+<a name="module_Broker..authenticate"></a>
 
-### "published" (packet, client)
+### Broker~authenticate(client, [username], [password]) ⇒ <code>number</code>
+Aedes authentification callback
+
+Check client credentials and update client properties
+
+**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
+**Returns**: <code>number</code> - status - CONNACK code
+- 0 - Accepted
+- 1 - Unacceptable protocol version
+- 2 - Identifier rejected
+- 3 - Server unavailable
+- 4 - Bad user name or password  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| client | <code>object</code> | MQTT client |
+| [username] | <code>string</code> | MQTT username |
+| [password] | <code>object</code> | MQTT password |
+
+<a name="module_Broker..authorizePublish"></a>
+
+### Broker~authorizePublish(client, packet) ⇒ <code>boolean</code>
+Aedes publish authorization callback
+
+**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| client | <code>object</code> | MQTT client |
+| packet | <code>object</code> | MQTT packet |
+
+<a name="module_Broker..onPublished"></a>
+
+### Broker~onPublished(packet, client)
 On message published to Aedes broker
 
-**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
+**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | packet | <code>object</code> | MQTT packet |
+| client | <code>object</code> | MQTT client |
+
+<a name="module_Broker..cleanSubscriptions"></a>
+
+### Broker~cleanSubscriptions(client) ⇒ <code>promise</code>
+Remove subscriptions for a specific client
+
+**Kind**: inner method of [<code>Broker</code>](#module_Broker)  
+
+| Param | Type | Description |
+| --- | --- | --- |
 | client | <code>object</code> | MQTT client |
 
 <a name="event_client"></a>
@@ -194,6 +229,18 @@ When client keep alive timeout
 | Param | Type | Description |
 | --- | --- | --- |
 | client | <code>object</code> | MQTT client |
+
+<a name="event_clientError"></a>
+
+### "clientError" (client, err)
+When client action creates an error
+
+**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| client | <code>object</code> | MQTT client |
+| err | <code>object</code> | MQTT Error |
 
 <a name="module_Mails"></a>
 
@@ -274,6 +321,9 @@ Promise wrapper to send verification email after user registration
 * [MQTTClient](#module_MQTTClient)
     * _static_
         * [.publish(topic, payload)](#module_MQTTClient.publish) ⇒ <code>boolean</code>
+        * ["message" (app, topic, payload)](#module_MQTTClient.event_message) ⇒ <code>function</code>
+        * ["connect" (packet)](#module_MQTTClient.event_connect)
+        * ["offline" (packet)](#module_MQTTClient.event_offline)
         * ["start"](#module_MQTTClient.event_start) ⇒ <code>function</code>
         * ["init" (app, config)](#module_MQTTClient.event_init) ⇒ <code>function</code>
         * ["stop"](#module_MQTTClient.event_stop) ⇒ <code>function</code>
@@ -300,6 +350,42 @@ Convert payload and topic before publish
 | --- | --- | --- |
 | topic | <code>string</code> | Packet topic |
 | payload | <code>any</code> | Packet payload |
+
+<a name="module_MQTTClient.event_message"></a>
+
+### "message" (app, topic, payload) ⇒ <code>function</code>
+Event reporting that MQTTClient is connected.
+
+**Kind**: event emitted by [<code>MQTTClient</code>](#module_MQTTClient)  
+**Returns**: <code>function</code> - MQTTClient~onMessage  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| app | <code>object</code> | Loopback app |
+| topic | <code>object</code> | MQTT topic |
+| payload | <code>object</code> | MQTT payload |
+
+<a name="module_MQTTClient.event_connect"></a>
+
+### "connect" (packet)
+Event reporting that MQTTClient is connected.
+
+**Kind**: event emitted by [<code>MQTTClient</code>](#module_MQTTClient)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| packet | <code>object</code> | Connection packet |
+
+<a name="module_MQTTClient.event_offline"></a>
+
+### "offline" (packet)
+Event reporting that MQTTClient is disconnected.
+
+**Kind**: event emitted by [<code>MQTTClient</code>](#module_MQTTClient)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| packet | <code>object</code> | Will packet |
 
 <a name="module_MQTTClient.event_start"></a>
 

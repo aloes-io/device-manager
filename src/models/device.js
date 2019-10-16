@@ -377,7 +377,8 @@ const deleteProps = async (app, instance) => {
     await app.models.Device.publish(instance, 'DELETE');
     return instance;
   } catch (error) {
-    throw error;
+    logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
+    return null;
   }
 };
 

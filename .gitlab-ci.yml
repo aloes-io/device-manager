@@ -51,7 +51,7 @@ test_async:
   variables:
     NODE_ENV: "development"
   script:
-    - mkdir ./storage ; npm run test:cover
+    - npm run test:cover
   only:
     - staging
 

@@ -165,5 +165,4 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 - Finish account linking with github
 - Add user(s) in a team to easily share devices access ( via collaborators property )
-- Data exports ( devices selection by filter )
 - Catch and store data related to MQTT traffic ( via Specific sensor instance ? )

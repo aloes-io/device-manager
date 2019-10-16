@@ -172,7 +172,8 @@ const deleteProps = async (app, instance) => {
     logger.publish(4, `${collectionName}`, 'deleteProps:req', instance);
     return instance;
   } catch (error) {
-    throw error;
+    logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
+    return null;
   }
 };
 

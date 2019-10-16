@@ -242,12 +242,16 @@ const authentificationRequest = async data => {
 };
 
 /**
+ * Aedes authentification callback
+ *
  * Check client credentials and update client properties
  *
  * @method module:Broker~authenticate
- * @param {any} deviceId
- * @param {string} key
+ * @param {object} client - MQTT client
+ * @param {string} [username] - MQTT username
+ * @param {object} [password] - MQTT password
  * @returns {number} status - CONNACK code
+ * - 0 - Accepted
  * - 1 - Unacceptable protocol version
  * - 2 - Identifier rejected
  * - 3 - Server unavailable
@@ -310,6 +314,13 @@ const authenticate = async (client, username, password) => {
   }
 };
 
+/**
+ * Aedes publish authorization callback
+ * @method module:Broker~authorizePublish
+ * @param {object} client - MQTT client
+ * @param {object} packet - MQTT packet
+ * @returns {boolean}
+ */
 const authorizePublish = (client, packet) => {
   const topic = packet.topic;
   if (!topic) return false;
@@ -358,6 +369,13 @@ const authorizePublish = (client, packet) => {
   return auth;
 };
 
+/**
+ * Aedes subscribe authorization callback
+ * @method module:Broker.instance.authorizeSubscribe
+ * @param {object} client - MQTT client
+ * @param {object} packet - MQTT packet
+ * @returns {boolean}
+ */
 const authorizeSubscribe = (client, packet) => {
   const topic = packet.topic;
   if (!topic) return false;
@@ -407,6 +425,40 @@ const authorizeSubscribe = (client, packet) => {
   return auth;
 };
 
+// const authorizeForward = (client, packet) => {
+//   // use this to avoid user sender to see its own message on other clients
+//   try {
+//     const topic = packet.topic;
+//     const topicParts = topic.split('/');
+//     let auth = false;
+//     console.log('authorize forward :', client);
+//     logger.publish(3, 'broker', 'authorizeForward:req', { topic, auth });
+//     // if (!client) return packet;
+//     if (client.id.startsWith(`aloes-${process.env.ALOES_ID}`)) {
+//       // switch topic parts 2 ( command ) auth response, rx, ?
+//       // if (
+//       //   topicParts[0].startsWith(process.env.ALOES_ID) &&
+//       //   client.id === 'I should not see this'
+//       // ) {
+//       //   // remove topic client prefix
+//       //   // send to device , user or external app
+//       //   packet.payload = new Buff();er('overwrite packet payload');
+//       //   return packet;
+//       // }
+//       return null;
+//     }
+//     return packet;
+//   } catch (error) {
+//     return null;
+//   }
+// };
+
+/**
+ * On message published to Aedes broker
+ * @method module:Broker~onPublished
+ * @param {object} packet - MQTT packet
+ * @param {object} client - MQTT client
+ */
 const onPublished = async (packet, client) => {
   try {
     logger.publish(4, 'broker', 'onPublished:req', { topic: packet.topic });
@@ -457,7 +509,7 @@ const onPublished = async (packet, client) => {
 
 /**
  * Remove subscriptions for a specific client
- * @method module:Broker.cleanSubscriptions
+ * @method module:Broker~cleanSubscriptions
  * @param {object} client - MQTT client
  * @returns {promise}
  */
@@ -468,7 +520,7 @@ const onPublished = async (packet, client) => {
 
 /**
  * Convert payload before publish
- * @method module:broker.publish
+ * @method module:Broker.publish
  * @param {object} packet - MQTT Packet
  * @returns {function} broker.instance.publish
  */
@@ -508,15 +560,6 @@ broker.start = () => {
       logger.publish(2, 'broker', 'start', `${process.env.MQTTS_BROKER_URL}`);
     }
 
-    /**
-     * Aedes authentification callback
-     * @method module:Broker.instance.authenticate
-     * @param {object} client - MQTT client
-     * @param {string} [username] - MQTT username
-     * @param {object} [password] - MQTT password
-     * @param {function} cb - callback
-     * @returns {function} Broker~authenticate
-     */
     broker.instance.authenticate = (client, username, password, cb) => {
       authenticate(client, username, password)
         .then(status => {
@@ -531,14 +574,6 @@ broker.start = () => {
         });
     };
 
-    /**
-     * Aedes publish authorization callback
-     * @method module:Broker.instance.authorizePublish
-     * @param {object} client - MQTT client
-     * @param {object} packet - MQTT packet
-     * @param {function} cb - callback
-     * @returns {function} Broker~authorizePublish
-     */
     broker.instance.authorizePublish = (client, packet, cb) => {
       if (authorizePublish(client, packet)) return cb(null);
       const error = new Error('authorizePublish error');
@@ -546,14 +581,6 @@ broker.start = () => {
       return cb(error);
     };
 
-    /**
-     * Aedes subscribe authorization callback
-     * @method module:Broker.instance.authorizeSubscribe
-     * @param {object} client - MQTT client
-     * @param {object} packet - MQTT packet
-     * @param {function} cb - callback
-     * @returns {function} Broker~authorizeSubscribe
-     */
     broker.instance.authorizeSubscribe = (client, packet, cb) => {
       try {
         if (authorizeSubscribe(client, packet)) return cb(null, packet);
@@ -566,41 +593,8 @@ broker.start = () => {
       }
     };
 
-    // broker.instance.authorizeForward = (client, packet) => {
-    // use this to avoid user sender to see its own message on other clients
-    //
-    //   try {
-    //     const topic = packet.topic;
-    //     const topicParts = topic.split('/');
-    //     let auth = false;
-    //     console.log('authorize forward :', client);
-    //     logger.publish(3, 'broker', 'authorizeForward:req', { topic, auth });
-    //     // if (!client) return packet;
-    //     if (client.id.startsWith(`aloes-${process.env.ALOES_ID}`)) {
-    //       // switch topic parts 2 ( command ) auth response, rx, ?
-    //       // if (
-    //       //   topicParts[0].startsWith(process.env.ALOES_ID) &&
-    //       //   client.id === 'I should not see this'
-    //       // ) {
-    //       //   // remove topic client prefix
-    //       //   // send to device , user or external app
-    //       //   packet.payload = new Buff();er('overwrite packet payload');
-    //       //   return packet;
-    //       // }
-    //       return null;
-    //     }
-    //     return packet;
-    //   } catch (error) {
-    //     return null;
-    //   }
-    // };
+    // broker.instance.authorizeForward = authorizeForward;
 
-    /**
-     * On message published to Aedes broker
-     * @event published
-     * @param {object} packet - MQTT packet
-     * @param {object} client - MQTT client
-     */
     broker.instance.published = (packet, client, cb) => {
       onPublished(packet, client)
         .then(() => cb())
@@ -640,6 +634,12 @@ broker.start = () => {
       logger.publish(3, 'broker', 'onKeepaliveTimeout', client.id);
     });
 
+    /**
+     * When client action creates an error
+     * @event clientError
+     * @param {object} client - MQTT client
+     * @param {object} err - MQTT Error
+     */
     broker.instance.on('clientError', (client, err) => {
       logger.publish(2, 'broker', 'onClientError', { clientId: client.id, error: err.message });
     });
@@ -679,9 +679,8 @@ broker.stop = () => {
       url: `${process.env.MQTT_BROKER_URL}`,
       brokers: broker.instance.brokers,
     });
-    if (broker.instance) {
-      broker.instance.close();
-    }
+    if (broker.instance) broker.instance.close();
+
     return true;
   } catch (error) {
     logger.publish(2, 'broker', 'stop:err', error);
