@@ -1,55 +1,56 @@
 image: node:10.10.0
 
 # include:
-  # template: Dependency-Scanning.gitlab-ci.yml
+# template: Dependency-Scanning.gitlab-ci.yml
 
 cache:
   paths:
     - node_modules/
 
 variables:
-  NODE_NAME: "device-manager"
-  ALOES_ID: "9e35aae4-c8c5-11e9-a32f-51ba8653"
-  ALOES_KEY: "9a742eca81ba99ac826d3a7cc766f1ce94a321b0"
-  ADMIN_EMAIL: "ed@getlarge.eu"
-  CONTACT_EMAIL: "hey@getlarge.eu"
-  DOMAIN: "localhost"
-  HTTP_SERVER_URL: "http://0.0.0.0:8000"
-  HTTP_CLIENT_URL: "http://0.0.0.0:8080"
-  HTTP_SERVER_HOST: "0.0.0.0"
-  HTTP_SERVER_PORT: "8000"
-  REST_API_ROOT: "/api"
-  COOKIE_SECRET: "246bace2-38cb-4138-85d9"
-  MQTT_BROKER_URL: "mqtt://0.0.0.0:1883"
-  MQTT_BROKER_PORT: "1883"
-  WS_BROKER_PORT: "3000"
-  SERVER_LOGGER_LEVEL: "4"
-  SMTP_HOST: ""
-  SMTP_PORT: "465"
-  SMTP_SECURE: "true"
-  SMTP_USER: ""
-  SMTP_PASS: ""
-  INFLUX_PROTOCOL: ""
-  INFLUX_HOST: ""
-  INFLUX_PORT: ""
-  INFLUX_COLLECTION: ""
-  INFLUX_USER: ""
-  INFLUX_PASS: ""
-  OCD_API_KEY: "682b827b96294325a99e344b4466923b"
-  FS_PATH: "./storage"
-  GITHUB_CLIENT_ID_LOGIN: ""
-  GITHUB_CLIENT_SECRET_LOGIN: ""
-  GITHUB_CLIENT_ID_LINK: ""
-  GITHUB_CLIENT_SECRET_LINK: ""
-  GIT_REPO_SSH_URL: "git@framagit.org:aloes/device-manager.git"
-  INSTANCES_COUNT: "1"
+  NODE_NAME: 'device-manager'
+  ALOES_ID: '9e35aae4-c8c5-11e9-a32f-51ba8653'
+  ALOES_KEY: '9a742eca81ba99ac826d3a7cc766f1ce94a321b0'
+  ADMIN_EMAIL: 'ed@getlarge.eu'
+  CONTACT_EMAIL: 'hey@getlarge.eu'
+  DOMAIN: 'localhost'
+  HTTP_SERVER_URL: 'http://0.0.0.0:8000'
+  HTTP_CLIENT_URL: 'http://0.0.0.0:8080'
+  HTTP_SERVER_HOST: '0.0.0.0'
+  HTTP_SERVER_PORT: '8000'
+  REST_API_ROOT: '/api'
+  COOKIE_SECRET: '246bace2-38cb-4138-85d9'
+  MQTT_BROKER_URL: 'mqtt://0.0.0.0:1883'
+  MQTT_BROKER_PORT: '1883'
+  WS_BROKER_PORT: '3000'
+  SERVER_LOGGER_LEVEL: '4'
+  SMTP_HOST: ''
+  SMTP_PORT: '465'
+  SMTP_SECURE: 'true'
+  SMTP_USER: ''
+  SMTP_PASS: ''
+  INFLUX_PROTOCOL: ''
+  INFLUX_HOST: ''
+  INFLUX_PORT: ''
+  INFLUX_COLLECTION: ''
+  INFLUX_USER: ''
+  INFLUX_PASS: ''
+  OCD_API_KEY: '682b827b96294325a99e344b4466923b'
+  FS_PATH: './storage'
+  GITHUB_CLIENT_ID_LOGIN: ''
+  GITHUB_CLIENT_SECRET_LOGIN: ''
+  GITHUB_CLIENT_ID_LINK: ''
+  GITHUB_CLIENT_SECRET_LINK: ''
+  GIT_REPO_SSH_URL: 'git@framagit.org:aloes/device-manager.git'
+  INSTANCES_COUNT: '1'
 
 before_script:
   - npm ci
 
 test_async:
   variables:
-    NODE_ENV: "development"
+    NODE_ENV: 'development'
+    CI: 'true'
   script:
     - npm run test:cover
   only:
