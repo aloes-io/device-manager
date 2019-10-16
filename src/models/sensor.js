@@ -2,6 +2,7 @@ import iotAgent from 'iot-agent';
 import { updateAloesSensors } from 'aloes-handlers';
 import logger from '../services/logger';
 import utils from '../services/utils';
+import protocols from '../initial-data/protocols.json';
 
 const collectionName = 'Sensor';
 const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
@@ -290,13 +291,12 @@ const deleteProps = async (app, sensor) => {
       throw utils.buildError(403, 'INVALID_SENSOR', 'Invalid sensor instance');
     }
     logger.publish(2, `${collectionName}`, 'deleteProps:req', sensor);
-    const device = await app.models.Device.findById(sensor.deviceId);
     await app.models.Measurement.destroyAll({
       sensorId: sensor.id.toString(),
     });
-    // not working properly, why ?
-    //  await SensorResource.delete(instance.deviceId, instance.id);
-    await app.models.SensorResource.expireCache(sensor.deviceId, sensor.id, 1);
+    await app.models.SensorResource.deleteCache(sensor.deviceId, sensor.id);
+    // await app.models.SensorResource.expireCache(sensor.deviceId, sensor.id, 1);
+    const device = await app.models.Device.findById(sensor.deviceId);
     await app.models.Sensor.publish(device, sensor, 'DELETE');
     return sensor;
   } catch (error) {
@@ -319,7 +319,9 @@ const onBeforeDelete = async ctx => {
     } else {
       const filter = { where: ctx.where };
       const sensors = await ctx.Model.find(filter);
-      await Promise.all(sensors.map(async sensor => deleteProps(ctx.Model.app, sensor)));
+      if (sensors && sensors.length > 0) {
+        await Promise.all(sensors.map(async sensor => deleteProps(ctx.Model.app, sensor)));
+      }
     }
     return ctx;
   } catch (error) {
@@ -421,45 +423,49 @@ const onBeforeRemote = async ctx => {
  */
 module.exports = function(Sensor) {
   async function typeValidator(err) {
-    if (this.type && this.type.toString().length <= 4) {
-      if (await Sensor.app.models.OmaObject.exists(this.type)) {
-        return;
+    try {
+      if (!this.type || this.type.toString().length < 1 || this.type.toString().length > 4) {
+        err();
+      } else if (!(await Sensor.app.models.OmaObject.exists(this.type))) {
+        err();
       }
+    } catch (e) {
+      err();
     }
-    err();
   }
 
   async function resourceValidator(err) {
-    if (this.resource && this.resource.toString().length <= 4) {
-      if (await Sensor.app.models.OmaResource.exists(this.resource)) {
-        return;
+    try {
+      if (
+        !this.resource ||
+        this.resource.toString().length < 1 ||
+        this.resource.toString().length > 4
+      ) {
+        err();
+      } else if (!(await Sensor.app.models.OmaResource.exists(this.resource))) {
+        err();
       }
+    } catch (e) {
+      err();
     }
-    err();
   }
 
-  async function transportProtocolValidator(err) {
+  function transportProtocolValidator(err) {
     if (
-      this.transportProtocol.toLowerCase() === 'aloes' ||
-      this.transportProtocol.toLowerCase() === 'aloeslight' ||
-      this.transportProtocol.toLowerCase() === 'mysensors' ||
-      this.transportProtocol.toLowerCase() === 'lorawan'
+      !this.transportProtocol ||
+      !protocols.transport.some(p => p.toLowerCase() === this.transportProtocol.toLowerCase())
     ) {
-      return;
+      err();
     }
-    err();
   }
 
-  async function messageProtocolValidator(err) {
+  function messageProtocolValidator(err) {
     if (
-      this.messageProtocol.toLowerCase() === 'aloes' ||
-      this.messageProtocol.toLowerCase() === 'aloeslight' ||
-      this.messageProtocol.toLowerCase() === 'mysensors' ||
-      this.messageProtocol.toLowerCase() === 'cayennelpp'
+      !this.messageProtocol ||
+      !protocols.message.some(p => p.toLowerCase() === this.messageProtocol.toLowerCase())
     ) {
-      return;
+      err();
     }
-    err();
   }
 
   Sensor.validatesPresenceOf('deviceId');

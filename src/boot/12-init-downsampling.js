@@ -129,6 +129,6 @@ module.exports = async function initializeDownSampling(app) {
     return result;
   } catch (error) {
     logger.publish(2, 'loopback', 'boot:initializeDownSampling:err', error);
-    return error;
+    return null;
   }
 };

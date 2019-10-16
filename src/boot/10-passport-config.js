@@ -38,6 +38,7 @@ module.exports = async function passportConfig(app) {
     return configuredProviders;
   } catch (error) {
     logger.publish(2, 'loopback', 'boot:passportConfig:err', error);
-    throw error;
+    // throw error;
+    return null;
   }
 };

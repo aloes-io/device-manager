@@ -4,6 +4,8 @@ import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
 import testHelper from '../services/test-helper';
 
+// todo mock device mqtt connection
+
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
@@ -17,7 +19,7 @@ const sensorTest = () => {
   const collectionName = 'Sensors';
   const apiUrl = `${restApiPath}/${collectionName}/`;
 
-  describe(collectionName, () => {
+  describe(`${collectionName} HTTP`, () => {
     const DeviceModel = app.models.Device;
     const SensorModel = app.models.Sensor;
     let users, devices, sensors, userIds;
@@ -33,58 +35,62 @@ const sensorTest = () => {
       },
     };
 
+    async function before() {
+      try {
+        this.timeout(delayBeforeTesting);
+        users = await Promise.all([
+          testHelper.access.admin.create(app),
+          testHelper.access.user.create(app),
+        ]);
+        userIds = [users[0].id, users[1].id];
+
+        const deviceModels = Array(2)
+          .fill('')
+          .map((_, index) => {
+            if (index === 0) {
+              return deviceFactory(index + 1, userIds[0]);
+            }
+            return deviceFactory(index + 1, userIds[1]);
+          });
+        await DeviceModel.create(deviceModels).then(res => {
+          devices = res.map(model => model.toJSON());
+          return res;
+        });
+
+        const sensorModels = Array(5)
+          .fill('')
+          .map((_, index) => {
+            if (index <= 2) {
+              return sensorFactory(index + 1, devices[0], userIds[0]);
+            }
+            return sensorFactory(index + 1, devices[1], userIds[1]);
+          });
+        // console.log('CREATED SENSORS MODELS ', sensorModels);
+        await SensorModel.create(sensorModels).then(res => {
+          sensors = res.map(model => model.toJSON());
+          return res;
+        });
+        return sensors;
+      } catch (error) {
+        console.log(`[TEST] ${collectionName} before:err`, error);
+        return null;
+      }
+    }
+
+    const after = () =>
+      Promise.all([
+        SensorModel.destroyAll(),
+        DeviceModel.destroyAll(),
+        app.models.user.destroyAll(),
+      ]);
+
     const e2eTestsSuite = {
       [`[TEST] ${collectionName} E2E Tests`]: {
-        async before() {
-          try {
-            this.timeout(7000);
-            users = await Promise.all([
-              testHelper.access.admin.create(app),
-              testHelper.access.user.create(app),
-            ]);
-            userIds = [users[0].id, users[1].id];
-
-            const deviceModels = Array(2)
-              .fill('')
-              .map((_, index) => {
-                if (index === 0) {
-                  return deviceFactory(index + 1, userIds[0]);
-                }
-                return deviceFactory(index + 1, userIds[1]);
-              });
-            await DeviceModel.create(deviceModels).then(res => {
-              devices = res.map(model => model.toJSON());
-              return res;
-            });
-
-            const sensorModels = Array(5)
-              .fill('')
-              .map((_, index) => {
-                if (index <= 2) {
-                  return sensorFactory(index + 1, devices[0], userIds[0]);
-                }
-                return sensorFactory(index + 1, devices[1], userIds[1]);
-              });
-            // console.log('CREATED SENSORS MODELS ', sensorModels);
-            await SensorModel.create(sensorModels).then(res => {
-              sensors = res.map(model => model.toJSON());
-              return res;
-            });
-            return sensors;
-          } catch (error) {
-            console.log(`[TEST] ${collectionName} before:err`, error);
-            return error;
-          }
-        },
+        before,
         // beforeEach() {
         //   this.timeout(5000);
         // },
-        after: () =>
-          Promise.all([
-            SensorModel.destroyAll(),
-            DeviceModel.destroyAll(),
-            app.models.user.destroyAll(),
-          ]),
+        after,
         tests: {
           '[TEST] Verifying "Create" access': {
             tests: [

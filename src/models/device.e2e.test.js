@@ -2,25 +2,79 @@
 import { expect } from 'chai';
 import iotAgent from 'iot-agent';
 import lbe2e from 'lb-declarative-e2e-test';
+import mqtt from 'mqtt';
 import app from '../index';
 import testHelper from '../services/test-helper';
 
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
+const afterTestDelay = 2000;
 const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
 const deviceTest = () => {
   const deviceFactory = testHelper.factories.device;
+  const clientFactory = testHelper.factories.client;
   const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Devices';
   const apiUrl = `${restApiPath}/${collectionName}/`;
 
-  describe(collectionName, function() {
-    this.timeout(4000);
-    const DeviceModel = app.models.Device;
-    let devices, users, packets, patterns;
+  const DeviceModel = app.models.Device;
+  let devices, users, userIds, packets, patterns;
+
+  async function beforeTests() {
+    try {
+      // this.timeout(delayBeforeTesting);
+      users = await Promise.all([
+        testHelper.access.admin.create(app),
+        testHelper.access.user.create(app),
+      ]);
+      userIds = [users[0].id, users[1].id];
+      const models = Array(5)
+        .fill('')
+        .map((_, index) => {
+          if (index <= 1) {
+            return deviceFactory(index + 1, userIds[0]);
+          }
+          return deviceFactory(index + 1, userIds[1]);
+        });
+      // console.log('CREATED DEVICES MODELS ', models);
+      const res = await DeviceModel.create(models);
+      devices = res.map(model => model.toJSON());
+      // const packet = { topic: `${devices[0].devEui}-out/`, payload };
+      const userPacket = {
+        topic: `${users[1].id}/Device/PUT/${devices[1].id}`,
+        payload: {
+          ...devices[1],
+          name: `${devices[1].name}-updated`,
+        },
+      };
+      const devicePacket = {
+        topic: `${devices[1].devEui}-out/0/3300/0/1/5700`,
+        payload: '0',
+      };
+      packets = [userPacket, devicePacket];
+      patterns = packets.map(pac => iotAgent.patternDetector(pac));
+      // console.log('FOUND PATTERNS ', patterns);
+      return devices;
+    } catch (error) {
+      console.log(`[TEST] ${collectionName} before:err`, error);
+      return null;
+    }
+  }
+
+  function afterTests(done) {
+    setTimeout(() => {
+      Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
+        .then(() => done())
+        .catch(e => done(e));
+    }, afterTestDelay);
+  }
+
+  describe(`${collectionName} HTTP`, function() {
+    this.timeout(5000);
+    this.slow(500);
 
     const profiles = {
       admin: {
@@ -35,43 +89,8 @@ const deviceTest = () => {
 
     const e2eTestsSuite = {
       [`[TEST] ${collectionName} E2E Tests`]: {
-        async before() {
-          try {
-            this.timeout(7000);
-            users = await Promise.all([
-              testHelper.access.admin.create(app),
-              testHelper.access.user.create(app),
-            ]);
-            const userIds = [users[0].id, users[1].id];
-            const models = Array(5)
-              .fill('')
-              .map((_, index) => {
-                if (index <= 1) {
-                  return deviceFactory(index + 1, userIds[0]);
-                }
-                return deviceFactory(index + 1, userIds[1]);
-              });
-            // console.log('CREATED DEVICES MODELS ', models);
-            const res = await DeviceModel.create(models);
-            devices = res.map(model => model.toJSON());
-            // const packet = { topic: `${devices[0].devEui}-out/`, payload };
-            const packet = {
-              topic: `${users[1].id}/Device/PUT/${devices[1].id}`,
-              payload: {
-                ...devices[1],
-                name: `${devices[1].name}-updated`,
-              },
-            };
-            packets = [packet];
-            patterns = packets.map(pac => iotAgent.patternDetector(pac));
-            // console.log('FOUND PATTERNS ', patterns);
-            return devices;
-          } catch (error) {
-            console.log(`[TEST] ${collectionName} before:err`, error);
-            return error;
-          }
-        },
-        after: () => Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()]),
+        before: beforeTests,
+        after: afterTests,
         tests: {
           '[TEST] Verifying "Create" access': {
             tests: [
@@ -494,6 +513,146 @@ const deviceTest = () => {
     };
 
     lbe2e(app, testConfig, e2eTestsSuite);
+  });
+
+  describe(`${collectionName} MQTT`, function() {
+    this.timeout(delayBeforeTesting);
+
+    before(done => {
+      setTimeout(
+        () =>
+          beforeTests()
+            .then(() => done())
+            .catch(e => done(e)),
+        2000,
+      );
+    });
+
+    after(function(done) {
+      this.timeout(delayBeforeTesting);
+      afterTests(done);
+    });
+
+    it('everyone CANNOT connect to backend', function(done) {
+      const testMaxDuration = 4000;
+      this.timeout(testMaxDuration);
+      this.slow(testMaxDuration / 2);
+
+      const client = mqtt.connect(app.get('mqtt url'));
+      client.once('error', e => {
+        expect(e.code).to.be.equal(4);
+        done();
+        client.end();
+      });
+      client.once('connect', () => {
+        done(new Error('Should not connect'));
+        client.end();
+      });
+      // setTimeout(() => done(new Error('Test timeout')), testMaxDuration - 100);
+    });
+
+    it('device CANNOT connect with wrong credentails', function(done) {
+      const testMaxDuration = 4000;
+      this.timeout(testMaxDuration);
+      this.slow(testMaxDuration / 2);
+      const client = mqtt.connect(
+        app.get('mqtt url'),
+        clientFactory(devices[1], 'device', devices[0].apiKey),
+      );
+      client.once('error', e => {
+        expect(e.code).to.be.equal(4);
+        done();
+        client.end();
+      });
+      client.once('connect', () => {
+        done(new Error('Should not connect'));
+        client.end();
+      });
+    });
+
+    it('device CAN connect to backend', function(done) {
+      const testMaxDuration = 4000;
+      this.timeout(testMaxDuration);
+      this.slow(testMaxDuration / 2);
+      const client = mqtt.connect(
+        app.get('mqtt url'),
+        clientFactory(devices[1], 'device', devices[1].apiKey),
+      );
+      client.once('error', () => {
+        client.end();
+        done(new Error('Should be connected'));
+      });
+      client.on('offline', () => {
+        // check device status
+      });
+      client.once('connect', packet => {
+        expect(packet.returnCode).to.be.equal(0);
+        // check device status
+        setTimeout(() => client.end(), 500);
+        done();
+      });
+    });
+
+    it('device CANNOT publish to ANY route', function(done) {
+      const testMaxDuration = 5000;
+      this.timeout(testMaxDuration);
+      this.slow(testMaxDuration / 2);
+      const client = mqtt.connect(
+        app.get('mqtt url'),
+        clientFactory(devices[0], 'device', devices[0].apiKey),
+      );
+
+      client.once('error', e => {
+        console.log('client error:', e);
+      });
+
+      client.once('offline', e => {
+        console.log('client disconnected:', e);
+        // expect(e.code).to.be.equal(2);
+        client.end();
+        done();
+      });
+
+      client.once('connect', () => {
+        client.publish('FAKETOPIC', packets[1].payload, { qos: 1 });
+        setTimeout(() => {
+          if (client.connected) {
+            client.end();
+            done();
+          }
+        }, 1000);
+      });
+
+      // done(new Error('Should have ended with an error event'));
+    });
+
+    it('device CAN publish to OWN route', function(done) {
+      const testMaxDuration = 5000;
+      this.timeout(testMaxDuration);
+      this.slow(testMaxDuration / 2);
+      const client = mqtt.connect(
+        app.get('mqtt url'),
+        clientFactory(devices[1], 'device', devices[1].apiKey),
+      );
+      client.once('error', e => {
+        done(e);
+      });
+      client.once('offline', e => {
+        console.log('client disconnected:', e);
+        client.end();
+        done(new Error('Should not been offlined'));
+      });
+
+      client.once('connect', () => {
+        client.publish(packets[1].topic, packets[1].payload, { qos: 1 });
+        setTimeout(() => {
+          if (client.connected) {
+            client.end();
+            done();
+          }
+        }, 1000);
+      });
+    });
   });
 };
 

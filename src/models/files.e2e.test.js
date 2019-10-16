@@ -37,7 +37,7 @@ function fileTest() {
       [`[TEST] ${collectionName} E2E Tests`]: {
         async before() {
           try {
-            this.timeout(7000);
+            this.timeout(delayBeforeTesting);
             const result = await Promise.all([
               testHelper.access.admin.create(app),
               testHelper.access.user.create(app),
@@ -57,7 +57,7 @@ function fileTest() {
             return filesMeta;
           } catch (error) {
             console.log(`[TEST] ${collectionName} before:err`, error);
-            return error;
+            return null;
           }
         },
         after: () => Promise.all([FileModel.destroyAll(), app.models.user.destroyAll()]),

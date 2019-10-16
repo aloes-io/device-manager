@@ -13,12 +13,10 @@ import envVariablesKeys from './initial-data/variables-keys.json';
  * @fires Server.start
  */
 const boot = processId => {
-  let envVariables;
+  let envVariables = {};
   if (!process.env.CI) {
     const result = dotenv.config();
-    if (result.error) {
-      throw result.error;
-    }
+    if (result.error) throw result.error;
     envVariables = result.parsed;
   } else {
     envVariablesKeys.forEach(key => {
@@ -31,7 +29,6 @@ const boot = processId => {
     processId,
     // REST_API_VERSION: process.env.REST_API_VERSION,
     appRootDir: __dirname,
-    // File Extensions for jest (strongloop/loopback#3204)
     scriptExtensions: ['.js', '.json', '.node', '.ejs'],
   };
 
@@ -52,7 +49,7 @@ nodeCleanup((exitCode, signal) => {
     if (signal && signal !== null) {
       logger.publish(1, 'loopback', 'exit:req', { exitCode, signal, pid: process.pid });
       app.emit('stop', signal);
-      setTimeout(() => process.kill(process.pid, signal), 3000);
+      setTimeout(() => process.kill(process.pid, signal), 5000);
       nodeCleanup.uninstall();
       return false;
     }

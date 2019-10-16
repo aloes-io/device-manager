@@ -3,6 +3,7 @@ import iotAgent from 'iot-agent';
 import logger from '../services/logger';
 import utils from '../services/utils';
 import deviceTypes from '../initial-data/device-types.json';
+import protocols from '../initial-data/protocols.json';
 
 const collectionName = 'Device';
 const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
@@ -182,12 +183,12 @@ const createKeys = async device => {
  * Init device depencies ( token, address )
  * @method module:Device~createProps
  * @param {object} app - Loopback app
- * @param {object} device - Device instance
+ * @param {object} instance - Device instance
  * @returns {function} Device.publish
  */
-const createProps = async (app, device) => {
+const createProps = async (app, instance) => {
   try {
-    await device.address.create({
+    await instance.address.create({
       street: '',
       streetNumber: null,
       streetName: null,
@@ -195,13 +196,13 @@ const createProps = async (app, device) => {
       city: null,
       public: false,
     });
-    device = await createKeys(device);
+    instance = await createKeys(instance);
     // todo create a sensor 3310 to report event and request network load
-    if (!device.address() || !device.apiKey) {
-      await app.models.Device.destroyById(device.id);
+    if (!instance.address() || !instance.apiKey) {
+      await app.models.Device.destroyById(instance.id);
       throw new Error('no device address');
     }
-    return app.models.Device.publish(device, 'POST');
+    return app.models.Device.publish(instance, 'POST');
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'createProps:err', error);
     throw error;
@@ -212,16 +213,16 @@ const createProps = async (app, device) => {
  * Update device depencies ( token, sensors )
  * @method module:Device~updateProps
  * @param {object} app - Loopback app
- * @param {object} device - Device instance
+ * @param {object} instance - Device instance
  * @returns {function} Device.publish
  */
-const updateProps = async (app, device) => {
+const updateProps = async (app, instance) => {
   try {
-    // device = await createKeys(device);
-    await createKeys(device);
-    const sensorsCount = await device.sensors.count();
+    // instance = await createKeys(instance);
+    await createKeys(instance);
+    const sensorsCount = await instance.sensors.count();
     if (sensorsCount && sensorsCount > 0) {
-      await app.models.SensorResource.updateCache(device);
+      await app.models.SensorResource.updateCache(instance);
     }
     // check address state
     // if (!device.address()) {
@@ -234,10 +235,7 @@ const updateProps = async (app, device) => {
     //     public: false,
     //   });
     // }
-    logger.publish(4, `${collectionName}`, 'updateProps:res', {
-      device,
-    });
-    return app.models.Device.publish(device, 'PUT');
+    return app.models.Device.publish(instance, 'PUT');
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'updateProps:err', error);
     throw error;
@@ -335,8 +333,10 @@ const onAfterSave = async ctx => {
     if (ctx.hookState.updateData) {
       logger.publish(3, `${collectionName}`, 'onAfterPartialSave:req', ctx.hookState.updateData);
       const updatedProps = Object.keys(ctx.hookState.updateData);
-      if (updatedProps.some(prop => prop === 'status') && ctx.instance) {
-        await ctx.Model.publish(ctx.instance, 'HEAD');
+      if (updatedProps.some(prop => prop === 'status')) {
+        // if (!ctx.instance) console.log('AFTER DEVICE SAVE', ctx.where);
+        // update all ctx.where
+        if (ctx.instance) await ctx.Model.publish(ctx.instance, 'HEAD');
       }
     } else if (ctx.instance && ctx.Model.app) {
       logger.publish(3, `${collectionName}`, 'onAfterSave:req', ctx.instance);
@@ -353,22 +353,29 @@ const onAfterSave = async ctx => {
   }
 };
 
-const deleteProps = async (app, device) => {
+/**
+ * Remove device depencies
+ * @method module:Device~deleteProps
+ * @param {object} app - Loopback app
+ * @param {object} instance
+ * @returns {function} Device.publish
+ */
+const deleteProps = async (app, instance) => {
   try {
-    if (!device || !device.id || !device.ownerId) {
+    if (!instance || !instance.id || !instance.ownerId) {
       throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
     }
-    logger.publish(4, `${collectionName}`, 'deleteProps:req', device);
+    logger.publish(4, `${collectionName}`, 'deleteProps:req', instance);
     await app.models.Address.destroyAll({
-      ownerId: device.id,
+      ownerId: instance.id,
     });
-    const sensors = await device.sensors.find();
+    const sensors = await instance.sensors.find();
     if (sensors && sensors !== null) {
       const promises = await sensors.map(async sensor => sensor.delete());
       await Promise.all(promises);
     }
-    await app.models.Device.publish(device, 'DELETE');
-    return device;
+    await app.models.Device.publish(instance, 'DELETE');
+    return instance;
   } catch (error) {
     throw error;
   }
@@ -389,7 +396,9 @@ const onBeforeDelete = async ctx => {
     } else {
       const filter = { where: ctx.where };
       const devices = await ctx.Model.find(filter);
-      await Promise.all(devices.map(async device => deleteProps(ctx.Model.app, device)));
+      if (devices && devices.length > 0) {
+        await Promise.all(devices.map(async device => deleteProps(ctx.Model.app, device)));
+      }
     }
     return ctx;
   } catch (error) {
@@ -749,37 +758,28 @@ const updateFirmware = async (ctx, deviceId, version) => {
  * @property {String} ownerId User ID of the user who has registered the device.
  */
 module.exports = function(Device) {
-  async function transportProtocolValidator(err) {
+  function transportProtocolValidator(err) {
     if (
-      this.transportProtocol &&
-      (this.transportProtocol.toLowerCase() === 'aloesclient' ||
-        this.transportProtocol.toLowerCase() === 'aloeslight' ||
-        this.transportProtocol.toLowerCase() === 'mysensors' ||
-        this.transportProtocol.toLowerCase() === 'lorawan')
+      !this.transportProtocol ||
+      !protocols.transport.some(p => p.toLowerCase() === this.transportProtocol.toLowerCase())
     ) {
-      return;
+      err();
     }
-    err();
   }
 
-  async function messageProtocolValidator(err) {
+  function messageProtocolValidator(err) {
     if (
-      this.messageProtocol &&
-      (this.messageProtocol.toLowerCase() === 'aloesclient' ||
-        this.messageProtocol.toLowerCase() === 'aloeslight' ||
-        this.messageProtocol.toLowerCase() === 'mysensors' ||
-        this.messageProtocol.toLowerCase() === 'cayennelpp')
+      !this.messageProtocol ||
+      !protocols.message.some(p => p.toLowerCase() === this.messageProtocol.toLowerCase())
     ) {
-      return;
+      err();
     }
-    err();
   }
 
-  async function typeValidator(err) {
-    if (this.type && deviceTypes[this.type]) {
-      return;
+  function typeValidator(err) {
+    if (!this.type || !deviceTypes[this.type]) {
+      err();
     }
-    err();
   }
 
   Device.validate('transportProtocol', transportProtocolValidator, {
@@ -1253,19 +1253,20 @@ module.exports = function(Device) {
    */
   Device.updateStatus = async (client, status) => {
     try {
-      if (!client.devEui || client.devEui === null) throw new Error('Invalid client type');
+      if (!client || !client.id || !client.devEui || client.devEui === null) {
+        throw new Error('Invalid client type');
+      }
       logger.publish(5, collectionName, 'updateStatus:req', status);
       const device = await Device.findById(client.user);
       if (device && device !== null && device.devEui === client.devEui) {
         const Client = Device.app.models.Client;
-        let foundClient = JSON.parse(await Client.get(client.id));
         let ttl;
-        if (!foundClient) {
-          foundClient = { id: client.id, type: 'MQTT', model: 'Device' };
-        }
+
         let frameCounter = device.frameCounter;
         const clients = device.clients;
         const index = clients.indexOf(client.id);
+        client.status = status;
+
         if (status) {
           if (index === -1) {
             clients.push(client.id);
@@ -1274,6 +1275,7 @@ module.exports = function(Device) {
           if (clients.length === 1) {
             frameCounter = 1;
           }
+          await Client.set(client.id, JSON.stringify(client), ttl);
         } else {
           ttl = 1 * 24 * 60 * 60 * 1000;
           if (index > -1) {
@@ -1284,21 +1286,22 @@ module.exports = function(Device) {
           } else {
             frameCounter = 0;
           }
+          // await Client.set(client.id, undefined);
+          await Client.delete(client.id);
         }
-        foundClient.status = status;
-        await Client.set(client.id, JSON.stringify(foundClient), ttl);
-        logger.publish(4, collectionName, 'updateStatus:res', foundClient);
+        logger.publish(4, collectionName, 'updateStatus:res', client);
         await device.updateAttributes({
           frameCounter,
           status,
           // lastSignal: new Date(),
           clients,
         });
+        return client;
       }
-      return client;
+      return null;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'updateStatus:err', error);
-      return error;
+      throw error;
     }
   };
 
@@ -1535,6 +1538,7 @@ module.exports = function(Device) {
       }
       await Device.updateStatus(client, status);
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'on-client:err', error);
       throw error;
     }
   });
@@ -1557,7 +1561,7 @@ module.exports = function(Device) {
       const client = message.client;
       const pattern = message.pattern;
       const device = message.device;
-      logger.publish(5, collectionName, 'on:publish', pattern.name);
+      logger.publish(4, collectionName, 'on-publish', pattern.name);
       if (!pattern) throw new Error('Message is missing pattern');
       if (device && device !== null) {
         await Device.execute(device, pattern.params.method, client);
@@ -1565,15 +1569,22 @@ module.exports = function(Device) {
         await Device.onPublish(packet, pattern, client);
       }
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'on-publish:err', error);
       throw error;
     }
   });
 
   Device.on('stopped', async () => {
     try {
-      await Device.updateAll({ status: true }, { status: false, clients: [] });
-      await Device.syncCache('UP');
+      if (process.env.CLUSTER_MODE) {
+        if (process.env.PROCESS_ID !== '0') return null;
+        if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+      }
+      logger.publish(3, `${collectionName}`, 'on-stop:res', '');
+      // await Device.updateAll({ status: true }, { status: false, clients: [] });
+      return Device.syncCache('UP');
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'on-stop:err', error);
       throw error;
     }
   });

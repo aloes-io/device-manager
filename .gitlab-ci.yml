@@ -1,7 +1,7 @@
 image: node:10.10.0
 
-include:
-  template: Dependency-Scanning.gitlab-ci.yml
+# include:
+  # template: Dependency-Scanning.gitlab-ci.yml
 
 cache:
   paths:
@@ -9,8 +9,8 @@ cache:
 
 variables:
   NODE_NAME: "device-manager"
-  ALOES_ID: "9e35aae4-c8c5-11e9-a32f-2a2ae2de62a"
-  ALOES_KEY: "9a742eca81ba99ac826d3a7cc766f1c92e4ca21b"
+  ALOES_ID: "9e35aae4-c8c5-11e9-a32f-51ba8653"
+  ALOES_KEY: "9a742eca81ba99ac826d3a7cc766f1ce94a321b0"
   ADMIN_EMAIL: "ed@getlarge.eu"
   CONTACT_EMAIL: "hey@getlarge.eu"
   DOMAIN: "localhost"
@@ -29,12 +29,12 @@ variables:
   SMTP_SECURE: "true"
   SMTP_USER: ""
   SMTP_PASS: ""
-  INFLUX_PROTOCOL: "http"
-  INFLUX_HOST: "influxdb"
-  INFLUX_PORT: "8086"
-  INFLUX_COLLECTION: "aloes_stage"
-  INFLUX_USER: "aloes"
-  INFLUX_PASS: "example"
+  INFLUX_PROTOCOL: ""
+  INFLUX_HOST: ""
+  INFLUX_PORT: ""
+  INFLUX_COLLECTION: ""
+  INFLUX_USER: ""
+  INFLUX_PASS: ""
   OCD_API_KEY: "682b827b96294325a99e344b4466923b"
   FS_PATH: "./storage"
   GITHUB_CLIENT_ID_LOGIN: ""
@@ -51,7 +51,7 @@ test_async:
   variables:
     NODE_ENV: "development"
   script:
-    - npm run test
+    - mkdir ./storage ; npm run test:cover
   only:
     - staging
 

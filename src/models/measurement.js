@@ -3,6 +3,8 @@ import { publish } from 'iot-agent';
 import logger from '../services/logger';
 import utils from '../services/utils';
 
+const collectionName = 'Measurement';
+
 /**
  * @module Measurement
  * @property {String} id  Generated ID.
@@ -15,8 +17,6 @@ import utils from '../services/utils';
  * @property {String} sensorId Device instance Id which has generated this measurement
  */
 module.exports = function(Measurement) {
-  const collectionName = 'Measurement';
-
   async function typeValidator(err) {
     if (this.type && this.type.toString().length <= 4) {
       if (await Measurement.app.models.OmaObject.exists(this.type)) {
@@ -145,8 +145,21 @@ module.exports = function(Measurement) {
   };
 
   Measurement.once('dataSourceAttached', Model => {
+    const buildQuery = (collection, filter, rp) =>
+      new Promise((resolve, reject) => {
+        if (!Model.app || !Model.app.datasources.points) {
+          reject(new Error('Invalid point datasource'));
+        }
+        Model.app.datasources.points.connector.buildQuery(collection, filter, rp, (err, query) =>
+          err ? reject(err) : resolve(query),
+        );
+      });
+
     const findMeasurements = async filter => {
       try {
+        if (!Model.app || !Model.app.datasources.points) {
+          throw new Error('Invalid point datasource');
+        }
         const influxConnector = Model.app.datasources.points.connector;
 
         let retentionPolicies = []; // '0s' || '2h';
@@ -233,17 +246,13 @@ module.exports = function(Measurement) {
         let result = [];
         const promises = await retentionPolicies.map(async rp => {
           try {
-            let query;
-            influxConnector.buildQuery(collectionName, filter, rp, (err, res) => {
-              if (err) throw err;
-              query = res;
-            });
+            const query = await buildQuery(collectionName, filter, rp);
             //  logger.publish(4, `${collectionName}`, 'findMeasurements:res', { query });
             const measurements = await influxConnector.client.query(query);
             result = [...result, ...measurements];
             return measurements;
           } catch (error) {
-            return error;
+            return null;
           }
         });
 
@@ -253,7 +262,9 @@ module.exports = function(Measurement) {
         logger.publish(3, `${collectionName}`, 'findMeasurements:res', { count: result.length });
         return result;
       } catch (error) {
-        throw error;
+        logger.publish(2, `${collectionName}`, 'findMeasurements:err', error);
+        return null;
+        //  throw error;
       }
     };
 
@@ -322,13 +333,18 @@ module.exports = function(Measurement) {
 
     const updateMeasurement = async (attributes, instance) => {
       try {
+        if (!Model.app || !Model.app.datasources.points) {
+          throw new Error('Invalid point datasource');
+        }
         const influxConnector = Model.app.datasources.points.connector;
         const query = influxConnector.updatePoint(collectionName, attributes, instance);
         logger.publish(4, `${collectionName}`, 'updateMeasurement:res', { query });
         //  const result = await influxConnector.client.query(query);
+        // await Measurement.publish(device, instance, 'PUT');
         return query;
       } catch (error) {
-        throw error;
+        logger.publish(2, `${collectionName}`, 'updateMeasurement:err', error);
+        return null;
       }
     };
 
@@ -378,7 +394,7 @@ module.exports = function(Measurement) {
             const measurement = await updateMeasurement(data, instance);
             return measurement;
           } catch (error) {
-            return error;
+            return null;
           }
         });
         const result = await Promise.all(resPromise);
@@ -391,16 +407,21 @@ module.exports = function(Measurement) {
 
     const deleteMeasurement = async filter => {
       try {
+        if (!Model.app || !Model.app.datasources.points) {
+          throw new Error('Invalid point datasource');
+        }
         let query = `DELETE FROM "${collectionName}" `;
         const influxConnector = Model.app.datasources.points.connector;
         const subQuery = await influxConnector.buildWhere(filter, collectionName);
         query += `${subQuery} ;`;
         logger.publish(4, `${collectionName}`, 'deleteMeasurement:res', { query });
         const result = await influxConnector.client.query(query);
+        // const instance = await findMeasurements(filter);
+        // await Measurement.publish(device, instance, 'DELETE');
         return result;
       } catch (error) {
-        return error;
-        // throw error;
+        logger.publish(2, `${collectionName}`, 'deleteMeasurement:err', error);
+        return null;
       }
     };
 

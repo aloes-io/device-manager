@@ -97,6 +97,7 @@ const getClient = client => {
     'aloesId',
     'ownerId',
     'model',
+    'type',
   ];
   const clientObject = {};
   clientProperties.forEach(key => {
@@ -115,6 +116,7 @@ const getClient = client => {
  * @returns {array|object}
  */
 const getClients = id => {
+  if (!broker.instance) return null;
   if (typeof id === 'string') {
     return broker.instance.clients[id];
   }
@@ -129,7 +131,10 @@ const getClients = id => {
  */
 const getClientsByTopic = topic =>
   new Promise((resolve, reject) => {
-    const stream = broker.persistence.getClientList(topic);
+    if (!broker.instance || !broker.instance.persistence) {
+      reject(new Error('Invalid broker instance'));
+    }
+    const stream = broker.instance.persistence.getClientList(topic);
     const clients = [];
     stream
       .on('data', clientId => {
@@ -156,10 +161,7 @@ const getClientsByTopic = topic =>
  * @returns {object} client
  */
 const pickRandomClient = clientIds => {
-  if (!clientIds || clientIds === null) {
-    return null;
-  }
-
+  if (!clientIds || clientIds === null) return null;
   const connectedClients = clientIds
     .map(clientId => {
       const client = getClients(clientId);
@@ -200,7 +202,7 @@ const updateClientStatus = async (client, status) => {
           topic: `${aloesClient.id}/status`,
           payload: Buffer.from(JSON.stringify({ status, client: foundClient })),
           retain: false,
-          qos: 0,
+          qos: 1,
         };
         broker.publish(packet);
       }
@@ -239,32 +241,40 @@ const authentificationRequest = async data => {
   }
 };
 
+/**
+ * Check client credentials and update client properties
+ *
+ * @method module:Broker~authenticate
+ * @param {any} deviceId
+ * @param {string} key
+ * @returns {number} status - CONNACK code
+ * - 1 - Unacceptable protocol version
+ * - 2 - Identifier rejected
+ * - 3 - Server unavailable
+ * - 4 - Bad user name or password
+ */
 const authenticate = async (client, username, password) => {
+  let status;
   try {
+    if (!client || !client.id) return 1;
     logger.publish(3, 'broker', 'Authenticate:req', {
       client: client.id,
       username,
     });
     let foundClient;
-    let status = false;
     if (!password || password === null || !username || username === null) {
-      //  client.user = 'guest';
-      const error = new Error('Auth error');
-      error.returnCode = 4;
-      logger.publish(2, 'broker', 'Authenticate:res', 'missing credentials');
-      status = false;
-      throw error;
+      status = 4;
+      return status;
     }
-
     if (
       client.id.startsWith(`aloes-${process.env.ALOES_ID}`) &&
       username === process.env.ALOES_ID &&
       password.toString() === process.env.ALOES_KEY
     ) {
-      client.user = username;
-      client.aloesId = process.env.ALOES_ID;
-      status = true;
+      status = 0;
       foundClient = getClient(client);
+      foundClient.user = username;
+      foundClient.aloesId = process.env.ALOES_ID;
     } else {
       foundClient = getClient(client);
       const result = await authentificationRequest({
@@ -273,148 +283,128 @@ const authenticate = async (client, username, password) => {
         password: password.toString(),
       });
 
-      if (result.client) {
+      if (result.status !== undefined) {
         status = result.status;
         foundClient = result.client;
-        foundClient.user = username;
-        Object.keys(foundClient).forEach(key => {
-          client[key] = foundClient[key];
-          return key;
-        });
       }
     }
 
-    if (foundClient && foundClient.id) {
-      if (status === true) {
-        await updateClientStatus(client, status);
-        return status;
-      }
+    if (foundClient && foundClient.id && status === 0) {
+      Object.keys(foundClient).forEach(key => {
+        client[key] = foundClient[key];
+        return key;
+      });
+      await updateClientStatus(client, true);
+    } else if (status === undefined) {
+      status = 2;
     }
+
     logger.publish(2, 'broker', 'Authenticate:res', { client: foundClient, status });
-    const error = new Error('Auth error');
-    error.returnCode = 2;
-    status = false;
-    logger.publish(2, 'broker', 'Authenticate:res', 'invalid token');
-    throw error;
+    return status;
   } catch (error) {
-    logger.publish(2, 'broker', 'Authenticate:err', error);
+    if (error.code === 'ECONNREFUSED') {
+      status = 3;
+      return status;
+    }
     throw error;
   }
 };
 
 const authorizePublish = (client, packet) => {
-  try {
-    const topic = packet.topic;
-    const topicParts = topic.split('/');
-    let auth = false;
-    if (client.user) {
-      if (topicParts[0].startsWith(client.user)) {
-        logger.publish(5, 'broker', 'authorizePublish:req', {
-          user: client.user,
-          topic: topicParts,
-        });
-        auth = true;
-      } else if (
-        client.aloesId &&
-        topicParts[0].startsWith(`aloes-${client.aloesId}`) &&
-        (topicParts[1] === `tx` || topicParts[1] === `sync`)
-      ) {
-        logger.publish(5, 'broker', 'authorizePublish:req', {
-          user: client.user,
-          aloesApp: client.id,
-        });
-        auth = true;
-      } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
-        // todo limit access to device out prefix if any - / endsWith(device.outPrefix)
-        logger.publish(5, 'broker', 'authorizePublish:req', {
-          device: client.devEui,
-          topic: topicParts,
-        });
-        auth = true;
-      } else if (client.appId && topicParts[0].startsWith(client.appId)) {
-        logger.publish(5, 'broker', 'authorizePublish:req', {
-          application: client.appId,
-          topic: topicParts,
-        });
-        auth = true;
-      } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
-        logger.publish(5, 'broker', 'authorizePublish:req', {
-          application: client.appEui,
-          topic: topicParts,
-        });
-        auth = true;
-      }
+  const topic = packet.topic;
+  if (!topic) return false;
+  const topicParts = topic.split('/');
+  let auth = false;
+  if (client.user) {
+    if (topicParts[0].startsWith(client.user)) {
+      logger.publish(5, 'broker', 'authorizePublish:req', {
+        user: client.user,
+        topic: topicParts,
+      });
+      auth = true;
+    } else if (
+      client.aloesId &&
+      topicParts[0].startsWith(`aloes-${client.aloesId}`) &&
+      (topicParts[1] === `tx` || topicParts[1] === `sync`)
+    ) {
+      logger.publish(5, 'broker', 'authorizePublish:req', {
+        user: client.user,
+        aloesApp: client.id,
+      });
+      auth = true;
+    } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
+      // todo limit access to device out prefix if any - / endsWith(device.outPrefix)
+      logger.publish(5, 'broker', 'authorizePublish:req', {
+        device: client.devEui,
+        topic: topicParts,
+      });
+      auth = true;
+    } else if (client.appId && topicParts[0].startsWith(client.appId)) {
+      logger.publish(5, 'broker', 'authorizePublish:req', {
+        application: client.appId,
+        topic: topicParts,
+      });
+      auth = true;
+    } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
+      logger.publish(5, 'broker', 'authorizePublish:req', {
+        application: client.appEui,
+        topic: topicParts,
+      });
+      auth = true;
     }
-    if (!auth) {
-      const error = new Error('authorizePublish error');
-      error.returnCode = 3;
-      throw error;
-    }
-    logger.publish(3, 'broker', 'authorizePublish:res', { topic, auth });
-    return packet;
-  } catch (error) {
-    logger.publish(2, 'broker', 'authorizePublish:err', error);
-    throw error;
   }
+
+  logger.publish(3, 'broker', 'authorizePublish:res', { topic, auth });
+  return auth;
 };
 
 const authorizeSubscribe = (client, packet) => {
-  try {
-    const topic = packet.topic;
-    const topicParts = topic.split('/');
-    let auth = false;
-    // todo leave minimum access with apikey
-    // allow max access with valid tls cert config ?
-    if (client.user) {
-      if (topicParts[0].startsWith(client.user)) {
-        logger.publish(5, 'broker', 'authorizeSubscribe:req', {
-          user: client.user,
-        });
-        auth = true;
-      } else if (
-        client.aloesId &&
-        topicParts[0].startsWith(`aloes-${client.aloesId}`) &&
-        (topicParts[1] === `rx` ||
-          topicParts[1] === `status` ||
-          topicParts[1] === `stop` ||
-          topicParts[1] === `sync`)
-      ) {
-        logger.publish(4, 'broker', 'authorizeSubscribe:req', {
-          user: client.user,
-          aloesApp: client.id,
-        });
-        //  packet.qos = packet.qos + 2
-        auth = true;
-      } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
-        // todo limit access to device in prefix if any
-        logger.publish(5, 'broker', 'authorizeSubscribe:req', {
-          device: client.devEui,
-        });
-        auth = true;
-      } else if (client.appId && topicParts[0].startsWith(client.appId)) {
-        logger.publish(5, 'broker', 'authorizeSubscribe:req', {
-          application: client.appId,
-          topic: topicParts,
-        });
-        auth = true;
-      } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
-        logger.publish(5, 'broker', 'authorizeSubscribe:req', {
-          application: client.appEui,
-        });
-        auth = true;
-      }
+  const topic = packet.topic;
+  if (!topic) return false;
+  const topicParts = topic.split('/');
+  let auth = false;
+  // todo leave minimum access with apikey
+  if (client.user) {
+    if (topicParts[0].startsWith(client.user)) {
+      logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+        user: client.user,
+      });
+      auth = true;
+    } else if (
+      client.aloesId &&
+      topicParts[0].startsWith(`aloes-${client.aloesId}`) &&
+      (topicParts[1] === `rx` ||
+        topicParts[1] === `status` ||
+        topicParts[1] === `stop` ||
+        topicParts[1] === `sync`)
+    ) {
+      logger.publish(4, 'broker', 'authorizeSubscribe:req', {
+        user: client.user,
+        aloesApp: client.id,
+      });
+      //  packet.qos = packet.qos + 2
+      auth = true;
+    } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
+      // todo limit access to device in prefix if any
+      logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+        device: client.devEui,
+      });
+      auth = true;
+    } else if (client.appId && topicParts[0].startsWith(client.appId)) {
+      logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+        application: client.appId,
+        topic: topicParts,
+      });
+      auth = true;
+    } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
+      logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+        application: client.appEui,
+      });
+      auth = true;
     }
-    if (!auth) {
-      const error = new Error('authorizeSubscribe error');
-      //  error.returnCode = 3;
-      throw error;
-    }
-    logger.publish(3, 'broker', 'authorizeSubscribe:res', { topic, auth });
-    return packet;
-  } catch (error) {
-    logger.publish(2, 'broker', 'authorizeSubscribe:err', error);
-    throw error;
   }
+  logger.publish(3, 'broker', 'authorizeSubscribe:res', { topic, auth });
+  return auth;
 };
 
 const onPublished = async (packet, client) => {
@@ -473,7 +463,7 @@ const onPublished = async (packet, client) => {
  */
 // const cleanSubscriptions = client =>
 //   new Promise((resolve, reject) => {
-//     broker.persistence.cleanSubscriptions(client, (err, res) => (err ? reject(err) : resolve(res)));
+//     broker.instance.persistence.cleanSubscriptions(client, (err, res) => (err ? reject(err) : resolve(res)));
 //   });
 
 /**
@@ -527,13 +517,18 @@ broker.start = () => {
      * @param {function} cb - callback
      * @returns {function} Broker~authenticate
      */
-    broker.instance.authenticate = async (client, username, password, cb) => {
-      try {
-        await authenticate(client, username, password);
-        return cb(null, true);
-      } catch (error) {
-        return cb(error, false);
-      }
+    broker.instance.authenticate = (client, username, password, cb) => {
+      authenticate(client, username, password)
+        .then(status => {
+          if (status !== 0) {
+            const err = new Error('Auth error');
+            err.returnCode = status || 3;
+            cb(err, null);
+          } else cb(null, true);
+        })
+        .catch(e => {
+          cb(e, null);
+        });
     };
 
     /**
@@ -545,12 +540,10 @@ broker.start = () => {
      * @returns {function} Broker~authorizePublish
      */
     broker.instance.authorizePublish = (client, packet, cb) => {
-      try {
-        authorizePublish(client, packet);
-        cb(null, null);
-      } catch (error) {
-        cb(error, null);
-      }
+      if (authorizePublish(client, packet)) return cb(null);
+      const error = new Error('authorizePublish error');
+      // error.returnCode = 3;
+      return cb(error);
     };
 
     /**
@@ -563,14 +556,19 @@ broker.start = () => {
      */
     broker.instance.authorizeSubscribe = (client, packet, cb) => {
       try {
-        authorizeSubscribe(client, packet);
-        cb(null, packet);
+        if (authorizeSubscribe(client, packet)) return cb(null, packet);
+        const error = new Error('authorizeSubscribe error');
+        //  error.returnCode = 3;
+        return cb(error);
       } catch (error) {
-        cb(error, null);
+        // logger.publish(2, 'broker', 'authorizeSubscribe:err', error);
+        return cb(error);
       }
     };
 
     // broker.instance.authorizeForward = (client, packet) => {
+    // use this to avoid user sender to see its own message on other clients
+    //
     //   try {
     //     const topic = packet.topic;
     //     const topicParts = topic.split('/');
@@ -603,14 +601,10 @@ broker.start = () => {
      * @param {object} packet - MQTT packet
      * @param {object} client - MQTT client
      */
-    broker.instance.published = async (packet, client, cb) => {
-      try {
-        await onPublished(packet, client);
-        return cb();
-      } catch (error) {
-        // logger.publish(2, 'broker', 'onPublish:err', error);
-        return cb();
-      }
+    broker.instance.published = (packet, client, cb) => {
+      onPublished(packet, client)
+        .then(() => cb())
+        .catch(() => cb());
     };
 
     /**
@@ -619,7 +613,7 @@ broker.start = () => {
      * @param {object} client - MQTT client
      */
     broker.instance.on('client', client => {
-      logger.publish(3, 'broker', 'clientConnect:req', client.id);
+      logger.publish(3, 'broker', 'onClientConnect', client.id);
     });
 
     /**
@@ -628,12 +622,12 @@ broker.start = () => {
      * @param {object} client - MQTT client
      * @returns {function} Broker~updateModelsStatus
      */
-    broker.instance.on('clientDisconnect', client => {
+    broker.instance.on('clientDisconnect', async client => {
       try {
-        logger.publish(3, 'broker', 'clientDisconnect:req', client.id);
-        return updateClientStatus(client, false);
+        logger.publish(3, 'broker', 'onClientDisconnect', client.id);
+        await updateClientStatus(client, false);
       } catch (error) {
-        return error;
+        logger.publish(3, 'broker', 'onClientDisconnect:err', error);
       }
     });
 
@@ -643,17 +637,16 @@ broker.start = () => {
      * @param {object} client - MQTT client
      */
     broker.instance.on('keepaliveTimeout', client => {
-      logger.publish(3, 'broker', 'keepaliveTimeout:req', client.id);
+      logger.publish(3, 'broker', 'onKeepaliveTimeout', client.id);
     });
 
     broker.instance.on('clientError', (client, err) => {
-      console.log('broker : client error', client.id, err.message);
+      logger.publish(2, 'broker', 'onClientError', { clientId: client.id, error: err.message });
     });
 
     broker.instance.on('connectionError', (client, err) => {
-      console.log('broker : connection error', client.clean, err.message);
+      logger.publish(2, 'broker', 'onConnectionError', { clientId: client.id, error: err.message });
       // client.close();
-      //  console.log('broker : connection error', client, err.message, err.stack);
     });
 
     // broker.instance.on("delivered", (packet, client) => {
@@ -682,9 +675,13 @@ broker.stop = () => {
     //   qos: 0,
     // };
     // broker.publish(packet);
-    logger.publish(2, 'broker', 'stopped', `${process.env.MQTT_BROKER_URL}`);
-    broker.instance.close();
-    if (broker.redis) broker.redis.flushdb();
+    logger.publish(2, 'broker', 'stopping', {
+      url: `${process.env.MQTT_BROKER_URL}`,
+      brokers: broker.instance.brokers,
+    });
+    if (broker.instance) {
+      broker.instance.close();
+    }
     return true;
   } catch (error) {
     logger.publish(2, 'broker', 'stop:err', error);
@@ -693,18 +690,16 @@ broker.stop = () => {
 };
 
 /**
- * Init MQTT Broker with new Aedes instance
+ * Init MQTT and WS Broker with new Aedes instance
  * @method module:Broker.init
  * @returns {function} broker.start
  */
 broker.init = () => {
   try {
-    let config;
+    let config = {};
     if (!process.env.CI) {
       const result = dotenv.config();
-      if (result.error) {
-        throw result.error;
-      }
+      if (result.error) throw result.error;
       config = result.parsed;
     } else {
       envVariablesKeys.forEach(key => {
@@ -718,8 +713,6 @@ broker.init = () => {
         { type: 'http', port: Number(config.WS_BROKER_PORT) },
       ],
     };
-    broker.emitter = emitter(config);
-    broker.persistence = persistence(config);
     if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
       const Redis = require('ioredis');
       broker.redis = new Redis({
@@ -736,8 +729,8 @@ broker.init = () => {
     }
 
     const aedesConf = {
-      mq: broker.emitter,
-      persistence: broker.persistence,
+      mq: emitter(config),
+      persistence: persistence(config),
       concurrency: 100,
       heartbeatInterval: 60000,
       connectTimeout: 30000,
@@ -775,9 +768,11 @@ broker.init = () => {
     broker.instance.on('closed', () => {
       wsBroker.close();
       httpServer.close();
-      httpServer.close();
       mqttBroker.close();
-      logger.publish(2, 'broker', 'MQTT broker closed');
+      if (Object.keys(broker.instance.brokers).length === 0 && broker.redis) {
+        broker.redis.flushdb();
+      }
+      logger.publish(2, 'broker', 'stopped', `${process.env.MQTT_BROKER_URL}`);
     });
 
     return broker.start();
@@ -789,7 +784,7 @@ broker.init = () => {
 
 if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
   logger.publish(1, 'broker', 'init:single', { pid: process.pid });
-  setTimeout(() => broker.init(), 1000);
+  setTimeout(() => broker.init(), 500);
 } else {
   logger.publish(1, 'broker', 'init:cluster', { pid: process.pid });
 
@@ -818,10 +813,8 @@ nodeCleanup((exitCode, signal) => {
   try {
     if (signal && signal !== null) {
       logger.publish(1, 'broker', 'exit:req', { exitCode, signal, pid: process.pid });
-      if (broker && broker.instance) {
-        broker.stop();
-      }
-      setTimeout(() => process.kill(process.pid, signal), 2500);
+      broker.stop();
+      setTimeout(() => process.kill(process.pid, signal), 5000);
       nodeCleanup.uninstall();
       return false;
     }

@@ -23,70 +23,98 @@ const unless = (paths, middleware) => (req, res, next) => {
 
 const authenticateInstance = async (client, username, password) => {
   const Client = app.models.Client;
+  let status, foundClient;
+  if (!client || !client.id) return { client: null, status: 1 };
   try {
     // todo : find a way to verify in auth request, against which model authenticate
     //  console.log("client parser", client.parser)
-    let status = false;
-    let authentification, foundClient;
+    let token, authentification;
     try {
       foundClient = JSON.parse(await Client.get(client.id));
       if (!foundClient || !foundClient.id) {
-        foundClient = { id: client.id, type: 'MQTT' };
+        if (!client.req) {
+          foundClient = { id: client.id, type: 'MQTT' };
+        } else {
+          foundClient = { id: client.id, type: 'WS' };
+        }
       }
     } catch (e) {
-      foundClient = { id: client.id, type: 'MQTT' };
+      if (!client.req) {
+        foundClient = { id: client.id, type: 'MQTT' };
+      } else {
+        foundClient = { id: client.id, type: 'WS' };
+      }
     }
 
-    const token = await app.models.accessToken.findById(password.toString());
+    try {
+      token = await app.models.accessToken.findById(password.toString());
+    } catch (e) {
+      token = null;
+    }
     if (token && token.userId && token.userId.toString() === username) {
-      status = true;
+      // status = true;
+      status = 0;
       foundClient.ownerId = token.userId.toString();
       foundClient.model = 'User';
       // console.log('OWNER MQTT CLIENT', Object.keys(foundClient));
+    } else {
+      status = 4;
     }
 
-    if (!status) {
-      authentification = await app.models.Device.authenticate(username, password.toString());
+    if (status !== 0) {
+      try {
+        authentification = await app.models.Device.authenticate(username, password.toString());
+      } catch (e) {
+        authentification = null;
+      }
       if (authentification && authentification.device && authentification.keyType) {
         const instance = authentification.device;
         if (instance.devEui && instance.devEui !== null) {
-          status = true;
+          // status = true;
+          status = 0;
           foundClient.devEui = instance.devEui;
           foundClient.model = 'Device';
         }
+      } else {
+        status = 4;
       }
     }
 
-    if (!status) {
-      authentification = await app.models.Application.authenticate(username, password.toString());
+    if (status !== 0) {
+      try {
+        authentification = await app.models.Application.authenticate(username, password.toString());
+      } catch (e) {
+        authentification = null;
+      }
       if (authentification && authentification.application && authentification.keyType) {
         const instance = authentification.application;
         if (instance && instance.id) {
           foundClient.appId = instance.id.toString();
           foundClient.model = 'Application';
-          status = true;
+          // status = true;
+          status = 0;
           if (instance.appEui && instance.appEui !== null) {
             foundClient.appEui = instance.appEui;
           }
         }
+      } else {
+        status = 4;
       }
     }
 
-    if (status) {
-      const ttl = 1 * 60 * 60 * 1000;
-      client.user = username;
+    if (status === 0) {
+      // const ttl = 1 * 60 * 60 * 1000;
       foundClient.user = username;
-      await Client.set(client.id, JSON.stringify(foundClient), ttl);
-    } else {
-      // await Client.set(client.id, undefined);
-      await Client.delete(client.id);
+      // await Client.set(client.id, JSON.stringify(foundClient), ttl);
     }
     logger.publish(3, 'loopback', 'authenticateInstance:res', { status, client: foundClient });
     // const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to update this user');
     return { client: foundClient, status };
   } catch (error) {
     logger.publish(2, 'loopback', 'authenticateInstance:err', error);
-    throw error;
+    status = 2;
+    // throw error;
+    return { client: foundClient, status };
   }
 };
 
@@ -107,6 +135,14 @@ app.start = async config => {
     app.set('host', config.HTTP_SERVER_HOST);
     app.set('port', Number(config.HTTP_SERVER_PORT));
     //  app.set('cookieSecret', config.COOKIE_SECRET);
+
+    if (config.MQTTS_BROKER_URL) {
+      app.set('mqtt url', config.MQTTS_BROKER_URL);
+      app.set('mqtt port', Number(config.MQTTS_BROKER_PORT));
+    } else {
+      app.set('mqtt url', config.MQTT_BROKER_URL);
+      app.set('mqtt port', Number(config.MQTT_BROKER_PORT));
+    }
 
     app.set('view engine', 'ejs');
     app.set('json spaces', 2); // format json responses for easier viewing
@@ -205,16 +241,16 @@ app.start = async config => {
  */
 app.stop = async signal => {
   try {
-    logger.publish(2, 'loopback', 'stop', signal);
+    logger.publish(2, 'loopback', 'stopping', signal);
+    MQTTClient.emit('stop');
+    app.models.Application.emit('stopped');
+    app.models.Device.emit('stopped');
+    app.models.Client.emit('stopped');
+    app.models.Scheduler.emit('stopped');
     app.bootState = false;
     if (httpServer) {
       httpServer.close();
     }
-    MQTTClient.emit('stop', app);
-    app.models.Scheduler.emit('stopped');
-    app.models.Application.emit('stopped');
-    app.models.Device.emit('stopped');
-    app.models.Client.emit('stopped');
     logger.publish(2, 'loopback', 'stopped', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
     return true;
   } catch (error) {
@@ -228,13 +264,8 @@ app.stop = async signal => {
  * @method module:Server.publish
  * @returns {function} MQTTClient.publish
  */
-app.publish = async (topic, payload, retain = false, qos = 0) => {
-  try {
-    return MQTTClient.publish(topic, payload, retain, qos);
-  } catch (error) {
-    throw error;
-  }
-};
+app.publish = async (topic, payload, retain = false, qos = 0) =>
+  MQTTClient.publish(topic, payload, retain, qos);
 
 app.on('publish', async (topic, payload, retain = false, qos = 0) =>
   app.publish(topic, payload, retain, qos),

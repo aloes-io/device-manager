@@ -2,6 +2,290 @@ import { appPatternDetector, publish } from 'iot-agent';
 import logger from '../services/logger';
 import utils from '../services/utils';
 
+const collectionName = 'Application';
+
+const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
+
+/**
+ * Validate instance before creation
+ * @method module:Application~onBeforeSave
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
+const onBeforeSave = async ctx => {
+  try {
+    if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
+    if (ctx.data) {
+      logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.data);
+      filteredProperties.forEach(p => delete ctx.data[p]);
+      ctx.hookState.updateData = ctx.data;
+      return ctx;
+    }
+    if (ctx.instance) {
+      logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.instance);
+      const promises = await filteredProperties.map(async prop =>
+        ctx.instance.unsetAttribute(prop),
+      );
+      await Promise.all(promises);
+      logger.publish(5, collectionName, 'beforeSave:res', ctx.instance);
+      return ctx;
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(3, `${collectionName}`, 'beforeSave:err', error);
+    throw error;
+  }
+};
+
+/**
+ * Keys creation helper - update application attributes
+ * @method module:Application~createKeys
+ * @param {object} application - Application instance
+ * @returns {object} application
+ */
+const createKeys = async application => {
+  try {
+    const attributes = {};
+    let hasChanged = false;
+    if (!application.clientKey) {
+      attributes.clientKey = utils.generateKey('client');
+      hasChanged = true;
+    }
+    if (!application.apiKey) {
+      attributes.apiKey = utils.generateKey('apiKey');
+      hasChanged = true;
+    }
+    // if (!device.restApiKey) {
+    //   attributes.restApiKey = utils.generateKey('restApi');
+    // }
+    // if (!device.javaScriptKey) {
+    //   attributes.javaScriptKey = utils.generateKey('javaScript');
+    // }
+    // if (!device.windowsKey) {
+    //   attributes.windowsKey = utils.generateKey('windows');
+    // }
+    // if (!device.masterKey) {
+    //   attributes.masterKey = utils.generateKey('master');
+    // }
+    if (hasChanged) {
+      await application.updateAttributes(attributes);
+    }
+    return application;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Init device depencies ( token )
+ * @method module:Application~createProps
+ * @param {object} ctx - Application context
+ * @param {object} ctx.req - HTTP request
+ * @param {object} ctx.res - HTTP response
+ * @returns {function} Application.publish
+ */
+const createProps = async ctx => {
+  try {
+    const application = await createKeys(ctx.instance);
+    // if (!application.apiKey) {
+    //   await Application.destroyById(ctx.instance.id);
+    //   throw new Error('Application failed to be created');
+    // }
+    //  await utils.mkDirByPathSync(`${process.env.FS_PATH}/${ctx.instance.id}`);
+    //  logger.publish(4, `${collectionName}`, 'createDeviceProps:res', container);
+    if (!ctx.Model) return null;
+    await ctx.Model.publish(application, 'POST');
+    return application;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Update application depencies
+ * @method module:Application~updateProps
+ * @param {object} ctx - Application context
+ * @param {object} ctx.req - HTTP request
+ * @param {object} ctx.res - HTTP response
+ * @returns {function} Application.publish
+ */
+const updateProps = async ctx => {
+  try {
+    const application = await createKeys(ctx.instance);
+    if (!ctx.Model) return null;
+    await ctx.Model.publish(application, 'PUT');
+    return application;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Create relations on instance creation
+ * @method module:Application~onAfterSave
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
+const onAfterSave = async ctx => {
+  try {
+    if (ctx.hookState.updateData) {
+      logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
+      const updatedProps = Object.keys(ctx.hookState.updateData);
+      if (updatedProps.some(prop => prop === 'status')) {
+        // if (!ctx.instance) console.log('AFTER APP SAVE', ctx.where);
+        if (ctx.instance) await ctx.Model.publish(ctx.instance, 'PUT');
+      }
+    } else if (ctx.instance && ctx.Model) {
+      logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
+      if (ctx.isNewInstance) {
+        await createProps(ctx);
+      } else {
+        await updateProps(ctx);
+      }
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(3, `${collectionName}`, 'afterSave:err', error);
+    throw error;
+  }
+};
+
+/**
+ * Remove application depencies
+ * @method module:Application~deleteProps
+ * @param {object} app - Loopback app
+ * @param {object} instance
+ * @returns {function} Application.publish
+ */
+const deleteProps = async (app, instance) => {
+  try {
+    if (!instance || !instance.id || !instance.ownerId) {
+      throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
+    }
+    const Device = app.models.Device;
+    const devices = await Device.find({ where: { appEui: instance.appEui } });
+    if (devices && devices.length > 0) {
+      const promises = await devices.map(async device => device.delete());
+      await Promise.all(promises);
+    }
+    await app.models.Application.publish(instance, 'DELETE');
+    logger.publish(4, `${collectionName}`, 'deleteProps:req', instance);
+    return instance;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Delete relations on instance(s) deletetion
+ * @method module:Application~onBeforeDelete
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
+const onBeforeDelete = async ctx => {
+  try {
+    logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
+    if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
+      const instance = await ctx.Model.findById(ctx.where.id);
+      await deleteProps(ctx.Model.app, instance);
+    } else {
+      const filter = { where: ctx.where };
+      const applications = await ctx.Model.find(filter);
+      await Promise.all(applications.map(async instance => deleteProps(ctx.Model.app, instance)));
+    }
+    return ctx;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const onBeforeRemote = async ctx => {
+  try {
+    //  console.log('beofre getState', ctx.args);
+    // if (ctx.req.headers.apikey) ctx.args.options.apikey = ctx.req.headers.apikey;
+    // if (ctx.req.headers.appId) ctx.args.options.appId = ctx.req.headers.appId;
+    if (
+      ctx.method.name.indexOf('find') !== -1 ||
+      ctx.method.name.indexOf('__get') !== -1 ||
+      ctx.method.name === 'get'
+      // count
+      // ctx.method.name.indexOf('get') !== -1
+    ) {
+      const options = ctx.args ? ctx.args.options : {};
+      if (!options || !options.currentUser) {
+        throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
+      }
+      const isAdmin = options.currentUser.roles.includes('admin');
+      if (ctx.req.query && ctx.req.query.filter) {
+        if (!isAdmin) {
+          if (typeof ctx.req.query.filter === 'string') {
+            ctx.req.query.filter = JSON.parse(ctx.req.query.filter);
+          }
+          if (!ctx.req.query.filter.where) ctx.req.query.filter.where = {};
+          ctx.req.query.filter.where.ownerId = options.currentUser.id.toString();
+        }
+      }
+      if (ctx.req.params) {
+        if (!isAdmin) {
+          ctx.req.params.ownerId = options.currentUser.id.toString();
+        }
+      }
+    } else if (ctx.method.name === 'onPublish') {
+      const options = ctx.args ? ctx.args.options : {};
+      if (!options || !options.currentUser) {
+        throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
+      }
+      // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.client);
+      const isAdmin = options.currentUser.roles.includes('admin');
+      if (!ctx.args.client) ctx.args.client = {};
+      // ctx.args.client.user = options.currentUser.id.toString();
+      if (!isAdmin) {
+        ctx.args.client.user = options.currentUser.id.toString();
+        if (options.currentUser.devEui) {
+          ctx.args.client.devEui = options.currentUser.devEui;
+        }
+      }
+    } else if (ctx.method.name === 'updateStatus') {
+      const options = ctx.args ? ctx.args.options : {};
+      if (!options || !options.currentUser) {
+        throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
+      }
+      // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.client);
+      const isAdmin = options.currentUser.roles.includes('admin');
+      if (!ctx.args.client) ctx.args.client = {};
+      if (!isAdmin) {
+        ctx.args.client.user = options.currentUser.id.toString();
+        if (options.currentUser.devEui) {
+          ctx.args.client.devEui = options.currentUser.devEui;
+        }
+      }
+    } else if (ctx.method.name === 'getState' || ctx.method.name === 'getFullState') {
+      const options = ctx.args ? ctx.args.options : {};
+      if (!options || !options.currentUser) {
+        throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
+      }
+      // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.deviceId);
+      const isAdmin = options.currentUser.roles.includes('admin');
+      if (!isAdmin) {
+        if (options.currentUser.devEui) {
+          if (options.currentUser.id.toString() !== ctx.args.deviceId.toString()) {
+            const error = utils.buildError(
+              401,
+              'INVALID_USER',
+              'Only device itself can trigger this endpoint',
+            );
+            throw error;
+          }
+        }
+      }
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'onBeforeRemote:err', error);
+    throw error;
+  }
+};
+
 /**
  * @module Application
  * @property {String} id  Database generated ID.
@@ -10,12 +294,7 @@ import utils from '../services/utils';
  * @property {Array} collaborators A list of users ids who have permissions to use this application
  * @property {Array} clients A list of client ids authentified as this application
  */
-
 module.exports = Application => {
-  const collectionName = 'Application';
-
-  const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
-
   Application.validatesUniquenessOf('appEui');
   Application.validatesPresenceOf('ownerId');
   Application.validatesUniquenessOf('name', { scopedTo: ['ownerId'] });
@@ -69,45 +348,6 @@ module.exports = Application => {
   };
 
   /**
-   * Keys creation helper - update application attributes
-   * @method module:Application~createKeys
-   * @param {object} application - Application instance
-   * @returns {object} application
-   */
-  const createKeys = async application => {
-    try {
-      const attributes = {};
-      let hasChanged = false;
-      if (!application.clientKey) {
-        attributes.clientKey = utils.generateKey('client');
-        hasChanged = true;
-      }
-      if (!application.apiKey) {
-        attributes.apiKey = utils.generateKey('apiKey');
-        hasChanged = true;
-      }
-      // if (!device.restApiKey) {
-      //   attributes.restApiKey = utils.generateKey('restApi');
-      // }
-      // if (!device.javaScriptKey) {
-      //   attributes.javaScriptKey = utils.generateKey('javaScript');
-      // }
-      // if (!device.windowsKey) {
-      //   attributes.windowsKey = utils.generateKey('windows');
-      // }
-      // if (!device.masterKey) {
-      //   attributes.masterKey = utils.generateKey('master');
-      // }
-      if (hasChanged) {
-        await application.updateAttributes(attributes);
-      }
-      return application;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  /**
    * Reset keys for this application instance
    * @method module:Application.prototype.resetKeys
    * @returns {object} this
@@ -156,46 +396,6 @@ module.exports = Application => {
       throw new Error('Missing Application instance');
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'refreshToken:err', error);
-      throw error;
-    }
-  };
-
-  /**
-   * Init device depencies ( token )
-   * @method module:Application~createProps
-   * @param {object} ctx - Application context
-   * @param {object} ctx.req - HTTP request
-   * @param {object} ctx.res - HTTP response
-   * @returns {function} Application.publish
-   */
-  const createProps = async ctx => {
-    try {
-      const application = await createKeys(ctx.instance);
-      // if (!application.apiKey) {
-      //   await Application.destroyById(ctx.instance.id);
-      //   throw new Error('Application failed to be created');
-      // }
-      //  await utils.mkDirByPathSync(`${process.env.FS_PATH}/${ctx.instance.id}`);
-      //  logger.publish(4, `${collectionName}`, 'createDeviceProps:res', container);
-      return Application.publish(application, 'POST');
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  /**
-   * Update application depencies
-   * @method module:Application~updateProps
-   * @param {object} ctx - Application context
-   * @param {object} ctx.req - HTTP request
-   * @param {object} ctx.res - HTTP response
-   * @returns {function} Application.publish
-   */
-  const updateProps = async ctx => {
-    try {
-      const application = await createKeys(ctx.instance);
-      return Application.publish(application, 'PUT');
-    } catch (error) {
       throw error;
     }
   };
@@ -313,7 +513,9 @@ module.exports = Application => {
    */
   Application.updateStatus = async (client, status) => {
     try {
-      if (!client.appId || client.appId === null) throw new Error('Invalid client type');
+      if (!client || !client.id || !client.appId || client.appId === null) {
+        throw new Error('Invalid client type');
+      }
       logger.publish(4, collectionName, 'updateStatus:req', status);
       const Client = Application.app.models.Client;
       const application = await Application.findById(client.user);
@@ -363,7 +565,8 @@ module.exports = Application => {
         foundClient.status = status;
         await Client.set(client.id, JSON.stringify(foundClient), ttl);
         logger.publish(4, collectionName, 'updateStatus:res', foundClient);
-        return application.updateAttributes({ frameCounter, status, clients });
+        await application.updateAttributes({ frameCounter, status, clients });
+        return foundClient;
       }
       throw new Error('No application found');
     } catch (error) {
@@ -389,7 +592,7 @@ module.exports = Application => {
   Application.authenticate = async (appId, key) => {
     try {
       const application = await Application.findById(appId);
-      if (!application || application instanceof Error) {
+      if (!application) {
         throw new Error(' Cannot authenticate application');
       }
 
@@ -506,8 +709,15 @@ module.exports = Application => {
 
   Application.on('stopped', async () => {
     try {
+      if (process.env.CLUSTER_MODE) {
+        if (process.env.PROCESS_ID !== '0') return null;
+        if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+      }
       await Application.updateAll({ status: true }, { status: false, clients: [] });
+      logger.publish(3, `${collectionName}`, 'stop:res', '');
+      return null;
     } catch (error) {
+      logger.publish(2, `${collectionName}`, 'stop:err', error);
       throw error;
     }
   });
@@ -519,31 +729,10 @@ module.exports = Application => {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Application instance
+         * @returns {function} Application~onBeforeSave
+
    */
-  Application.observe('before save', async ctx => {
-    try {
-      if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
-      if (ctx.data) {
-        logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.data);
-        filteredProperties.forEach(p => delete ctx.data[p]);
-        ctx.hookState.updateData = ctx.data;
-        return ctx;
-      }
-      if (ctx.instance) {
-        logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.instance);
-        const promises = await filteredProperties.map(async prop =>
-          ctx.instance.unsetAttribute(prop),
-        );
-        await Promise.all(promises);
-        logger.publish(5, collectionName, 'beforeSave:res', ctx.instance);
-        return ctx;
-      }
-      return ctx;
-    } catch (error) {
-      logger.publish(3, `${collectionName}`, 'beforeSave:err', error);
-      throw error;
-    }
-  });
+  Application.observe('before save', onBeforeSave);
 
   /**
    * Event reporting that a device instance has been created or updated.
@@ -552,30 +741,9 @@ module.exports = Application => {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Application instance
+   * @returns {function} Application~onAfterSave
    */
-  Application.observe('after save', async ctx => {
-    try {
-      if (ctx.hookState.updateData) {
-        logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
-        const updatedProps = Object.keys(ctx.hookState.updateData);
-        if (updatedProps.some(prop => prop === 'status') && ctx.instance) {
-          await Application.publish(ctx.instance, 'PUT');
-        }
-        return ctx;
-      } else if (ctx.instance && Application.app) {
-        logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
-        if (ctx.isNewInstance) {
-          await createProps(ctx);
-        } else {
-          await updateProps(ctx);
-        }
-      }
-      return ctx;
-    } catch (error) {
-      logger.publish(3, `${collectionName}`, 'afterSave:err', error);
-      throw error;
-    }
-  });
+  Application.observe('after save', onAfterSave);
 
   /**
    * Event reporting that an application instance will be deleted.
@@ -584,37 +752,13 @@ module.exports = Application => {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - Application instance
+   * @returns {function} Application~onBeforeDelete
    */
-  Application.observe('before delete', async ctx => {
-    //  console.log('before delete ', ctx);
-    try {
-      if (ctx.where.id) {
-        const instance = await ctx.Model.findById(ctx.where.id);
-        const Device = Application.app.models.Device;
-        const devices = await Device.find({ where: { appEui: instance.appEui } });
-        if (devices && devices.length > 0) {
-          const promises = await devices.map(async device => device.delete());
-          await Promise.all(promises);
-        }
-        if (instance && instance.ownerId) {
-          await Application.publish(instance, 'DELETE');
-        }
-      }
-      return ctx;
-    } catch (error) {
-      throw error;
-    }
-  });
+  Application.observe('before delete', onBeforeDelete);
 
-  Application.beforeRemote('**', (ctx, unused, next) => {
-    //  console.log('beofre getState', ctx.args);
-    if (!ctx.req.headers.apikey) return next();
-    if (ctx.req.headers.apikey) ctx.args.options.apikey = ctx.req.headers.apikey;
-    if (ctx.req.headers.appId) ctx.args.options.appId = ctx.req.headers.appId;
-    return next();
-  });
+  Application.beforeRemote('**', onBeforeRemote);
 
-  Application.afterRemoteError('*', async ctx => {
+  Application.afterRemoteError('*', ctx => {
     logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
     // publish on collectionName/ERROR
     return ctx;

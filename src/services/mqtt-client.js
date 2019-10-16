@@ -1,6 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 import mqtt from 'async-mqtt';
 import EventEmitter from 'events';
+import throttle from 'lodash.throttle';
 import logger from './logger';
 
 /**
@@ -11,6 +12,18 @@ const MQTTClient = new EventEmitter();
 // const pubsubVersion = process.env.PUBSUSB_API_VERSION;
 let mqttClient;
 
+const onDeviceStatus = (app, client, status) => {
+  app.models.Device.emit('client', { client, status });
+};
+
+const deviceStatusUpdate = throttle(onDeviceStatus, 50);
+
+const onApplicationStatus = (app, client, status) => {
+  app.models.Application.emit('client', { client, status });
+};
+
+const appStatusUpdate = throttle(onApplicationStatus, 50);
+
 /**
  * Update models status from MQTT connection status and client properties
  * @method module:MQTTClient~updateModelsStatus
@@ -20,11 +33,12 @@ let mqttClient;
  */
 const updateModelsStatus = (app, client, status) => {
   try {
+    logger.publish(3, 'mqtt-client', 'updateModelsStatus:req', { status });
     if (client && client.user) {
       if (client.devEui) {
-        app.models.Device.emit('client', { client, status });
+        deviceStatusUpdate(app, client, status);
       } else if (client.appId) {
-        app.models.Application.emit('client', { client, status });
+        appStatusUpdate(app, client, status);
       }
     }
     return null;
@@ -180,9 +194,17 @@ const onStatus = async (app, topic, payload) => {
     return updateModelsStatus(app, client, status);
   } catch (error) {
     logger.publish(2, 'mqtt-client', 'onStatus:err', error);
-    throw error;
+    return null;
   }
 };
+
+const onModelPublish = (app, serviceName, pattern, packet, client) => {
+  logger.publish(3, 'mqtt-client', 'onModelPublish:req', { serviceName });
+  const Model = app.models[serviceName];
+  if (Model) Model.emit('publish', { pattern, packet, client });
+};
+
+// const debounceModelPublish = throttle(onModelPublish, 10);
 
 /**
  * Called when message arrived from the broker to be redirected to the right Model
@@ -210,10 +232,12 @@ const onReceive = async (app, topic, payload) => {
       throw new Error('no service redirection');
     }
     logger.publish(4, 'mqtt-client', 'onReceive:res', serviceName);
-    return app.models[serviceName].emit('publish', { pattern, packet, client });
+    // debounceModelPublish
+    onModelPublish(app, serviceName, pattern, packet, client);
+    return packet;
   } catch (error) {
     logger.publish(2, 'mqtt-client', 'onReceive:err', error);
-    throw error;
+    return null;
   }
 };
 
@@ -229,7 +253,7 @@ const onReceive = async (app, topic, payload) => {
 const onMessage = async (app, topic, payload) => {
   try {
     const topicParts = topic.split('/');
-    logger.publish(5, 'mqtt-client', 'onMessage:req', { topic: topicParts });
+    logger.publish(4, 'mqtt-client', 'onMessage:req', { topic: topicParts });
     if (topicParts[1] === 'status') {
       return onStatus(app, topic, payload);
     } else if (topicParts[1] === 'rx') {
@@ -241,9 +265,37 @@ const onMessage = async (app, topic, payload) => {
     return null;
   } catch (error) {
     logger.publish(2, 'mqtt-client', 'onMessage:err', error);
-    throw error;
+    return null;
   }
 };
+
+/**
+ * Event reporting that MQTTClient is connected.
+ * @event module:MQTTClient.message
+ * @param {object} app - Loopback app
+ * @param {object} topic - MQTT topic
+ * @param {object} payload - MQTT payload
+ * @returns {function} MQTTClient~onMessage
+ */
+MQTTClient.on('message', onMessage);
+
+/**
+ * Event reporting that MQTTClient is connected.
+ * @event module:MQTTClient.connect
+ * @param {object} packet - Connection packet
+ */
+MQTTClient.on('connect', packet => {
+  logger.publish(4, 'mqtt-client', 'connect:req', packet);
+});
+
+/**
+ * Event reporting that MQTTClient is disconnected.
+ * @event module:MQTTClient.offline
+ * @param {object} packet - Will packet
+ */
+MQTTClient.on('offline', packet => {
+  logger.publish(4, 'mqtt-client', 'offline:req', packet);
+});
 
 /**
  * Setup MQTT client listeners
@@ -251,22 +303,14 @@ const onMessage = async (app, topic, payload) => {
  * @param {string} clientId - MQTT clientId
  */
 const startClient = async clientId => {
-  await mqttClient.subscribe(`aloes-${process.env.ALOES_ID}/sync`, {
-    qos: 2,
-    retain: false,
-  });
-  // await mqttClient.subscribe(`${pubsubVersion}/${clientId}/status`, {
-  //   qos: 0,
-  //   retain: false,
-  // });
-  await mqttClient.subscribe(`${clientId}/status`, {
-    qos: 0,
-    retain: false,
-  });
-  await mqttClient.subscribe(`${clientId}/rx/#`, {
-    qos: 0,
-    retain: false,
-  });
+  try {
+    // topic = `${pubsubVersion}/${clientId}/status``
+    await mqttClient.subscribe(`aloes-${process.env.ALOES_ID}/sync`, { qos: 2 });
+    await mqttClient.subscribe(`${clientId}/status`, { qos: 1 });
+    await mqttClient.subscribe(`${clientId}/rx`, { qos: 1 });
+  } catch (error) {
+    throw error;
+  }
 };
 
 /**
@@ -300,17 +344,17 @@ const initClient = async (app, config) => {
     });
 
     const mqttClientOptions = {
-      // keepalive: 60,
-      // reschedulePings: true,
-      // port: Number(config.MQTT_BROKER_PORT),
+      keepalive: 60,
+      reschedulePings: true,
       protocolId: 'MQTT',
       protocolVersion: 4,
       reconnectPeriod: 1000,
-      connectTimeout: 30 * 1000,
+      connectTimeout: 10 * 1000,
       clean: false,
       clientId,
       username: config.ALOES_ID,
       password: config.ALOES_KEY,
+      will: { topic: `${clientId}/status`, payload: 'KO?', retain: false, qos: 0 },
     };
 
     if (config.MQTT_BROKER_URL) {
@@ -327,28 +371,29 @@ const initClient = async (app, config) => {
     }
 
     mqttClient = await mqtt.connectAsync(mqttBrokerUrl, mqttClientOptions);
-    // mqttClient = mqtt.connect(mqttBrokerUrl, mqttClientOptions);
 
-    mqttClient.on('error', err => {
-      logger.publish(4, 'mqtt-client', 'error', err);
+    // mqttClient.on('error', err => {
+    //   logger.publish(4, 'mqtt-client', 'error', err);
+    // });
+
+    // mqttClient.on('connect', packet => {
+    //   MQTTClient.emit('connect', packet);
+    // });
+
+    // mqttClient.on('offline', packet => {
+    //   MQTTClient.emit('offline', packet);
+    // });
+
+    mqttClient.on('message', (topic, payload) => {
+      MQTTClient.emit('message', app, topic, payload);
     });
-
-    mqttClient.on('connect', packet => {
-      // MQTTClient.emit('start', clientId);
-      logger.publish(4, 'mqtt-client', 'connect:req', packet);
-    });
-
-    mqttClient.on('offline', packet => {
-      logger.publish(4, 'mqtt-client', 'offline:req', packet);
-    });
-
-    mqttClient.on('message', async (topic, payload) => onMessage(app, topic, payload));
 
     await startClient(clientId);
     logger.publish(3, 'mqtt-client', 'init:res', mqttClientOptions);
     return true;
   } catch (error) {
     logger.publish(2, 'mqtt-client', 'init:err', error);
+    // await mqttClient.end()
     return false;
   }
 };
@@ -391,7 +436,8 @@ MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
     return true;
   } catch (error) {
     logger.publish(2, 'mqtt-client', 'publish:err', error);
-    throw error;
+    return false;
+    // throw error;
   }
 };
 
@@ -402,11 +448,17 @@ MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
  */
 const stopClient = async () => {
   try {
-    if (mqttClient) {
-      mqttClient.unsubscribe(`aloes-${process.env.ALOES_ID}/sync`);
-      mqttClient.unsubscribe(`${MQTTClient.id}/status`);
-      mqttClient.unsubscribe(`${MQTTClient.id}/rx/#`);
-      await mqttClient.end();
+    if (mqttClient && mqttClient.connected) {
+      logger.publish(2, 'mqtt-client', 'stopping client ', MQTTClient.id);
+      mqttClient.unsubscribe([
+        `aloes-${process.env.ALOES_ID}/sync`,
+        `${MQTTClient.id}/status`,
+        `${MQTTClient.id}/rx/#`,
+      ]);
+      //  mqttClient.unsubscribe(`${MQTTClient.id}/status`);
+      // await mqttClient.unsubscribe(`${MQTTClient.id}/rx/#`);
+      mqttClient.end();
+      // await mqttClient.end();
     }
     logger.publish(2, 'mqtt-client', 'stopped', MQTTClient.id);
     return true;

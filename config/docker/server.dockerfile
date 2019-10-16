@@ -26,15 +26,16 @@ RUN mkdir -p /home/node/$NODE_NAME
 WORKDIR /home/node/$NODE_NAME
 RUN mkdir -p ./storage
 
-COPY pm2-utils.js ./
-COPY pm2-server.js ./
+COPY bin ./bin/
+# COPY pm2-server.js ./
 COPY favicon.ico ./
 COPY package* ./
 
 RUN npm ci 
+# RUN npm install --production
 
 COPY --from=builder /home/node/$NODE_NAME/dist ./dist/
 
-CMD ["node","pm2-server.js", "--start"]
+CMD ["node","bin/pm2-server.js", "--start"]
 
 # USER node

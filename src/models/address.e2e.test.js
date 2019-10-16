@@ -19,8 +19,8 @@ const addressTest = () => {
   const deviceApiUrl = `${restApiPath}/Devices/`;
   const userApiUrl = `${restApiPath}/Users/`;
 
-  describe(collectionName, function() {
-    this.timeout(4000);
+  describe(collectionName, () => {
+    // this.timeout(5000);
     const DeviceModel = app.models.Device;
     const AddressModel = app.models.Address;
     let devices, users, userAddress, deviceAddress;
@@ -56,7 +56,6 @@ const addressTest = () => {
             });
 
             // console.log('USER ADDRESS ', userAddress);
-
             const deviceModels = Array(2)
               .fill('')
               .map((_, index) => {
@@ -82,7 +81,7 @@ const addressTest = () => {
             return devices;
           } catch (error) {
             console.log(`[TEST] ${collectionName} before:err`, error);
-            return error;
+            return null;
           }
         },
         after: () => Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()]),

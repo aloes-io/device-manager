@@ -192,6 +192,34 @@ function measurementFactory(id, sensor, ownerId) {
   };
 }
 
+function clientFactory(profile, type, key) {
+  let clientId;
+  if (type === 'user') {
+    clientId = `${profile.id}-${Math.random()
+      .toString(16)
+      .substr(2, 8)}`;
+  } else if (type === 'device') {
+    clientId = `${profile.devEui}-${Math.random()
+      .toString(16)
+      .substr(2, 8)}`;
+  } else {
+    clientId = profile.id;
+  }
+  return {
+    keepalive: 60,
+    reschedulePings: true,
+    reconnectPeriod: 1000,
+    connectTimeout: 10 * 1000,
+    protocolId: 'MQTT',
+    protocolVersion: 4,
+    clean: true,
+    clientId,
+    username: profile.id.toString(),
+    password: key.toString(),
+    will: { topic: `${clientId}/status`, payload: 'KO?', retain: false, qos: 0 },
+  };
+}
+
 module.exports = {
   factories: {
     user: userFactory,
@@ -201,9 +229,14 @@ module.exports = {
     device: deviceFactory,
     sensor: sensorFactory,
     measurement: measurementFactory,
+    client: clientFactory,
   },
   access: {
     admin: buildMethods(userFactory(undefined, 'admin')),
     user: buildMethods(userFactory(undefined, 'user')),
   },
+  // client: {
+  //   device: clientMethods(deviceFactory(), "device"),
+  //   user: clientMethods(userFactory(undefined, 'user'), "user"),
+  // },
 };

@@ -1,0 +1,4 @@
+{
+  "transport": ["aloesClient", "aloesLight", "mySensors", "loraWan"],
+  "message": ["aloesClient", "aloesLight", "mySensors", "cayenneLPP"]
+}

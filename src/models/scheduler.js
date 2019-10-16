@@ -5,28 +5,18 @@ import debounce from 'lodash.debounce';
 import logger from '../services/logger';
 import DeltaTimer from '../services/delta-timer';
 
+const collectionName = 'Scheduler';
+const clockInterval = 5000;
+const schedulerClockId = `scheduler-clock`;
+// store timers in memory
+const timers = {};
 /**
  * @module Scheduler
  * @property {String} id Scheduler ID
  * @property {String} [name] Scheduler name
  * @property {String} [model] Aloes model ( Application, Device, ... )
  */
-
-// store timers in memory
-const timers = {};
-
 module.exports = function(Scheduler) {
-  const collectionName = 'Scheduler';
-  const clockInterval = 5000;
-  const schedulerClockId = `scheduler-clock`;
-
-  Scheduler.disableRemoteMethodByName('get');
-  Scheduler.disableRemoteMethodByName('set');
-  Scheduler.disableRemoteMethodByName('keys');
-  Scheduler.disableRemoteMethodByName('iterateKeys');
-  Scheduler.disableRemoteMethodByName('ttl');
-  Scheduler.disableRemoteMethodByName('expire');
-
   /**
    * Format packet and send it via MQTT broker
    * @method module:Scheduler.publish
@@ -841,6 +831,24 @@ module.exports = function(Scheduler) {
 
   Scheduler.once('started', () => setTimeout(() => Scheduler.setClock(clockInterval), 2500));
 
-  // Scheduler.on('stopped', async () => Scheduler.deleteAll());
-  Scheduler.on('stopped', async () => Scheduler.deleteAll({ match: schedulerClockId }));
+  Scheduler.on('stopped', async () => {
+    try {
+      if (process.env.CLUSTER_MODE) {
+        if (process.env.PROCESS_ID !== '0') return null;
+        if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+      }
+      logger.publish(3, `${collectionName}`, 'on-stop:res', '');
+      return Scheduler.deleteAll({ match: schedulerClockId });
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'on-stop:err', error);
+      return null;
+    }
+  });
+
+  Scheduler.disableRemoteMethodByName('get');
+  Scheduler.disableRemoteMethodByName('set');
+  Scheduler.disableRemoteMethodByName('keys');
+  Scheduler.disableRemoteMethodByName('iterateKeys');
+  Scheduler.disableRemoteMethodByName('ttl');
+  Scheduler.disableRemoteMethodByName('expire');
 };

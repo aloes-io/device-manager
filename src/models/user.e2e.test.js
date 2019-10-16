@@ -16,9 +16,8 @@ const userTest = () => {
   const collectionName = 'Users';
   const apiUrl = `${restApiPath}/${collectionName}/`;
 
-  describe(collectionName, function() {
-    this.timeout(7000);
-
+  describe(`${collectionName} HTTP`, () => {
+    // this.timeout(7000);
     const UserModel = app.models.user;
     let userModels;
 
@@ -43,7 +42,7 @@ const userTest = () => {
       [`[TEST] ${collectionName} E2E Tests`]: {
         async before() {
           try {
-            this.timeout(7000);
+            this.timeout(delayBeforeTesting);
             const result = await Promise.all([
               testHelper.access.admin.create(app),
               UserModel.create(users),
@@ -69,16 +68,19 @@ const userTest = () => {
             return result;
           } catch (error) {
             console.log(`[TEST] ${collectionName} before:err`, error);
-            return error;
+            return null;
           }
         },
-        // after: () => Promise.all([UserModel.destroyAll()]).then(() => process.exit(0)),
         async after() {
           try {
-            // this.timeout(5000);
+            this.timeout(5000);
             console.log(`[TEST] ${collectionName} after:req`);
-            await Promise.all([UserModel.destroyAll(), app.stop(), broker.stop()]);
-            process.exit(0);
+            await Promise.all([UserModel.destroyAll(), app.stop()]).then(() => {
+              setTimeout(() => {
+                broker.stop();
+                process.exit(0);
+              }, 3500);
+            });
             return null;
           } catch (error) {
             console.log(`[TEST] ${collectionName} after:err`, error);
@@ -307,6 +309,15 @@ const userTest = () => {
                 expect: 200,
               },
               {
+                name: 'user CANNOT update his password without access token',
+                verb: 'post',
+                url: () => `${apiUrl}update-password-from-token`,
+                body: () => ({
+                  newPassword: 'TRICKYPASSWORD',
+                }),
+                expect: 400,
+              },
+              {
                 name: 'user CAN update his password from access token',
                 steps: [
                   {
@@ -320,7 +331,7 @@ const userTest = () => {
                     headers: () => ({
                       authorization: step0Response.body.id.toString(),
                     }),
-                    url: () => `${apiUrl}/update-password-from-token`,
+                    url: () => `${apiUrl}update-password-from-token`,
                     body: () => ({
                       newPassword: 'TRICKYPASSWORD',
                       accessToken: step0Response.body,

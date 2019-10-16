@@ -7,6 +7,7 @@ const clients = [];
 //  const host = 'localhost';
 //  const port = 1883;
 const url = 'mqtt://localhost:1883';
+// todo populate with dotenv ALOES_ID & ALOES_KEY
 const username = '5c96937cc08c0333b7958b6f';
 const password = 'Csee4EsVtAGfFMp2bdFMnkBMismpcKqpdt7HXGE5NQRT9H3NOI3zUGnwVlT2FNuC';
 

@@ -21,7 +21,7 @@ export default async function deviceWatcher(app) {
         const result = await Promise.all(promises);
         return result;
       } catch (error) {
-        return error;
+        return null;
       }
     };
 
@@ -34,6 +34,6 @@ export default async function deviceWatcher(app) {
     return path;
   } catch (error) {
     logger.publish(2, 'loopback', 'boot:watchDevices:err', error);
-    return error;
+    return null;
   }
 }
