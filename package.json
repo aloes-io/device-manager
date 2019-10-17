@@ -68,7 +68,7 @@
     "helmet": "^3.21.1",
     "http-server": "^0.11.1",
     "ioredis": "^4.11.2",
-    "iot-agent": "^1.0.8",
+    "iot-agent": "^1.0.9",
     "localtunnel": "^1.9.2",
     "lodash.debounce": "^4.0.8",
     "lodash.throttle": "^4.1.1",

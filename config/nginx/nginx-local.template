@@ -83,7 +83,7 @@ stream {
 	    proxy_pass aloes_mqtt_api_servers;
 	    # proxy_bind $remote_addr transparent;
 	    proxy_connect_timeout 2s;
-	    proxy_timeout 120s;
+	    proxy_timeout 60s;
 
 	}
 

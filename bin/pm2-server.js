@@ -16,7 +16,7 @@ const {
 const startProcess = async (noDaemon = true) => {
   try {
     await connectPM2(noDaemon);
-    console.log('App has started', noDaemon);
+    console.log('App has started');
 
     const config = dotenv.config();
     if (config.error) {

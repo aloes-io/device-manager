@@ -13,12 +13,13 @@ COPY src ./src/
 COPY package*.json ./
 
 RUN npm ci 
+# RUN npm install --production
 RUN npm run build
 
 ###############################################################################
 # Step 2 : Run image
 #
-FROM node:lts-alpine
+FROM node:lts-alpine as http-api
 
 ENV NODE_NAME=device-manager
 
@@ -27,14 +28,11 @@ WORKDIR /home/node/$NODE_NAME
 RUN mkdir -p ./storage
 
 COPY bin ./bin/
-# COPY pm2-server.js ./
 COPY favicon.ico ./
 COPY package* ./
 
-RUN npm ci 
-# RUN npm install --production
-
 COPY --from=builder /home/node/$NODE_NAME/dist ./dist/
+COPY --from=builder /home/node/$NODE_NAME/node_modules ./node_modules/
 
 CMD ["node","bin/pm2-server.js", "--start"]
 
