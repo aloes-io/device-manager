@@ -6,7 +6,6 @@ import path from 'path';
 //  import {ensureLoggedIn} from 'connect-ensure-login';
 import MQTTClient from './mqtt-client';
 import logger from './logger';
-// import utils from '../services/utils';
 
 /**
  * @module Server
@@ -215,7 +214,7 @@ app.start = async config => {
   } catch (error) {
     logger.publish(2, 'loopback', 'start:err', error);
     app.emit('started', false);
-    throw error;
+    return null;
   }
 };
 
@@ -239,14 +238,12 @@ app.stop = async signal => {
     app.models.Client.emit('stopped');
     app.models.Scheduler.emit('stopped');
     app.bootState = false;
-    if (httpServer) {
-      httpServer.close();
-    }
+    if (httpServer) httpServer.close();
     logger.publish(2, 'loopback', 'stopped', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
     return true;
   } catch (error) {
     logger.publish(2, 'loopback', 'stop:err', error);
-    throw error;
+    return null;
   }
 };
 
@@ -287,7 +284,7 @@ app.init = async config => {
     return app.start(config);
   } catch (error) {
     logger.publish(2, 'loopback', 'init:err', error);
-    throw error;
+    return null;
   }
 };
 

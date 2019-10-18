@@ -305,11 +305,11 @@ MQTTClient.on('offline', packet => {
 const startClient = async clientId => {
   try {
     // topic = `${pubsubVersion}/${clientId}/status``
-    await mqttClient.subscribe(`aloes-${process.env.ALOES_ID}/sync`, { qos: 2 });
+    await mqttClient.subscribe(`${clientId}/rx/#`, { qos: 1 });
     await mqttClient.subscribe(`${clientId}/status`, { qos: 1 });
-    await mqttClient.subscribe(`${clientId}/rx`, { qos: 1 });
+    await mqttClient.subscribe(`aloes-${process.env.ALOES_ID}/sync`, { qos: 2 });
   } catch (error) {
-    throw error;
+    logger.publish(4, 'mqtt-client', 'startClient:err', error);
   }
 };
 
@@ -354,7 +354,7 @@ const initClient = async (app, config) => {
       clientId,
       username: config.ALOES_ID,
       password: config.ALOES_KEY,
-      will: { topic: `${clientId}/status`, payload: 'KO?', retain: false, qos: 0 },
+      // will: { topic: `${clientId}/status`, payload: 'KO?', retain: false, qos: 0 },
     };
 
     if (config.MQTT_BROKER_URL) {
@@ -372,19 +372,20 @@ const initClient = async (app, config) => {
 
     mqttClient = await mqtt.connectAsync(mqttBrokerUrl, mqttClientOptions);
 
-    // mqttClient.on('error', err => {
-    //   logger.publish(4, 'mqtt-client', 'error', err);
-    // });
+    mqttClient.on('error', err => {
+      logger.publish(4, 'mqtt-client', 'error', err);
+    });
 
-    // mqttClient.on('connect', packet => {
-    //   MQTTClient.emit('connect', packet);
-    // });
+    mqttClient.on('connect', packet => {
+      MQTTClient.emit('connect', packet);
+    });
 
-    // mqttClient.on('offline', packet => {
-    //   MQTTClient.emit('offline', packet);
-    // });
+    mqttClient.on('offline', packet => {
+      MQTTClient.emit('offline', packet);
+    });
 
     mqttClient.on('message', (topic, payload) => {
+      logger.publish(4, 'mqtt-client', 'on-message', topic);
       MQTTClient.emit('message', app, topic, payload);
     });
 
@@ -414,7 +415,7 @@ MQTTClient.on('init', initClient);
  * @param {any} payload - Packet payload
  * @returns {boolean} status
  */
-MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
+MQTTClient.publish = async (topic, payload, retain = false, qos = 1) => {
   try {
     if (typeof payload === 'boolean') {
       payload = payload.toString();

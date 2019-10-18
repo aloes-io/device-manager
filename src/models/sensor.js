@@ -291,9 +291,14 @@ const deleteProps = async (app, sensor) => {
       throw utils.buildError(403, 'INVALID_SENSOR', 'Invalid sensor instance');
     }
     logger.publish(2, `${collectionName}`, 'deleteProps:req', sensor);
-    await app.models.Measurement.destroyAll({
-      sensorId: sensor.id.toString(),
-    });
+    try {
+      await app.models.Measurement.destroyAll({
+        sensorId: sensor.id.toString(),
+      });
+    } catch (e) {
+      // empty
+    }
+
     await app.models.SensorResource.deleteCache(sensor.deviceId, sensor.id);
     // await app.models.SensorResource.expireCache(sensor.deviceId, sensor.id, 1);
     const device = await app.models.Device.findById(sensor.deviceId);
@@ -423,31 +428,31 @@ const onBeforeRemote = async ctx => {
  * @property {string} deviceId Device instance Id which has sent this measurement
  */
 module.exports = function(Sensor) {
-  async function typeValidator(err) {
-    try {
-      if (!this.type || this.type.toString().length < 1 || this.type.toString().length > 4) {
-        err();
-      } else if (!(await Sensor.app.models.OmaObject.exists(this.type))) {
-        err();
-      }
-    } catch (e) {
+  function typeValidator(err) {
+    if (!this.type || this.type.toString().length < 1 || this.type.toString().length > 4) {
       err();
+    } else {
+      Sensor.app.models.OmaObject.exists(this.type)
+        .then(res => {
+          if (!res) err();
+        })
+        .catch(() => err());
     }
   }
 
-  async function resourceValidator(err) {
-    try {
-      if (
-        !this.resource ||
-        this.resource.toString().length < 1 ||
-        this.resource.toString().length > 4
-      ) {
-        err();
-      } else if (!(await Sensor.app.models.OmaResource.exists(this.resource))) {
-        err();
-      }
-    } catch (e) {
+  function resourceValidator(err) {
+    if (
+      this.resource === undefined ||
+      this.resource.toString().length < 1 ||
+      this.resource.toString().length > 4
+    ) {
       err();
+    } else {
+      Sensor.app.models.OmaResource.exists(this.resource)
+        .then(res => {
+          if (!res) err();
+        })
+        .catch(() => err());
     }
   }
 
@@ -668,7 +673,8 @@ module.exports = function(Sensor) {
       if (sensor.isNewInstance && sensor.icons) {
         sensor.method = 'HEAD';
         await SensorResource.setCache(device.id, sensor);
-        //  await device.sensors.updateById(sensor.id, sensor);
+        // should be saved in compose
+        // await device.sensors.updateById(sensor.id, sensor);
         return Sensor.publish(device, sensor, 'HEAD', client);
       } else if (!sensor.isNewInstance && sensor.id) {
         let updatedSensor = await SensorResource.getCache(device.id, sensor.id);
@@ -879,6 +885,7 @@ module.exports = function(Sensor) {
       }
       return sensor;
     } catch (error) {
+      // publish error to client
       logger.publish(2, `${collectionName}`, 'execute:err', error);
       throw error;
     }
@@ -895,11 +902,20 @@ module.exports = function(Sensor) {
    */
   Sensor.onPublish = async (device, attributes, sensor, client) => {
     try {
+      logger.publish(4, `${collectionName}`, 'onPublish:req', {
+        sensor: sensor && sensor.id,
+        attributes: attributes && attributes.devEui,
+      });
+
       if (!sensor || sensor === null) {
-        sensor = await Sensor.compose(
-          device,
-          attributes,
-        );
+        try {
+          sensor = await Sensor.compose(
+            device,
+            attributes,
+          );
+        } catch (e) {
+          sensor = null;
+        }
       }
       if (sensor && sensor !== null) {
         let method = sensor.method;
@@ -910,11 +926,16 @@ module.exports = function(Sensor) {
             method = 'HEAD';
           }
         }
+        logger.publish(4, `${collectionName}`, 'onPublish:res', {
+          method,
+        });
         return Sensor.execute(device, sensor, method, client);
       }
       const error = utils.buildError(400, 'INVALID_SENSOR', 'Error while building sensor instance');
       throw error;
     } catch (error) {
+      // publish error to client
+      logger.publish(2, `${collectionName}`, 'onPublish:err', error);
       throw error;
     }
   };
@@ -1013,9 +1034,9 @@ module.exports = function(Sensor) {
       const client = message.client;
       const sensor = message.sensor;
       if (!device || (!attributes && !sensor)) throw new Error('Message missing properties');
-      return Sensor.onPublish(device, attributes, sensor, client);
+      await Sensor.onPublish(device, attributes, sensor, client);
     } catch (error) {
-      throw error;
+      logger.publish(2, `${collectionName}`, 'on-publish:err', error);
     }
   });
 

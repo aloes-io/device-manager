@@ -21,9 +21,10 @@ const {
 const startProcess = async (noDaemon = true) => {
   try {
     await connectPM2(noDaemon);
-    console.log('App has started', noDaemon);
-
-    const config = dotenv.config();
+    const envPath = `${__dirname}/../.env`;
+    console.log('App has started', envPath);
+    // const config = dotenv.config();
+    const config = dotenv.config({ path: envPath });
     if (config.error) {
       throw config.error;
     }
@@ -72,7 +73,7 @@ const startProcess = async (noDaemon = true) => {
         killTimeout: 2500,
         env: {
           NODE_ENV: config.parsed.NODE_ENV,
-          CLUSTER_MODE: process.env.CLUSTER_MODE,
+          // CLUSTER_MODE: process.env.CLUSTER_MODE,
         },
       },
       {

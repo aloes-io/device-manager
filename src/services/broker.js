@@ -260,11 +260,11 @@ const authentificationRequest = async data => {
 const authenticate = async (client, username, password) => {
   let status;
   try {
-    if (!client || !client.id) return 1;
     logger.publish(3, 'broker', 'Authenticate:req', {
-      client: client.id,
+      client: client.id || null,
       username,
     });
+    if (!client || !client.id) return 1;
     let foundClient;
     if (!password || password === null || !username || username === null) {
       status = 4;
@@ -468,7 +468,7 @@ const onPublished = async (packet, client) => {
       if (topicParts[1] === 'tx') {
         packet.topic = topicParts.slice(2, topicParts.length).join('/');
         // packet.retain = false;
-        // packet.qos = 0;
+        packet.qos = 1;
         // console.log('broker, reformatted packet to instance', packet);
         broker.publish(packet);
       } else if (topicParts[1] === 'sync') {
@@ -582,15 +582,10 @@ broker.start = () => {
     };
 
     broker.instance.authorizeSubscribe = (client, packet, cb) => {
-      try {
-        if (authorizeSubscribe(client, packet)) return cb(null, packet);
-        const error = new Error('authorizeSubscribe error');
-        //  error.returnCode = 3;
-        return cb(error);
-      } catch (error) {
-        // logger.publish(2, 'broker', 'authorizeSubscribe:err', error);
-        return cb(error);
-      }
+      if (authorizeSubscribe(client, packet)) return cb(null, packet);
+      const error = new Error('authorizeSubscribe error');
+      //  error.returnCode = 3;
+      return cb(error);
     };
 
     // broker.instance.authorizeForward = authorizeForward;
@@ -680,7 +675,6 @@ broker.stop = () => {
       brokers: broker.instance.brokers,
     });
     if (broker.instance) broker.instance.close();
-
     return true;
   } catch (error) {
     logger.publish(2, 'broker', 'stop:err', error);

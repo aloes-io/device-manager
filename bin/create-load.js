@@ -22,7 +22,6 @@ function toJSON(body) {
   if (typeof body !== 'string') {
     return body;
   }
-
   return JSON.parse(body);
 }
 
@@ -31,7 +30,6 @@ function toJSON(body) {
  */
 function randomHalf(arr) {
   const size = Math.ceil(arr.length / 2);
-
   return shuffle({ deck: arr }).draw(size);
 }
 

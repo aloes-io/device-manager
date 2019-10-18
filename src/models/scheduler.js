@@ -807,6 +807,12 @@ module.exports = function(Scheduler) {
    */
   Scheduler.setClock = async interval => {
     try {
+      logger.publish(3, `${collectionName}`, 'setClock:req', {
+        clusterMode: process.env.CLUSTER_MODE,
+        externalTimer: process.env.EXTERNAL_TIMER,
+        timerUrl: process.env.TIMER_BASE_URL,
+      });
+
       if (process.env.CLUSTER_MODE) {
         if (process.env.PROCESS_ID !== '0') return null;
         if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
@@ -823,6 +829,11 @@ module.exports = function(Scheduler) {
   };
 
   Scheduler.delClock = async () => {
+    logger.publish(3, `${collectionName}`, 'delClock:req', {
+      clusterMode: process.env.CLUSTER_MODE,
+      externalTimer: process.env.EXTERNAL_TIMER,
+      timerUrl: process.env.TIMER_BASE_URL,
+    });
     if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
       return Scheduler.delete(schedulerClockId);
     }

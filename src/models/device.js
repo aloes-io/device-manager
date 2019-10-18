@@ -562,7 +562,12 @@ const parseMessage = async (app, packet, pattern, client) => {
         nativeSensorId: attributes.nativeSensorId,
         nativeNodeId: attributes.nativeNodeId,
       });
-      const device = await Device.findByPattern(pattern, attributes);
+      let device;
+      try {
+        device = await Device.findByPattern(pattern, attributes);
+      } catch (e) {
+        device = null;
+      }
       if (!device || device === null) {
         const error = utils.buildError(404, 'DEVICE_NOT_FOUND', 'Device not retrieved from packet');
         throw error;
@@ -583,9 +588,17 @@ const parseMessage = async (app, packet, pattern, client) => {
       });
       let device;
       if (attributes.id) {
-        device = await Device.findById(attributes.id);
+        try {
+          device = await Device.findById(attributes.id);
+        } catch (e) {
+          device = null;
+        }
       } else {
-        device = await Device.findByPattern(pattern, attributes);
+        try {
+          device = await Device.findByPattern(pattern, attributes);
+        } catch (e) {
+          device = null;
+        }
       }
       if (!device || device === null) {
         const error = utils.buildError(404, 'DEVICE_NOT_FOUND', 'Device not retrieved from packet');
@@ -1325,6 +1338,7 @@ module.exports = function(Device) {
       // logger.publish(4, `${collectionName}`, 'onPublish:res', pattern);
       return parseMessage(Device.app, packet, pattern, client);
     } catch (error) {
+      // publish error to client
       logger.publish(2, `${collectionName}`, 'onPublish:err', error);
       throw error;
     }
@@ -1378,6 +1392,7 @@ module.exports = function(Device) {
       }
       return device;
     } catch (error) {
+      // publish error to client
       throw error;
     }
   };
@@ -1537,10 +1552,10 @@ module.exports = function(Device) {
       if (!client || !client.user || status === undefined) {
         throw new Error('Message missing properties');
       }
-      await Device.updateStatus(client, status);
+      return Device.updateStatus(client, status);
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-client:err', error);
-      throw error;
+      return null;
     }
   });
 
@@ -1571,7 +1586,6 @@ module.exports = function(Device) {
       }
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-publish:err', error);
-      throw error;
     }
   });
 
@@ -1586,7 +1600,7 @@ module.exports = function(Device) {
       return Device.syncCache('UP');
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-stop:err', error);
-      throw error;
+      return null;
     }
   });
 

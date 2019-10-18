@@ -35,7 +35,7 @@
     "start:pm2": "cp deploy/.env_local .env ; npm run build ; node ./bin/pm2-local.js --start",
     "start:pm2:stage": "cp deploy/.env_staging .env ; npm run build ; node ./bin/pm2-local.js --start",
     "start:pm2:prod": "cp deploy/.env_production .env ; npm run build ; node ./bin/pm2-local.js --start",
-    "stop:pm2": "node ./bin/pm2-local.js --stop",
+    "stop:pm2": "node ./bin/pm2-local.js --stop ; node ./bin/pm2-local.js --delete",
     "log:pm2": "./node_modules/.bin/pm2 log",
     "start:docker": "cp deploy/.env_docker .env ; docker-compose --compatibility up -d",
     "stop:docker": "cp deploy/.env_docker .env ; docker-compose --compatibility down",

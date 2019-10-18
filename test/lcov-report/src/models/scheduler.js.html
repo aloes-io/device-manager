@@ -20,9 +20,9 @@
     </h1>
     <div class='clearfix'>
       <div class='fl pad1y space-right2'>
-        <span class="strong">18.16% </span>
+        <span class="strong">18.31% </span>
         <span class="quiet">Statements</span>
-        <span class='fraction'>75/413</span>
+        <span class='fraction'>76/415</span>
       </div>
       <div class='fl pad1y space-right2'>
         <span class="strong">3.47% </span>
@@ -35,9 +35,9 @@
         <span class='fraction'>9/35</span>
       </div>
       <div class='fl pad1y space-right2'>
-        <span class="strong">18.2% </span>
+        <span class="strong">18.36% </span>
         <span class="quiet">Lines</span>
-        <span class='fraction'>73/401</span>
+        <span class='fraction'>74/403</span>
       </div>
     </div>
     <p class="quiet">
@@ -900,7 +900,18 @@
 <a name='L852'></a><a href='#L852'>852</a>
 <a name='L853'></a><a href='#L853'>853</a>
 <a name='L854'></a><a href='#L854'>854</a>
-<a name='L855'></a><a href='#L855'>855</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L855'></a><a href='#L855'>855</a>
+<a name='L856'></a><a href='#L856'>856</a>
+<a name='L857'></a><a href='#L857'>857</a>
+<a name='L858'></a><a href='#L858'>858</a>
+<a name='L859'></a><a href='#L859'>859</a>
+<a name='L860'></a><a href='#L860'>860</a>
+<a name='L861'></a><a href='#L861'>861</a>
+<a name='L862'></a><a href='#L862'>862</a>
+<a name='L863'></a><a href='#L863'>863</a>
+<a name='L864'></a><a href='#L864'>864</a>
+<a name='L865'></a><a href='#L865'>865</a>
+<a name='L866'></a><a href='#L866'>866</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1710,6 +1721,12 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1726,6 +1743,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1734,13 +1756,13 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -2563,6 +2585,12 @@ module.exports = function(Scheduler) {
    */
   Scheduler.setClock = async interval =&gt; {
     try {
+      logger.publish(3, `${collectionName}`, 'setClock:req', {
+        clusterMode: process.env.CLUSTER_MODE,
+        externalTimer: process.env.EXTERNAL_TIMER,
+        timerUrl: process.env.TIMER_BASE_URL,
+      });
+&nbsp;
       <span class="missing-if-branch" title="if path not taken" >I</span>if (process.env.CLUSTER_MODE) {
 <span class="cstat-no" title="statement not covered" >        if (process.env.PROCESS_ID !== '0') <span class="cstat-no" title="statement not covered" >return null;</span></span>
 <span class="cstat-no" title="statement not covered" >        if (process.env.INSTANCES_PREFIX &amp;&amp; process.env.INSTANCES_PREFIX !== '1') <span class="cstat-no" title="statement not covered" >return null;</span></span>
@@ -2579,6 +2607,11 @@ module.exports = function(Scheduler) {
   };
 &nbsp;
   Scheduler.delClock = <span class="fstat-no" title="function not covered" >as</span>ync () =&gt; {
+<span class="cstat-no" title="statement not covered" >    logger.publish(3, `${collectionName}`, 'delClock:req', {</span>
+      clusterMode: process.env.CLUSTER_MODE,
+      externalTimer: process.env.EXTERNAL_TIMER,
+      timerUrl: process.env.TIMER_BASE_URL,
+    });
 <span class="cstat-no" title="statement not covered" >    if (process.env.EXTERNAL_TIMER &amp;&amp; process.env.TIMER_BASE_URL) {</span>
 <span class="cstat-no" title="statement not covered" >      return Scheduler.delete(schedulerClockId);</span>
     }
@@ -2614,7 +2647,7 @@ module.exports = function(Scheduler) {
 </div><!-- /wrapper -->
 <div class='footer quiet pad2 space-top1 center small'>
   Code coverage
-  generated by <a href="https://istanbul.js.org/" target="_blank">istanbul</a> at Wed Oct 16 2019 13:49:26 GMT+0200 (GMT+02:00)
+  generated by <a href="https://istanbul.js.org/" target="_blank">istanbul</a> at Fri Oct 18 2019 13:48:16 GMT+0200 (GMT+02:00)
 </div>
 </div>
 <script src="../../prettify.js"></script>

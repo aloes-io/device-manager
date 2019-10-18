@@ -415,10 +415,10 @@ module.exports = function(Measurement) {
         const subQuery = await influxConnector.buildWhere(filter, collectionName);
         query += `${subQuery} ;`;
         logger.publish(4, `${collectionName}`, 'deleteMeasurement:res', { query });
-        const result = await influxConnector.client.query(query);
+        await influxConnector.client.query(query);
         // const instance = await findMeasurements(filter);
         // await Measurement.publish(device, instance, 'DELETE');
-        return result;
+        return null;
       } catch (error) {
         logger.publish(2, `${collectionName}`, 'deleteMeasurement:err', error);
         return null;
@@ -446,9 +446,7 @@ module.exports = function(Measurement) {
           const application = await Model.app.models.Application.findById(options.appId);
           filter.ownerId = application.ownerId;
         }
-        if (!filter.ownerId) {
-          throw utils.buildError(401, 'UNAUTHORZIED', 'Invalid user');
-        }
+        if (!filter.ownerId) throw utils.buildError(401, 'UNAUTHORZIED', 'Invalid user');
         filter.id = id;
         const result = await deleteMeasurement(filter);
         return result;
