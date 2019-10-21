@@ -363,7 +363,8 @@ const onAfterSave = async ctx => {
 const deleteProps = async (app, instance) => {
   try {
     if (!instance || !instance.id || !instance.ownerId) {
-      throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
+      return null;
+      //  throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
     }
     logger.publish(4, `${collectionName}`, 'deleteProps:req', instance);
     await app.models.Address.destroyAll({

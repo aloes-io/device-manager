@@ -236,4 +236,26 @@ module.exports = function(SensorResource) {
       throw error;
     }
   };
+
+    /**
+   * Delete sensor resources stored in cache
+   * @method module:SensorResource.deleteAll
+   * @returns {array} sensors - Cached sensors keys
+   */
+  SensorResource.deleteAll = async () => {
+    try {
+      const sensors = [];
+      logger.publish(4, `${collectionName}`, 'deleteAll:req', '');
+      for await (const key of SensorResource.cacheIterator()) {
+        if (key && key !== null) {
+          sensors.push(key);
+          await SensorResource.delete(key);
+        }
+      }
+      return sensors;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'deleteAll:err', error);
+      throw error;
+    }
+  };
 };

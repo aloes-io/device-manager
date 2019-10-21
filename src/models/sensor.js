@@ -288,7 +288,8 @@ const onAfterSave = async ctx => {
 const deleteProps = async (app, sensor) => {
   try {
     if (!sensor || !sensor.id || !sensor.ownerId) {
-      throw utils.buildError(403, 'INVALID_SENSOR', 'Invalid sensor instance');
+      return null;
+      //   throw utils.buildError(403, 'INVALID_SENSOR', 'Invalid sensor instance');
     }
     logger.publish(2, `${collectionName}`, 'deleteProps:req', sensor);
     try {
@@ -298,9 +299,7 @@ const deleteProps = async (app, sensor) => {
     } catch (e) {
       // empty
     }
-
     await app.models.SensorResource.deleteCache(sensor.deviceId, sensor.id);
-    // await app.models.SensorResource.expireCache(sensor.deviceId, sensor.id, 1);
     const device = await app.models.Device.findById(sensor.deviceId);
     await app.models.Sensor.publish(device, sensor, 'DELETE');
     return sensor;
@@ -556,7 +555,7 @@ module.exports = function(Sensor) {
               Sensor.app.emit('publish', topic, packet.payload, false, 0);
               return topic;
             } catch (error) {
-              return error;
+              return null;
             }
           });
           await Promise.all(promises);
