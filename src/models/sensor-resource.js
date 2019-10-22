@@ -237,7 +237,7 @@ module.exports = function(SensorResource) {
     }
   };
 
-    /**
+  /**
    * Delete sensor resources stored in cache
    * @method module:SensorResource.deleteAll
    * @returns {array} sensors - Cached sensors keys

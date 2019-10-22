@@ -224,17 +224,24 @@ const updateProps = async (app, instance) => {
     if (sensorsCount && sensorsCount > 0) {
       await app.models.SensorResource.updateCache(instance);
     }
-    // check address state
-    // if (!device.address()) {
-    //   await device.address.create({
-    //     street: '',
-    //     streetNumber: null,
-    //     streetName: null,
-    //     postalCode: null,
-    //     city: null,
-    //     public: false,
-    //   });
-    // }
+
+    const defaultAddress = {
+      street: '',
+      streetNumber: null,
+      streetName: null,
+      postalCode: null,
+      city: null,
+      public: false,
+    };
+    if (!instance.address || !instance.address()) {
+      try {
+        await instance.address.create(defaultAddress);
+      } catch (e) {
+        await instance.address.destroy();
+        await instance.address.create(defaultAddress);
+      }
+    }
+
     return app.models.Device.publish(instance, 'PUT');
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'updateProps:err', error);
@@ -583,6 +590,7 @@ const parseMessage = async (app, packet, pattern, client) => {
       });
       return device;
     }
+
     if (pattern.params.collection === 'Device' && attributes.devEui && attributes.apiKey) {
       logger.publish(4, `${collectionName}`, 'parseMessage:redirect to Device', {
         devEui: attributes.devEui,
@@ -610,10 +618,11 @@ const parseMessage = async (app, packet, pattern, client) => {
       Device.emit('publish', { device, pattern, client });
       return device;
     }
+
     const error = utils.buildError(400, 'DECODING_ERROR', 'No attributes retrieved from Iot Agent');
     throw error;
   } catch (error) {
-    // logger.publish(4, `${collectionName}`, 'parseMessage:err', error);
+    logger.publish(4, `${collectionName}`, 'parseMessage:err', error);
     throw error;
   }
 };

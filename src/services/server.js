@@ -99,9 +99,9 @@ const authenticateInstance = async (client, username, password) => {
     }
 
     if (status === 0) {
-      // const ttl = 1 * 60 * 60 * 1000;
+      const ttl = 1 * 60 * 60 * 1000;
       foundClient.user = username;
-      // await Client.set(client.id, JSON.stringify(foundClient), ttl);
+      await Client.set(client.id, JSON.stringify(foundClient), ttl);
     }
     logger.publish(3, 'loopback', 'authenticateInstance:res', { status, client: foundClient });
     return { client: foundClient, status };

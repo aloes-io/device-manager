@@ -298,7 +298,7 @@ const authenticate = async (client, username, password) => {
         client[key] = foundClient[key];
         return key;
       });
-      await updateClientStatus(client, true);
+      // await updateClientStatus(client, true);
     } else if (status === undefined) {
       status = 2;
     }
@@ -601,8 +601,13 @@ broker.start = () => {
      * @event client
      * @param {object} client - MQTT client
      */
-    broker.instance.on('client', client => {
-      logger.publish(3, 'broker', 'onClientConnect', client.id);
+    broker.instance.on('client', async client => {
+      try {
+        await updateClientStatus(client, true);
+        logger.publish(3, 'broker', 'onClientConnect', client.id);
+      } catch (error) {
+        logger.publish(3, 'broker', 'onClientConnect:err', error);
+      }
     });
 
     /**
