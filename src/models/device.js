@@ -8,7 +8,7 @@ import protocols from '../initial-data/protocols.json';
 
 const collectionName = 'Device';
 const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
-const clockInterval = 60000;
+const clockInterval = 5 * 60 * 1000;
 
 /**
  * Set device QRcode access based on declared protocol and access point url
@@ -1633,7 +1633,7 @@ module.exports = function(Device) {
     }
   });
 
-  Device.once('started', () => setTimeout(() => Device.setClock(clockInterval), 2500));
+  // Device.once('started', () => setTimeout(() => Device.setClock(clockInterval), 2500));
 
   Device.on('stopped', async () => {
     try {
