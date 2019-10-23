@@ -2,11 +2,13 @@ import crypto from 'crypto';
 import iotAgent from 'iot-agent';
 import logger from '../services/logger';
 import utils from '../services/utils';
+import DeltaTimer from '../services/delta-timer';
 import deviceTypes from '../initial-data/device-types.json';
 import protocols from '../initial-data/protocols.json';
 
 const collectionName = 'Device';
 const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
+const clockInterval = 60000;
 
 /**
  * Set device QRcode access based on declared protocol and access point url
@@ -747,16 +749,6 @@ const updateFirmware = async (ctx, deviceId, version) => {
   }
 };
 
-// const onSync = async data => {
-//   try {
-//     logger.publish(4, `${collectionName}`, 'tick:res', data.time);
-//     const devices = await Device.syncCache('UP');
-//     return devices;
-//   } catch (error) {
-//     return error;
-//   }
-// };
-
 /**
  * @module Device
  * @property {String} id  Database generated ID.
@@ -976,7 +968,7 @@ module.exports = function(Device) {
    * @method module:Device.syncCache
    * @param {string} [direction] - UP to save on disk | DOWN to save on cache,
    */
-  Device.syncCache = async (direction = 'UP') => {
+  Device.syncCache = async (direction = 'DOWN') => {
     try {
       logger.publish(5, `${collectionName}`, 'syncCache:req', direction);
       const devices = await Device.find();
@@ -1322,6 +1314,7 @@ module.exports = function(Device) {
         });
         return client;
       }
+      // device not found
       return null;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'updateStatus:err', error);
@@ -1546,6 +1539,47 @@ module.exports = function(Device) {
    */
   Device.getOTAUpdate = async (ctx, deviceId, version) => updateFirmware(ctx, deviceId, version);
 
+  const onSync = async data => {
+    try {
+      logger.publish(4, `${collectionName}`, 'onSync:res', data.time);
+      const devices = await Device.syncCache('UP');
+      return devices;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'onSync:err', error);
+      return null;
+    }
+  };
+
+  /**
+   * Init clock to synchronize memories
+   *
+   * a DeltaTimer instance will be created and stored in memory
+   * @method module:Device.setClock
+   * @param {number} interval - Timeout interval
+   * @returns {object} Device.timer
+   */
+  Device.setClock = async interval => {
+    try {
+      logger.publish(4, `${collectionName}`, 'setClock:req', interval);
+      if (process.env.CLUSTER_MODE) {
+        if (process.env.PROCESS_ID !== '0') return null;
+        if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+      }
+      if (Device.timer && Device.timer !== null) {
+        Device.timer.stop();
+      }
+      Device.timer = new DeltaTimer(onSync, {}, interval);
+      Device.start = Device.timer.start();
+      logger.publish(3, `${collectionName}`, 'setClock:res', Device.start);
+      return Device.timer;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'setClock:err', error);
+      return null;
+    }
+  };
+
+  Device.delClock = () => Device.timer.stop();
+
   /**
    * Event reporting that an device client connection status has changed.
    * @event client
@@ -1599,6 +1633,8 @@ module.exports = function(Device) {
     }
   });
 
+  Device.once('started', () => setTimeout(() => Device.setClock(clockInterval), 2500));
+
   Device.on('stopped', async () => {
     try {
       if (process.env.CLUSTER_MODE) {
@@ -1606,6 +1642,7 @@ module.exports = function(Device) {
         if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
       }
       logger.publish(3, `${collectionName}`, 'on-stop:res', '');
+      Device.delClock();
       // await Device.updateAll({ status: true }, { status: false, clients: [] });
       return Device.syncCache('UP');
     } catch (error) {

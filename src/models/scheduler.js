@@ -8,7 +8,7 @@ import DeltaTimer from '../services/delta-timer';
 const collectionName = 'Scheduler';
 const clockInterval = 5000;
 const schedulerClockId = `scheduler-clock`;
-// store timers in memory
+// store timers in memory when using internal timer
 const timers = {};
 /**
  * @module Scheduler
@@ -835,7 +835,15 @@ module.exports = function(Scheduler) {
       timerUrl: process.env.TIMER_BASE_URL,
     });
     if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
-      return Scheduler.delete(schedulerClockId);
+      try {
+        const scheduler = JSON.parse(await Scheduler.get(schedulerClockId));
+        if (scheduler && scheduler !== null) {
+          await deleteTimer(scheduler.timerId);
+          await Scheduler.delete(schedulerClockId);
+        }
+      } catch (e) {
+        // empty
+      }
     }
     return Scheduler.timer.stop();
   };
@@ -849,7 +857,8 @@ module.exports = function(Scheduler) {
         if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
       }
       logger.publish(3, `${collectionName}`, 'on-stop:res', '');
-      return Scheduler.deleteAll({ match: schedulerClockId });
+      return Scheduler.delClock();
+      // return Scheduler.deleteAll({ match: schedulerClockId });
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-stop:err', error);
       return null;

@@ -315,6 +315,7 @@ app.on('started', (state, config) => {
     }
     MQTTClient.emit('init', app, config);
     app.models.Scheduler.emit('started');
+    app.models.Device.emit('started');
     //  process.send('ready');
   } else {
     logger.publish(4, 'loopback', 'Setup', `Error, state invalid`);

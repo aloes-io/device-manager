@@ -114,7 +114,7 @@ module.exports = function(SensorResource) {
    * @param {object} device - Device Instance to sync
    * @param {string} [direction] - UP to save on disk | DOWN to save on cache,
    */
-  SensorResource.syncCache = async (device, direction = 'UP') => {
+  SensorResource.syncCache = async (device, direction = 'DOWN') => {
     try {
       let sensors = await device.sensors.find();
       logger.publish(4, `${collectionName}`, 'syncCache:req', { direction });
@@ -122,12 +122,16 @@ module.exports = function(SensorResource) {
         if (direction === 'UP') {
           // sync redis with mongo
           const promises = await sensors.map(async sensor => {
-            const cachedSensor = await SensorResource.getCache(device.id, sensor.id);
-            if (cachedSensor && cachedSensor !== null) {
-              delete cachedSensor.id;
-              return sensor.updateAttributes(cachedSensor);
+            try {
+              const cachedSensor = await SensorResource.getCache(device.id, sensor.id);
+              if (cachedSensor && cachedSensor !== null) {
+                delete cachedSensor.id;
+                return sensor.updateAttributes(cachedSensor);
+              }
+              return null;
+            } catch (e) {
+              return null;
             }
-            return null;
           });
           sensors = await Promise.all(promises);
         } else if (direction === 'DOWN') {
