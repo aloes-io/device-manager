@@ -509,6 +509,48 @@ module.exports = function(User) {
   //   return null;
   // });
 
+  /**
+   * Find users
+   * @method module:User.find
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  /**
+   * Returns users length
+   * @method module:User.count
+   * @param {object} where
+   * @returns {number}
+   */
+
+  /**
+   * Find user by id
+   * @method module:User.findById
+   * @param {any} id
+   * @returns {object}
+   */
+
+  /**
+   * Create user
+   * @method module:User.create
+   * @param {object} user
+   * @returns {object}
+   */
+
+  /**
+   * Update user by id
+   * @method module:User.updateById
+   * @param {any} id
+   * @returns {object}
+   */
+
+  /**
+   * Delete user by id
+   * @method module:User.deleteById
+   * @param {any} id
+   * @returns {object}
+   */
+
   User.disableRemoteMethodByName('count');
   User.disableRemoteMethodByName('upsertWithWhere');
   User.disableRemoteMethodByName('replaceOrCreate');

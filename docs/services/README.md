@@ -19,6 +19,7 @@
 
 * [Broker](#module_Broker)
     * _static_
+        * [.publish(packet)](#module_Broker.publish) ⇒ <code>function</code>
         * [.start()](#module_Broker.start) ⇒ <code>boolean</code>
         * [.stop()](#module_Broker.stop) ⇒ <code>boolean</code>
         * [.init()](#module_Broker.init) ⇒ <code>function</code>
@@ -38,6 +39,18 @@
         * ["clientDisconnect" (client)](#event_clientDisconnect) ⇒ <code>function</code>
         * ["keepaliveTimeout" (client)](#event_keepaliveTimeout)
         * ["clientError" (client, err)](#event_clientError)
+
+<a name="module_Broker.publish"></a>
+
+### Broker.publish(packet) ⇒ <code>function</code>
+Convert payload before publish
+
+**Kind**: static method of [<code>Broker</code>](#module_Broker)  
+**Returns**: <code>function</code> - broker.instance.publish  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| packet | <code>object</code> | MQTT Packet |
 
 <a name="module_Broker.start"></a>
 
@@ -541,8 +554,8 @@ Stop MQTT client and unsubscribe
         * [.publish()](#module_Server.publish) ⇒ <code>function</code>
         * [.init(config)](#module_Server.init)
     * _inner_
-        * ["started" (config)](#event_started) ⇒ <code>function</code>
-        * ["started" (state)](#event_started) ⇒ <code>function</code>
+        * ["start" (config)](#event_start) ⇒ <code>function</code>
+        * ["started" (state, config)](#event_started)
         * ["stop" (signal)](#event_stop) ⇒ <code>function</code>
 
 <a name="module_Server.start"></a>
@@ -553,7 +566,7 @@ Init HTTP server with new Loopback instance
 Init external services ( MQTT broker )
 
 **Kind**: static method of [<code>Server</code>](#module_Server)  
-**Emits**: <code>Server.event:started</code>, <code>MQTTClient.event:start</code>, <code>Scheduler.event:started</code>  
+**Emits**: <code>Server.event:started</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -589,9 +602,9 @@ Bootstrap the application, configure models, datasources and middleware.
 | --- | --- | --- |
 | config | <code>object</code> | Parsed env variables |
 
-<a name="event_started"></a>
+<a name="event_start"></a>
 
-### "started" (config) ⇒ <code>function</code>
+### "start" (config) ⇒ <code>function</code>
 Event reporting that the application and all subservices should start.
 
 **Kind**: event emitted by [<code>Server</code>](#module_Server)  
@@ -603,15 +616,16 @@ Event reporting that the application and all subservices should start.
 
 <a name="event_started"></a>
 
-### "started" (state) ⇒ <code>function</code>
+### "started" (state, config)
 Event reporting that the application and all subservices have started.
 
 **Kind**: event emitted by [<code>Server</code>](#module_Server)  
-**Returns**: <code>function</code> - Server.start  
+**Emits**: <code>MQTTClient.event:start</code>, <code>Scheduler.event:started</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | state | <code>boolean</code> | application state |
+| config | <code>object</code> | application config |
 
 <a name="event_stop"></a>
 

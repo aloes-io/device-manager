@@ -559,6 +559,7 @@ Delete clients stored in cache
         * [.getState(deviceId)](#module_Device.getState) ⇒ <code>object</code>
         * [.getFullState(deviceId)](#module_Device.getFullState) ⇒ <code>object</code>
         * [.getOTAUpdate(ctx, deviceId, [version])](#module_Device.getOTAUpdate) ⇒ <code>function</code>
+        * [.setClock(interval)](#module_Device.setClock) ⇒ <code>object</code>
         * [.find(filter)](#module_Device.find) ⇒ <code>object</code>
         * [.count(where)](#module_Device.count) ⇒ <code>number</code>
         * [.findById(id, filter)](#module_Device.findById) ⇒ <code>object</code>
@@ -758,6 +759,20 @@ Update OTA if a firmware is available
 | ctx | <code>object</code> | Loopback context |
 | deviceId | <code>string</code> | Device instance id |
 | [version] | <code>string</code> | Firmware version requested |
+
+<a name="module_Device.setClock"></a>
+
+### Device.setClock(interval) ⇒ <code>object</code>
+Init clock to synchronize memories
+
+a DeltaTimer instance will be created and stored in memory
+
+**Kind**: static method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>object</code> - Device.timer  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| interval | <code>number</code> | Timeout interval |
 
 <a name="module_Device.find"></a>
 
@@ -1210,8 +1225,23 @@ Event reporting that a file instance / collection is requested
 
 
 * [Measurement](#module_Measurement)
+    * [.create(sensor)](#module_Measurement.create) ⇒ <code>object</code>
     * [.publish(device, measurement, [method], [client])](#module_Measurement.publish)
     * [.compose(sensor)](#module_Measurement.compose) ⇒ <code>object</code>
+    * [.findById(id, filter)](#module_Measurement.findById) ⇒ <code>object</code>
+    * [.find(filter)](#module_Measurement.find) ⇒ <code>object</code>
+    * [.updateById(id, filter)](#module_Measurement.updateById) ⇒ <code>object</code>
+
+<a name="module_Measurement.create"></a>
+
+### Measurement.create(sensor) ⇒ <code>object</code>
+Create measurement
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type |
+| --- | --- |
+| sensor | <code>object</code> | 
 
 <a name="module_Measurement.publish"></a>
 
@@ -1239,6 +1269,41 @@ On sensor update, if an OMA resource is of float or integer type
 | Param | Type | Description |
 | --- | --- | --- |
 | sensor | <code>object</code> | updated Sensor instance |
+
+<a name="module_Measurement.findById"></a>
+
+### Measurement.findById(id, filter) ⇒ <code>object</code>
+Find measurement by id
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type |
+| --- | --- |
+| id | <code>any</code> | 
+| filter | <code>object</code> | 
+
+<a name="module_Measurement.find"></a>
+
+### Measurement.find(filter) ⇒ <code>object</code>
+Find measurements
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type |
+| --- | --- |
+| filter | <code>object</code> | 
+
+<a name="module_Measurement.updateById"></a>
+
+### Measurement.updateById(id, filter) ⇒ <code>object</code>
+Update measurement by id
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type |
+| --- | --- |
+| id | <code>any</code> | 
+| filter | <code>object</code> | 
 
 <a name="module_OmaObject"></a>
 
@@ -1470,6 +1535,7 @@ validate webhook content before dispatch
     * [.cacheIterator(filter)](#module_SensorResource.cacheIterator) ⇒ <code>string</code>
     * [.includeCache(device)](#module_SensorResource.includeCache)
     * [.updateCache(device)](#module_SensorResource.updateCache) ⇒ <code>array</code>
+    * [.deleteAll()](#module_SensorResource.deleteAll) ⇒ <code>array</code>
 
 <a name="module_SensorResource.getCache"></a>
 
@@ -1566,6 +1632,13 @@ Update device's sensors stored in cache
 | --- | --- | --- |
 | device | <code>object</code> | Device instance |
 
+<a name="module_SensorResource.deleteAll"></a>
+
+### SensorResource.deleteAll() ⇒ <code>array</code>
+Delete sensor resources stored in cache
+
+**Kind**: static method of [<code>SensorResource</code>](#module_SensorResource)  
+**Returns**: <code>array</code> - sensors - Cached sensors keys  
 <a name="module_Sensor"></a>
 
 ## Sensor
@@ -2008,6 +2081,12 @@ Event reporting that a sensor instance / collection is requested
         * [.updatePasswordFromToken(accessToken, newPassword)](#module_User.updatePasswordFromToken) ⇒ <code>boolean</code>
         * [.setNewPassword(ctx, oldPassword, newPassword)](#module_User.setNewPassword) ⇒ <code>object</code>
         * [.sendContactForm(form)](#module_User.sendContactForm)
+        * [.find(filter)](#module_User.find) ⇒ <code>object</code>
+        * [.count(where)](#module_User.count) ⇒ <code>number</code>
+        * [.findById(id)](#module_User.findById) ⇒ <code>object</code>
+        * [.create(user)](#module_User.create) ⇒ <code>object</code>
+        * [.updateById(id)](#module_User.updateById) ⇒ <code>object</code>
+        * [.deleteById(id)](#module_User.deleteById) ⇒ <code>object</code>
     * _inner_
         * [~onBeforeSave(ctx)](#module_User..onBeforeSave) ⇒ <code>object</code>
         * [~onAfterSave(ctx)](#module_User..onAfterSave) ⇒ <code>object</code>
@@ -2083,6 +2162,72 @@ Sending a request to admin
 | Param | Type | Description |
 | --- | --- | --- |
 | form | <code>object</code> | Client form options |
+
+<a name="module_User.find"></a>
+
+### User.find(filter) ⇒ <code>object</code>
+Find users
+
+**Kind**: static method of [<code>User</code>](#module_User)  
+
+| Param | Type |
+| --- | --- |
+| filter | <code>object</code> | 
+
+<a name="module_User.count"></a>
+
+### User.count(where) ⇒ <code>number</code>
+Returns users length
+
+**Kind**: static method of [<code>User</code>](#module_User)  
+
+| Param | Type |
+| --- | --- |
+| where | <code>object</code> | 
+
+<a name="module_User.findById"></a>
+
+### User.findById(id) ⇒ <code>object</code>
+Find user by id
+
+**Kind**: static method of [<code>User</code>](#module_User)  
+
+| Param | Type |
+| --- | --- |
+| id | <code>any</code> | 
+
+<a name="module_User.create"></a>
+
+### User.create(user) ⇒ <code>object</code>
+Create user
+
+**Kind**: static method of [<code>User</code>](#module_User)  
+
+| Param | Type |
+| --- | --- |
+| user | <code>object</code> | 
+
+<a name="module_User.updateById"></a>
+
+### User.updateById(id) ⇒ <code>object</code>
+Update user by id
+
+**Kind**: static method of [<code>User</code>](#module_User)  
+
+| Param | Type |
+| --- | --- |
+| id | <code>any</code> | 
+
+<a name="module_User.deleteById"></a>
+
+### User.deleteById(id) ⇒ <code>object</code>
+Delete user by id
+
+**Kind**: static method of [<code>User</code>](#module_User)  
+
+| Param | Type |
+| --- | --- |
+| id | <code>any</code> | 
 
 <a name="module_User..onBeforeSave"></a>
 

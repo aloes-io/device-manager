@@ -48,6 +48,13 @@ module.exports = function(Measurement) {
   });
 
   /**
+   * Create measurement
+   * @method module:Measurement.create
+   * @param {object} sensor
+   * @returns {object}
+   */
+
+  /**
    * Format packet and send it via MQTT broker
    * @method module:Measurement.publish
    * @param {object} device - found Device instance
@@ -268,6 +275,13 @@ module.exports = function(Measurement) {
       }
     };
 
+    /**
+     * Find measurement by id
+     * @method module:Measurement.findById
+     * @param {any} id
+     * @param {object} filter
+     * @returns {object}
+     */
     Model.findById = async (id, options) => {
       try {
         logger.publish(4, `${collectionName}`, 'findById:req', { id });
@@ -294,6 +308,12 @@ module.exports = function(Measurement) {
       }
     };
 
+    /**
+     * Find measurements
+     * @method module:Measurement.find
+     * @param {object} filter
+     * @returns {object}
+     */
     Model.find = async (filter, options) => {
       try {
         logger.publish(4, `${collectionName}`, 'find:req', { filter });
@@ -348,6 +368,13 @@ module.exports = function(Measurement) {
       }
     };
 
+    /**
+     * Update measurement by id
+     * @method module:Measurement.updateById
+     * @param {any} id
+     * @param {object} filter
+     * @returns {object}
+     */
     Model.replaceById = async (id, data, options) => {
       try {
         logger.publish(4, `${collectionName}`, 'replaceById:req', { id });
@@ -433,6 +460,13 @@ module.exports = function(Measurement) {
     //   }
     // };
 
+    /**
+     * Delete measurement by id
+     * @method module:Measuremenr.deleteById
+     * @param {any} id
+     * @param {object} options
+     * @returns {object}
+     */
     Model.deleteById = async (id, options) => {
       try {
         logger.publish(4, `${collectionName}`, 'deleteById:req', { id });

@@ -8,7 +8,7 @@ import protocols from '../initial-data/protocols.json';
 
 const collectionName = 'Device';
 const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
-const clockInterval = 5 * 60 * 1000;
+// const clockInterval = 5 * 60 * 1000;
 
 /**
  * Set device QRcode access based on declared protocol and access point url
@@ -1112,7 +1112,7 @@ module.exports = function(Device) {
         fields: {
           id: true,
           devEui: true,
-          apiKey: false,
+          apiKey: true,
           clientKey: false,
           frameCounter: true,
           name: true,
@@ -1277,7 +1277,6 @@ module.exports = function(Device) {
       if (device && device !== null && device.devEui === client.devEui) {
         const Client = Device.app.models.Client;
         let ttl;
-
         let frameCounter = device.frameCounter;
         const clients = device.clients;
         const index = clients.indexOf(client.id);

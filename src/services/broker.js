@@ -7,6 +7,7 @@ import net from 'net';
 import ws from 'websocket-stream';
 import dotenv from 'dotenv';
 import nodeCleanup from 'node-cleanup';
+import throttle from 'lodash.throttle';
 import logger from './logger';
 import envVariablesKeys from '../initial-data/variables-keys.json';
 // import { version } from '../package.json';
@@ -214,6 +215,8 @@ const updateClientStatus = async (client, status) => {
   }
 };
 
+const delayedUpdateClientStatus = throttle(updateClientStatus, 100);
+
 /**
  * HTTP request to Aloes to validate credentials
  * @method module:Broker~authentificationRequest
@@ -325,6 +328,7 @@ const authorizePublish = (client, packet) => {
   const topic = packet.topic;
   if (!topic) return false;
   const topicParts = topic.split('/');
+  // const topicIdentifier = topicParts[0].toUpperCase()
   let auth = false;
   if (client.user) {
     if (topicParts[0].startsWith(client.user)) {
@@ -383,6 +387,7 @@ const authorizeSubscribe = (client, packet) => {
   let auth = false;
   // todo leave minimum access with apikey
   if (client.user) {
+    // const topicIdentifier = topicParts[0].toUpperCase()
     if (topicParts[0].startsWith(client.user)) {
       logger.publish(5, 'broker', 'authorizeSubscribe:req', {
         user: client.user,
@@ -603,8 +608,9 @@ broker.start = () => {
      */
     broker.instance.on('client', async client => {
       try {
-        await updateClientStatus(client, true);
         logger.publish(3, 'broker', 'onClientConnect', client.id);
+        await delayedUpdateClientStatus(client, true);
+        // await updateClientStatus(client, true);
       } catch (error) {
         logger.publish(3, 'broker', 'onClientConnect:err', error);
       }
