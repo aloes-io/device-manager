@@ -20,7 +20,8 @@ const addressTest = () => {
   const userApiUrl = `${restApiPath}/Users/`;
 
   describe(collectionName, function() {
-    this.timeout(3000);
+    this.timeout(5000);
+    this.slow(2000);
     const DeviceModel = app.models.Device;
     const AddressModel = app.models.Address;
     let devices, users, userAddress, deviceAddress;

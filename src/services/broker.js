@@ -215,7 +215,7 @@ const updateClientStatus = async (client, status) => {
   }
 };
 
-const delayedUpdateClientStatus = throttle(updateClientStatus, 100);
+const delayedUpdateClientStatus = throttle(updateClientStatus, 250);
 
 /**
  * HTTP request to Aloes to validate credentials

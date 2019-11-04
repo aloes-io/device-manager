@@ -545,7 +545,7 @@ const onBeforeRemote = async (app, ctx) => {
 const parseMessage = async (app, packet, pattern, client) => {
   try {
     if (!pattern || !pattern.params || !packet || !packet.topic) {
-      const error = utils.buildError(403, 'INVALID_ARGS', 'Mising pattern and / or packet');
+      const error = utils.buildError(403, 'INVALID_ARGS', 'Missing pattern and / or packet');
       throw error;
     }
     const Device = app.models.Device;

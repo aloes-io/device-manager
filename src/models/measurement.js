@@ -141,7 +141,7 @@ module.exports = function(Measurement) {
       if (sensor.nativeNodeId) {
         measurement.nativeNodeId = sensor.nativeNodeId;
       }
-      logger.publish(4, `${collectionName}`, 'compose:res', {
+      logger.publish(3, `${collectionName}`, 'compose:res', {
         measurement,
       });
       return measurement;

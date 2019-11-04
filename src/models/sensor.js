@@ -226,12 +226,16 @@ const persistingResource = async (app, device, sensor, client) => {
       const Measurement = app.models.Measurement;
       const measurement = await Measurement.compose(sensor);
       if (measurement && measurement !== null) {
-        const point = await Measurement.create(measurement);
-        if (point && point.id) {
-          //  console.log('influx measurement : ', point.id);
-          // todo fix id generation error
-          await Measurement.publish(device, point.id, 'POST');
-          persistedResource = point;
+        try {
+          const point = await Measurement.create(measurement);
+          if (point && point.id) {
+            //  console.log('influx measurement : ', point.id);
+            // todo fix id generation error
+            await Measurement.publish(device, point.id, 'POST');
+            persistedResource = point;
+          }
+        } catch (e) {
+          // empty
         }
       }
     } else if (method === 'log') {
