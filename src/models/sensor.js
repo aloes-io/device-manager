@@ -457,6 +457,7 @@ module.exports = function(Sensor) {
   }
 
   function resourceValidator(err) {
+    // todo : check if this.resource is in omaObjects[this.type].resources
     if (
       this.resource === undefined ||
       !isLength(this.resource.toString(), { min: 1, max: 4 }) ||

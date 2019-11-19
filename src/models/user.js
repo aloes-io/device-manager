@@ -490,6 +490,16 @@ module.exports = function(User) {
   };
 
   /**
+   * Event reporting that User model has been attached to the application
+   * @event attached
+   */
+  User.on('attached', () => {
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      User.definition.settings.emailVerificationRequired = false;
+    }
+  });
+
+  /**
    * Event reporting to trigger mails.verifyEmail
    * @event verifyEmail
    * @param {object} user - User instance

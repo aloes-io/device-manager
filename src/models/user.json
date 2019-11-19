@@ -10,7 +10,7 @@
   },
   "mixins": {},
   "restrictResetPasswordTokenScope": true,
-  "emailVerificationRequired": false,
+  "emailVerificationRequired": true,
   "properties": {
     "firstName": {
       "type": "string",
