@@ -7,6 +7,8 @@
 <dd></dd>
 <dt><a href="#module_MQTTClient">MQTTClient</a></dt>
 <dd></dd>
+<dt><a href="#module_rateLimiter">rateLimiter</a></dt>
+<dd></dd>
 <dt><a href="#module_RoleManager">RoleManager</a></dt>
 <dd></dd>
 <dt><a href="#module_Server">Server</a></dt>
@@ -26,7 +28,7 @@
     * _inner_
         * [~persistence(config)](#module_Broker..persistence) ⇒ <code>function</code>
         * [~emitter(config)](#module_Broker..emitter) ⇒ <code>function</code>
-        * [~getClient(client)](#module_Broker..getClient) ⇒ <code>object</code>
+        * [~getClientProps(client)](#module_Broker..getClientProps) ⇒ <code>object</code>
         * [~getClients([id])](#module_Broker..getClients) ⇒ <code>array</code> \| <code>object</code>
         * [~getClientsByTopic(topic)](#module_Broker..getClientsByTopic) ⇒ <code>promise</code>
         * [~pickRandomClient(clientIds)](#module_Broker..pickRandomClient) ⇒ <code>object</code>
@@ -35,10 +37,12 @@
         * [~authorizePublish(client, packet)](#module_Broker..authorizePublish) ⇒ <code>boolean</code>
         * [~onPublished(packet, client)](#module_Broker..onPublished)
         * [~cleanSubscriptions(client)](#module_Broker..cleanSubscriptions) ⇒ <code>promise</code>
-        * ["client" (client)](#event_client)
+        * ["client" (client)](#event_client) ⇒ <code>function</code>
         * ["clientDisconnect" (client)](#event_clientDisconnect) ⇒ <code>function</code>
         * ["keepaliveTimeout" (client)](#event_keepaliveTimeout)
         * ["clientError" (client, err)](#event_clientError)
+        * ["clientError" (client, err)](#event_clientError)
+        * ["ack" (packet, client)](#event_ack)
 
 <a name="module_Broker.publish"></a>
 
@@ -96,9 +100,9 @@ Aedes event emitter
 | --- | --- | --- |
 | config | <code>object</code> | Environment variables |
 
-<a name="module_Broker..getClient"></a>
+<a name="module_Broker..getClientProps"></a>
 
-### Broker~getClient(client) ⇒ <code>object</code>
+### Broker~getClientProps(client) ⇒ <code>object</code>
 Transform circular MQTT client in JSON
 
 **Kind**: inner method of [<code>Broker</code>](#module_Broker)  
@@ -151,7 +155,7 @@ HTTP request to Aloes to validate credentials
 
 | Param | Type | Description |
 | --- | --- | --- |
-| data | <code>object</code> | Client instance |
+| data | <code>object</code> | Client instance and credentials |
 
 <a name="module_Broker..authenticate"></a>
 
@@ -166,7 +170,8 @@ Check client credentials and update client properties
 - 1 - Unacceptable protocol version
 - 2 - Identifier rejected
 - 3 - Server unavailable
-- 4 - Bad user name or password  
+- 4 - Bad user name or password
+- 5 - Not authorized  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -211,10 +216,11 @@ Remove subscriptions for a specific client
 
 <a name="event_client"></a>
 
-### "client" (client)
+### "client" (client) ⇒ <code>function</code>
 On client connected to Aedes broker
 
 **Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
+**Returns**: <code>function</code> - Broker~delayedUpdateClientStatus  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -226,7 +232,7 @@ On client connected to Aedes broker
 On client disconnected from Aedes broker
 
 **Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>function</code> - Broker~updateModelsStatus  
+**Returns**: <code>function</code> - Broker~delayedUpdateClientStatus  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -254,6 +260,30 @@ When client action creates an error
 | --- | --- | --- |
 | client | <code>object</code> | MQTT client |
 | err | <code>object</code> | MQTT Error |
+
+<a name="event_clientError"></a>
+
+### "clientError" (client, err)
+When client contains no Id
+
+**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| client | <code>object</code> | MQTT client |
+| err | <code>object</code> | MQTT Error |
+
+<a name="event_ack"></a>
+
+### "ack" (packet, client)
+When a packet with qos=1|2 is delivered successfully
+
+**Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| packet | <code>object</code> | MQTT original packet |
+| client | <code>object</code> | MQTT client |
 
 <a name="module_Mails"></a>
 
@@ -540,6 +570,25 @@ Stop MQTT client and unsubscribe
 
 **Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
 **Returns**: <code>boolean</code> - status  
+<a name="module_rateLimiter"></a>
+
+## rateLimiter
+<a name="module_rateLimiter..authLimiter"></a>
+
+### rateLimiter~authLimiter(username, ip, [clientId]) ⇒ <code>object</code>
+Rate limit user access by Ip and/or username
+
+optionnally use a clientId to limit reconnections
+
+**Kind**: inner method of [<code>rateLimiter</code>](#module_rateLimiter)  
+**Returns**: <code>object</code> - retrySecs, userIpLimit, ipLimit, usernameIPkey  
+
+| Param | Type |
+| --- | --- |
+| username | <code>string</code> | 
+| ip | <code>string</code> | 
+| [clientId] | <code>string</code> | 
+
 <a name="module_RoleManager"></a>
 
 ## RoleManager

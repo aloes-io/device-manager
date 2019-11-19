@@ -1,3 +1,5 @@
+# Copyright 2019 Edouard Maleix, read LICENSE
+
 ###############################################################################
 # Step 1 : Builder image
 #

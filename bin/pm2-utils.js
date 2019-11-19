@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 const pm2 = require('pm2');
 
 const startAppsList = apps =>

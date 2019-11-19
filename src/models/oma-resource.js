@@ -11,13 +11,11 @@
  * @property {String} description Define OmaResource purpose.
  * @property {string} type value type ( string, integer, float, ...)
  * @property {string} [operations] authorized operation ( read, write )
- * @property {string} [unit] OmaResource default key : value object
+ * @property {string} [unit] OmaResource unit ( meter, second, volt ... )
  * @property {array} [range] OmaResource value range
  */
 
 module.exports = function(OmaResource) {
-  //  const collectionName = 'OmaResource';
-
   OmaResource.disableRemoteMethodByName('create');
   OmaResource.disableRemoteMethodByName('upsert');
   OmaResource.disableRemoteMethodByName('deleteById');

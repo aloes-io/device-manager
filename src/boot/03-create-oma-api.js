@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import { omaObjects, omaResources, omaViews } from 'oma-json';
 import logger from '../services/logger';
 

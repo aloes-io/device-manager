@@ -1,5 +1,8 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import loopback from 'loopback';
 import boot from 'loopback-boot';
+import explorer from 'loopback-component-explorer';
 import fallback from 'express-history-api-fallback';
 import flash from 'express-flash';
 import path from 'path';
@@ -24,30 +27,26 @@ const authenticateInstance = async (client, username, password) => {
   const Client = app.models.Client;
   let status, foundClient;
   if (!client || !client.id) return { client: null, status: 1 };
+  // todo : find a way to verify in auth request, against which model authenticate
   try {
-    // todo : find a way to verify in auth request, against which model authenticate
-    //  console.log("client parser", client.parser)
-    let token, authentification;
-    try {
-      foundClient = JSON.parse(await Client.get(client.id));
-      if (!foundClient || !foundClient.id) {
-        if (!client.req) {
-          foundClient = { id: client.id, type: 'MQTT' };
-        } else {
-          foundClient = { id: client.id, type: 'WS' };
-        }
-      }
-    } catch (e) {
-      if (!client.req) {
-        foundClient = { id: client.id, type: 'MQTT' };
-      } else {
-        foundClient = { id: client.id, type: 'WS' };
-      }
+    const savedClient = JSON.parse(await Client.get(client.id));
+    if (!savedClient || !savedClient.model) {
+      foundClient = client;
+    } else {
+      foundClient = { ...savedClient, ...client };
     }
+  } catch (e) {
+    foundClient = client;
+  }
 
+  try {
+    let token, authentification;
+
+    // User login
     try {
       token = await app.models.accessToken.findById(password.toString());
     } catch (e) {
+      console.log('USER MQTT AUTH ERR', e);
       token = null;
     }
     if (token && token.userId && token.userId.toString() === username) {
@@ -55,13 +54,18 @@ const authenticateInstance = async (client, username, password) => {
       foundClient.ownerId = token.userId.toString();
       foundClient.model = 'User';
     } else {
+      // const user = await app.models.user.findById(username);
+      // if (user) foundUser = username;
       status = 4;
     }
 
+    // Device auth
+    //     if (status !== 0 && !foundUser) {
     if (status !== 0) {
       try {
         authentification = await app.models.Device.authenticate(username, password.toString());
       } catch (e) {
+        // if (e.code === 403) foundUser = username;
         authentification = null;
       }
       if (authentification && authentification.device && authentification.keyType) {
@@ -76,10 +80,13 @@ const authenticateInstance = async (client, username, password) => {
       }
     }
 
+    // Application auth
+    //     if (status !== 0 && !foundUser) {
     if (status !== 0) {
       try {
         authentification = await app.models.Application.authenticate(username, password.toString());
       } catch (e) {
+        // if (e.code === 403) foundUser = username;
         authentification = null;
       }
       if (authentification && authentification.application && authentification.keyType) {
@@ -87,7 +94,6 @@ const authenticateInstance = async (client, username, password) => {
         if (instance && instance.id) {
           foundClient.appId = instance.id.toString();
           foundClient.model = 'Application';
-          // status = true;
           status = 0;
           if (instance.appEui && instance.appEui !== null) {
             foundClient.appEui = instance.appEui;
@@ -103,6 +109,7 @@ const authenticateInstance = async (client, username, password) => {
       foundClient.user = username;
       await Client.set(client.id, JSON.stringify(foundClient), ttl);
     }
+    // else if foundClient.model, Client.delete(client.id)
     logger.publish(3, 'loopback', 'authenticateInstance:res', { status, client: foundClient });
     return { client: foundClient, status };
   } catch (error) {
@@ -159,10 +166,9 @@ app.start = async config => {
     //     model: app.models.accessToken,
     //   }),
     // );
-    // await startServer();
 
     httpServer = app.listen(() => {
-      // EXTERNAL AUTH TESTS
+      // EXTERNAL AUTH
       //  app.get('/auth/account', ensureLoggedIn('/login'), (req, res, next) => {
       app.get('/auth/account', (req, res, next) => {
         console.log('auth/account', req.url);
@@ -310,6 +316,19 @@ app.on('started', (state, config) => {
     const baseUrl = app.get('url').replace(/\/$/, '');
     logger.publish(4, 'loopback', 'Setup', `Browse ${process.env.NODE_NAME} API @: ${baseUrl}`);
     if (app.get('loopback-component-explorer')) {
+      explorer(app, {
+        // basePath: '/custom-api-root',
+        uiDirs: [
+          // path.resolve(__dirname, 'public'),
+          path.resolve(__dirname, '../node_modules', 'swagger-ui'),
+        ],
+        apiInfo: {
+          title: 'Aloes API',
+          description: 'Explorer and tester for Aloes HTTP API',
+        },
+        // resourcePath: 'swagger.json',
+        // version: process.env.REST_API_VERSION,
+      });
       const explorerPath = app.get('loopback-component-explorer').mountPath;
       logger.publish(4, 'loopback', 'Setup', `Explore REST API @: ${baseUrl}${explorerPath}`);
     }

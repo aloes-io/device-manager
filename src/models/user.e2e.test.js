@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable import/no-extraneous-dependencies */
 import { expect } from 'chai';
 import lbe2e from 'lb-declarative-e2e-test';
@@ -74,7 +76,6 @@ const userTest = () => {
         async after() {
           try {
             this.timeout(5000);
-            console.log(`[TEST] ${collectionName} after:req`);
             await Promise.all([UserModel.destroyAll(), app.stop()]).then(() => {
               setTimeout(() => {
                 broker.stop();
@@ -169,7 +170,8 @@ const userTest = () => {
                 name: "user's password is NOT sent to client",
                 verb: 'get',
                 url: getUser0Url,
-                auth: [profiles.user, profiles.admin],
+                // auth: [profiles.user, profiles.admin],
+                auth: profiles.admin,
                 expect: res => expect(res.body.password).to.be.undefined,
               },
               {
@@ -363,4 +365,4 @@ const userTest = () => {
 setTimeout(() => {
   userTest();
   run();
-}, delayBeforeTesting);
+}, delayBeforeTesting * 1.5);

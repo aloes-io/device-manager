@@ -1,10 +1,41 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import crypto from 'crypto';
 import iotAgent from 'iot-agent';
+import isAlphanumeric from 'validator/lib/isAlphanumeric';
+import isLength from 'validator/lib/isLength';
+// import isHexadecimal from 'validator/lib/isHexadecimal';
+import isMACAddress from 'validator/lib/isMACAddress';
 import logger from '../services/logger';
 import utils from '../services/utils';
 import DeltaTimer from '../services/delta-timer';
 import deviceTypes from '../initial-data/device-types.json';
 import protocols from '../initial-data/protocols.json';
+
+/**
+ * @module Device
+ * @property {String} id  Database generated ID.
+ * @property {String} name Unique name defined by user required.
+ * @property {String} description Define device purpose.
+ * @property {String} devEui hardware generated Device Id required.
+ * @property {String} devAddr randomly generated non unique Device Id required.
+ * @property {String} apiKey key to access Aloes as client.
+ * @property {String} clientKey key to access Aloes as client.
+ * @property {Date} lastSignal
+ * @property {Number} frameCounter Number of messages since last connection
+ * @property {String} type Device type ( /initial-data/device-types.json )
+ * @property {Array} icons automatically set based on device type
+ * @property {String} accessPointUrl
+ * @property {String} qrCode Filled URL containing device access point
+ * @property {String} transportProtocol Framework used for message transportation
+ * @property {String} transportProtocolVersion Framework version
+ * @property {String} messageProtocol Framework used for message encoding
+ * @property {String} messageProtocolVersion Framework version
+ * @property {Array} collaborators A list of users ids who have permissions to use this device
+ * @property {Array} clients A list of client ids authentified as this device
+ * @property {Array} applications A list of application ids who have rights to listen device events
+ * @property {String} ownerId User ID of the user who has registered the device.
+ */
 
 const collectionName = 'Device';
 const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
@@ -106,12 +137,6 @@ const setDeviceIcons = device => {
 const onBeforeSave = async ctx => {
   try {
     if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
-    if (ctx.data) {
-      logger.publish(4, `${collectionName}`, 'onBeforePartialSave:req', ctx.data);
-      filteredProperties.forEach(p => delete ctx.data[p]);
-      ctx.hookState.updateData = ctx.data;
-      return ctx;
-    }
     if (ctx.instance) {
       logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
       const promises = await filteredProperties.map(async prop =>
@@ -125,7 +150,14 @@ const onBeforeSave = async ctx => {
       if (ctx.instance.type && ctx.instance.type !== null) {
         await setDeviceIcons(ctx.instance);
       }
-      logger.publish(5, collectionName, 'onBeforeSave:res', ctx.instance);
+      logger.publish(3, collectionName, 'onBeforeSave:res', ctx.instance);
+      return ctx;
+    }
+    if (ctx.data) {
+      logger.publish(4, `${collectionName}`, 'onBeforePartialSave:req', ctx.data);
+      // eslint-disable-next-line security/detect-object-injection
+      filteredProperties.forEach(p => delete ctx.data[p]);
+      ctx.hookState.updateData = ctx.data;
       return ctx;
     }
     // else if (ctx.currentInstance) {
@@ -182,7 +214,7 @@ const createKeys = async device => {
 };
 
 /**
- * Init device depencies ( token, address )
+ * Init device dependencies ( token, address )
  * @method module:Device~createProps
  * @param {object} app - Loopback app
  * @param {object} instance - Device instance
@@ -202,6 +234,7 @@ const createProps = async (app, instance) => {
     // todo create a sensor 3310 to report event and request network load
     if (!instance.address() || !instance.apiKey) {
       await app.models.Device.destroyById(instance.id);
+      // await instance.destroy()
       throw new Error('no device address');
     }
     return app.models.Device.publish(instance, 'POST');
@@ -318,12 +351,11 @@ const appendCachedSensors = async (app, ctx) => {
         result = [JSON.parse(JSON.stringify(device))];
       }
     }
-    // console.log('result', result.length);
     if (result && getSensors) {
       const promises = await result.map(app.models.SensorResource.includeCache);
       result = await Promise.all(promises);
     }
-    //  logger.publish(4, `${collectionName}`, 'beforeFind:res', result.length);
+    // logger.publish(4, `${collectionName}`, 'appendCachedSensors:res', result.length || 0);
     return result;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'appendCachedSensors:err', error);
@@ -343,9 +375,8 @@ const onAfterSave = async ctx => {
       logger.publish(3, `${collectionName}`, 'onAfterPartialSave:req', ctx.hookState.updateData);
       const updatedProps = Object.keys(ctx.hookState.updateData);
       if (updatedProps.some(prop => prop === 'status')) {
-        // if (!ctx.instance) console.log('AFTER DEVICE SAVE', ctx.where);
-        // update all ctx.where
-        if (ctx.instance) await ctx.Model.publish(ctx.instance, 'HEAD');
+        // todo : if (ctx.where) update all ctx.where
+        if (ctx.instance && ctx.instance.id) await ctx.Model.publish(ctx.instance, 'HEAD');
       }
     } else if (ctx.instance && ctx.Model.app) {
       logger.publish(3, `${collectionName}`, 'onAfterSave:req', ctx.instance);
@@ -363,7 +394,7 @@ const onAfterSave = async ctx => {
 };
 
 /**
- * Remove device depencies
+ * Remove device dependencies
  * @method module:Device~deleteProps
  * @param {object} app - Loopback app
  * @param {object} instance
@@ -400,7 +431,7 @@ const deleteProps = async (app, instance) => {
  */
 const onBeforeDelete = async ctx => {
   try {
-    logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
+    logger.publish(3, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
     if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
       const device = await ctx.Model.findById(ctx.where.id);
       await deleteProps(ctx.Model.app, device);
@@ -630,21 +661,20 @@ const parseMessage = async (app, packet, pattern, client) => {
 };
 
 const checkHeader = (headers, key, value = false) => {
-  if (!headers[key]) {
-    return false;
-  }
-  if (value && headers[key] !== value) {
-    return false;
-  }
+  // eslint-disable-next-line security/detect-object-injection
+  if (!headers || !headers[key]) return false;
+  // eslint-disable-next-line security/detect-object-injection
+  if (value && headers[key] !== value) return false;
   return true;
 };
 
 const updateESP = async (ctx, deviceId, version) => {
   try {
     const headers = ctx.req.headers;
-    console.log('headers', headers);
+    // console.log('headers', headers);
     if (
       !checkHeader(headers, 'x-esp8266-sta-mac') ||
+      !isMACAddress(headers['x-esp8266-sta-mac']) ||
       !checkHeader(headers, 'x-esp8266-ap-mac') ||
       !checkHeader(headers, 'x-esp8266-free-space') ||
       !checkHeader(headers, 'x-esp8266-sketch-size') ||
@@ -656,7 +686,7 @@ const updateESP = async (ctx, deviceId, version) => {
       const error = utils.buildError(403, 'INVALID_OTA_HEADER', 'invalid ESP8266 header');
       throw error;
     }
-
+    //
     const devEui = headers['x-esp8266-sta-mac'].split(':').join('');
     const filter = {
       where: {
@@ -664,6 +694,7 @@ const updateESP = async (ctx, deviceId, version) => {
           { id: deviceId },
           {
             devEui: {
+              // eslint-disable-next-line security/detect-non-literal-regexp
               like: new RegExp(`.*${devEui}.*`, 'i'),
             },
           },
@@ -677,7 +708,7 @@ const updateESP = async (ctx, deviceId, version) => {
       throw utils.buildError(404, 'NOT_FOUND', 'No device found');
     }
 
-    console.log('devEui', devEui, device.devEui);
+    // console.log('devEui', devEui, device.devEui);
     ctx.res.set('Content-Type', `application/octet-stream`);
     // look for meta containing firmware tag ?
     //  const fileFilter = { where: { role: {like: new RegExp(`.*firmware.*`, 'i')} } };
@@ -688,7 +719,8 @@ const updateESP = async (ctx, deviceId, version) => {
       where: {
         and: [
           { ownerId: device.ownerId.toString() },
-          { name: { like: new RegExp(`.*bin.*`, 'i') } },
+          { name: { like: new RegExp('.*bin.*', 'i') } },
+          // eslint-disable-next-line security/detect-non-literal-regexp
           { name: { like: new RegExp(`.*${device.id}.*`, 'i') } },
         ],
       },
@@ -749,30 +781,6 @@ const updateFirmware = async (ctx, deviceId, version) => {
   }
 };
 
-/**
- * @module Device
- * @property {String} id  Database generated ID.
- * @property {String} name Unique name defined by user required.
- * @property {String} description Define device purpose.
- * @property {String} devEui hardware generated Device Id required.
- * @property {String} devAddr randomly generated non unique Device Id required.
- * @property {String} apiKey key to access Aloes as client.
- * @property {String} clientKey key to access Aloes as client.
- * @property {Date} lastSignal
- * @property {Number} frameCounter Number of messages since last connection
- * @property {String} type Device type ( /initial-data/device-types.json )
- * @property {Array} icons automatically set based on device type
- * @property {String} accessPointUrl
- * @property {String} qrCode Filled URL containing device access point
- * @property {String} transportProtocol Framework used for message transportation
- * @property {String} transportProtocolVersion Framework version
- * @property {String} messageProtocol Framework used for message encoding
- * @property {String} messageProtocolVersion Framework version
- * @property {Array} collaborators A list of users ids who have permissions to use this device
- * @property {Array} clients A list of client ids authentified as this device
- * @property {Array} applications A list of application ids who have rights to listen device events
- * @property {String} ownerId User ID of the user who has registered the device.
- */
 module.exports = function(Device) {
   function transportProtocolValidator(err) {
     if (
@@ -793,10 +801,17 @@ module.exports = function(Device) {
   }
 
   function typeValidator(err) {
+    // eslint-disable-next-line security/detect-object-injection
     if (!this.type || !deviceTypes[this.type]) {
       err();
     }
   }
+
+  // function devEuiValidator(err) {
+  //   if (!this.devEui || !isHexadecimal(this.devEui)) {
+  //     err();
+  //   }
+  // }
 
   Device.validate('transportProtocol', transportProtocolValidator, {
     message: 'Wrong transport protocol name',
@@ -811,8 +826,15 @@ module.exports = function(Device) {
   });
 
   Device.validatesPresenceOf('ownerId');
+
   Device.validatesUniquenessOf('devEui');
+
+  // Device.validate('devEui', devEuiValidator, {
+  //   message: 'Wrong devEui',
+  // });
+
   Device.validatesUniquenessOf('name', { scopedTo: ['ownerId'] });
+
   // Device.validatesDateOf("lastSignal", {message: "lastSignal is not a date"});
 
   /**
@@ -825,8 +847,7 @@ module.exports = function(Device) {
    */
   Device.publish = async (device, method, client) => {
     try {
-      // if (!ctx.req.accessToken) throw utils.buildError(403, 'NO_TOKEN', 'User is not authentified');
-      if (!device.id || !device.ownerId) {
+      if (!device || !device.id || !device.ownerId) {
         throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
       }
       const packet = await iotAgent.publish({
@@ -913,6 +934,7 @@ module.exports = function(Device) {
           const error = utils.buildError(401, 'INVALID_OWNER', "User doesn't own this device");
           throw error;
         }
+        // await device.resetKeys()
         const attributes = {
           clientKey: utils.generateKey('client'),
           apiKey: utils.generateKey('apiKey'),
@@ -949,6 +971,7 @@ module.exports = function(Device) {
         const error = utils.buildError(403, 'INVALID_DEVICE', 'Invalid device input');
         throw error;
       }
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
       if (device.id && (await Device.exists(device.id))) {
         const deviceId = device.id;
         delete device.id;
@@ -996,7 +1019,16 @@ module.exports = function(Device) {
     try {
       const params = pattern.params;
       const transportProtocol = attributes.transportProtocol || pattern.name;
+      if (
+        !transportProtocol ||
+        !isLength(transportProtocol, { min: 4, max: 15 }) ||
+        !isAlphanumeric(transportProtocol)
+      ) {
+        const error = utils.buildError(404, 'INVALID_INPUT', 'protocol name is invalid');
+        throw error;
+      }
       const transportProtocolFilter = {
+        // eslint-disable-next-line security/detect-non-literal-regexp
         like: new RegExp(`.*${transportProtocol}.*`, 'i'),
       };
       // const messageProtocol = {
@@ -1042,12 +1074,8 @@ module.exports = function(Device) {
       }
       if (attributes.devEui && attributes.devEui !== null) {
         deviceFilter.where.and.push({
+          // eslint-disable-next-line security/detect-non-literal-regexp
           devEui: { like: new RegExp(`.*${attributes.devEui}.*`, 'i') },
-        });
-      }
-      if (attributes.devAddr && attributes.devAddr !== null) {
-        deviceFilter.where.and.push({
-          devAddr: { like: new RegExp(`.*${attributes.devAddr}.*`, 'i') },
         });
       }
       if (attributes.ownerId && attributes.ownerId !== null) {
@@ -1086,11 +1114,18 @@ module.exports = function(Device) {
   Device.search = async filter => {
     logger.publish(4, `${collectionName}`, 'search:req', filter);
     try {
-      if (!filter.text) return null;
+      if (
+        !filter.text ||
+        !isLength(filter.text, { min: 2, max: 30 }) ||
+        !isAlphanumeric(filter.text)
+      ) {
+        const error = utils.buildError(400, 'INVALID_INPUT', 'Search filter is not valid');
+        throw error;
+      }
 
       filter.ownerType = 'Device';
       filter.public = true;
-
+      /* eslint-disable security/detect-non-literal-regexp */
       const whereFilter = {
         or: [
           { name: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
@@ -1105,6 +1140,8 @@ module.exports = function(Device) {
           // { devEui: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
         ],
       };
+      /* eslint-enable security/detect-non-literal-regexp */
+
       // if (filter.status !== undefined)
       let result = await Device.find({
         where: whereFilter,
@@ -1231,6 +1268,7 @@ module.exports = function(Device) {
     if (!devices || devices.length < 1) return null;
     if (format === 'csv') {
       devices.forEach(device => {
+        // eslint-disable-next-line security/detect-object-injection
         ['address', 'icons', 'sensors', 'collaborators', 'appIds'].forEach(p => delete device[p]);
       });
       const result = utils.exportToCSV(devices, filter);
@@ -1269,12 +1307,12 @@ module.exports = function(Device) {
    */
   Device.updateStatus = async (client, status) => {
     try {
-      if (!client || !client.id || !client.devEui || client.devEui === null) {
-        throw new Error('Invalid client type');
+      if (!client || !client.id || !client.devEui) {
+        throw new Error('Invalid client');
       }
       logger.publish(5, collectionName, 'updateStatus:req', status);
       const device = await Device.findById(client.user);
-      if (device && device !== null && device.devEui === client.devEui) {
+      if (device && device.devEui && device.devEui === client.devEui) {
         const Client = Device.app.models.Client;
         let ttl;
         let frameCounter = device.frameCounter;
@@ -1430,6 +1468,7 @@ module.exports = function(Device) {
         // 'masterKey',
       ];
       keyNames.forEach(k => {
+        // eslint-disable-next-line security/detect-object-injection
         if (device[k] && device[k] === key) {
           result = {
             device,
@@ -1620,7 +1659,7 @@ module.exports = function(Device) {
       const client = message.client;
       const pattern = message.pattern;
       const device = message.device;
-      logger.publish(4, collectionName, 'on-publish', pattern.name);
+      logger.publish(4, collectionName, 'on-publish:req', pattern.name);
       if (!pattern) throw new Error('Message is missing pattern');
       if (device && device !== null) {
         await Device.execute(device, pattern.params.method, client);
@@ -1693,10 +1732,10 @@ module.exports = function(Device) {
    */
   Device.beforeRemote('**', async ctx => onBeforeRemote(Device.app, ctx));
 
-  Device.afterRemoteError('*', async ctx => {
+  Device.afterRemoteError('*', (ctx, next) => {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, '');
     // publish on collectionName/ERROR
-    return ctx;
+    next();
   });
 
   /**
@@ -1749,7 +1788,6 @@ module.exports = function(Device) {
   Device.disableRemoteMethodByName('createChangeStream');
 
   Device.disableRemoteMethodByName('prototype.__create__sensors');
-  // Device.disableRemoteMethodByName('prototype.__count__sensors');
   Device.disableRemoteMethodByName('prototype.__updateById__sensors');
   Device.disableRemoteMethodByName('prototype.__delete__sensors');
   Device.disableRemoteMethodByName('prototype.__destroyById__sensors');

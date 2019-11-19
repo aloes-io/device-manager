@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable no-param-reassign */
 import { publish } from 'iot-agent';
 import logger from '../services/logger';
@@ -17,33 +19,55 @@ const collectionName = 'Measurement';
  * @property {String} sensorId Device instance Id which has generated this measurement
  */
 module.exports = function(Measurement) {
-  async function typeValidator(err) {
-    if (this.type && this.type.toString().length <= 4) {
-      if (await Measurement.app.models.OmaObject.exists(this.type)) {
-        return;
-      }
+  function typeValidator(err, done) {
+    if (!this.type || this.type.toString().length < 1 || this.type.toString().length > 4) {
+      err();
+      done();
+    } else {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      Measurement.app.models.OmaObject.exists(this.type)
+        .then(res => {
+          if (!res) err();
+          done();
+        })
+        .catch(() => {
+          err();
+          done();
+        });
     }
-    err();
   }
 
-  async function resourceValidator(err) {
-    if (this.resource && this.resource.toString().length <= 4) {
-      if (await Measurement.app.models.OmaResource.exists(this.resource)) {
-        return;
-      }
+  function resourceValidator(err, done) {
+    if (
+      this.resource === undefined ||
+      this.resource.toString().length < 1 ||
+      this.resource.toString().length > 4
+    ) {
+      err();
+      done();
+    } else {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      Measurement.app.models.OmaResource.exists(this.resource)
+        .then(res => {
+          if (!res) err();
+          done();
+        })
+        .catch(() => {
+          err();
+          done();
+        });
     }
-    err();
   }
 
   Measurement.validatesPresenceOf('sensorId');
   Measurement.validatesPresenceOf('deviceId');
   Measurement.validatesPresenceOf('ownerId');
 
-  Measurement.validate('type', typeValidator, {
+  Measurement.validateAsync('type', typeValidator, {
     message: 'Wrong measurement type',
   });
 
-  Measurement.validate('resource', resourceValidator, {
+  Measurement.validateAsync('resource', resourceValidator, {
     message: 'Wrong measurement resource',
   });
 
@@ -175,19 +199,21 @@ module.exports = function(Measurement) {
             filter.where.and.forEach((subFilter, index) => {
               Object.keys(subFilter).forEach(key => {
                 if (key === 'rp') {
-                  if (typeof subFilter[key] === 'object') {
-                    Object.keys(subFilter[key]).forEach(keyFilter => {
+                  if (typeof subFilter.rp === 'object') {
+                    Object.keys(subFilter.rp).forEach(keyFilter => {
                       if (keyFilter === 'inq') {
-                        subFilter[key].inq.forEach(rp => {
+                        subFilter.rp.inq.forEach(rp => {
+                          // todo : validate rp
+                          // eslint-disable-next-line security/detect-object-injection
                           if (influxConnector.retentionPolicies[rp]) {
                             retentionPolicies.push(rp);
                           }
                         });
                       }
                     });
-                  } else if (typeof subFilter[key] === 'string') {
-                    if (influxConnector.retentionPolicies[subFilter[key]]) {
-                      retentionPolicies.push(subFilter[key]);
+                  } else if (typeof subFilter.rp === 'string') {
+                    if (influxConnector.retentionPolicies[subFilter.rp]) {
+                      retentionPolicies.push(subFilter.rp);
                     }
                   }
                   filter.where.and.splice(index, 1);
@@ -199,19 +225,21 @@ module.exports = function(Measurement) {
             filter.where.or.forEach((subFilter, index) => {
               Object.keys(subFilter).forEach(key => {
                 if (key === 'rp') {
-                  if (typeof subFilter[key] === 'object') {
-                    Object.keys(subFilter[key]).forEach(keyFilter => {
+                  if (typeof subFilter.rp === 'object') {
+                    Object.keys(subFilter.rp).forEach(keyFilter => {
                       if (keyFilter === 'inq') {
-                        subFilter[key].inq.forEach(rp => {
+                        subFilter.rp.inq.forEach(rp => {
+                          // todo : validate rp
+                          // eslint-disable-next-line security/detect-object-injection
                           if (influxConnector.retentionPolicies[rp]) {
                             retentionPolicies.push(rp);
                           }
                         });
                       }
                     });
-                  } else if (typeof subFilter[key] === 'string') {
-                    if (influxConnector.retentionPolicies[subFilter[key]]) {
-                      retentionPolicies.push(subFilter[key]);
+                  } else if (typeof subFilter.rp === 'string') {
+                    if (influxConnector.retentionPolicies[subFilter.rp]) {
+                      retentionPolicies.push(subFilter.rp);
                     }
                   }
                   filter.where.or.splice(index, 1);
@@ -226,6 +254,8 @@ module.exports = function(Measurement) {
                   Object.keys(filter.where.rp).forEach(keyFilter => {
                     if (keyFilter === 'inq') {
                       filter.where.rp.inq.forEach(rp => {
+                        // todo : validate rp
+                        // eslint-disable-next-line security/detect-object-injection
                         if (influxConnector.retentionPolicies[rp]) {
                           retentionPolicies.push(rp);
                         }

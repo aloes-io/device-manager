@@ -1,3 +1,5 @@
+import path from 'path';
+
 module.exports = {
   db: {
     name: 'db',
@@ -43,7 +45,8 @@ module.exports = {
     name: 'storage',
     connector: 'loopback-component-storage',
     provider: 'filesystem',
-    root: process.env.FS_PATH || './storage',
+    // root: process.env.FS_PATH || './storage',
+    root: path.join(__dirname, process.env.FS_PATH || '../storage'),
     nameConflict: 'makeUnique',
     maxFileSize: '10428800',
   },

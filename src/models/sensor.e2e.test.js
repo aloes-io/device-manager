@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable import/no-extraneous-dependencies */
 import { expect } from 'chai';
 import lbe2e from 'lb-declarative-e2e-test';
@@ -228,7 +230,7 @@ const sensorTest = () => {
                 auth: profiles.user,
                 url: () => `${apiUrl}search`,
                 body: () => ({
-                  filter: { text: sensors[0].type },
+                  filter: { text: sensors[0].type.toString() },
                 }),
                 expect: resp => {
                   expect(resp.status).to.be.equal(200);
@@ -271,7 +273,7 @@ const sensorTest = () => {
                 verb: 'post',
                 url: () => `${apiUrl}on-publish`,
                 body: () => ({
-                  device: { ...devices[2] },
+                  device: { ...devices[1] },
                   sensor: { ...sensors[0], value: 10, lastSignal: new Date() },
                   client: {
                     id: users[1].id,
@@ -286,7 +288,7 @@ const sensorTest = () => {
                 auth: profiles.user,
                 url: () => `${apiUrl}on-publish`,
                 body: () => ({
-                  device: { ...devices[2] },
+                  device: { ...devices[1] },
                   sensor: { ...sensors[0], value: 10, lastSignal: new Date() },
                   client: {
                     id: users[1].id,
@@ -312,4 +314,4 @@ const sensorTest = () => {
 setTimeout(() => {
   sensorTest();
   run();
-}, delayBeforeTesting);
+}, delayBeforeTesting * 1.5);

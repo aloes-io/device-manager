@@ -1,4 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
+/* eslint-disable security/detect-object-injection */
 const mqtt = require('mqtt');
 
 const clients = [];

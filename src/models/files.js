@@ -1,5 +1,9 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import fileType from 'file-type';
 import stream from 'stream';
+import isAlphanumeric from 'validator/lib/isAlphanumeric';
+import isLength from 'validator/lib/isLength';
 import logger from '../services/logger';
 import utils from '../services/utils';
 
@@ -52,10 +56,13 @@ const uploadBufferToContainer = (app, buffer, ownerId, name) =>
     bufferStream.end(buffer);
     const type = fileType(buffer);
     if (!type || !type.ext) reject(new Error('File type information not found'));
-    const nameParts = name.split('.');
-    if (nameParts.length < 2) {
-      name = `${name}.${type.ext}`;
-    }
+    name = `${name}.${type.ext}`;
+    // const nameParts = name.split('.');
+    // if (nameParts.length < 2) {
+    //   name = `${name}.${type.ext}`;
+    // }
+    // todo append type to name ??
+
     const writeStream = app.models.container.uploadStream(ownerId.toString(), name);
     bufferStream.pipe(writeStream);
     writeStream.on('finish', () => {
@@ -96,13 +103,13 @@ const onBeforeSave = async ctx => {
       logger.publish(5, `${collectionName}`, 'onBeforeSave:req', ctx.data);
       if (ctx.data.name) {
         // UPDATE FILE IN CONTAINER TOO
-        // protect name from being updated
+        // prevent name from being updated
       }
       ctx.hookState.updateData = ctx.data;
     } else if (ctx.instance) {
       logger.publish(5, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
       // UPDATE FILE IN CONTAINER TOO
-      // protect name from being updated
+      // prevent name from being updated
     }
     const data = ctx.data || ctx.instance || ctx.currentInstance;
     // const authorizedRoles =
@@ -127,7 +134,7 @@ const deleteProps = async (app, fileMeta) => {
         await removeFileFromContainer(app, fileMeta.ownerId, file.name);
       }
     } catch (e) {
-      console.log(`[${collectionName.toUpperCase()}] deleteProps:e`, e);
+      logger.publish(4, `${collectionName}`, 'deleteProps:err', e);
     }
     return fileMeta;
   } catch (error) {
@@ -238,7 +245,8 @@ module.exports = function(Files) {
         },
       };
 
-      if (name && name !== null) {
+      /* eslint-disable security/detect-non-literal-regexp */
+      if (name && name !== null && isLength(name, { min: 2, max: 30 }) && isAlphanumeric(name)) {
         options.name = name;
         filter.where.and.push({
           or: [
@@ -247,6 +255,7 @@ module.exports = function(Files) {
           ],
         });
       }
+      /* eslint-enable security/detect-non-literal-regexp */
 
       let fileMeta = await Files.findOne(filter);
       if (fileMeta && fileMeta.id) {
@@ -287,9 +296,7 @@ module.exports = function(Files) {
         throw utils.buildError(400, 'ERROR_UPLOAD', 'Error while upload file');
       }
 
-      // if (file[1])  await removeFileFromContainer(ownerId, name);
       logger.publish(3, `${collectionName}`, 'upload:res', fileMeta);
-      //  return fileInfo;
       return fileMeta;
     } catch (err) {
       logger.publish(2, `${collectionName}`, 'upload:err', err);
@@ -308,13 +315,16 @@ module.exports = function(Files) {
   Files.uploadBuffer = async (buffer, ownerId, name) => {
     try {
       logger.publish(3, `${collectionName}`, 'uploadBuffer:req', { ownerId, name });
+      if (!name || name === null || !isLength(name, { min: 4, max: 30 }) || !isAlphanumeric(name)) {
+        throw new Error('Invalid file name');
+      }
       let fileMeta = await Files.findOne({
         where: {
+          // eslint-disable-next-line security/detect-non-literal-regexp
           and: [{ name: { like: new RegExp(`.*${name}.*`, 'i') } }, { ownerId }],
         },
       });
       // console.log('buffer file upload', typeof buffer, Buffer.isBuffer(buffer), buffer);
-
       const fileStat = await uploadBufferToContainer(Files.app, buffer, ownerId, name);
       logger.publish(4, `${collectionName}`, 'uploadBuffer:res1', { fileStat });
       if (!fileStat || !fileStat.type) throw new Error('Failure while uploading stream');
@@ -413,6 +423,7 @@ module.exports = function(Files) {
       }
       let buffer = null;
       const resourceId = sensor.resource.toString();
+      // eslint-disable-next-line security/detect-object-injection
       const resource = sensor.resources[resourceId];
       const resourceType = typeof resource;
       logger.publish(3, `${collectionName}`, 'compose:req', {
@@ -470,4 +481,9 @@ module.exports = function(Files) {
    * @returns {function} Files~onBeforeRemote
    */
   Files.beforeRemote('**', onBeforeRemote);
+
+  Files.afterRemoteError('*', (ctx, next) => {
+    logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, '');
+    next();
+  });
 };

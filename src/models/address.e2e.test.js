@@ -1,4 +1,7 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable import/no-extraneous-dependencies */
+/* eslint-disable security/detect-non-literal-regexp */
 import { expect } from 'chai';
 import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
@@ -77,7 +80,7 @@ const addressTest = () => {
                 ],
               },
             });
-            console.log('DEVICE ADDRESS ', deviceAddress);
+            // console.log('DEVICE ADDRESS ', deviceAddress);
 
             return devices;
           } catch (error) {
@@ -388,4 +391,4 @@ const addressTest = () => {
 setTimeout(() => {
   addressTest();
   run();
-}, delayBeforeTesting);
+}, delayBeforeTesting * 1.5);

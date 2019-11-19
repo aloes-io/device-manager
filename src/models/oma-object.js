@@ -13,7 +13,6 @@
  * @property {object} resources OmaResource default key : value object
  */
 module.exports = function(OmaObject) {
-  //  const collectionName = 'OmaObject';
   OmaObject.disableRemoteMethodByName('create');
   OmaObject.disableRemoteMethodByName('upsert');
   OmaObject.disableRemoteMethodByName('deleteById');

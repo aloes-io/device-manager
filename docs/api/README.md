@@ -164,19 +164,26 @@ Event reporting that an address instance / collection is requested
         * [.resetKeys()](#module_Application+resetKeys) ⇒ <code>object</code>
     * _static_
         * [.publish(application, [client])](#module_Application.publish)
-        * [.refreshToken(application)](#module_Application.refreshToken) ⇒ <code>function</code>
+        * [.refreshToken(appId)](#module_Application.refreshToken) ⇒ <code>function</code>
         * [.onPublish(packet, client, pattern)](#module_Application.onPublish) ⇒ <code>functions</code>
         * [.updateStatus(client, status)](#module_Application.updateStatus) ⇒ <code>function</code>
         * [.authenticate(applicationId, key)](#module_Application.authenticate) ⇒ <code>object</code>
         * [.getState(applicationId)](#module_Application.getState) ⇒ <code>object</code>
+        * [.find(filter)](#module_Application.find) ⇒ <code>object</code>
+        * [.count(where)](#module_Application.count) ⇒ <code>number</code>
+        * [.findById(id, filter)](#module_Application.findById) ⇒ <code>object</code>
+        * [.create(application)](#module_Application.create) ⇒ <code>object</code>
+        * [.updateById(id, filter)](#module_Application.updateById) ⇒ <code>object</code>
+        * [.deleteById(id, filter)](#module_Application.deleteById) ⇒ <code>object</code>
     * _inner_
         * [~onBeforeSave(ctx)](#module_Application..onBeforeSave) ⇒ <code>object</code>
         * [~createKeys(application)](#module_Application..createKeys) ⇒ <code>object</code>
-        * [~createProps(ctx)](#module_Application..createProps) ⇒ <code>function</code>
-        * [~updateProps(ctx)](#module_Application..updateProps) ⇒ <code>function</code>
+        * [~createProps(app, instance)](#module_Application..createProps) ⇒ <code>function</code>
+        * [~updateProps(app, instance)](#module_Application..updateProps) ⇒ <code>function</code>
         * [~onAfterSave(ctx)](#module_Application..onAfterSave) ⇒ <code>object</code>
         * [~deleteProps(app, instance)](#module_Application..deleteProps) ⇒ <code>function</code>
         * [~onBeforeDelete(ctx)](#module_Application..onBeforeDelete) ⇒ <code>object</code>
+        * [~parseMessage(app, packet, pattern, client)](#module_Application..parseMessage) ⇒ <code>object</code>
         * [~detector(packet, client)](#module_Application..detector) ⇒ <code>object</code>
         * [~detector(packet, client)](#module_Application..detector) ⇒ <code>object</code>
         * ["client" (message)](#event_client) ⇒ <code>function</code>
@@ -207,7 +214,7 @@ Format packet and send it via MQTT broker
 
 <a name="module_Application.refreshToken"></a>
 
-### Application.refreshToken(application) ⇒ <code>function</code>
+### Application.refreshToken(appId) ⇒ <code>function</code>
 Create new keys, and update Application instance
 
 **Kind**: static method of [<code>Application</code>](#module_Application)  
@@ -215,7 +222,7 @@ Create new keys, and update Application instance
 
 | Param | Type | Description |
 | --- | --- | --- |
-| application | <code>object</code> | Application instance |
+| appId | <code>string</code> | Application instance id |
 
 <a name="module_Application.onPublish"></a>
 
@@ -275,6 +282,75 @@ Endpoint to get resources attached to an application
 | --- | --- |
 | applicationId | <code>string</code> | 
 
+<a name="module_Application.find"></a>
+
+### Application.find(filter) ⇒ <code>object</code>
+Find applications
+
+**Kind**: static method of [<code>Application</code>](#module_Application)  
+
+| Param | Type |
+| --- | --- |
+| filter | <code>object</code> | 
+
+<a name="module_Application.count"></a>
+
+### Application.count(where) ⇒ <code>number</code>
+Returns applications length
+
+**Kind**: static method of [<code>Application</code>](#module_Application)  
+
+| Param | Type |
+| --- | --- |
+| where | <code>object</code> | 
+
+<a name="module_Application.findById"></a>
+
+### Application.findById(id, filter) ⇒ <code>object</code>
+Find application by id
+
+**Kind**: static method of [<code>Application</code>](#module_Application)  
+
+| Param | Type |
+| --- | --- |
+| id | <code>any</code> | 
+| filter | <code>object</code> | 
+
+<a name="module_Application.create"></a>
+
+### Application.create(application) ⇒ <code>object</code>
+Create application
+
+**Kind**: static method of [<code>Application</code>](#module_Application)  
+
+| Param | Type |
+| --- | --- |
+| application | <code>object</code> | 
+
+<a name="module_Application.updateById"></a>
+
+### Application.updateById(id, filter) ⇒ <code>object</code>
+Update application by id
+
+**Kind**: static method of [<code>Application</code>](#module_Application)  
+
+| Param | Type |
+| --- | --- |
+| id | <code>any</code> | 
+| filter | <code>object</code> | 
+
+<a name="module_Application.deleteById"></a>
+
+### Application.deleteById(id, filter) ⇒ <code>object</code>
+Delete application by id
+
+**Kind**: static method of [<code>Application</code>](#module_Application)  
+
+| Param | Type |
+| --- | --- |
+| id | <code>any</code> | 
+| filter | <code>object</code> | 
+
 <a name="module_Application..onBeforeSave"></a>
 
 ### Application~onBeforeSave(ctx) ⇒ <code>object</code>
@@ -301,21 +377,20 @@ Keys creation helper - update application attributes
 
 <a name="module_Application..createProps"></a>
 
-### Application~createProps(ctx) ⇒ <code>function</code>
-Init device depencies ( token )
+### Application~createProps(app, instance) ⇒ <code>function</code>
+Init application dependencies ( token )
 
 **Kind**: inner method of [<code>Application</code>](#module_Application)  
 **Returns**: <code>function</code> - Application.publish  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| ctx | <code>object</code> | Application context |
-| ctx.req | <code>object</code> | HTTP request |
-| ctx.res | <code>object</code> | HTTP response |
+| app | <code>object</code> | Loopback app |
+| instance | <code>object</code> | Application instance |
 
 <a name="module_Application..updateProps"></a>
 
-### Application~updateProps(ctx) ⇒ <code>function</code>
+### Application~updateProps(app, instance) ⇒ <code>function</code>
 Update application depencies
 
 **Kind**: inner method of [<code>Application</code>](#module_Application)  
@@ -323,9 +398,8 @@ Update application depencies
 
 | Param | Type | Description |
 | --- | --- | --- |
-| ctx | <code>object</code> | Application context |
-| ctx.req | <code>object</code> | HTTP request |
-| ctx.res | <code>object</code> | HTTP response |
+| app | <code>object</code> | Loopback app |
+| instance | <code>object</code> | Application instance |
 
 <a name="module_Application..onAfterSave"></a>
 
@@ -342,7 +416,7 @@ Create relations on instance creation
 <a name="module_Application..deleteProps"></a>
 
 ### Application~deleteProps(app, instance) ⇒ <code>function</code>
-Remove application depencies
+Remove application dependencies
 
 **Kind**: inner method of [<code>Application</code>](#module_Application)  
 **Returns**: <code>function</code> - Application.publish  
@@ -363,6 +437,24 @@ Delete relations on instance(s) deletetion
 | Param | Type | Description |
 | --- | --- | --- |
 | ctx | <code>object</code> | Loopback context |
+
+<a name="module_Application..parseMessage"></a>
+
+### Application~parseMessage(app, packet, pattern, client) ⇒ <code>object</code>
+Find properties and dispatch to the right function
+
+Adding device and sensor context to raw incoming data
+
+**Kind**: inner method of [<code>Application</code>](#module_Application)  
+**Returns**: <code>object</code> - device  
+**Emits**: <code>Device.event:publish</code>, <code>Sensor.event:publish</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| app | <code>object</code> | Loopback app |
+| packet | <code>object</code> | MQTT packet |
+| pattern | <code>object</code> | Pattern detected by IotAgent |
+| client | <code>object</code> | MQTT client |
 
 <a name="module_Application..detector"></a>
 
@@ -894,7 +986,7 @@ Keys creation helper - update device attributes
 <a name="module_Device..createProps"></a>
 
 ### Device~createProps(app, instance) ⇒ <code>function</code>
-Init device depencies ( token, address )
+Init device dependencies ( token, address )
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
 **Returns**: <code>function</code> - Device.publish  
@@ -932,7 +1024,7 @@ Create relations on instance creation
 <a name="module_Device..deleteProps"></a>
 
 ### Device~deleteProps(app, instance) ⇒ <code>function</code>
-Remove device depencies
+Remove device dependencies
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
 **Returns**: <code>function</code> - Device.publish  
@@ -1692,6 +1784,7 @@ Delete sensor resources stored in cache
         * [~getPersistingMethod(sensorType, resource, type)](#module_Sensor..getPersistingMethod) ⇒ <code>string</code>
         * [~persistingResource(app, device, sensor, [client])](#module_Sensor..persistingResource) ⇒ <code>object</code>
         * [~onAfterSave(ctx)](#module_Sensor..onAfterSave) ⇒ <code>object</code>
+        * [~deleteProps(app, instance)](#module_Sensor..deleteProps) ⇒ <code>function</code>
         * [~onBeforeDelete(ctx)](#module_Sensor..onBeforeDelete) ⇒ <code>object</code>
         * ["publish" (message)](#event_publish) ⇒ <code>function</code>
         * ["before_save" (ctx)](#event_before_save) ⇒ <code>function</code>
@@ -1963,6 +2056,19 @@ Create relations on instance creation
 | --- | --- | --- |
 | ctx | <code>object</code> | Loopback context |
 
+<a name="module_Sensor..deleteProps"></a>
+
+### Sensor~deleteProps(app, instance) ⇒ <code>function</code>
+Remove sensor dependencies
+
+**Kind**: inner method of [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>function</code> - Sensor.publish  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| app | <code>object</code> | Loopback app |
+| instance | <code>object</code> |  |
+
 <a name="module_Sensor..onBeforeDelete"></a>
 
 ### Sensor~onBeforeDelete(ctx) ⇒ <code>object</code>
@@ -2090,6 +2196,8 @@ Event reporting that a sensor instance / collection is requested
     * _inner_
         * [~onBeforeSave(ctx)](#module_User..onBeforeSave) ⇒ <code>object</code>
         * [~onAfterSave(ctx)](#module_User..onAfterSave) ⇒ <code>object</code>
+        * [~onBeforeLogin(ctx)](#module_User..onBeforeLogin) ⇒ <code>object</code>
+        * [~deleteProps(app, user)](#module_User..deleteProps) ⇒ <code>object</code>
         * [~onBeforeDelete(ctx)](#module_User..onBeforeDelete) ⇒ <code>object</code>
         * ["verifyEmail" (user)](#event_verifyEmail) ⇒ <code>function</code>
         * ["sendContactForm" (options)](#event_sendContactForm) ⇒ <code>function</code>
@@ -2253,10 +2361,37 @@ Create relations on instance creation
 | --- | --- | --- |
 | ctx | <code>object</code> | Loopback context |
 
+<a name="module_User..onBeforeLogin"></a>
+
+### User~onBeforeLogin(ctx) ⇒ <code>object</code>
+Control access validity and limit access if needed before login request
+
+Incrementing counter on failure and resetting it on success
+
+**Kind**: inner method of [<code>User</code>](#module_User)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Loopback context |
+
+<a name="module_User..deleteProps"></a>
+
+### User~deleteProps(app, user) ⇒ <code>object</code>
+Delete relations on instance(s) deletion
+
+**Kind**: inner method of [<code>User</code>](#module_User)  
+**Returns**: <code>object</code> - ctx  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| app | <code>object</code> | Loopback app |
+| user | <code>object</code> | user to delete |
+
 <a name="module_User..onBeforeDelete"></a>
 
 ### User~onBeforeDelete(ctx) ⇒ <code>object</code>
-Delete relations on instance(s) deletetion
+Delete registered user
 
 **Kind**: inner method of [<code>User</code>](#module_User)  
 **Returns**: <code>object</code> - ctx  
@@ -2369,8 +2504,6 @@ Event reporting that a remote user method has been requested
 | Param | Type | Description |
 | --- | --- | --- |
 | ctx | <code>object</code> | Express context. |
-| ctx.req | <code>object</code> | Request |
-| ctx.res | <code>object</code> | Response |
 
 <a name="external_OmaObjects"></a>
 

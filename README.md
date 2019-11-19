@@ -8,8 +8,8 @@
 - Adding context to sensors with OMA schemas
 - Store devices and sensors state ( MongoDB )
 - Fast access to sensor resources ( Redis )
-- Interact with external application and share selection of devices
 - Automatically store sensors value in timeseries ( InfluxDB ), in file, or trigger some timers
+- Interact with external application and share selection of devices
 
 [Swagger Explorer](https://aloes.io/app/explorer)
 
@@ -58,22 +58,24 @@ Application build upon :
   - /services --> external modules
   - /views --> templates used for automatic mailing
 
-## HTTP API
+## API
+
+### HTTP
 
 URL pattern : +apiRoot/+modelPluralName/+path
 
-Access controlled by Access tokens ( set in headers ) properties and roles for Users, and apiKey for Applications and Devices.
+Access controlled using Access tokens ( set in HTTP headers ) and roles for Users and using apiKey property for Applications and Devices.
 
-## MQTT API
+### MQTT
 
 Topic pattern : +userId/+modelName/+method/[+modelId]
 
-Access controlled ( set in mqtt password ) by Access tokens for Users, and API Key for Applications and Devices.
+Access controlled using Access tokens ( set in MQTT password ) and roles for Users and using apiKey property for Applications and Devices.
 
 ## Configuration
 
 Edit your config in .env_sample and save it as `.env`.
-You can override these by populating `deploy` with files corresponding to an environment ( eg: .env_production ... ), and via pm2 `ecosystem.config.json` .
+You can override these by populating `deploy` with files corresponding to an environment ( eg: .env_production ... ).
 
 ## Installation
 
@@ -91,7 +93,7 @@ You can override these by populating `deploy` with files corresponding to an env
 
 - To set Aloes verbosity, configure SERVER_LOGGER_LEVEL from 0 to 4
 
-- To activate Loopback debug
+- To activate Loopback debug :
 
 ```bash
   $ DEBUG=loopback npm run start:dev
@@ -129,7 +131,7 @@ For example to run in local mode, create `./deploy/.env_local` using `.env_sampl
 
 You can serve the project with a distant server by filling `deploy` folder with files corresponding to an environment ( eg: .env_docker ), and then launching this app with docker via `docker-compose up`
 
-Remember to update `*.dockerfile` to match your enviroment, if you don't use docker-compose.
+Remember to update `*.dockerfile` to match your environment, if you don't use docker-compose, otherwise edit `docker-compose.yml` to match your environment and needs.
 
 Creating environment :
 
@@ -155,14 +157,27 @@ Read https://nodejs.org/api/tls.html#tls_tls_ssl
 
 ## To deploy with Localtunnel
 
-Install your own instance : https://github.com/localtunnel/server
+Install your own server instance : https://github.com/localtunnel/server
 
 And then install wildcards certificates with : https://certbot.eff.org/
 
 Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
-## TODO
+## TODOs
+
+- Implement rate limit for MQTT authentification and HTTP endpoints requiring auth
+
+- Catch docker sigTerm to gently stop application 
 
 - Finish account linking with github
-- Add user(s) in a team to easily share devices access ( via collaborators property )
-- Catch and store data related to MQTT traffic ( via Specific sensor instance ? )
+
+- Add user(s) in a team to easily share devices access ( via collaborators property/role ? )
+
+- Separate resources property from Sensor model to SensorResources model ( instead of sync, as currently implemented ) ?
+
+- Catch and store data related to MQTT traffic ( via specific sensor instance ? )
+
+- Add redis replication config ( docker deployement )
+  https://stackoverflow.com/questions/45902031/docker-swarm-redis-and-sentinel-with-master-slave-replication-ip-resolution-cl
+
+- Synchronize data from Aloes ecosystem to a distributed ledger ( IOTA Tangle ? )

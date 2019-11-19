@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable import/no-extraneous-dependencies */
 /* eslint-disable global-require */
 import aedes from 'aedes';
@@ -84,11 +86,13 @@ const emitter = config => {
 
 /**
  * Transform circular MQTT client in JSON
- * @method module:Broker~getClient
+ * @method module:Broker~getClientProps
  * @param {object} client - MQTT client
  * @returns {object} client
  */
-const getClient = client => {
+const getClientProps = client => {
+  /* eslint-disable no-underscore-dangle */
+  /* eslint-disable security/detect-object-injection */
   const clientProperties = [
     'id',
     'user',
@@ -98,16 +102,34 @@ const getClient = client => {
     'aloesId',
     'ownerId',
     'model',
-    'type',
+    'conn',
   ];
+
   const clientObject = {};
   clientProperties.forEach(key => {
-    if (client[key]) {
-      clientObject[key] = client[key];
+    try {
+      if (client[key]) {
+        if (key === 'conn') {
+          if (client.conn.socket && client.conn.socket._socket) {
+            const clientAddress = client.conn.socket._socket.address();
+            clientObject.type = 'WS';
+            clientObject.ip = clientAddress.address;
+          } else if (client.conn.address) {
+            const clientAddress = client.conn.address();
+            // clientObject.ip = client.conn.remoteAddress;
+            clientObject.type = 'MQTT';
+            clientObject.ip = clientAddress.address;
+          }
+        } else clientObject[key] = client[key];
+      }
+    } catch (e) {
+      logger.publish(3, 'broker', 'getClientProps:err', e);
     }
-    return key;
   });
+  logger.publish(3, 'broker', 'getClientProps:res', { client: clientObject });
   return clientObject;
+  /* eslint-enable no-underscore-dangle */
+  /* eslint-enable security/detect-object-injection */
 };
 
 /**
@@ -118,9 +140,8 @@ const getClient = client => {
  */
 const getClients = id => {
   if (!broker.instance) return null;
-  if (typeof id === 'string') {
-    return broker.instance.clients[id];
-  }
+  // eslint-disable-next-line security/detect-object-injection
+  if (id && typeof id === 'string') return broker.instance.clients[id];
   return broker.instance.clients;
 };
 
@@ -133,26 +154,19 @@ const getClients = id => {
 const getClientsByTopic = topic =>
   new Promise((resolve, reject) => {
     if (!broker.instance || !broker.instance.persistence) {
-      reject(new Error('Invalid broker instance'));
+      return reject(new Error('Invalid broker instance'));
     }
     const stream = broker.instance.persistence.getClientList(topic);
     const clients = [];
-    stream
+    return stream
       .on('data', clientId => {
-        try {
-          logger.publish(5, 'broker', 'getClientsByTopic:res', { clientId });
-          clients.push(clientId);
-        } catch (error) {
-          // reject(error);
-        }
+        if (clientId !== null) clients.push(clientId);
       })
       .on('end', () => {
         logger.publish(3, 'broker', 'getClientsByTopic:res', { clients });
         resolve(clients);
       })
-      .on('error', e => {
-        reject(e);
-      });
+      .on('error', reject);
   });
 
 /**
@@ -162,43 +176,41 @@ const getClientsByTopic = topic =>
  * @returns {object} client
  */
 const pickRandomClient = clientIds => {
-  if (!clientIds || clientIds === null) return null;
-  const connectedClients = clientIds
-    .map(clientId => {
-      const client = getClients(clientId);
-      if (client) {
-        // if (client && client.connected) {
-        return clientId;
-      }
-      return null;
-    })
-    .filter(val => val !== null);
-  logger.publish(4, 'broker', 'pickRandomClient:req', { clientIds: connectedClients });
-  const clientId = connectedClients[Math.floor(Math.random() * connectedClients.length)];
-  const client = getClients(clientId);
-  logger.publish(3, 'broker', 'pickRandomClient:res', { clientId });
-  return client;
+  try {
+    if (!clientIds || clientIds === null) return null;
+    const connectedClients = clientIds
+      .map(clientId => {
+        const client = getClients(clientId);
+        if (client) return clientId;
+        return null;
+      })
+      .filter(val => val !== null);
+    logger.publish(4, 'broker', 'pickRandomClient:req', { clientIds: connectedClients });
+    const clientId = connectedClients[Math.floor(Math.random() * connectedClients.length)];
+    const client = getClients(clientId);
+    logger.publish(3, 'broker', 'pickRandomClient:res', { clientId });
+    return client;
+  } catch (error) {
+    logger.publish(3, 'broker', 'pickRandomClient:err', error);
+    return null;
+  }
 };
 
 const updateClientStatus = async (client, status) => {
   try {
     if (client && client.user) {
-      const foundClient = getClient(client);
-      logger.publish(4, 'broker', 'updateClientStatus:req', { client: foundClient, status });
+      const foundClient = getClientProps(client);
+      logger.publish(4, 'broker', 'updateClientStatus:req', { status, client: foundClient });
       const aloesClientsIds = await getClientsByTopic(`aloes-${process.env.ALOES_ID}/sync`);
       if (!aloesClientsIds || aloesClientsIds === null) {
         throw new Error('No Aloes app client subscribed');
       }
-      // if (client.aloesId) {
-      //   if (!status) {
-      //     await cleanSubscriptions(client);
-      //   }
+      // if (client.aloesId && !status) {
+      //   await cleanSubscriptions(client);
       // }
       if (!client.aloesId) {
         const aloesClient = pickRandomClient(aloesClientsIds);
-        if (!aloesClient || aloesClient === null || !aloesClient.id) {
-          throw new Error('No Aloes app client connected');
-        }
+        if (aloesClient === null) throw new Error('No Aloes app client connected');
         const packet = {
           topic: `${aloesClient.id}/status`,
           payload: Buffer.from(JSON.stringify({ status, client: foundClient })),
@@ -210,17 +222,17 @@ const updateClientStatus = async (client, status) => {
     }
     return client;
   } catch (error) {
-    logger.publish(2, 'broker', 'updateClientStatus:er', error);
-    return null;
+    logger.publish(2, 'broker', 'updateClientStatus:err', error);
+    return client;
   }
 };
 
-const delayedUpdateClientStatus = throttle(updateClientStatus, 250);
+const delayedUpdateClientStatus = throttle(updateClientStatus, 100);
 
 /**
  * HTTP request to Aloes to validate credentials
  * @method module:Broker~authentificationRequest
- * @param {object} data - Client instance
+ * @param {object} data - Client instance and credentials
  * @returns {promise}
  */
 const authentificationRequest = async data => {
@@ -259,60 +271,81 @@ const authentificationRequest = async data => {
  * - 2 - Identifier rejected
  * - 3 - Server unavailable
  * - 4 - Bad user name or password
+ * - 5 - Not authorized
  */
 const authenticate = async (client, username, password) => {
-  let status;
   try {
     logger.publish(3, 'broker', 'Authenticate:req', {
       client: client.id || null,
       username,
     });
     if (!client || !client.id) return 1;
-    let foundClient;
+    //  console.log("client parser", client.parser)
     if (!password || password === null || !username || username === null) {
-      status = 4;
-      return status;
+      return 4;
     }
+
+    let status, foundClient;
     if (
       client.id.startsWith(`aloes-${process.env.ALOES_ID}`) &&
       username === process.env.ALOES_ID &&
       password.toString() === process.env.ALOES_KEY
     ) {
       status = 0;
-      foundClient = getClient(client);
+      foundClient = getClientProps(client);
       foundClient.user = username;
       foundClient.aloesId = process.env.ALOES_ID;
     } else {
-      foundClient = getClient(client);
+      // todo : identify client model ( user || device || application ), using client.id, username ?
+      foundClient = getClientProps(client);
+      // const { ipLimit, userIpLimit, retrySecs, usernameIPkey } = await authLimiter(
+      //   username,
+      //   foundClient.ip,
+      // );
+      // if (retrySecs > 0) return 5; if ws client, set retry-after header ?
+
       const result = await authentificationRequest({
         client: foundClient,
         username,
         password: password.toString(),
       });
-
-      if (result.status !== undefined) {
+      if (result && result.status !== undefined) {
         status = result.status;
-        foundClient = result.client;
+        foundClient = { ...foundClient, ...result.client };
       }
     }
 
-    if (foundClient && foundClient.id && status === 0) {
+    if (!foundClient || !foundClient.id || !foundClient.ip) return 5;
+    if (status === undefined) status = 2;
+    if (status === 0) {
       Object.keys(foundClient).forEach(key => {
+        // eslint-disable-next-line security/detect-object-injection
         client[key] = foundClient[key];
-        return key;
       });
-      // await updateClientStatus(client, true);
-    } else if (status === undefined) {
-      status = 2;
+      // if (userIpLimit !== null && userIpLimit.consumedPoints > 0) {
+      //   // Reset on successful authorisation
+      //   await userIpLimiter.delete(usernameIPkey);
+      // }
     }
+    // else {
+    //   try {
+    //     const promises = [ipLimiter.consume(foundClient.ip)];
+    //     if (foundClient.user) {
+    //       promises.push(userIpLimiter.consume(usernameIPkey));
+    //     }
+    //     await Promise.all(promises);
+    //   } catch (rlRejected) {
+    //     if (rlRejected instanceof Error) {
+    //       status = 5;
+    //     } else {
+    //       status = 2;
+    //     }
+    //   }
+    // }
 
-    logger.publish(2, 'broker', 'Authenticate:res', { client: foundClient, status });
     return status;
   } catch (error) {
-    if (error.code === 'ECONNREFUSED') {
-      status = 3;
-      return status;
-    }
+    if (error.code === 'ECONNREFUSED') return 3;
     throw error;
   }
 };
@@ -330,43 +363,38 @@ const authorizePublish = (client, packet) => {
   const topicParts = topic.split('/');
   // const topicIdentifier = topicParts[0].toUpperCase()
   let auth = false;
-  if (client.user) {
-    if (topicParts[0].startsWith(client.user)) {
-      logger.publish(5, 'broker', 'authorizePublish:req', {
-        user: client.user,
-        topic: topicParts,
-      });
-      auth = true;
-    } else if (
-      client.aloesId &&
-      topicParts[0].startsWith(`aloes-${client.aloesId}`) &&
-      (topicParts[1] === `tx` || topicParts[1] === `sync`)
-    ) {
-      logger.publish(5, 'broker', 'authorizePublish:req', {
-        user: client.user,
-        aloesApp: client.id,
-      });
-      auth = true;
-    } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
-      // todo limit access to device out prefix if any - / endsWith(device.outPrefix)
-      logger.publish(5, 'broker', 'authorizePublish:req', {
-        device: client.devEui,
-        topic: topicParts,
-      });
-      auth = true;
-    } else if (client.appId && topicParts[0].startsWith(client.appId)) {
-      logger.publish(5, 'broker', 'authorizePublish:req', {
-        application: client.appId,
-        topic: topicParts,
-      });
-      auth = true;
-    } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
-      logger.publish(5, 'broker', 'authorizePublish:req', {
-        application: client.appEui,
-        topic: topicParts,
-      });
-      auth = true;
-    }
+  if (!client.user) return auth;
+  if (topicParts[0].startsWith(client.user)) {
+    logger.publish(5, 'broker', 'authorizePublish:req', {
+      user: client.user,
+    });
+    auth = true;
+  } else if (
+    client.aloesId &&
+    topicParts[0].startsWith(`aloes-${client.aloesId}`) &&
+    (topicParts[1] === `tx` || topicParts[1] === `sync`)
+  ) {
+    logger.publish(5, 'broker', 'authorizePublish:req', {
+      user: client.user,
+      aloesApp: client.id,
+    });
+    auth = true;
+  } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
+    // todo limit access to device out prefix if any - / endsWith(device.outPrefix)
+    logger.publish(5, 'broker', 'authorizePublish:req', {
+      device: client.devEui,
+    });
+    auth = true;
+  } else if (client.appId && topicParts[0].startsWith(client.appId)) {
+    logger.publish(5, 'broker', 'authorizePublish:req', {
+      application: client.appId,
+    });
+    auth = true;
+  } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
+    logger.publish(5, 'broker', 'authorizePublish:req', {
+      application: client.appEui,
+    });
+    auth = true;
   }
 
   logger.publish(3, 'broker', 'authorizePublish:res', { topic, auth });
@@ -385,46 +413,43 @@ const authorizeSubscribe = (client, packet) => {
   if (!topic) return false;
   const topicParts = topic.split('/');
   let auth = false;
-  // todo leave minimum access with apikey
-  if (client.user) {
-    // const topicIdentifier = topicParts[0].toUpperCase()
-    if (topicParts[0].startsWith(client.user)) {
-      logger.publish(5, 'broker', 'authorizeSubscribe:req', {
-        user: client.user,
-      });
-      auth = true;
-    } else if (
-      client.aloesId &&
-      topicParts[0].startsWith(`aloes-${client.aloesId}`) &&
-      (topicParts[1] === `rx` ||
-        topicParts[1] === `status` ||
-        topicParts[1] === `stop` ||
-        topicParts[1] === `sync`)
-    ) {
-      logger.publish(4, 'broker', 'authorizeSubscribe:req', {
-        user: client.user,
-        aloesApp: client.id,
-      });
-      //  packet.qos = packet.qos + 2
-      auth = true;
-    } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
-      // todo limit access to device in prefix if any
-      logger.publish(5, 'broker', 'authorizeSubscribe:req', {
-        device: client.devEui,
-      });
-      auth = true;
-    } else if (client.appId && topicParts[0].startsWith(client.appId)) {
-      logger.publish(5, 'broker', 'authorizeSubscribe:req', {
-        application: client.appId,
-        topic: topicParts,
-      });
-      auth = true;
-    } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
-      logger.publish(5, 'broker', 'authorizeSubscribe:req', {
-        application: client.appEui,
-      });
-      auth = true;
-    }
+  if (!client.user) return auth;
+  // const topicIdentifier = topicParts[0].toUpperCase()
+  if (topicParts[0].startsWith(client.user)) {
+    logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+      user: client.user,
+    });
+    auth = true;
+  } else if (
+    client.aloesId &&
+    topicParts[0].startsWith(`aloes-${client.aloesId}`) &&
+    (topicParts[1] === `rx` ||
+      topicParts[1] === `status` ||
+      topicParts[1] === `stop` ||
+      topicParts[1] === `sync`)
+  ) {
+    logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+      user: client.user,
+      aloesApp: client.id,
+    });
+    //  packet.qos = packet.qos + 2
+    auth = true;
+  } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
+    // todo limit access to device in prefix if any
+    logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+      device: client.devEui,
+    });
+    auth = true;
+  } else if (client.appId && topicParts[0].startsWith(client.appId)) {
+    logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+      application: client.appId,
+    });
+    auth = true;
+  } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
+    logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+      application: client.appEui,
+    });
+    auth = true;
   }
   logger.publish(3, 'broker', 'authorizeSubscribe:res', { topic, auth });
   return auth;
@@ -458,6 +483,47 @@ const authorizeSubscribe = (client, packet) => {
 //   }
 // };
 
+const onInternalPublished = packet => {
+  const topicParts = packet.topic.split('/');
+  if (topicParts[1] === 'tx') {
+    packet.topic = topicParts.slice(2, topicParts.length).join('/');
+    packet.qos = 1;
+    // packet.retain = false;
+    // console.log('broker, reformatted packet to instance', packet);
+    broker.publish(packet);
+  } else if (topicParts[1] === 'sync') {
+    console.log('ONSYNC', packet.payload);
+  }
+};
+
+const onExternalPublished = async (packet, client) => {
+  try {
+    const foundClient = getClientProps(client);
+    const aloesClientsIds = await getClientsByTopic(`aloes-${process.env.ALOES_ID}/sync`);
+    if (!aloesClientsIds || aloesClientsIds === null) {
+      throw new Error('No Aloes client connected');
+    }
+    const aloesClient = pickRandomClient(aloesClientsIds);
+    if (aloesClient === null) throw new Error('No Aloes client connected');
+    packet.topic = `${aloesClient.id}/rx/${packet.topic}`;
+    // check packet payload type to preformat before stringify
+    if (client.devEui) {
+      // packet.payload = packet.payload.toString('binary');
+    } else if (client.ownerId) {
+      packet.payload = JSON.parse(packet.payload.toString());
+    } else if (client.appId) {
+      // console.log('EXTERNAL APPLICATION PACKET ', packet.payload.toString());
+      // packet.payload = JSON.parse(packet.payload.toString());
+    }
+    packet.payload = Buffer.from(JSON.stringify({ payload: packet.payload, client: foundClient }));
+    broker.publish(packet);
+  } catch (error) {
+    logger.publish(2, 'broker', 'onExternalPublished:err', error);
+  }
+};
+
+const delayedOnExternalPublished = throttle(onExternalPublished, 10);
+
 /**
  * On message published to Aedes broker
  * @method module:Broker~onPublished
@@ -466,44 +532,12 @@ const authorizeSubscribe = (client, packet) => {
  */
 const onPublished = async (packet, client) => {
   try {
+    if (!client || !client.id) return null;
     logger.publish(4, 'broker', 'onPublished:req', { topic: packet.topic });
-    if (!client) return;
-    if (client.aloesId) {
-      const topicParts = packet.topic.split('/');
-      if (topicParts[1] === 'tx') {
-        packet.topic = topicParts.slice(2, topicParts.length).join('/');
-        // packet.retain = false;
-        packet.qos = 1;
-        // console.log('broker, reformatted packet to instance', packet);
-        broker.publish(packet);
-      } else if (topicParts[1] === 'sync') {
-        console.log('ONSYNC', packet.payload);
-      }
-      return;
-    }
-
+    if (client.aloesId) return onInternalPublished(packet, client);
     if (client.user && !client.aloesId) {
-      const foundClient = getClient(client);
-      const aloesClientsIds = await getClientsByTopic(`aloes-${process.env.ALOES_ID}/sync`);
-      if (!aloesClientsIds || aloesClientsIds === null) {
-        throw new Error('No Aloes client connected');
-      }
-      const aloesClient = pickRandomClient(aloesClientsIds);
-      if (!aloesClient || aloesClient === null || !aloesClient.id) {
-        throw new Error('No Aloes client connected');
-      }
-      packet.topic = `${aloesClient.id}/rx/${packet.topic}`;
-      // check packet payload type to preformat before stringify
-      if (client.devEui) {
-        // packet.payload = packet.payload.toString('binary');
-      } else if (client.ownerId || client.appId) {
-        packet.payload = JSON.parse(packet.payload.toString());
-      }
-      packet.payload = Buffer.from(
-        JSON.stringify({ payload: packet.payload, client: foundClient }),
-      );
-      broker.publish(packet);
-      return;
+      // todo : rate limit here ( client.id and client.user ) ?
+      return delayedOnExternalPublished(packet, client);
     }
     throw new Error('Invalid MQTT client');
   } catch (error) {
@@ -544,11 +578,11 @@ broker.publish = packet => {
         packet.payload = Buffer.from(packet.payload);
       }
     }
-
     // logger.publish(2, 'broker', 'publish:res', { topic: `${pubsubVersion}/${packet.topic}` });
-    logger.publish(2, 'broker', 'publish:res', { topic: packet.topic });
+    logger.publish(3, 'broker', 'publish:res', { topic: packet.topic });
     return broker.instance.publish(packet);
   } catch (error) {
+    logger.publish(2, 'broker', 'publish:err', error);
     throw error;
   }
 };
@@ -560,37 +594,46 @@ broker.publish = packet => {
  */
 broker.start = () => {
   try {
-    logger.publish(2, 'broker', 'start', `${process.env.MQTT_BROKER_URL}`);
     if (process.env.MQTTS_BROKER_URL) {
       logger.publish(2, 'broker', 'start', `${process.env.MQTTS_BROKER_URL}`);
+    } else {
+      logger.publish(2, 'broker', 'start', `${process.env.MQTT_BROKER_URL}`);
     }
+
+    broker.instance.preConnect = (client, cb) => {
+      // if client.user, rate limit here ?
+      logger.publish(2, 'broker', 'preConnect:res', {
+        // clientIp: client.conn ? client.conn.remoteAddress : null,
+        clientId: client.id || null,
+      });
+      cb(null, true);
+    };
 
     broker.instance.authenticate = (client, username, password, cb) => {
       authenticate(client, username, password)
         .then(status => {
+          logger.publish(2, 'broker', 'Authenticate:res', { status });
           if (status !== 0) {
             const err = new Error('Auth error');
             err.returnCode = status || 3;
-            cb(err, null);
-          } else cb(null, true);
+            return cb(err, null);
+          }
+          return cb(null, true);
         })
         .catch(e => {
-          cb(e, null);
+          logger.publish(2, 'broker', 'Authenticate:err', e);
+          return cb(e, null);
         });
     };
 
     broker.instance.authorizePublish = (client, packet, cb) => {
       if (authorizePublish(client, packet)) return cb(null);
-      const error = new Error('authorizePublish error');
-      // error.returnCode = 3;
-      return cb(error);
+      return cb(new Error('authorizePublish error'));
     };
 
     broker.instance.authorizeSubscribe = (client, packet, cb) => {
       if (authorizeSubscribe(client, packet)) return cb(null, packet);
-      const error = new Error('authorizeSubscribe error');
-      //  error.returnCode = 3;
-      return cb(error);
+      return cb(new Error('authorizeSubscribe error'));
     };
 
     // broker.instance.authorizeForward = authorizeForward;
@@ -605,14 +648,14 @@ broker.start = () => {
      * On client connected to Aedes broker
      * @event client
      * @param {object} client - MQTT client
+     * @returns {function} Broker~delayedUpdateClientStatus
      */
     broker.instance.on('client', async client => {
       try {
         logger.publish(3, 'broker', 'onClientConnect', client.id);
         await delayedUpdateClientStatus(client, true);
-        // await updateClientStatus(client, true);
       } catch (error) {
-        logger.publish(3, 'broker', 'onClientConnect:err', error);
+        logger.publish(2, 'broker', 'onClientConnect:err', error);
       }
     });
 
@@ -620,14 +663,15 @@ broker.start = () => {
      * On client disconnected from Aedes broker
      * @event clientDisconnect
      * @param {object} client - MQTT client
-     * @returns {function} Broker~updateModelsStatus
+     * @returns {function} Broker~delayedUpdateClientStatus
      */
     broker.instance.on('clientDisconnect', async client => {
       try {
         logger.publish(3, 'broker', 'onClientDisconnect', client.id);
-        await updateClientStatus(client, false);
+        await delayedUpdateClientStatus(client, false);
+        // await updateClientStatus(client, false);
       } catch (error) {
-        logger.publish(3, 'broker', 'onClientDisconnect:err', error);
+        logger.publish(2, 'broker', 'onClientDisconnect:err', error);
       }
     });
 
@@ -650,12 +694,24 @@ broker.start = () => {
       logger.publish(2, 'broker', 'onClientError', { clientId: client.id, error: err.message });
     });
 
+    /**
+     * When client contains no Id
+     * @event clientError
+     * @param {object} client - MQTT client
+     * @param {object} err - MQTT Error
+     */
     broker.instance.on('connectionError', (client, err) => {
       logger.publish(2, 'broker', 'onConnectionError', { clientId: client.id, error: err.message });
       // client.close();
     });
 
-    // broker.instance.on("delivered", (packet, client) => {
+    /**
+     * When a packet with qos=1|2 is delivered successfully
+     * @event ack
+     * @param {object} packet - MQTT original packet
+     * @param {object} client - MQTT client
+     */
+    // broker.instance.on("ack", (packet, client) => {
     //   console.log("Delivered", packet, client.id);
     // });
 
@@ -683,7 +739,7 @@ broker.stop = () => {
     // broker.publish(packet);
     logger.publish(2, 'broker', 'stopping', {
       url: `${process.env.MQTT_BROKER_URL}`,
-      brokers: broker.instance.brokers,
+      brokers: broker.instance && broker.instance.brokers,
     });
     if (broker.instance) broker.instance.close();
     return true;
@@ -707,6 +763,7 @@ broker.init = () => {
       config = result.parsed;
     } else {
       envVariablesKeys.forEach(key => {
+        // eslint-disable-next-line security/detect-object-injection
         config[key] = process.env[key];
       });
     }
@@ -717,6 +774,7 @@ broker.init = () => {
         { type: 'http', port: Number(config.WS_BROKER_PORT) },
       ],
     };
+
     if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
       const Redis = require('ioredis');
       broker.redis = new Redis({
@@ -737,7 +795,7 @@ broker.init = () => {
       persistence: persistence(config),
       concurrency: 100,
       heartbeatInterval: 60000,
-      connectTimeout: 30000,
+      connectTimeout: 2000,
     };
 
     broker.instance = new aedes.Server(aedesConf);
@@ -763,9 +821,7 @@ broker.init = () => {
     });
 
     const wsBroker = ws.createServer(
-      {
-        server: httpServer,
-      },
+      { perMessageDeflate: false, server: httpServer },
       broker.instance.handle,
     );
 
@@ -791,10 +847,9 @@ if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
   setTimeout(() => broker.init(), 500);
 } else {
   logger.publish(1, 'broker', 'init:cluster', { pid: process.pid });
-
   process.on('message', packet => {
     console.log('PROCESS PACKET ', packet);
-    if (typeof packet.id === 'number' && packet.data.ready) {
+    if (typeof packet.id === 'number' && packet.data && packet.data.ready) {
       broker.init();
       process.send({
         type: 'process:msg',

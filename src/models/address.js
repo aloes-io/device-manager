@@ -1,4 +1,8 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import NodeGeocoder from 'node-geocoder';
+import isAlphanumeric from 'validator/lib/isAlphanumeric';
+import isLength from 'validator/lib/isLength';
 import logger from '../services/logger';
 import utils from '../services/utils';
 
@@ -57,7 +61,7 @@ const onBeforeRemote = async ctx => {
       if (!options || !options.currentUser) {
         throw utils.buildError(401, 'UNAUTHORIZED', 'Invalid user request');
       }
-      console.log('before remote', ctx.method.name, options.currentUser, ctx.args.filter);
+      // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.filter);
       const isAdmin = options.currentUser.roles.includes('admin');
       if (!isAdmin) {
         if (!ctx.args.filter) ctx.args.filter = {};
@@ -206,14 +210,29 @@ module.exports = function(Address) {
       if (filter.postalCode) {
         whereFilter.and.push({ postalCode: filter.postalCode });
       }
-      if (filter.city) {
+      if (
+        filter.city &&
+        isLength(filter.city, { min: 3, max: 35 }) &&
+        isAlphanumeric(filter.city)
+      ) {
+        // eslint-disable-next-line security/detect-non-literal-regexp
         whereFilter.and.push({ city: { like: new RegExp(`.*${filter.city}.*`, 'i') } });
       }
-      if (filter.street) {
+      if (
+        filter.street &&
+        isLength(filter.street, { min: 5, max: 55 }) &&
+        isAlphanumeric(filter.street)
+      ) {
+        // eslint-disable-next-line security/detect-non-literal-regexp
         whereFilter.and.push({ street: { like: new RegExp(`.*${filter.street}.*`, 'i') } });
       }
-      if (filter.streetName) {
+      if (
+        filter.streetName &&
+        isLength(filter.streetName, { min: 5, max: 50 }) &&
+        isAlphanumeric(filter.streetName)
+      ) {
         whereFilter.and.push({
+          // eslint-disable-next-line security/detect-non-literal-regexp
           streetName: { like: new RegExp(`.*${filter.streetName}.*`, 'i') },
         });
       }

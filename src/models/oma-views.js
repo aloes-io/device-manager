@@ -7,8 +7,6 @@
  */
 
 module.exports = function(OmaViews) {
-  //  const collectionName = 'OmaViews';
-
   OmaViews.disableRemoteMethodByName('create');
   OmaViews.disableRemoteMethodByName('upsert');
   OmaViews.disableRemoteMethodByName('deleteById');

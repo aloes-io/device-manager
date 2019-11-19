@@ -1,3 +1,6 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
+/* eslint-disable security/detect-object-injection */
 import loopbackPassport from 'loopback-component-passport';
 import providers from '../providers';
 import logger from '../services/logger';

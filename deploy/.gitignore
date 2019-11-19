@@ -6,3 +6,4 @@
 
 # ... except for this one.
 !.gitignore
+!README.md

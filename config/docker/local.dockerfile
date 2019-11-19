@@ -1,3 +1,5 @@
+# Copyright 2019 Edouard Maleix, read LICENSE
+
 FROM node:lts-alpine
 
 ENV NODE_NAME=device-manager
@@ -10,7 +12,6 @@ RUN mkdir -p ./storage
 COPY src ./src/
 COPY bin ./bin/
 COPY package*.json ./
-# COPY pm2-local.js ./
 COPY favicon.ico ./
 
 RUN npm ci 

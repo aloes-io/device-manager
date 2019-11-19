@@ -1,3 +1,6 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
+/* eslint-disable security/detect-object-injection */
 import logger from '../services/logger';
 
 module.exports = async function initializeDownSampling(app) {
@@ -36,7 +39,8 @@ module.exports = async function initializeDownSampling(app) {
             }
             return query;
           } catch (error) {
-            return error;
+            logger.publish(3, 'loopback', 'boot:initializeDownSampling:aggregateProps:err', error);
+            return null;
           }
         };
 
@@ -56,7 +60,13 @@ module.exports = async function initializeDownSampling(app) {
         //  console.log('continuousQueryName: ', continuousQueryName);
         return { cqName: continuousQueryName, query };
       } catch (error) {
-        return error;
+        logger.publish(
+          3,
+          'loopback',
+          'boot:initializeDownSampling:buildContinuousQuery:err',
+          error,
+        );
+        return null;
       }
     };
 
@@ -79,7 +89,13 @@ module.exports = async function initializeDownSampling(app) {
             // console.log('rpName : ', rpName);
             return rpName;
           } catch (error) {
-            return error;
+            logger.publish(
+              3,
+              'loopback',
+              'boot:initializeDownSampling:initializeDownSampling:err',
+              error,
+            );
+            return null;
           }
         });
 
@@ -105,7 +121,7 @@ module.exports = async function initializeDownSampling(app) {
               const dsRule = dsRules.find(rule => rule.duration === duration);
               if (dsRule) {
                 const msg = await buildContinuousQuery(modelName, dsRule, nextDuration, duration);
-                logger.publish(4, 'loopback', 'boot:initializeDownSampling:res', msg);
+                logger.publish(4, 'loopback', 'boot:initializeDownSampling:continuousQueries', msg);
                 const res = await influxConnector.client.createContinuousQuery(
                   msg.cqName,
                   msg.query,
@@ -116,7 +132,13 @@ module.exports = async function initializeDownSampling(app) {
             }
             return null;
           } catch (error) {
-            return error;
+            logger.publish(
+              3,
+              'loopback',
+              'boot:initializeDownSampling:continuousQueries:err',
+              error,
+            );
+            return null;
           }
         });
         const continuousQueries = await Promise.all(cqPromises);

@@ -4,6 +4,7 @@
  * This script creates weighted random load on the sample server.
  */
 
+/* eslint-disable security/detect-object-injection  */
 import request from 'request';
 import table from 'text-table';
 import weighted from 'weighted';
@@ -80,7 +81,6 @@ function weighChoices(routes) {
   const choices = routes.reduce((obj, route) => {
     obj[route] = Math.random();
     total += obj[route];
-
     return obj;
   }, {});
 

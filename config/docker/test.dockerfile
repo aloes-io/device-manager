@@ -1,3 +1,5 @@
+# Copyright 2019 Edouard Maleix, read LICENSE
+
 ###############################################################################
 # Step 1 : Builder image
 #
@@ -37,6 +39,4 @@ WORKDIR /home/node/$NODE_NAME
 COPY --from=builder /home/node/$NODE_NAME/. ./
 
 CMD ["npm", "run", "test:cover"]
-# CMD ["./node_modules/.bin/nyc", "./node_modules/.bin/mocha", "src/**/*.test.js"]
-# CMD ["./node_modules/.bin/mocha", "dist/**/*.test.js", "--reporter", "spec"]
 

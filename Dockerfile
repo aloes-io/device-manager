@@ -1,3 +1,5 @@
+# Copyright 2019 Edouard Maleix, read LICENSE
+
 FROM node:lts-alpine
 
 # ENV NODE_ENV local

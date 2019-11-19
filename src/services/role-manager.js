@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import logger from './logger';
 
 /**
@@ -67,6 +69,7 @@ roleManager.getUserRoles = (app, userId) =>
 roleManager.getUserRoleNames = async (app, userId) => {
   try {
     const userRolesIds = await roleManager.getUserRoles(app, userId);
+    // eslint-disable-next-line security/detect-object-injection
     return userRolesIds.map(role => appRolesById[role] || role);
   } catch (error) {
     return null;

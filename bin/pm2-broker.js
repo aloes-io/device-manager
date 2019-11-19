@@ -1,3 +1,6 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
+/* eslint-disable security/detect-object-injection  */
 const dotenv = require('dotenv');
 const {
   startAppsList,

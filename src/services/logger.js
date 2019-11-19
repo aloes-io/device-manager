@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import colors from 'colors';
 import mqttClient from './mqtt-client';
 
@@ -93,12 +95,13 @@ logger.publish = (priority, collectionName, command, content) => {
   const logLevel = Number(process.env.SERVER_LOGGER_LEVEL) || 4;
   if (priority <= logLevel) {
     const fullContent = formatLog(collectionName, command, content);
-    sendFormatedLog(collectionName, command, fullContent);
     if (process.env.CLUSTER_MODE && process.env.CLUSTER_MODE === 'true') {
       process.send({
         type: 'log:msg',
         data: { collectionName, command, fullContent, content },
       });
+    } else {
+      sendFormatedLog(collectionName, command, fullContent);
     }
     if (remoteLog && process.env.MQTT_BROKER_URL) {
       const topic = `${collectionName}/${command}`;

@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable no-underscore-dangle */
 import mqtt from 'async-mqtt';
 import EventEmitter from 'events';
@@ -10,7 +12,10 @@ import logger from './logger';
 
 const MQTTClient = new EventEmitter();
 // const pubsubVersion = process.env.PUBSUSB_API_VERSION;
+
 let mqttClient;
+
+const serviceNames = ['Device', 'Application', 'Sensor'];
 
 const onDeviceStatus = (app, client, status) => {
   app.models.Device.emit('client', { client, status });
@@ -200,6 +205,8 @@ const onStatus = async (app, topic, payload) => {
 
 const onModelPublish = (app, serviceName, pattern, packet, client) => {
   logger.publish(3, 'mqtt-client', 'onModelPublish:req', { serviceName });
+  if (!serviceNames.some(name => name.toLowerCase() === serviceName.toLowerCase())) return;
+  // eslint-disable-next-line security/detect-object-injection
   const Model = app.models[serviceName];
   if (Model) Model.emit('publish', { pattern, packet, client });
 };
@@ -349,7 +356,7 @@ const initClient = async (app, config) => {
       protocolId: 'MQTT',
       protocolVersion: 4,
       reconnectPeriod: 1000,
-      connectTimeout: 10 * 1000,
+      connectTimeout: 2 * 1000,
       clean: false,
       clientId,
       username: config.ALOES_ID,
@@ -384,10 +391,17 @@ const initClient = async (app, config) => {
       MQTTClient.emit('offline', packet);
     });
 
-    mqttClient.on('message', (topic, payload) => {
-      logger.publish(4, 'mqtt-client', 'on-message', topic);
-      MQTTClient.emit('message', app, topic, payload);
-    });
+    // mqttClient.on('message', (topic, payload) => {
+    //   MQTTClient.emit('message', app, topic, payload);
+    // });
+
+    const handleMessage = (packet, cb) => {
+      onMessage(app, packet.topic, packet.payload)
+        .then(() => cb())
+        .catch(() => cb());
+    };
+
+    mqttClient.handleMessage = handleMessage;
 
     await startClient(clientId);
     logger.publish(3, 'mqtt-client', 'init:res', mqttClientOptions);
@@ -415,7 +429,7 @@ MQTTClient.on('init', initClient);
  * @param {any} payload - Packet payload
  * @returns {boolean} status
  */
-MQTTClient.publish = async (topic, payload, retain = false, qos = 1) => {
+MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
   try {
     if (typeof payload === 'boolean') {
       payload = payload.toString();

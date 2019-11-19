@@ -2,7 +2,6 @@
 
 /* eslint-disable import/no-extraneous-dependencies */
 import { expect } from 'chai';
-import iotAgent from 'iot-agent';
 import lbe2e from 'lb-declarative-e2e-test';
 import mqtt from 'mqtt';
 import app from '../index';
@@ -15,15 +14,15 @@ const afterTestDelay = 2000;
 const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
-const deviceTest = () => {
-  const deviceFactory = testHelper.factories.device;
+const applicationTest = () => {
+  const applicationFactory = testHelper.factories.application;
   const clientFactory = testHelper.factories.client;
   const loginUrl = `${restApiPath}/Users/login`;
-  const collectionName = 'Devices';
+  const collectionName = 'Applications';
   const apiUrl = `${restApiPath}/${collectionName}/`;
 
-  const DeviceModel = app.models.Device;
-  let devices, users, userIds, packets, patterns;
+  const ApplicationModel = app.models.Application;
+  let applications, users, userIds, packets;
 
   async function beforeTests() {
     try {
@@ -37,29 +36,28 @@ const deviceTest = () => {
         .fill('')
         .map((_, index) => {
           if (index <= 1) {
-            return deviceFactory(index + 1, userIds[0]);
+            return applicationFactory(index + 1, userIds[0]);
           }
-          return deviceFactory(index + 1, userIds[1]);
+          return applicationFactory(index + 1, userIds[1]);
         });
-      // console.log('CREATED DEVICES MODELS ', models);
-      const res = await DeviceModel.create(models);
-      devices = res.map(model => model.toJSON());
-      // const packet = { topic: `${devices[0].devEui}-out/`, payload };
+      // console.log('CREATED applications MODELS ', models);
+      const res = await ApplicationModel.create(models);
+      applications = res.map(model => model.toJSON());
+
       const userPacket = {
-        topic: `${users[1].id}/Device/PUT/${devices[1].id}`,
+        topic: `${users[1].id}/Application/PUT/${applications[1].id}`,
         payload: {
-          ...devices[1],
-          name: `${devices[1].name}-updated`,
+          ...applications[1],
+          name: `${applications[1].name}-updated`,
         },
       };
-      const devicePacket = {
-        topic: `${devices[1].devEui}-out/0/3300/0/1/5700`,
+      const applicationPacket = {
+        topic: `${applications[1].appEui}-out/0/3300/0/1/5700`,
         payload: '0',
       };
-      packets = [userPacket, devicePacket];
-      patterns = packets.map(pac => iotAgent.patternDetector(pac));
-      // console.log('FOUND PATTERNS ', patterns);
-      return devices;
+      packets = [userPacket, applicationPacket];
+
+      return applications;
     } catch (error) {
       console.log(`[TEST] ${collectionName} before:err`, error);
       return null;
@@ -68,7 +66,7 @@ const deviceTest = () => {
 
   function afterTests(done) {
     setTimeout(() => {
-      Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
+      Promise.all([ApplicationModel.destroyAll(), app.models.user.destroyAll()])
         .then(() => done())
         .catch(e => done(e));
     }, afterTestDelay);
@@ -100,7 +98,7 @@ const deviceTest = () => {
                 name: 'everyone CANNOT create',
                 verb: 'post',
                 url: apiUrl,
-                body: deviceFactory(6),
+                body: applicationFactory(6),
                 expect: 401,
               },
               {
@@ -108,7 +106,7 @@ const deviceTest = () => {
                 verb: 'post',
                 auth: profiles.user,
                 url: apiUrl,
-                body: deviceFactory(7),
+                body: applicationFactory(7),
                 expect: 200,
               },
               {
@@ -116,7 +114,7 @@ const deviceTest = () => {
                 verb: 'post',
                 auth: profiles.admin,
                 url: apiUrl,
-                body: deviceFactory(8),
+                body: applicationFactory(8),
                 expect: 200,
               },
             ],
@@ -126,7 +124,7 @@ const deviceTest = () => {
               {
                 name: 'everyone CANNOT read ONE',
                 verb: 'get',
-                url: () => `${apiUrl}${devices[0].id}`,
+                url: () => `${apiUrl}${applications[0].id}`,
                 expect: 401,
               },
               {
@@ -139,14 +137,14 @@ const deviceTest = () => {
                 name: 'everyone CAN read OWN',
                 verb: 'get',
                 auth: profiles.user,
-                url: () => `${apiUrl}${devices[2].id}`,
+                url: () => `${apiUrl}${applications[2].id}`,
                 expect: 200,
               },
               {
-                name: 'everyone CAN read OWN with sensors',
+                name: 'everyone CAN read OWN with collaborators',
                 verb: 'get',
                 auth: profiles.user,
-                url: () => `${apiUrl}${devices[2].id}?filter[include]=sensors`,
+                url: () => `${apiUrl}${applications[2].id}?filter[include]=collaborators`,
                 expect: 200,
               },
               {
@@ -163,10 +161,10 @@ const deviceTest = () => {
               {
                 name: 'everyone CANNOT update',
                 verb: 'put',
-                url: () => apiUrl + devices[0].id,
+                url: () => apiUrl + applications[0].id,
                 body: () => ({
-                  ...devices[0],
-                  name: `${devices[0].name} - updated`,
+                  ...applications[0],
+                  name: `${applications[0].name} - updated`,
                 }),
                 expect: 401,
               },
@@ -174,10 +172,10 @@ const deviceTest = () => {
                 name: 'user CANNOT update ALL',
                 verb: 'put',
                 auth: profiles.user,
-                url: () => `${apiUrl}${devices[0].id}`,
+                url: () => `${apiUrl}${applications[0].id}`,
                 body: () => ({
-                  ...devices[0],
-                  name: `${devices[0].name} - updated`,
+                  ...applications[0],
+                  name: `${applications[0].name} - updated`,
                 }),
                 expect: 401,
               },
@@ -185,10 +183,10 @@ const deviceTest = () => {
                 name: 'user CAN update OWN',
                 verb: 'put',
                 auth: profiles.user,
-                url: () => `${apiUrl}${devices[2].id}`,
+                url: () => `${apiUrl}${applications[2].id}`,
                 body: () => ({
-                  ...devices[2],
-                  name: `${devices[2].name} - updated`,
+                  ...applications[2],
+                  name: `${applications[2].name} - updated`,
                 }),
                 expect: 200,
               },
@@ -196,10 +194,10 @@ const deviceTest = () => {
                 name: 'admin CAN update ALL',
                 verb: 'put',
                 auth: profiles.admin,
-                url: () => `${apiUrl}${devices[2].id}`,
+                url: () => `${apiUrl}${applications[2].id}`,
                 body: () => ({
-                  ...devices[2],
-                  name: `${devices[2].name} - updated`,
+                  ...applications[2],
+                  name: `${applications[2].name} - updated`,
                 }),
                 expect: 200,
               },
@@ -210,133 +208,21 @@ const deviceTest = () => {
               {
                 name: 'everyone CANNOT delete ALL',
                 verb: 'delete',
-                url: () => `${apiUrl}${devices[0].id}`,
+                url: () => `${apiUrl}${applications[0].id}`,
                 expect: 401,
               },
               {
                 name: 'user CAN delete OWN',
                 verb: 'delete',
                 auth: profiles.user,
-                url: () => `${apiUrl}${devices[2].id}`,
+                url: () => `${apiUrl}${applications[2].id}`,
                 expect: 200,
               },
               {
                 name: 'admin CAN delete ALL',
                 verb: 'delete',
                 auth: profiles.admin,
-                url: () => `${apiUrl}${devices[3].id}`,
-                expect: 200,
-              },
-            ],
-          },
-          '[TEST] Verifying "Search" access': {
-            tests: [
-              {
-                name: 'user CAN search devices by address',
-                steps: [
-                  {
-                    verb: 'post',
-                    auth: profiles.user,
-                    url: '/api/Addresses/verify',
-                    body: {
-                      address: {
-                        city: 'Nantes',
-                        postalCode: '44000',
-                        street: '92 rue paul bellamy',
-                      },
-                    },
-                    expect: 200,
-                  },
-                  step0Response => ({
-                    verb: 'put',
-                    auth: profiles.user,
-                    url: () => `${apiUrl}${devices[4].id}/address`,
-                    body: () => ({
-                      ...step0Response.body,
-                      public: true,
-                    }),
-                    expect: 200,
-                  }),
-                  step1Response => ({
-                    verb: 'post',
-                    auth: profiles.user,
-                    url: () => `${apiUrl}search`,
-                    body: () => ({
-                      filter: { text: step1Response.body.city },
-                    }),
-                    expect: resp => {
-                      expect(resp.status).to.be.equal(200);
-                    },
-                  }),
-                ],
-              },
-              {
-                name: 'user CAN search devices by coordinates',
-                steps: [
-                  {
-                    verb: 'post',
-                    auth: profiles.admin,
-                    url: '/api/Addresses/verify',
-                    body: {
-                      address: {
-                        city: 'Nantes',
-                        postalCode: '44000',
-                        street: '95 rue paul bellamy',
-                      },
-                    },
-                    expect: 200,
-                  },
-                  step0Response => ({
-                    verb: 'put',
-                    auth: profiles.admin,
-                    url: () => `${apiUrl}${devices[1].id}/address`,
-                    body: () => ({
-                      ...step0Response.body,
-                      public: true,
-                    }),
-                    expect: 200,
-                  }),
-                  step1Response => ({
-                    verb: 'post',
-                    auth: profiles.admin,
-                    url: () => `${apiUrl}geo-locate`,
-                    body: () => ({
-                      filter: {
-                        location: step1Response.body.coordinates,
-                        maxDistance: 50,
-                        unit: 'km',
-                      },
-                    }),
-                    expect: 200,
-                  }),
-                ],
-              },
-            ],
-          },
-          '[TEST] Verifying "Export" access': {
-            tests: [
-              {
-                name: 'user CAN export to CSV',
-                auth: profiles.user,
-                verb: 'post',
-                url: () => `${apiUrl}export`,
-                body: () => ({
-                  devices,
-                  filter: {},
-                }),
-                expect: resp => {
-                  expect(resp.status).to.be.equal(200);
-                },
-              },
-              {
-                name: 'user CAN export to CSV',
-                auth: profiles.user,
-                verb: 'post',
-                url: () => `${apiUrl}export`,
-                body: () => ({
-                  devices,
-                  filter: { ownerId: devices[0].ownerId, name: devices[0].name },
-                }),
+                url: () => `${apiUrl}${applications[3].id}`,
                 expect: 200,
               },
             ],
@@ -344,58 +230,30 @@ const deviceTest = () => {
           '[TEST] Verifying "Publish" access': {
             tests: [
               {
-                name: 'everyone CANNOT publish',
-                verb: 'post',
-                url: () => `${apiUrl}on-publish`,
-                body: () => ({
-                  packet: { ...packets[0] },
-                  pattern: { ...patterns[0] },
-                  client: {
-                    id: users[1].id,
-                    user: users[1].id,
-                  },
-                }),
-                expect: 401,
-              },
-              {
-                name: 'User CAN publish',
-                verb: 'post',
-                auth: profiles.user,
-                url: () => `${apiUrl}on-publish`,
-                body: () => ({
-                  packet: packets[0],
-                  pattern: patterns[0],
-                  client: {
-                    id: users[1].id,
-                    user: users[1].id,
-                  },
-                }),
-                expect: 200,
-              },
-              {
-                name: "user CAN update its device's status",
+                name: "user CAN update its application's status",
                 verb: 'post',
                 auth: profiles.user,
                 url: () => `${apiUrl}update-status`,
                 body: () => ({
                   client: {
-                    id: devices[0].devEui,
-                    devEui: devices[0].devEui,
-                    user: devices[0].id,
+                    appId: applications[0].id,
+                    appEui: applications[0].appEui,
+                    id: applications[0].appEui,
+                    user: applications[0].id,
                   },
                   status: true,
                 }),
                 expect: 200,
               },
               {
-                name: 'device CAN update its status',
+                name: 'application CAN update its status',
                 steps: [
                   {
                     verb: 'post',
                     url: () => `${apiUrl}authenticate`,
                     body: () => ({
-                      deviceId: devices[0].id.toString(),
-                      apiKey: devices[0].apiKey,
+                      appId: applications[0].id.toString(),
+                      apiKey: applications[0].apiKey,
                     }),
                     expect: 200,
                   },
@@ -404,15 +262,17 @@ const deviceTest = () => {
                     headers: {
                       'accept-encoding': 'gzip, deflate',
                       'user-agent': 'node-superagent/3.8.3',
-                      deveui: devices[0].devEui,
-                      apikey: devices[0].apiKey,
+                      appid: applications[0].id,
+                      appeui: applications[0].appEui,
+                      apikey: applications[0].apiKey,
                     },
                     url: () => `${apiUrl}update-status`,
                     body: () => ({
                       client: {
-                        id: devices[0].devEui,
-                        devEui: devices[0].devEui,
-                        user: devices[0].id,
+                        appId: applications[0].id,
+                        appEui: applications[0].appEui,
+                        id: applications[0].appEui,
+                        user: applications[0].id,
                       },
                       status: true,
                     }),
@@ -421,14 +281,14 @@ const deviceTest = () => {
                 ],
               },
               {
-                name: 'device CAN read its state',
+                name: 'application CAN read its state',
                 steps: [
                   {
                     verb: 'post',
                     url: () => `${apiUrl}authenticate`,
                     body: () => ({
-                      deviceId: devices[0].id.toString(),
-                      apiKey: devices[0].apiKey,
+                      appId: applications[0].id.toString(),
+                      apiKey: applications[0].apiKey,
                     }),
                     expect: 200,
                   },
@@ -437,39 +297,41 @@ const deviceTest = () => {
                     headers: {
                       'accept-encoding': 'gzip, deflate',
                       'user-agent': 'node-superagent/3.8.3',
-                      deveui: devices[0].devEui,
-                      apikey: devices[0].apiKey,
+                      appid: applications[0].id,
+                      appeui: applications[0].appEui,
+                      apikey: applications[0].apiKey,
                     },
-                    url: () => `${apiUrl}get-state/${devices[0].id}`,
+                    url: () => `${apiUrl}get-state/${applications[0].id}`,
                     expect: 200,
                   }),
                 ],
               },
-              {
-                name: 'device CAN read its full state (with sensors and address)',
-                steps: [
-                  {
-                    verb: 'post',
-                    url: () => `${apiUrl}authenticate`,
-                    body: () => ({
-                      deviceId: devices[0].id.toString(),
-                      apiKey: devices[0].apiKey,
-                    }),
-                    expect: 200,
-                  },
-                  () => ({
-                    verb: 'get',
-                    headers: {
-                      'accept-encoding': 'gzip, deflate',
-                      'user-agent': 'node-superagent/3.8.3',
-                      deveui: devices[0].devEui,
-                      apikey: devices[0].apiKey,
-                    },
-                    url: () => `${apiUrl}get-full-state/${devices[0].id}`,
-                    expect: 200,
-                  }),
-                ],
-              },
+              // {
+              //   name: 'application CAN read its full state (with sensors and device)',
+              //   steps: [
+              //     {
+              //       verb: 'post',
+              //       url: () => `${apiUrl}authenticate`,
+              //       body: () => ({
+              //         appId: applications[0].id.toString(),
+              //         apiKey: applications[0].apiKey,
+              //       }),
+              //       expect: 200,
+              //     },
+              //     () => ({
+              //       verb: 'get',
+              //       headers: {
+              //         'accept-encoding': 'gzip, deflate',
+              //         'user-agent': 'node-superagent/3.8.3',
+              //         appid: applications[0].id,
+              //         appeui: applications[0].appEui,
+              //         apikey: applications[0].apiKey,
+              //       },
+              //       url: () => `${apiUrl}get-full-state/${applications[0].id}`,
+              //       expect: 200,
+              //     }),
+              //   ],
+              // },
             ],
           },
           '[TEST] Verifying "Authentification" access': {
@@ -479,29 +341,29 @@ const deviceTest = () => {
                 verb: 'post',
                 url: () => `${apiUrl}authenticate`,
                 body: () => ({
-                  deviceId: devices[0].id.toString(),
-                  apiKey: devices[0].apiKey,
+                  appId: applications[0].id.toString(),
+                  apiKey: applications[0].apiKey,
                 }),
                 expect: 200,
               },
               {
-                name: 'everyone CANNOT refresh API Key',
+                name: 'everyone CANNOT refresh application API Key',
                 verb: 'post',
-                url: () => `${apiUrl}refresh-token/${devices[0].id}`,
+                url: () => `${apiUrl}refresh-token/${applications[0].id}`,
                 expect: 401,
               },
               {
-                name: "user CANNOT refresh another OWNER devices's API Key",
+                name: "user CANNOT refresh another OWNER applications's API Key",
                 verb: 'post',
                 auth: profiles.user,
-                url: () => `${apiUrl}refresh-token/${devices[0].id}`,
+                url: () => `${apiUrl}refresh-token/${applications[0].id}`,
                 expect: 401,
               },
               {
-                name: 'user CAN refresh API Key',
+                name: 'user CAN refresh OWN application API Key',
                 verb: 'post',
                 auth: profiles.user,
-                url: () => `${apiUrl}refresh-token/${devices[4].id}`,
+                url: () => `${apiUrl}refresh-token/${applications[4].id}`,
                 expect: 200,
               },
             ],
@@ -553,13 +415,13 @@ const deviceTest = () => {
       // setTimeout(() => done(new Error('Test timeout')), testMaxDuration - 100);
     });
 
-    it('device CANNOT connect with wrong credentials', function(done) {
+    it('application CANNOT connect with wrong credentials', function(done) {
       const testMaxDuration = 4000;
       this.timeout(testMaxDuration);
       this.slow(testMaxDuration / 2);
       const client = mqtt.connect(
         app.get('mqtt url'),
-        clientFactory(devices[1], 'device', devices[0].apiKey),
+        clientFactory(applications[1], 'application', applications[0].apiKey),
       );
       client.once('error', e => {
         expect(e.code).to.be.equal(4);
@@ -572,36 +434,36 @@ const deviceTest = () => {
       });
     });
 
-    it('device CAN connect to backend', function(done) {
+    it('application CAN connect to backend', function(done) {
       const testMaxDuration = 4000;
       this.timeout(testMaxDuration);
       this.slow(testMaxDuration / 2);
       const client = mqtt.connect(
         app.get('mqtt url'),
-        clientFactory(devices[1], 'device', devices[1].apiKey),
+        clientFactory(applications[1], 'application', applications[1].apiKey),
       );
       client.once('error', () => {
         client.end();
         done(new Error('Should be connected'));
       });
       client.on('offline', () => {
-        // check device status
+        // check application status
       });
       client.once('connect', packet => {
         expect(packet.returnCode).to.be.equal(0);
-        // check device status
+        // check application status
         setTimeout(() => client.end(), 500);
         done();
       });
     });
 
-    it('device CANNOT publish to ANY route', function(done) {
+    it('application CANNOT publish to ANY route', function(done) {
       const testMaxDuration = 5000;
       this.timeout(testMaxDuration);
       this.slow(testMaxDuration / 2);
       const client = mqtt.connect(
         app.get('mqtt url'),
-        clientFactory(devices[0], 'device', devices[0].apiKey),
+        clientFactory(applications[0], 'application', applications[0].apiKey),
       );
 
       client.once('error', e => {
@@ -626,13 +488,13 @@ const deviceTest = () => {
       // done(new Error('Should have ended with an error event'));
     });
 
-    it('device CAN publish to OWN route', function(done) {
+    it('application CAN publish to OWN route', function(done) {
       const testMaxDuration = 5000;
       this.timeout(testMaxDuration);
       this.slow(testMaxDuration / 2);
       const client = mqtt.connect(
         app.get('mqtt url'),
-        clientFactory(devices[1], 'device', devices[1].apiKey),
+        clientFactory(applications[1], 'application', applications[1].apiKey),
       );
       client.once('error', e => {
         done(e);
@@ -656,6 +518,6 @@ const deviceTest = () => {
 };
 
 setTimeout(() => {
-  deviceTest();
+  applicationTest();
   run();
 }, delayBeforeTesting * 1.5);

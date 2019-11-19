@@ -1,5 +1,9 @@
-import iotAgent from 'iot-agent';
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import { updateAloesSensors } from 'aloes-handlers';
+import iotAgent from 'iot-agent';
+import isAlphanumeric from 'validator/lib/isAlphanumeric';
+import isLength from 'validator/lib/isLength';
 import logger from '../services/logger';
 import utils from '../services/utils';
 import protocols from '../initial-data/protocols.json';
@@ -22,6 +26,7 @@ const onBeforeSave = async ctx => {
       await Promise.all(promises);
     } else if (ctx.data) {
       logger.publish(5, `${collectionName}`, 'onBeforePartialSave:req', '');
+      // eslint-disable-next-line security/detect-object-injection
       const promises = await filteredProperties.map(p => delete ctx.data[p]);
       await Promise.all(promises);
       ctx.hookState.updateData = ctx.data;
@@ -218,6 +223,7 @@ const persistingResource = async (app, device, sensor, client) => {
       resource: sensor.resource,
     });
     const resourceModel = await app.models.OmaResource.findById(sensor.resource);
+    if (!resourceModel) throw new Error('OMA Resource does not exist');
     const method = await getPersistingMethod(sensor.type, resourceModel.id, resourceModel.type);
     let result;
     let persistedResource = {};
@@ -275,6 +281,7 @@ const persistingResource = async (app, device, sensor, client) => {
  */
 const onAfterSave = async ctx => {
   try {
+    // if (ctx.instance) console.log('SENSOR', ctx.instance);
     logger.publish(3, `${collectionName}`, 'onAfterSave:req', ctx.hookState);
     if (ctx.hookState.updateData) {
       return ctx;
@@ -289,13 +296,20 @@ const onAfterSave = async ctx => {
   }
 };
 
+/**
+ * Remove sensor dependencies
+ * @method module:Sensor~deleteProps
+ * @param {object} app - Loopback app
+ * @param {object} instance
+ * @returns {function} Sensor.publish
+ */
 const deleteProps = async (app, sensor) => {
   try {
     if (!sensor || !sensor.id || !sensor.ownerId) {
       return null;
       //   throw utils.buildError(403, 'INVALID_SENSOR', 'Invalid sensor instance');
     }
-    logger.publish(2, `${collectionName}`, 'deleteProps:req', sensor);
+    logger.publish(3, `${collectionName}`, 'deleteProps:req', sensor);
     try {
       await app.models.Measurement.destroyAll({
         sensorId: sensor.id.toString(),
@@ -431,31 +445,43 @@ const onBeforeRemote = async ctx => {
  * @property {string} deviceId Device instance Id which has sent this measurement
  */
 module.exports = function(Sensor) {
-  function typeValidator(err) {
+  function typeValidator(err, done) {
     if (!this.type || this.type.toString().length < 1 || this.type.toString().length > 4) {
       err();
+      done();
     } else {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
       Sensor.app.models.OmaObject.exists(this.type)
         .then(res => {
           if (!res) err();
+          done();
         })
-        .catch(() => err());
+        .catch(() => {
+          err();
+          done();
+        });
     }
   }
 
-  function resourceValidator(err) {
+  function resourceValidator(err, done) {
     if (
       this.resource === undefined ||
       this.resource.toString().length < 1 ||
       this.resource.toString().length > 4
     ) {
       err();
+      done();
     } else {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
       Sensor.app.models.OmaResource.exists(this.resource)
         .then(res => {
           if (!res) err();
+          done();
         })
-        .catch(() => err());
+        .catch(() => {
+          err();
+          done();
+        });
     }
   }
 
@@ -483,11 +509,11 @@ module.exports = function(Sensor) {
   Sensor.validatesPresenceOf('icons');
   Sensor.validatesPresenceOf('colors');
 
-  Sensor.validate('type', typeValidator, {
+  Sensor.validateAsync('type', typeValidator, {
     message: 'Wrong sensor type',
   });
 
-  Sensor.validate('resource', resourceValidator, {
+  Sensor.validateAsync('resource', resourceValidator, {
     message: 'Wrong sensor resource',
   });
 
@@ -512,6 +538,12 @@ module.exports = function(Sensor) {
    */
   Sensor.publish = async (device, sensor, method, client) => {
     try {
+      if (!device || !device.id) {
+        throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
+      }
+      if (!sensor || !sensor.id || !sensor.ownerId) {
+        throw utils.buildError(403, 'INVALID_SENSOR', 'Invalid sensor instance');
+      }
       let publishMethod = method || sensor.method;
       if (sensor.isNewInstance && !publishMethod) {
         publishMethod = 'POST';
@@ -534,7 +566,8 @@ module.exports = function(Sensor) {
         //   // publish to client
         //   return null;
         // }
-        if (client && (client.ownerId || client.appId)) {
+        // if (client && (client.ownerId || client.appId)) {
+        if (client && client.ownerId) {
           const pattern = iotAgent.patternDetector(packet);
           let nativePacket = { topic: packet.topic, payload: JSON.stringify(sensor) };
           nativePacket = iotAgent.decode(nativePacket, pattern.params);
@@ -630,8 +663,10 @@ module.exports = function(Sensor) {
         keys.forEach(key => {
           // special check for key === "value" ?
           if (key === 'resources') {
+            // eslint-disable-next-line security/detect-object-injection
             sensor[key] = { ...attributes[key], ...sensor[key] };
           } else {
+            // eslint-disable-next-line security/detect-object-injection
             sensor[key] = attributes[key];
           }
           return sensor;
@@ -876,7 +911,7 @@ module.exports = function(Sensor) {
           await Sensor.createOrUpdate(device, sensor, sensor.resource, sensor.value, client);
           break;
         case 'STREAM':
-          //  return Sensor.publish(sensor, method);
+          //  return Sensor.publish(device, sensor, 'STREAM', client);
           break;
         case 'DELETE':
           await Sensor.deleteById(sensor.id);
@@ -937,7 +972,7 @@ module.exports = function(Sensor) {
       const error = utils.buildError(400, 'INVALID_SENSOR', 'Error while building sensor instance');
       throw error;
     } catch (error) {
-      // publish error to client
+      // todo : publish error to client
       logger.publish(2, `${collectionName}`, 'onPublish:err', error);
       throw error;
     }
@@ -952,7 +987,14 @@ module.exports = function(Sensor) {
   Sensor.search = async filter => {
     logger.publish(4, `${collectionName}`, 'search:req', filter);
     try {
-      if (!filter.text) return null;
+      if (
+        !filter.text ||
+        !isLength(filter.text, { min: 2, max: 30 }) ||
+        !isAlphanumeric(filter.text)
+      ) {
+        throw new Error('Invalid search content');
+      }
+      /* eslint-disable security/detect-non-literal-regexp */
       // use OMA object description as lexic
       const omaObjects = await Sensor.app.models.OmaObject.find({
         where: {
@@ -965,23 +1007,27 @@ module.exports = function(Sensor) {
       });
 
       const promises = await omaObjects.map(async obj => {
-        const whereFilter = {
-          or: [
-            { and: [{ name: { like: new RegExp(`.*${obj.name}.*`, 'i') } }, { type: obj.id }] },
-            { transportProtocol: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
-          ],
-        };
-        // if (filter.status !== undefined)
-        let sensors = await Sensor.find({
-          where: whereFilter,
-        });
-        if (!sensors || sensors === null) {
-          sensors = [];
-        } else {
-          sensors = JSON.parse(JSON.stringify(sensors));
+        try {
+          const whereFilter = {
+            or: [
+              { and: [{ name: { like: new RegExp(`.*${obj.name}.*`, 'i') } }, { type: obj.id }] },
+              { transportProtocol: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+            ],
+          };
+          let sensors = await Sensor.find({
+            where: whereFilter,
+          });
+          if (!sensors || sensors === null) {
+            sensors = [];
+          } else {
+            sensors = JSON.parse(JSON.stringify(sensors));
+          }
+          return [...sensors];
+        } catch (e) {
+          return null;
         }
-        return [...sensors];
       });
+      /* eslint-enable security/detect-non-literal-regexp */
 
       const result = await Promise.all(promises);
       if (!result || result === null) {
@@ -1009,6 +1055,7 @@ module.exports = function(Sensor) {
     if (!sensors || sensors.length < 1) return null;
     if (format === 'csv') {
       sensors.forEach(sensor => {
+        // eslint-disable-next-line security/detect-object-injection
         ['measurement', 'icons', 'resources', 'colors'].forEach(p => delete sensor[p]);
       });
       const result = utils.exportToCSV(sensors, filter);
@@ -1086,9 +1133,9 @@ module.exports = function(Sensor) {
    */
   Sensor.beforeRemote('**', onBeforeRemote);
 
-  Sensor.afterRemoteError('*', async ctx => {
+  Sensor.afterRemoteError('*', (ctx, next) => {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, '');
-    return ctx;
+    next();
   });
 
   /**

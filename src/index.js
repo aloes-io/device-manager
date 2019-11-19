@@ -1,3 +1,22 @@
+/*  
+Aloes device-manager is an IoT ecosystem providing standardize properties to sensors and devices.
+
+Copyright 2019 Edouard Maleix
+
+Aloes device-manager is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+ any later version.
+
+Aloes device-manager is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with Aloes device-manager.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 import dotenv from 'dotenv';
 import nodeCleanup from 'node-cleanup';
 import app from './services/server';
@@ -20,6 +39,7 @@ const boot = processId => {
     envVariables = result.parsed;
   } else {
     envVariablesKeys.forEach(key => {
+      // eslint-disable-next-line security/detect-object-injection
       envVariables[key] = process.env[key];
     });
   }
@@ -33,6 +53,7 @@ const boot = processId => {
   };
 
   logger.publish(2, 'loopback', 'boot:res', {
+    root: __dirname,
     processId,
     aloesId: config.ALOES_ID,
     aloesKey: config.ALOES_KEY,
@@ -61,6 +82,7 @@ nodeCleanup((exitCode, signal) => {
   }
 });
 
+// todo : log license notice
 if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
   logger.publish(1, 'loopback', 'init:single', { pid: process.pid });
   boot(0);

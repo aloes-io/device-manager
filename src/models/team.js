@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import handlers from 'aloes-handlers';
 
 module.exports = function(Team) {

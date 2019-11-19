@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-restricted-syntax */
 import logger from '../services/logger';
@@ -48,6 +50,7 @@ module.exports = function(SensorResource) {
   SensorResource.setCache = async (deviceId, sensor, ttl) => {
     try {
       const key = `deviceId-${deviceId}-sensorId-${sensor.id}`;
+      // eslint-disable-next-line security/detect-object-injection
       const promises = await filteredProperties.map(p => delete sensor[p]);
       await Promise.all(promises);
       if (typeof sensor !== 'string') {
@@ -194,6 +197,7 @@ module.exports = function(SensorResource) {
           }
         }
       }
+      logger.publish(4, `${collectionName}`, 'includeCache:res', { count: device.sensors.length });
       return device;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'includeCache:err', error);

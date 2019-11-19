@@ -1,9 +1,9 @@
 {
   "name": "device-manager",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/index.js",
   "engines": {
-    "node": ">=9.0.0",
+    "node": ">=10.0.0",
     "npm": ">=6.0.0"
   },
   "scripts": {
@@ -19,11 +19,12 @@
     "build:docker": "cp deploy/.env_docker .env && docker-compose --compatibility build",
     "build:test": "cp deploy/.env_development .env ; export NODE_ENV=development",
     "build:test:docker": "docker-compose -f docker-compose-test.yml --compatibility build",
-    "test:user": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/user.e2e.test.js",
     "test:address": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/address.e2e.test.js",
-    "test:files": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/files.e2e.test.js",
+    "test:application": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/application.e2e.test.js",
     "test:device": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/device.e2e.test.js",
+    "test:files": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/files.e2e.test.js",
     "test:sensor": "npm run build:test ; export NODE_ENV=development ; ./node_modules/.bin/mocha ./src/**/sensor.e2e.test.js",
+    "test:user": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/user.e2e.test.js",
     "test": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/*.test.js",
     "test:cover": "npm run build:test ; ./node_modules/.bin/nyc ./node_modules/.bin/mocha ./src/**/*.test.js",
     "test:docker": "npm run build:test:docker ; docker-compose -f docker-compose-test.yml --compatibility run --rm api",
@@ -43,8 +44,8 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.4.4",
-    "aedes": "^0.38.1",
-    "aedes-persistence-redis": "^6.0.0",
+    "aedes": "^0.39.0",
+    "aedes-persistence-redis": "^6.0.1",
     "ajv": "^6.10.2",
     "aloes-handlers": "^1.2.11",
     "aloes-light-handlers": "^1.0.7",
@@ -59,14 +60,12 @@
     "cron": "^1.7.1",
     "dotenv": "^6.2.0",
     "ejs": "^2.6.1",
-    "express": "^4.16.2",
+    "express": "^4.17.1",
     "express-flash": "0.0.2",
     "express-history-api-fallback": "^2.2.1",
-    "express-http-proxy": "^1.5.0",
     "express-session": "^1.15.6",
     "file-type": "^12.0.1",
     "helmet": "^3.21.1",
-    "http-server": "^0.11.1",
     "ioredis": "^4.11.2",
     "iot-agent": "^1.0.9",
     "localtunnel": "^1.9.2",
@@ -75,16 +74,13 @@
     "loopback": "^3.26.0",
     "loopback-boot": "^3.3.1",
     "loopback-component-explorer": "^6.4.0",
-    "loopback-component-passport": "^3.10.0",
-    "loopback-component-storage": "^3.6.2",
+    "loopback-component-passport": "^3.11.0",
+    "loopback-component-storage": "^3.6.3",
     "loopback-connector-influxdata": "^0.4.1",
-    "loopback-connector-kv-redis": "^3.0.1",
+    "loopback-connector-kv-redis": "^3.0.2",
     "loopback-connector-mongodb": "^3.8.0",
-    "loopback-connector-redis": "^3.0.0",
-    "loopback-connector-rest": "^3.3.0",
+    "loopback-connector-rest": "^3.6.0",
     "loopback-ds-timestamp-mixin": "^3.4.1",
-    "moment": "^2.22.2",
-    "moment-recur": "^1.0.7",
     "mqemitter-redis": "^3.0.0",
     "node-cleanup": "^2.1.2",
     "node-geocoder": "^3.22.0",
@@ -95,14 +91,17 @@
     "passport-github": "^1.1.0",
     "passport-local": "^1.0.0",
     "pm2": "^3.5.1",
+    "rate-limiter-flexible": "^1.1.6",
     "redis": "^2.8.0",
     "request": "^2.88.0",
     "shuffle": "^0.2.2",
     "simple-json-filter": "^0.3.0",
     "strong-error-handler": "^2.0.0",
+    "swagger-ui": "^3.24.2",
     "text-table": "^0.2.0",
     "uid": "0.0.2",
     "util": "^0.12.0",
+    "validator": "^12.0.0",
     "websocket-stream": "^5.5.0",
     "weighted": "^0.3.0",
     "yargs": "^13.2.4"
@@ -137,6 +136,7 @@
     "eslint-plugin-babel": "^5.3.0",
     "eslint-plugin-import": "^2.9.0",
     "eslint-plugin-prettier": "^2.6.2",
+    "eslint-plugin-security": "^1.4.0",
     "eslint-plugin-vue": "^4.0.0",
     "fastparallel": "^2.3.0",
     "form-data": "^2.5.1",
@@ -186,11 +186,13 @@
     "extends": [
       "airbnb-base",
       "loopback",
-      "prettier"
+      "prettier",
+      "plugin:security/recommended"
     ],
     "plugins": [
       "babel",
-      "prettier"
+      "prettier",
+      "security"
     ],
     "parserOptions": {
       "ecmaVersion": 2018,
@@ -253,7 +255,11 @@
     "type": "git",
     "url": "https://framagit.org/aloes/device-manager"
   },
-  "license": "",
+  "license": "AGPL-3.0-or-later",
+  "author": "Edouard Maleix <ed@getlarge.eu> (https://getlarge.eu)",
+  "contributors": [
+    "Edouard Maleix <ed@getlarge.eu> (https://getlarge.eu)"
+  ],
   "description": "IoT at work",
   "extended": true
 }

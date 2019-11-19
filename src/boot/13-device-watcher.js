@@ -1,3 +1,6 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
+/* eslint-disable security/detect-non-literal-fs-filename */
 import logger from '../services/logger';
 import utils from '../services/utils';
 import deviceTypes from '../initial-data/device-types.json';

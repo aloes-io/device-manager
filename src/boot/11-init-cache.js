@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import logger from '../services/logger';
 
 module.exports = async function initCache(app) {

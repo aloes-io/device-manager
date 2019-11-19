@@ -115,6 +115,7 @@ module.exports = {
     connector: 'loopback-component-storage',
     provider: 'filesystem',
     root: process.env.FS_PATH || './storage',
+    // root: path.join(__dirname, process.env.FS_PATH || '../storage')
     nameConflict: 'makeUnique',
     maxFileSize: '10428800',
   },

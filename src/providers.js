@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 module.exports = {
   local: {
     provider: 'local',
@@ -5,7 +7,6 @@ module.exports = {
     usernameField: 'email',
     passwordField: 'password',
     domain: process.env.DOMAIN,
-    //    clientID: '12212',
     authPath: `${process.env.REST_API_ROOT}/auth/login`,
     // authPath: `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}/auth/login`,
     //    callbackPath: `/api/auth/login`,

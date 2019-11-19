@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable import/no-extraneous-dependencies */
 import fs from 'fs';
 import FormData from 'form-data';
@@ -7,11 +9,12 @@ import { omaObjects, omaViews } from 'oma-json';
 import roleManager from './role-manager';
 import deviceTypes from '../initial-data/device-types.json';
 
+let lastAddressId = 0;
+let lastApplicationId = 0;
 let lastDeviceId = 0;
 let lastSensorId = 0;
 let lastMeasurmentId = 0;
 let lastFileId = 0;
-let lastAddressId = 0;
 let lastUserId = 0;
 
 function addressFactory(id, owner) {
@@ -81,6 +84,7 @@ function buildMethods(profile) {
 }
 
 async function fileFactory(type) {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const readFile = promisify(fs.readFile);
   const buffer = await readFile(`${path.resolve('.')}/docs/.vuepress/public/logo.png`);
   if (type === 'formdata') {
@@ -112,6 +116,22 @@ function fileMetaFactory(id, file, ownerId) {
     size: file.size,
     role: file.role,
     url: `${baseUrl}${ownerId}/download/${file.name}`,
+    ownerId,
+  };
+}
+
+function applicationFactory(id, ownerId) {
+  if (id) {
+    lastApplicationId = id;
+  } else {
+    lastApplicationId += 1;
+    id = lastApplicationId;
+  }
+  ownerId = ownerId || lastUserId;
+  return {
+    name: `Application ${id}`,
+    appEui: `12345${id}`,
+    transportProtocol: 'aloeslight',
     ownerId,
   };
 }
@@ -202,6 +222,10 @@ function clientFactory(profile, type, key) {
     clientId = `${profile.devEui}-${Math.random()
       .toString(16)
       .substr(2, 8)}`;
+  } else if (type === 'application') {
+    clientId = `${profile.appEui}-${Math.random()
+      .toString(16)
+      .substr(2, 8)}`;
   } else {
     clientId = profile.id;
   }
@@ -209,7 +233,7 @@ function clientFactory(profile, type, key) {
     keepalive: 60,
     reschedulePings: true,
     reconnectPeriod: 1000,
-    connectTimeout: 10 * 1000,
+    connectTimeout: 2 * 1000,
     protocolId: 'MQTT',
     protocolVersion: 4,
     clean: true,
@@ -226,6 +250,7 @@ module.exports = {
     address: addressFactory,
     file: fileFactory,
     fileMeta: fileMetaFactory,
+    application: applicationFactory,
     device: deviceFactory,
     sensor: sensorFactory,
     measurement: measurementFactory,
@@ -235,8 +260,4 @@ module.exports = {
     admin: buildMethods(userFactory(undefined, 'admin')),
     user: buildMethods(userFactory(undefined, 'user')),
   },
-  // client: {
-  //   device: clientMethods(deviceFactory(), "device"),
-  //   user: clientMethods(userFactory(undefined, 'user'), "user"),
-  // },
 };

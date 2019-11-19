@@ -1,4 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
+/* eslint-disable security/detect-object-injection */
 const mqtt = require('mqtt');
 
 const publishCompleted = () => {
@@ -27,8 +28,8 @@ let Totalcnt = 0;
 const interval = 1000;
 
 // Publish message {"noOfPub":100} on "${username}/TEST/PubControl" topic. it will start first 100 client to publishing msg/sec
-//    Publish message {"noOfPub":1000} on "PubControl" topic. it will increase from 100 to 1000 client to publishing msg/sec
-//    Publish message {"noOfPub":"stop"} on "PubControl:" topic. it will stop publishing messages.
+// Publish message {"noOfPub":1000} on "PubControl" topic. it will increase from 100 to 1000 client to publishing msg/sec
+// Publish message {"noOfPub":"stop"} on "PubControl:" topic. it will stop publishing messages.
 
 function count() {
   if (counter) {
@@ -106,6 +107,7 @@ const subClient = mqtt.connect({
   password,
   clientId: `subForPub_${username}_${UniqueId(5)}`,
 });
+
 subClient.on('connect', function() {
   count();
   this.subscribe('5c96937cc08c0333b7958b6f/TEST/PubControl');

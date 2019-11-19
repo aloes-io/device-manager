@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import initialRolesList from '../initial-data/base-roles.json';
 import logger from '../services/logger';
 import roleManager from '../services/role-manager';

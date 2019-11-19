@@ -1,6 +1,17 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import { appPatternDetector, publish } from 'iot-agent';
 import logger from '../services/logger';
 import utils from '../services/utils';
+
+/**
+ * @module Application
+ * @property {String} id  Database generated ID.
+ * @property {String} name Unique name defined by user required.
+ * @property {String} description Define Application purpose.
+ * @property {Array} collaborators A list of users ids who have permissions to use this application
+ * @property {Array} clients A list of client ids authentified as this application
+ */
 
 const collectionName = 'Application';
 
@@ -15,24 +26,26 @@ const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'err
 const onBeforeSave = async ctx => {
   try {
     if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
-    if (ctx.data) {
-      logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.data);
-      filteredProperties.forEach(p => delete ctx.data[p]);
-      ctx.hookState.updateData = ctx.data;
-      return ctx;
-    }
+
     if (ctx.instance) {
-      logger.publish(5, `${collectionName}`, 'beforeSave:req', ctx.instance);
+      logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
       const promises = await filteredProperties.map(async prop =>
         ctx.instance.unsetAttribute(prop),
       );
       await Promise.all(promises);
-      logger.publish(5, collectionName, 'beforeSave:res', ctx.instance);
+      logger.publish(4, collectionName, 'onBeforeSave:res', ctx.instance);
+      return ctx;
+    }
+    if (ctx.data) {
+      logger.publish(4, `${collectionName}`, 'onBeforePartialSave:req', ctx.data);
+      // eslint-disable-next-line security/detect-object-injection
+      filteredProperties.forEach(p => delete ctx.data[p]);
+      ctx.hookState.updateData = ctx.data;
       return ctx;
     }
     return ctx;
   } catch (error) {
-    logger.publish(3, `${collectionName}`, 'beforeSave:err', error);
+    logger.publish(2, `${collectionName}`, 'onBeforeSave:err', error);
     throw error;
   }
 };
@@ -55,48 +68,33 @@ const createKeys = async application => {
       attributes.apiKey = utils.generateKey('apiKey');
       hasChanged = true;
     }
-    // if (!device.restApiKey) {
-    //   attributes.restApiKey = utils.generateKey('restApi');
-    // }
-    // if (!device.javaScriptKey) {
-    //   attributes.javaScriptKey = utils.generateKey('javaScript');
-    // }
-    // if (!device.windowsKey) {
-    //   attributes.windowsKey = utils.generateKey('windows');
-    // }
-    // if (!device.masterKey) {
-    //   attributes.masterKey = utils.generateKey('master');
-    // }
     if (hasChanged) {
       await application.updateAttributes(attributes);
     }
     return application;
   } catch (error) {
+    logger.publish(3, `${collectionName}`, 'createKeys:err', error);
     throw error;
   }
 };
 
 /**
- * Init device depencies ( token )
+ * Init application dependencies ( token )
  * @method module:Application~createProps
- * @param {object} ctx - Application context
- * @param {object} ctx.req - HTTP request
- * @param {object} ctx.res - HTTP response
+ * @param {object} app - Loopback app
+ * @param {object} instance - Application instance
  * @returns {function} Application.publish
  */
-const createProps = async ctx => {
+const createProps = async (app, instance) => {
   try {
-    const application = await createKeys(ctx.instance);
+    instance = await createKeys(instance);
     // if (!application.apiKey) {
-    //   await Application.destroyById(ctx.instance.id);
+    //   await instance.destroy()
     //   throw new Error('Application failed to be created');
     // }
-    //  await utils.mkDirByPathSync(`${process.env.FS_PATH}/${ctx.instance.id}`);
-    //  logger.publish(4, `${collectionName}`, 'createDeviceProps:res', container);
-    if (!ctx.Model) return null;
-    await ctx.Model.publish(application, 'POST');
-    return application;
+    return app.models.Application.publish(instance, 'POST');
   } catch (error) {
+    logger.publish(2, `${collectionName}`, 'createProps:err', error);
     throw error;
   }
 };
@@ -104,18 +102,16 @@ const createProps = async ctx => {
 /**
  * Update application depencies
  * @method module:Application~updateProps
- * @param {object} ctx - Application context
- * @param {object} ctx.req - HTTP request
- * @param {object} ctx.res - HTTP response
+ * @param {object} app - Loopback app
+ * @param {object} instance - Application instance
  * @returns {function} Application.publish
  */
-const updateProps = async ctx => {
+const updateProps = async (app, instance) => {
   try {
-    const application = await createKeys(ctx.instance);
-    if (!ctx.Model) return null;
-    await ctx.Model.publish(application, 'PUT');
-    return application;
+    instance = await createKeys(instance);
+    return app.models.Application.publish(instance, 'PUT');
   } catch (error) {
+    logger.publish(2, `${collectionName}`, 'updateProps:err', error);
     throw error;
   }
 };
@@ -129,29 +125,30 @@ const updateProps = async ctx => {
 const onAfterSave = async ctx => {
   try {
     if (ctx.hookState.updateData) {
-      logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
+      logger.publish(3, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
       const updatedProps = Object.keys(ctx.hookState.updateData);
       if (updatedProps.some(prop => prop === 'status')) {
         // if (!ctx.instance) console.log('AFTER APP SAVE', ctx.where);
-        if (ctx.instance) await ctx.Model.publish(ctx.instance, 'PUT');
+        // todo : if (ctx.where) update all ctx.where
+        if (ctx.instance && ctx.instance.id) await ctx.Model.publish(ctx.instance, 'HEAD');
       }
     } else if (ctx.instance && ctx.Model) {
-      logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
+      logger.publish(3, `${collectionName}`, 'afterSave:req', ctx.instance);
       if (ctx.isNewInstance) {
-        await createProps(ctx);
+        await createProps(ctx.Model.app, ctx.instance);
       } else {
-        await updateProps(ctx);
+        await updateProps(ctx.Model.app, ctx.instance);
       }
     }
     return ctx;
   } catch (error) {
-    logger.publish(3, `${collectionName}`, 'afterSave:err', error);
+    logger.publish(2, `${collectionName}`, 'afterSave:err', error);
     throw error;
   }
 };
 
 /**
- * Remove application depencies
+ * Remove application dependencies
  * @method module:Application~deleteProps
  * @param {object} app - Loopback app
  * @param {object} instance
@@ -160,16 +157,17 @@ const onAfterSave = async ctx => {
 const deleteProps = async (app, instance) => {
   try {
     if (!instance || !instance.id || !instance.ownerId) {
-      throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
+      // throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid application instance');
+      return null;
     }
-    const Device = app.models.Device;
-    const devices = await Device.find({ where: { appEui: instance.appEui } });
-    if (devices && devices.length > 0) {
-      const promises = await devices.map(async device => device.delete());
-      await Promise.all(promises);
-    }
-    await app.models.Application.publish(instance, 'DELETE');
     logger.publish(4, `${collectionName}`, 'deleteProps:req', instance);
+    // const Device = app.models.Device;
+    // const devices = await Device.find({ where: { appEui: instance.appEui } });
+    // if (devices && devices.length > 0) {
+    //   const promises = await devices.map(async device => device.delete());
+    //   await Promise.all(promises);
+    // }
+    await app.models.Application.publish(instance, 'DELETE');
     return instance;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
@@ -192,19 +190,19 @@ const onBeforeDelete = async ctx => {
     } else {
       const filter = { where: ctx.where };
       const applications = await ctx.Model.find(filter);
-      await Promise.all(applications.map(async instance => deleteProps(ctx.Model.app, instance)));
+      if (applications && applications.length > 0) {
+        await Promise.all(applications.map(async instance => deleteProps(ctx.Model.app, instance)));
+      }
     }
     return ctx;
   } catch (error) {
+    logger.publish(2, `${collectionName}`, 'onBeforeDelete:err', error);
     throw error;
   }
 };
 
 const onBeforeRemote = async ctx => {
   try {
-    //  console.log('beofre getState', ctx.args);
-    // if (ctx.req.headers.apikey) ctx.args.options.apikey = ctx.req.headers.apikey;
-    // if (ctx.req.headers.appId) ctx.args.options.appId = ctx.req.headers.appId;
     if (
       ctx.method.name.indexOf('find') !== -1 ||
       ctx.method.name.indexOf('__get') !== -1 ||
@@ -242,8 +240,8 @@ const onBeforeRemote = async ctx => {
       // ctx.args.client.user = options.currentUser.id.toString();
       if (!isAdmin) {
         ctx.args.client.user = options.currentUser.id.toString();
-        if (options.currentUser.devEui) {
-          ctx.args.client.devEui = options.currentUser.devEui;
+        if (options.currentUser.appEui) {
+          ctx.args.client.appEui = options.currentUser.appEui;
         }
       }
     } else if (ctx.method.name === 'updateStatus') {
@@ -256,8 +254,8 @@ const onBeforeRemote = async ctx => {
       if (!ctx.args.client) ctx.args.client = {};
       if (!isAdmin) {
         ctx.args.client.user = options.currentUser.id.toString();
-        if (options.currentUser.devEui) {
-          ctx.args.client.devEui = options.currentUser.devEui;
+        if (options.currentUser.appEui) {
+          ctx.args.client.appEui = options.currentUser.appEui;
         }
       }
     } else if (ctx.method.name === 'getState' || ctx.method.name === 'getFullState') {
@@ -268,12 +266,12 @@ const onBeforeRemote = async ctx => {
       // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.deviceId);
       const isAdmin = options.currentUser.roles.includes('admin');
       if (!isAdmin) {
-        if (options.currentUser.devEui) {
-          if (options.currentUser.id.toString() !== ctx.args.deviceId.toString()) {
+        if (options.currentUser.appEui) {
+          if (options.currentUser.id.toString() !== ctx.args.appId.toString()) {
             const error = utils.buildError(
               401,
               'INVALID_USER',
-              'Only device itself can trigger this endpoint',
+              'Only application itself can trigger this endpoint',
             );
             throw error;
           }
@@ -288,25 +286,87 @@ const onBeforeRemote = async ctx => {
 };
 
 /**
- * @module Application
- * @property {String} id  Database generated ID.
- * @property {String} name Unique name defined by user required.
- * @property {String} description Define Application purpose.
- * @property {Array} collaborators A list of users ids who have permissions to use this application
- * @property {Array} clients A list of client ids authentified as this application
+ * Find properties and dispatch to the right function
+ *
+ * Adding device and sensor context to raw incoming data
+ *
+ * @method module:Application~parseMessage
+ * @param {object} app - Loopback app
+ * @param {object} packet - MQTT packet
+ * @param {object} pattern - Pattern detected by IotAgent
+ * @param {object} client - MQTT client
+ * @fires Device.publish
+ * @fires Sensor.publish
+ * @returns {object} device
  */
+const parseMessage = async (app, packet, pattern, client) => {
+  try {
+    const Application = app.models.Application;
+    const Device = app.models.Device;
+    const Sensor = app.models.Sensor;
+    const attributes = JSON.parse(packet.payload);
+    let foundInstance = null;
+    let instanceId;
+    if (pattern.params.modelId) {
+      instanceId = pattern.params.modelId;
+    }
+
+    // console.log('parseMessage attributes:', attributes);
+    if (!attributes) {
+      const error = utils.buildError(
+        400,
+        'DECODING_ERROR',
+        'No attributes retrieved from Iot Agent',
+      );
+      throw error;
+    }
+
+    switch (pattern.params.collection.toLowerCase()) {
+      case 'application':
+        if (instanceId) {
+          foundInstance = await Application.findBy(instanceId);
+        } else {
+          foundInstance = await Application.findOne({
+            where: { or: [{ id: client.appId }, { appEui: client.appEui }] },
+          });
+        }
+        if (!foundInstance || foundInstance === null) return null;
+        break;
+      case 'device':
+        foundInstance = await Device.findByPattern(pattern, attributes);
+        if (!foundInstance || foundInstance === null) return null;
+        Device.emit('publish', { packet, pattern, device: foundInstance, client });
+        break;
+      case 'sensor':
+        foundInstance = await Device.findByPattern(pattern, attributes);
+        if (!foundInstance || foundInstance === null) return null;
+        Sensor.emit('publish', { device: foundInstance, attributes });
+        break;
+      case 'measurement':
+        break;
+      case 'iotagent':
+        //  const method = pattern.params.method;
+        // const newPacket = await iotAgent.decode(packet, pattern.params);
+        // if (newPacket && newPacket.topic) {
+        //   return Application.app.publish(newPacket.topic, newPacket.payload, false, 0);
+        // }
+        break;
+      default:
+        throw new Error('invalid collection');
+    }
+    // console.log('parseMessage foundInstance:', pattern.params.collection, foundInstance);
+    // update gateway states ?
+    return null;
+  } catch (error) {
+    logger.publish(4, `${collectionName}`, 'parseMessage:err', error);
+    throw error;
+  }
+};
+
 module.exports = Application => {
   Application.validatesUniquenessOf('appEui');
   Application.validatesPresenceOf('ownerId');
   Application.validatesUniquenessOf('name', { scopedTo: ['ownerId'] });
-
-  Application.disableRemoteMethodByName('count');
-  Application.disableRemoteMethodByName('upsertWithWhere');
-  Application.disableRemoteMethodByName('replaceOrCreate');
-  Application.disableRemoteMethodByName('createChangeStream');
-
-  Application.disableRemoteMethodByName('prototype.__link__collaborators');
-  Application.disableRemoteMethodByName('prototype.__unlink__collaborators');
 
   /**
    * Format packet and send it via MQTT broker
@@ -369,18 +429,20 @@ module.exports = Application => {
   /**
    * Create new keys, and update Application instance
    * @method module:Application.refreshToken
-   * @param {object} application - Application instance
+   * @param {string} appId - Application instance id
    * @returns {function} application.updateAttributes
    */
-  Application.refreshToken = async (ctx, application) => {
+  Application.refreshToken = async (ctx, appId) => {
     try {
-      logger.publish(4, `${collectionName}`, 'refreshToken:req', application.id);
-      if (!ctx.req.accessToken) throw new Error('missing token');
-      if (!application.id) throw new Error('missing application.id');
+      logger.publish(4, `${collectionName}`, 'refreshToken:req', appId);
+      if (!ctx.req.accessToken) throw utils.buildError(403, 'NO_TOKEN', 'User is not authentified');
+
+      if (!appId) throw new Error('missing argument');
+      const application = await Application.findById(appId);
       if (ctx.req.accessToken.userId.toString() !== application.ownerId.toString()) {
-        throw new Error('Invalid user');
+        const error = utils.buildError(401, 'INVALID_OWNER', "User doesn't own this device");
+        throw error;
       }
-      application = await Application.findById(application.id);
       if (application && application !== null) {
         // await application.resetKeys()
         const attributes = {
@@ -394,7 +456,12 @@ module.exports = Application => {
         await application.updateAttributes(attributes);
         return application;
       }
-      throw new Error('Missing Application instance');
+      const error = utils.buildError(
+        404,
+        'APP_NOT_FOUND',
+        "The application requested doesn't exist",
+      );
+      throw error;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'refreshToken:err', error);
       throw error;
@@ -420,52 +487,8 @@ module.exports = Application => {
       ) {
         throw new Error('Invalid inputs');
       }
-      const Device = Application.app.models.Device;
-      const Sensor = Application.app.models.Sensor;
-      const attributes = JSON.parse(packet.payload);
-      let foundInstance = null;
-      let instanceId;
-      if (pattern.params.modelId) {
-        instanceId = pattern.params.modelId;
-      }
 
-      switch (pattern.params.collection.toLowerCase()) {
-        case 'application':
-          if (instanceId) {
-            foundInstance = await Application.findBy(instanceId);
-          } else {
-            foundInstance = await Application.findOne({
-              where: { or: [{ id: client.appId }, { appEui: client.appEui }] },
-            });
-          }
-          if (!foundInstance || foundInstance === null) return null;
-          console.log('onPublish application:', foundInstance);
-          break;
-        case 'device':
-          foundInstance = await Device.findByPattern(pattern, attributes);
-          if (!foundInstance || foundInstance === null) return null;
-          await Device.emit('publish', { packet, pattern, device: foundInstance, client });
-          break;
-        case 'sensor':
-          foundInstance = await Device.findByPattern(pattern, attributes);
-          if (!foundInstance || foundInstance === null) return null;
-          Sensor.emit('publish', { device: foundInstance, attributes });
-          break;
-        case 'measurement':
-          break;
-        case 'iotagent':
-          //  const method = pattern.params.method;
-          // const newPacket = await iotAgent.decode(packet, pattern.params);
-          // if (newPacket && newPacket.topic) {
-          //   return Application.app.publish(newPacket.topic, newPacket.payload, false, 0);
-          // }
-          break;
-        default:
-          throw new Error('invalid collection');
-      }
-
-      // update gateway states ?
-      return null;
+      return parseMessage(Application.app, packet, pattern, client);
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'onPublish:err', error);
       throw error;
@@ -514,23 +537,16 @@ module.exports = Application => {
    */
   Application.updateStatus = async (client, status) => {
     try {
-      if (!client || !client.id || !client.appId || client.appId === null) {
-        throw new Error('Invalid client type');
+      if (!client || !client.id || !client.appId) {
+        throw new Error('Invalid client');
       }
       logger.publish(4, collectionName, 'updateStatus:req', status);
       const Client = Application.app.models.Client;
       const application = await Application.findById(client.user);
-      if (
-        application &&
-        application !== null &&
-        application.id.toString() === client.appId.toString()
-      ) {
+      if (application && application.id && application.id.toString() === client.appId.toString()) {
         let frameCounter = application.frameCounter;
         let ttl;
-        let foundClient = JSON.parse(await Client.get(client.id));
-        if (!foundClient) {
-          foundClient = { id: client.id, type: 'MQTT' };
-        }
+        client.status = status;
 
         const clients = application.clients;
         const index = clients.indexOf(client.id);
@@ -542,6 +558,7 @@ module.exports = Application => {
           if (clients.length === 1) {
             frameCounter = 1;
           }
+          await Client.set(client.id, JSON.stringify(client), ttl);
         } else {
           ttl = 1 * 24 * 60 * 60 * 1000;
           if (index > -1) {
@@ -556,20 +573,26 @@ module.exports = Application => {
               where: { and: [{ appIds: { inq: [client.appId] } }, { status: true }] },
             });
 
-            const updateDevices = await devices.map(async device =>
-              device.updateAttributes({ frameCounter, status }),
+            await Promise.all(
+              devices.map(async device => {
+                try {
+                  return device.updateAttributes({ frameCounter, status });
+                } catch (e) {
+                  return null;
+                }
+              }),
             );
-            await Promise.all(updateDevices);
+            // await Promise.all(updateDevices);
           }
+          await Client.delete(client.id);
         }
 
-        foundClient.status = status;
-        await Client.set(client.id, JSON.stringify(foundClient), ttl);
-        logger.publish(4, collectionName, 'updateStatus:res', foundClient);
+        logger.publish(4, collectionName, 'updateStatus:res', client);
         await application.updateAttributes({ frameCounter, status, clients });
-        return foundClient;
+        return client;
       }
-      throw new Error('No application found');
+      // throw new Error('No application found');
+      return null;
     } catch (error) {
       logger.publish(2, collectionName, 'updateStatus:err', error);
       throw error;
@@ -593,8 +616,9 @@ module.exports = Application => {
   Application.authenticate = async (appId, key) => {
     try {
       const application = await Application.findById(appId);
-      if (!application) {
-        throw new Error(' Cannot authenticate application');
+      if (!application || !application.id) {
+        const error = utils.buildError(404, 'APPLICATION_NOTFOUND', 'Wrong application');
+        throw error;
       }
 
       let result = null;
@@ -607,6 +631,7 @@ module.exports = Application => {
         // 'masterKey',
       ];
       keyNames.forEach(k => {
+        // eslint-disable-next-line security/detect-object-injection
         if (application[k] && application[k] === key) {
           result = {
             application,
@@ -614,7 +639,7 @@ module.exports = Application => {
           };
         }
       });
-      if (!result.application || !result.keyType) {
+      if (!result || !result.application || !result.keyType) {
         const error = utils.buildError(403, 'UNAUTHORIZED', 'Wrong key used');
         throw error;
       }
@@ -631,16 +656,12 @@ module.exports = Application => {
    * @param {string} applicationId
    * @returns {object} application
    */
-  Application.getState = async (appId, options) => {
+  Application.getState = async appId => {
     try {
-      if (!options || !options.apikey) throw new Error('missing token');
-      if (!appId && !options.appId) throw new Error('missing application.id');
-      const tokenId = options.apikey.trim();
-      logger.publish(4, `${collectionName}`, 'getState:req', { appId, tokenId });
-
-      const auth = await Application.authenticate(appId, tokenId);
-      if (auth && auth.application) {
-        const application = auth.application;
+      if (!appId) throw new Error('missing application.id');
+      logger.publish(4, `${collectionName}`, 'getState:req', { appId });
+      const application = await Application.findById(appId);
+      if (application && application.id) {
         let devices = await Application.app.models.Device.find({
           where: {
             and: [{ ownerId: application.ownerId }, { appIds: { inq: [application.id] } }],
@@ -655,8 +676,8 @@ module.exports = Application => {
         }
         return application;
       }
-      //  ctx.res.status(403);
-      throw new Error('Failed to authenticate application');
+      const error = utils.buildError(404, 'APPLICATION_NOTFOUND', 'Wrong application');
+      throw error;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'getState:err', error);
       throw error;
@@ -696,15 +717,15 @@ module.exports = Application => {
    */
   Application.on('publish', async message => {
     try {
-      logger.publish(4, collectionName, 'on:publish', '');
       if (!message || message === null) throw new Error('Message empty');
       const packet = message.packet;
       const pattern = message.pattern;
       const client = message.client;
+      logger.publish(4, collectionName, 'on:publish:req', pattern.name);
       if (!packet || !pattern) throw new Error('Message missing properties');
       await Application.onPublish(packet, client, pattern);
     } catch (error) {
-      throw error;
+      logger.publish(2, `${collectionName}`, 'on-publish:err', error);
     }
   });
 
@@ -715,11 +736,11 @@ module.exports = Application => {
         if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
       }
       await Application.updateAll({ status: true }, { status: false, clients: [] });
-      logger.publish(3, `${collectionName}`, 'stop:res', '');
+      logger.publish(3, `${collectionName}`, 'on-stop:res', '');
       return null;
     } catch (error) {
-      logger.publish(2, `${collectionName}`, 'stop:err', error);
-      throw error;
+      logger.publish(2, `${collectionName}`, 'on-stop:err', error);
+      return null;
     }
   });
 
@@ -730,8 +751,7 @@ module.exports = Application => {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Application instance
-         * @returns {function} Application~onBeforeSave
-
+   * @returns {function} Application~onBeforeSave
    */
   Application.observe('before save', onBeforeSave);
 
@@ -759,9 +779,62 @@ module.exports = Application => {
 
   Application.beforeRemote('**', onBeforeRemote);
 
-  Application.afterRemoteError('*', ctx => {
+  Application.afterRemoteError('*', (ctx, next) => {
     logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
     // publish on collectionName/ERROR
-    return ctx;
+    next();
   });
+
+  /**
+   * Find applications
+   * @method module:Application.find
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  /**
+   * Returns applications length
+   * @method module:Application.count
+   * @param {object} where
+   * @returns {number}
+   */
+
+  /**
+   * Find application by id
+   * @method module:Application.findById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  /**
+   * Create application
+   * @method module:Application.create
+   * @param {object} application
+   * @returns {object}
+   */
+
+  /**
+   * Update application by id
+   * @method module:Application.updateById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  /**
+   * Delete application by id
+   * @method module:Application.deleteById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  Application.disableRemoteMethodByName('count');
+  Application.disableRemoteMethodByName('upsertWithWhere');
+  Application.disableRemoteMethodByName('replaceOrCreate');
+  Application.disableRemoteMethodByName('createChangeStream');
+
+  Application.disableRemoteMethodByName('prototype.__link__collaborators');
+  Application.disableRemoteMethodByName('prototype.__unlink__collaborators');
 };

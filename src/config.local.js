@@ -12,11 +12,11 @@ module.exports = {
     },
     json: {
       strict: true,
-      limit: '20mb',
+      limit: '10mb',
     },
     urlencoded: {
       extended: true,
-      limit: '20mb',
+      limit: '1mb',
     },
     cors: false,
     handleErrors: false,
