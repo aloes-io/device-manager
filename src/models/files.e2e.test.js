@@ -60,7 +60,12 @@ function fileTest() {
             return null;
           }
         },
-        after: () => Promise.all([FileModel.destroyAll(), app.models.user.destroyAll()]),
+        after(done) {
+          this.timeout(4000);
+          Promise.all([FileModel.destroyAll(), app.models.user.destroyAll()])
+            .then(() => done())
+            .catch(e => done(e));
+        },
         tests: {
           '[TEST] Verifying "Create" access': {
             tests: [

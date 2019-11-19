@@ -79,19 +79,20 @@ const sensorTest = () => {
       }
     }
 
-    const after = () =>
+    function after(done) {
+      this.timeout(4000);
       Promise.all([
         SensorModel.destroyAll(),
         DeviceModel.destroyAll(),
         app.models.user.destroyAll(),
-      ]);
+      ])
+        .then(() => done())
+        .catch(e => done(e));
+    }
 
     const e2eTestsSuite = {
       [`[TEST] ${collectionName} E2E Tests`]: {
         before,
-        // beforeEach() {
-        //   this.timeout(5000);
-        // },
         after,
         tests: {
           '[TEST] Verifying "Create" access': {

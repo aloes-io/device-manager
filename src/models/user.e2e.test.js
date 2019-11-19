@@ -73,20 +73,20 @@ const userTest = () => {
             return null;
           }
         },
-        async after() {
-          try {
-            this.timeout(5000);
-            await Promise.all([UserModel.destroyAll(), app.stop()]).then(() => {
+        after(done) {
+          this.timeout(5000);
+          Promise.all([UserModel.destroyAll(), app.stop()])
+            .then(() => {
               setTimeout(() => {
                 broker.stop();
+                done();
                 process.exit(0);
               }, 3500);
+            })
+            .catch(e => {
+              done(e);
+              process.exit(0);
             });
-            return null;
-          } catch (error) {
-            console.log(`[TEST] ${collectionName} after:err`, error);
-            return null;
-          }
         },
         tests: {
           '[TEST] Verifying "Create" access': {

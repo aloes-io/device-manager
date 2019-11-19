@@ -88,7 +88,12 @@ const addressTest = () => {
             return null;
           }
         },
-        after: () => Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()]),
+        after(done) {
+          this.timeout(3000);
+          Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
+            .then(() => done())
+            .catch(e => done(e));
+        },
         tests: {
           '[TEST] Verifying "Create" access': {
             tests: [

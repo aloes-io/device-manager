@@ -181,10 +181,11 @@ function sensorFactory(id, device, ownerId) {
   if (!device) return null;
   const omaObject = omaObjects[Math.floor(Math.random() * omaObjects.length)];
   const resourceKeys = Object.keys(omaObject.resources);
-  let resource = resourceKeys[Math.floor(Math.random() * resourceKeys.length)];
+  let resource = Number(resourceKeys[Math.floor(Math.random() * resourceKeys.length)]);
   const omaView = omaViews.find(view => view.value === omaObject.value);
 
-  if (resource === 0 || resource === '0') {
+  if (resource === 0 || resource === 5 || resource === 6) {
+    // these resources have no description yet
     resource = 5700;
   }
 
