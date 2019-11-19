@@ -2,6 +2,7 @@
 
 import { updateAloesSensors } from 'aloes-handlers';
 import iotAgent from 'iot-agent';
+import { omaObjects, omaResources } from 'oma-json';
 import isAlphanumeric from 'validator/lib/isAlphanumeric';
 import isLength from 'validator/lib/isLength';
 import logger from '../services/logger';
@@ -445,43 +446,23 @@ const onBeforeRemote = async ctx => {
  * @property {string} deviceId Device instance Id which has sent this measurement
  */
 module.exports = function(Sensor) {
-  function typeValidator(err, done) {
-    if (!this.type || this.type.toString().length < 1 || this.type.toString().length > 4) {
+  function typeValidator(err) {
+    if (
+      !this.type ||
+      !isLength(this.type.toString(), { min: 1, max: 4 }) ||
+      !omaObjects.some(object => object.value === this.type)
+    ) {
       err();
-      done();
-    } else {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
-      Sensor.app.models.OmaObject.exists(this.type)
-        .then(res => {
-          if (!res) err();
-          done();
-        })
-        .catch(() => {
-          err();
-          done();
-        });
     }
   }
 
-  function resourceValidator(err, done) {
+  function resourceValidator(err) {
     if (
       this.resource === undefined ||
-      this.resource.toString().length < 1 ||
-      this.resource.toString().length > 4
+      !isLength(this.resource.toString(), { min: 1, max: 4 }) ||
+      !omaResources.some(resource => resource.value === this.resource)
     ) {
       err();
-      done();
-    } else {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
-      Sensor.app.models.OmaResource.exists(this.resource)
-        .then(res => {
-          if (!res) err();
-          done();
-        })
-        .catch(() => {
-          err();
-          done();
-        });
     }
   }
 
@@ -504,16 +485,24 @@ module.exports = function(Sensor) {
   }
 
   Sensor.validatesPresenceOf('deviceId');
+
   Sensor.validatesPresenceOf('ownerId');
+
   Sensor.validatesPresenceOf('name');
+
   Sensor.validatesPresenceOf('icons');
+
   Sensor.validatesPresenceOf('colors');
 
-  Sensor.validateAsync('type', typeValidator, {
+  // Sensor.validateAsync('type', typeValidator, {
+  //   message: 'Wrong sensor type',
+  // });
+
+  Sensor.validate('type', typeValidator, {
     message: 'Wrong sensor type',
   });
 
-  Sensor.validateAsync('resource', resourceValidator, {
+  Sensor.validate('resource', resourceValidator, {
     message: 'Wrong sensor resource',
   });
 
@@ -996,7 +985,7 @@ module.exports = function(Sensor) {
       }
       /* eslint-disable security/detect-non-literal-regexp */
       // use OMA object description as lexic
-      const omaObjects = await Sensor.app.models.OmaObject.find({
+      const omaObjectsList = await Sensor.app.models.OmaObject.find({
         where: {
           or: [
             { name: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
@@ -1006,7 +995,7 @@ module.exports = function(Sensor) {
         },
       });
 
-      const promises = await omaObjects.map(async obj => {
+      const promises = await omaObjectsList.map(async obj => {
         try {
           const whereFilter = {
             or: [

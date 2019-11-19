@@ -93,7 +93,7 @@ mails.send = async options => {
     return result;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'send:err', error);
-    throw error;
+    return { message: 'email not sent' };
   }
 };
 
@@ -137,7 +137,7 @@ mails.verifyEmail = async user => {
     return result;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'verifyEmail:err', error);
-    throw error;
+    return null;
   }
 };
 
@@ -161,7 +161,6 @@ mails.sendResetPasswordMail = async options => {
     await mails.send(newOptions);
   } catch (error) {
     logger.publish(4, `${collectionName}`, 'sendResetPasswordMail:err', error);
-    throw error;
   }
 };
 
@@ -184,7 +183,7 @@ mails.sendContactForm = async options => {
     logger.publish(4, `${collectionName}`, 'sendContactForm:req', newOptions);
     await mails.send(newOptions);
   } catch (error) {
-    throw error;
+    logger.publish(2, `${collectionName}`, 'sendContactForm:err', error);
   }
 };
 
@@ -202,7 +201,7 @@ mails.sendMailInvite = async options => {
     logger.publish(4, `${collectionName}`, 'sendMailInvite:req', newOptions);
     await mails.send(newOptions);
   } catch (error) {
-    throw error;
+    logger.publish(2, `${collectionName}`, 'sendConsendMailInvitetactForm:err', error);
   }
 };
 

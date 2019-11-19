@@ -2,6 +2,8 @@
 
 /* eslint-disable no-param-reassign */
 import { publish } from 'iot-agent';
+import { omaObjects, omaResources } from 'oma-json';
+import isLength from 'validator/lib/isLength';
 import logger from '../services/logger';
 import utils from '../services/utils';
 
@@ -19,55 +21,37 @@ const collectionName = 'Measurement';
  * @property {String} sensorId Device instance Id which has generated this measurement
  */
 module.exports = function(Measurement) {
-  function typeValidator(err, done) {
-    if (!this.type || this.type.toString().length < 1 || this.type.toString().length > 4) {
+  function typeValidator(err) {
+    if (
+      !this.type ||
+      !isLength(this.type.toString(), { min: 1, max: 4 }) ||
+      !omaObjects.some(object => object.value === this.type)
+    ) {
       err();
-      done();
-    } else {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
-      Measurement.app.models.OmaObject.exists(this.type)
-        .then(res => {
-          if (!res) err();
-          done();
-        })
-        .catch(() => {
-          err();
-          done();
-        });
     }
   }
 
-  function resourceValidator(err, done) {
+  function resourceValidator(err) {
     if (
       this.resource === undefined ||
-      this.resource.toString().length < 1 ||
-      this.resource.toString().length > 4
+      !isLength(this.resource.toString(), { min: 1, max: 4 }) ||
+      !omaResources.some(resource => resource.value === this.resource)
     ) {
       err();
-      done();
-    } else {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
-      Measurement.app.models.OmaResource.exists(this.resource)
-        .then(res => {
-          if (!res) err();
-          done();
-        })
-        .catch(() => {
-          err();
-          done();
-        });
     }
   }
 
   Measurement.validatesPresenceOf('sensorId');
+
   Measurement.validatesPresenceOf('deviceId');
+
   Measurement.validatesPresenceOf('ownerId');
 
-  Measurement.validateAsync('type', typeValidator, {
+  Measurement.validate('type', typeValidator, {
     message: 'Wrong measurement type',
   });
 
-  Measurement.validateAsync('resource', resourceValidator, {
+  Measurement.validate('resource', resourceValidator, {
     message: 'Wrong measurement resource',
   });
 
