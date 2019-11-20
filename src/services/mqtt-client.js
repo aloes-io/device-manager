@@ -446,13 +446,12 @@ MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
     // topic = `${pubsubVersion}/${MQTTClient.id}/tx/${topic}`;
     topic = `${MQTTClient.id}/tx/${topic}`;
     if (!mqttClient) throw new Error('MQTT Client unavailable');
-    await mqttClient.publish(topic, payload, { qos, retain });
     logger.publish(3, 'mqtt-client', 'publish:topic', topic);
+    await mqttClient.publish(topic, payload, { qos, retain });
     return true;
   } catch (error) {
     logger.publish(2, 'mqtt-client', 'publish:err', error);
     return false;
-    // throw error;
   }
 };
 
@@ -470,9 +469,8 @@ const stopClient = async () => {
         `${MQTTClient.id}/status`,
         `${MQTTClient.id}/rx/#`,
       ]);
-      //  mqttClient.unsubscribe(`${MQTTClient.id}/status`);
       // await mqttClient.unsubscribe(`${MQTTClient.id}/rx/#`);
-      mqttClient.end();
+      mqttClient.end(true);
       // await mqttClient.end();
     }
     logger.publish(2, 'mqtt-client', 'stopped', MQTTClient.id);

@@ -171,7 +171,7 @@ services:
       -c /tmp/c.conf -D
 
   timer-proxy:
-    image: 'nginx:latest'
+    image: nginx:latest
     volumes:
       - ./config/nginx/skyring.conf:/etc/nginx/nginx.conf
     ports:
@@ -186,7 +186,7 @@ services:
       - timer-4
       - timer-5
 
-  mqtt-api:
+  mqtt-api-1:
     env_file: .env
     environment:
       - SERVER_LOGGER_LEVEL=3
@@ -213,11 +213,11 @@ services:
     restart: always
     depends_on:
       - redis
-      - mqtt-api
+      - mqtt-api-1
     networks:
       - aloes
 
-  http-api:
+  http-api-1:
     env_file: .env
     environment:
       - SERVER_LOGGER_LEVEL=4
@@ -235,7 +235,7 @@ services:
       - influxdb
       - redis
       - timer-proxy
-      - mqtt-api
+      - mqtt-api-1
       - mqtt-api-2
     networks:
       - aloes
@@ -258,9 +258,9 @@ services:
       - influxdb
       - redis
       - timer-proxy
-      - mqtt-api
+      - mqtt-api-1
       - mqtt-api-2
-      - http-api
+      - http-api-1
     networks:
       - aloes
 
@@ -282,9 +282,9 @@ services:
       - influxdb
       - redis
       - timer-proxy
-      - mqtt-api
+      - mqtt-api-1
       - mqtt-api-2
-      - http-api
+      - http-api-1
       - http-api-2
     networks:
       - aloes
@@ -296,15 +296,15 @@ services:
       - HTTP_SERVER_PORT=${HTTP_SERVER_PORT}
       - NGINX_HTTP_SERVER_PORT=80
       - NGINX_HTTP_SERVER_HOST=${DOMAIN}
-    image: 'nginx:latest'
+    image: nginx:latest
     restart: always
     volumes:
       - ./config/nginx/nginx-local.template:/etc/nginx/nginx.template
       - ./log/nginx:/etc/nginx/log
     depends_on:
-      - mqtt-api
+      - mqtt-api-1
       - mqtt-api-2
-      - http-api
+      - http-api-1
       - http-api-2
       - http-api-3
     ports:

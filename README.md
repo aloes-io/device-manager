@@ -165,9 +165,11 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 ## TODOs
 
-- Add tests for Client, Measurement, Scheduler models 
+- Add tests for Client, Measurement, Scheduler and SensorResource models 
 
 - Implement rate limit for MQTT authentification and HTTP endpoints requiring auth
+
+- Validate rate limiter via e2e tests
 
 - Catch docker sigTerm to gently stop application(s)
 

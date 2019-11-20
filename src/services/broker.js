@@ -522,7 +522,7 @@ const onExternalPublished = async (packet, client) => {
   }
 };
 
-const delayedOnExternalPublished = throttle(onExternalPublished, 10);
+const delayedOnExternalPublished = throttle(onExternalPublished, 5);
 
 /**
  * On message published to Aedes broker
