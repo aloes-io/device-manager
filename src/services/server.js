@@ -48,15 +48,16 @@ const authenticateInstance = async (client, username, password) => {
     } catch (e) {
       console.log('USER MQTT AUTH ERR', e);
       token = null;
-    }
-    if (token && token.userId && token.userId.toString() === username) {
-      status = 0;
-      foundClient.ownerId = token.userId.toString();
-      foundClient.model = 'User';
-    } else {
-      // const user = await app.models.user.findById(username);
-      // if (user) foundUser = username;
-      status = 4;
+    } finally {
+      if (token && token.userId && token.userId.toString() === username) {
+        status = 0;
+        foundClient.ownerId = token.userId.toString();
+        foundClient.model = 'User';
+      } else {
+        // const user = await app.models.user.findById(username);
+        // if (user) foundUser = username;
+        status = 4;
+      }
     }
 
     // Device auth
@@ -67,16 +68,17 @@ const authenticateInstance = async (client, username, password) => {
       } catch (e) {
         // if (e.code === 403) foundUser = username;
         authentification = null;
-      }
-      if (authentification && authentification.device && authentification.keyType) {
-        const instance = authentification.device;
-        if (instance.devEui && instance.devEui !== null) {
-          status = 0;
-          foundClient.devEui = instance.devEui;
-          foundClient.model = 'Device';
+      } finally {
+        if (authentification && authentification.device && authentification.keyType) {
+          const instance = authentification.device;
+          if (instance.devEui && instance.devEui !== null) {
+            status = 0;
+            foundClient.devEui = instance.devEui;
+            foundClient.model = 'Device';
+          }
+        } else {
+          status = 4;
         }
-      } else {
-        status = 4;
       }
     }
 
@@ -88,19 +90,20 @@ const authenticateInstance = async (client, username, password) => {
       } catch (e) {
         // if (e.code === 403) foundUser = username;
         authentification = null;
-      }
-      if (authentification && authentification.application && authentification.keyType) {
-        const instance = authentification.application;
-        if (instance && instance.id) {
-          foundClient.appId = instance.id.toString();
-          foundClient.model = 'Application';
-          status = 0;
-          if (instance.appEui && instance.appEui !== null) {
-            foundClient.appEui = instance.appEui;
+      } finally {
+        if (authentification && authentification.application && authentification.keyType) {
+          const instance = authentification.application;
+          if (instance && instance.id) {
+            foundClient.appId = instance.id.toString();
+            foundClient.model = 'Application';
+            status = 0;
+            if (instance.appEui && instance.appEui !== null) {
+              foundClient.appEui = instance.appEui;
+            }
           }
+        } else {
+          status = 4;
         }
-      } else {
-        status = 4;
       }
     }
 

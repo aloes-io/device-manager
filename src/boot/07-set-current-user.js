@@ -89,6 +89,7 @@ module.exports = app => {
             devEui: device.devEui,
             userId: device.id,
           });
+          return next();
         }
       }
 

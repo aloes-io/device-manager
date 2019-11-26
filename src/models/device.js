@@ -513,7 +513,7 @@ const onBeforeRemote = async (app, ctx) => {
       if (!ctx.args.client) ctx.args.client = {};
       // ctx.args.client.user = options.currentUser.id.toString();
       if (!isAdmin) {
-        ctx.args.client.user = options.currentUser.id.toString();
+        ctx.args.client.user = options.currentUser.id;
         if (options.currentUser.devEui) {
           ctx.args.client.devEui = options.currentUser.devEui;
         }
@@ -527,7 +527,7 @@ const onBeforeRemote = async (app, ctx) => {
       const isAdmin = options.currentUser.roles.includes('admin');
       if (!ctx.args.client) ctx.args.client = {};
       if (!isAdmin) {
-        ctx.args.client.user = options.currentUser.id.toString();
+        ctx.args.client.user = options.currentUser.id;
         if (options.currentUser.devEui) {
           ctx.args.client.devEui = options.currentUser.devEui;
         }
