@@ -11,6 +11,7 @@ const {
   reloadProcess,
   disableDaemon,
   listenProcess,
+  sendMsgToProcessId,
 } = require('./pm2-utils');
 
 // if (!process.env.ALOES_ID) process.env.ALOES_ID = uuid
@@ -96,8 +97,30 @@ const startProcess = async (noDaemon = true) => {
         },
       },
     ]);
+
     apps.forEach(app => {
       console.log('APP STARTED', app.pm2_env.pm_id);
+    });
+
+    process.on('SIGINT', () => {
+      console.log('STOPPING PROCESS', 'SIGINT');
+      apps.forEach(app => {
+        sendMsgToProcessId(app.pm2_env.pm_id, {
+          stopped: true,
+        })
+          .then(msg => {
+            console.log('APP STOPPED', app.pm2_env.pm_id);
+            setTimeout(() => stopProcess(app.pm2_env.pm_id), 5000);
+            return msg;
+          })
+          .catch(e => {
+            console.log('APP STOPPED:ERR', e);
+          });
+      });
+    });
+
+    process.on('SIGTERM', () => {
+      console.log('STOP PROCESS', 'SIGTERM');
     });
 
     // pm2.disconnect();

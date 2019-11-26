@@ -5,6 +5,9 @@
 #
 FROM node:lts-alpine AS builder
 
+# useful when installing git dependency in package.json
+RUN apk update && apk add git
+
 ENV NODE_NAME=device-manager
 ENV NPM_CONFIG_LOGLEVEL warn
 
@@ -35,6 +38,9 @@ COPY package* ./
 
 COPY --from=builder /home/node/$NODE_NAME/dist ./dist/
 COPY --from=builder /home/node/$NODE_NAME/node_modules ./node_modules/
+
+STOPSIGNAL SIGINT
+# STOPSIGNAL 0
 
 CMD ["node","bin/pm2-server.js", "--start"]
 

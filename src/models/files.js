@@ -315,7 +315,7 @@ module.exports = function(Files) {
   Files.uploadBuffer = async (buffer, ownerId, name) => {
     try {
       logger.publish(3, `${collectionName}`, 'uploadBuffer:req', { ownerId, name });
-      if (!name || name === null || !isLength(name, { min: 4, max: 30 }) || !isAlphanumeric(name)) {
+      if (!name || name === null || !isLength(name, { min: 4, max: 65 })) {
         throw new Error('Invalid file name');
       }
       let fileMeta = await Files.findOne({

@@ -1616,7 +1616,9 @@ module.exports = function(Device) {
     }
   };
 
-  Device.delClock = () => Device.timer.stop();
+  Device.delClock = () => {
+    if (Device.timer) Device.timer.stop();
+  };
 
   /**
    * Event reporting that an device client connection status has changed.

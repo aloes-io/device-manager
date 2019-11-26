@@ -356,7 +356,7 @@ const initClient = async (app, config) => {
       protocolId: 'MQTT',
       protocolVersion: 4,
       reconnectPeriod: 1000,
-      connectTimeout: 2 * 1000,
+      connectTimeout: 5 * 1000,
       clean: false,
       clientId,
       username: config.ALOES_ID,
@@ -391,10 +391,6 @@ const initClient = async (app, config) => {
       MQTTClient.emit('offline', packet);
     });
 
-    // mqttClient.on('message', (topic, payload) => {
-    //   MQTTClient.emit('message', app, topic, payload);
-    // });
-
     const handleMessage = (packet, cb) => {
       onMessage(app, packet.topic, packet.payload)
         .then(() => cb())
@@ -403,12 +399,12 @@ const initClient = async (app, config) => {
 
     mqttClient.handleMessage = handleMessage;
 
-    await startClient(clientId);
     logger.publish(3, 'mqtt-client', 'init:res', mqttClientOptions);
+    await startClient(clientId);
     return true;
   } catch (error) {
     logger.publish(2, 'mqtt-client', 'init:err', error);
-    // await mqttClient.end()
+    // await mqttClient.end(true);
     return false;
   }
 };

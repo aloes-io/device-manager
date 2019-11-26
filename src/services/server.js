@@ -147,6 +147,16 @@ app.start = async config => {
     app.set('json spaces', 2); // format json responses for easier viewing
     app.set('views', path.join(__dirname, 'views'));
 
+    // workaround when using nginx as load balancer and docker bridge
+    // specify multiple subnets as an array
+    // app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
+    app.set('trust proxy', ip => {
+      logger.publish(2, 'loopback', 'proxy:req', { ip });
+      // if (ip === '127.0.0.1' || ip === '123.123.123.123') return true;
+      // todo : set trusted IPs
+      return true;
+    });
+
     app.use(flash());
 
     const clientPath = path.resolve(__dirname, '/../client');
@@ -160,12 +170,6 @@ app.start = async config => {
     );
 
     logger.publish(2, 'loopback', 'start', `${app.get('url')}`);
-
-    // app.use(
-    //   loopback.token({
-    //     model: app.models.accessToken,
-    //   }),
-    // );
 
     httpServer = app.listen(() => {
       // EXTERNAL AUTH

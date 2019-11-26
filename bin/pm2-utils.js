@@ -37,7 +37,7 @@ const startBus = () =>
 
 const stopProcess = processIdentifier => {
   try {
-    if (!processIdentifier) {
+    if (processIdentifier === undefined) {
       processIdentifier = 'all';
     }
     console.log('STOP PROCESS', processIdentifier);
@@ -53,7 +53,7 @@ const stopProcess = processIdentifier => {
 
 const deleteProcess = processIdentifier => {
   try {
-    if (!processIdentifier) {
+    if (processIdentifier === undefined) {
       processIdentifier = 'all';
     }
     console.log('DELETE PROCESS', processIdentifier);
@@ -69,7 +69,7 @@ const deleteProcess = processIdentifier => {
 
 const restartProcess = processIdentifier => {
   try {
-    if (!processIdentifier) {
+    if (processIdentifier === undefined) {
       processIdentifier = 'all';
     }
     console.log('RESTART PROCESS', processIdentifier);
@@ -85,7 +85,7 @@ const restartProcess = processIdentifier => {
 
 const reloadProcess = processIdentifier => {
   try {
-    if (!processIdentifier) {
+    if (processIdentifier === undefined) {
       processIdentifier = 'all';
     }
     console.log('RELOAD PROCESS', processIdentifier);
@@ -160,4 +160,5 @@ module.exports = {
   disableDaemon,
   logMessage,
   listenProcess,
+  sendMsgToProcessId,
 };

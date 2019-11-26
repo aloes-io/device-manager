@@ -4,12 +4,14 @@
 /* eslint-disable global-require */
 import aedes from 'aedes';
 import axios from 'axios';
-import http from 'http';
-import net from 'net';
-import ws from 'websocket-stream';
 import dotenv from 'dotenv';
-import nodeCleanup from 'node-cleanup';
+import http from 'http';
+// import http from 'http2';
 import throttle from 'lodash.throttle';
+import net from 'net';
+import nodeCleanup from 'node-cleanup';
+// import os from 'os';
+import ws from 'websocket-stream';
 import logger from './logger';
 import envVariablesKeys from '../initial-data/variables-keys.json';
 // import { version } from '../package.json';
@@ -19,7 +21,7 @@ import envVariablesKeys from '../initial-data/variables-keys.json';
 /**
  * @module Broker
  */
-const broker = {};
+const broker = { config: {} };
 
 /**
  * Aedes persistence layer
@@ -91,7 +93,6 @@ const emitter = config => {
  * @returns {object} client
  */
 const getClientProps = client => {
-  /* eslint-disable no-underscore-dangle */
   /* eslint-disable security/detect-object-injection */
   const clientProperties = [
     'id',
@@ -102,33 +103,20 @@ const getClientProps = client => {
     'aloesId',
     'ownerId',
     'model',
-    'conn',
+    'ip',
+    'type',
+    // 'ipAddress',
+    // 'ipFamily'
   ];
 
   const clientObject = {};
   clientProperties.forEach(key => {
-    try {
-      if (client[key]) {
-        if (key === 'conn') {
-          if (client.conn.socket && client.conn.socket._socket) {
-            const clientAddress = client.conn.socket._socket.address();
-            clientObject.type = 'WS';
-            clientObject.ip = clientAddress.address;
-          } else if (client.conn.address) {
-            const clientAddress = client.conn.address();
-            // clientObject.ip = client.conn.remoteAddress;
-            clientObject.type = 'MQTT';
-            clientObject.ip = clientAddress.address;
-          }
-        } else clientObject[key] = client[key];
-      }
-    } catch (e) {
-      logger.publish(3, 'broker', 'getClientProps:err', e);
+    if (client[key] !== undefined) {
+      clientObject[key] = client[key];
     }
   });
   logger.publish(3, 'broker', 'getClientProps:res', { client: clientObject });
   return clientObject;
-  /* eslint-enable no-underscore-dangle */
   /* eslint-enable security/detect-object-injection */
 };
 
@@ -298,7 +286,7 @@ const authenticate = async (client, username, password) => {
     } else {
       // todo : identify client model ( user || device || application ), using client.id, username ?
       foundClient = getClientProps(client);
-      // const { ipLimit, userIpLimit, retrySecs, usernameIPkey } = await authLimiter(
+      // const { userIpLimit, retrySecs, usernameIPkey } = await authLimiter(
       //   username,
       //   foundClient.ip,
       // );
@@ -380,7 +368,7 @@ const authorizePublish = (client, packet) => {
     });
     auth = true;
   } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
-    // todo limit access to device out prefix if any - / endsWith(device.outPrefix)
+    // todo : limit access to device out prefix if any - / endsWith(device.outPrefix)
     logger.publish(5, 'broker', 'authorizePublish:req', {
       device: client.devEui,
     });
@@ -435,7 +423,7 @@ const authorizeSubscribe = (client, packet) => {
     //  packet.qos = packet.qos + 2
     auth = true;
   } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
-    // todo limit access to device in prefix if any
+    // todo : limit access to device in prefix if any
     logger.publish(5, 'broker', 'authorizeSubscribe:req', {
       device: client.devEui,
     });
@@ -602,8 +590,12 @@ broker.start = () => {
 
     broker.instance.preConnect = (client, cb) => {
       // if client.user, rate limit here ?
+      if (client.ipAddress) client.ip = client.ipAddress;
       logger.publish(2, 'broker', 'preConnect:res', {
         // clientIp: client.conn ? client.conn.remoteAddress : null,
+        isProxied: client.isProxied,
+        isWebsocket: client.isWebsocket,
+        clientIp: client.ip || null,
         clientId: client.id || null,
       });
       cb(null, true);
@@ -768,7 +760,8 @@ broker.init = () => {
       });
     }
 
-    const brokerConfig = {
+    broker.config = {
+      ...config,
       interfaces: [
         { type: 'mqtt', port: Number(config.MQTT_BROKER_PORT) },
         { type: 'http', port: Number(config.WS_BROKER_PORT) },
@@ -794,42 +787,65 @@ broker.init = () => {
       mq: emitter(config),
       persistence: persistence(config),
       concurrency: 100,
-      heartbeatInterval: 60000,
-      connectTimeout: 2000,
+      heartbeatInterval: 30000, // default : 60000
+      connectTimeout: 5000, // prod : 2000;
+      trustProxy: true,
+      trustedProxies: [],
     };
 
     broker.instance = new aedes.Server(aedesConf);
 
-    const mqttBroker = net
+    const tcpServer = net
       .createServer(broker.instance.handle)
-      .listen(brokerConfig.interfaces[0].port, () => {
+      .listen(broker.config.interfaces[0].port, () => {
         logger.publish(
           2,
           'broker',
           'Setup',
-          `MQTT broker ready, up and running @: ${brokerConfig.interfaces[0].port}`,
+          `MQTT broker ready, up and running @: ${broker.config.interfaces[0].port}`,
         );
       });
 
-    const httpServer = http.createServer().listen(brokerConfig.interfaces[1].port, () => {
+    tcpServer.on('close', () => {
+      logger.publish(3, 'broker', 'mqtt broker closed', '');
+    });
+
+    tcpServer.on('error', err => {
+      logger.publish(3, 'broker', 'mqtt-broker:err', err);
+    });
+
+    const httpServer = http.createServer().listen(broker.config.interfaces[1].port, () => {
       logger.publish(
         2,
         'broker',
         'Setup',
-        `WS broker ready, up and running @: ${brokerConfig.interfaces[1].port}`,
+        `WS broker ready, up and running @: ${broker.config.interfaces[1].port}`,
       );
     });
 
-    const wsBroker = ws.createServer(
+    const wsServer = ws.createServer(
       { perMessageDeflate: false, server: httpServer },
       broker.instance.handle,
     );
 
+    wsServer.on('close', () => {
+      logger.publish(3, 'broker', 'ws broker closed', '');
+    });
+
+    wsServer.on('error', err => {
+      // if (err.code === 'EADDRINUSE')
+      logger.publish(3, 'broker', 'ws broker:err', err);
+    });
+
     broker.instance.on('closed', () => {
-      wsBroker.close();
+      wsServer.close();
       httpServer.close();
-      mqttBroker.close();
-      if (Object.keys(broker.instance.brokers).length === 0 && broker.redis) {
+      tcpServer.close();
+      if (
+        broker.instance.brokers &&
+        Object.keys(broker.instance.brokers).length === 0 &&
+        broker.redis
+      ) {
         broker.redis.flushdb();
       }
       logger.publish(2, 'broker', 'stopped', `${process.env.MQTT_BROKER_URL}`);
@@ -857,6 +873,9 @@ if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
           isStarted: true,
         },
       });
+    }
+    if (packet.data.stopped) {
+      process.emit('SIGINT');
     }
   });
 

@@ -11,7 +11,8 @@ module.exports = app => {
     try {
       const options = ctx.args.options || {};
       const headers = ctx.req.headers || {};
-      const ip = ctx.req.connection && ctx.req.connection.remoteAddress;
+      const ip = ctx.req.ip || (ctx.req.connection && ctx.req.connection.remoteAddress);
+      // logger.publish(3, 'loopback', 'setCurrentUser:test', { ips: ctx.req.ips, ip: ctx.req.ip });
       logger.publish(4, 'loopback', 'setCurrentUser:req', { ip, headers });
 
       let userId;
@@ -33,6 +34,7 @@ module.exports = app => {
           if (!ctx.args.options) ctx.args.options = {};
           ctx.args.options.currentUser = {
             id: userId.toString(),
+            ip,
             email: promises[0].email,
             roles: promises[1],
             type: 'User',
@@ -53,11 +55,10 @@ module.exports = app => {
       const deviceDevEui = headers.deveui;
       if (
         deviceDevEui &&
-        isLength(deviceDevEui, { min: 4, max: 32 }) &&
+        isLength(deviceDevEui, { min: 4, max: 64 }) &&
         isAlphanumeric(deviceDevEui)
       ) {
         const deviceApiKey = headers.apikey;
-
         // or device.authenticate ? with header containing 'key'
         const device = await app.models.Device.findOne({
           where: {
@@ -77,6 +78,7 @@ module.exports = app => {
           if (!ctx.args.options) ctx.args.options = {};
           ctx.args.options.currentUser = {
             id: device.id.toString(),
+            ip,
             devEui: device.devEui,
             roles: ['user'],
             type: 'Device',
@@ -107,6 +109,7 @@ module.exports = app => {
           if (!ctx.args.options) ctx.args.options = {};
           ctx.args.options.currentUser = {
             id: application.id.toString(),
+            ip,
             appId: application.id.toString(),
             appEui: application.appEui,
             roles: ['user'],
@@ -122,8 +125,16 @@ module.exports = app => {
         }
       }
 
+      if (!ctx.args.options) ctx.args.options = {};
+      ctx.args.options.currentUser = {
+        ip,
+        userId: 'anonymous',
+        roles: ['user'],
+      };
+
       logger.publish(4, 'loopback', `setCurrentUser:res`, {
         method: ctx.methodString,
+        ip,
         userId: 'anonymous',
       });
       return next();

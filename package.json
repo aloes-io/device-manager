@@ -44,10 +44,8 @@
     "log:docker": "cp deploy/.env_docker .env ; docker-compose --compatibility logs --follow --tail='100'"
   },
   "dependencies": {
-    "@babel/runtime": "^7.4.4",
-    "aedes": "^0.39.0",
+    "aedes": "git+https://git@github.com/getlarge/aedes.git#proxy_and_ip_decoder",
     "aedes-persistence-redis": "^6.0.1",
-    "ajv": "^6.10.2",
     "aloes-handlers": "^1.2.11",
     "aloes-light-handlers": "^1.0.7",
     "async-mqtt": "^2.4.2",

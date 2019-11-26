@@ -171,15 +171,15 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 - Validate rate limiter via e2e tests
 
-- Catch docker sigTerm to gently stop application(s)
-
 - Finish account linking with github
 
 - Add user(s) in a team to easily share devices access ( via collaborators property/role ? )
 
 - Separate resources property from Sensor model to SensorResources model ( instead of sync, as currently implemented ) ?
 
-- Catch and store data related to MQTT traffic ( via specific sensor instance ? )
+- Catch and store data related to MQTT traffic ( https://github.com/mcollina/aedes-logging#readme ; via specific sensor instance ? )
+
+- Update to loopback 4
 
 - Add redis replication config ( docker deployement )
   https://stackoverflow.com/questions/45902031/docker-swarm-redis-and-sentinel-with-master-slave-replication-ip-resolution-cl

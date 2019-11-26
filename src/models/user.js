@@ -146,7 +146,10 @@ const onBeforeLogin = async ctx => {
     username: ctx.args && ctx.args.credentials ? ctx.args.credentials.email : null,
   });
   // const options = {...ctx.args.credentials, ttl: 2 * 7 * 24 * 60 * 60}
-  const ipAddr = ctx.req.connection && ctx.req.connection.remoteAddress;
+  // const ipAddr = ctx.req.connection && ctx.req.connection.remoteAddress;
+  const ipAddr =
+    ctx.args.options && ctx.args.options.currentUser && ctx.args.options.currentUser.ip;
+
   const { userIpLimit, retrySecs, usernameIPkey } = await authLimiter(
     ctx.args.credentials.email,
     ipAddr,

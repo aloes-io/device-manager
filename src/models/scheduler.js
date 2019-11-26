@@ -836,18 +836,19 @@ module.exports = function(Scheduler) {
       externalTimer: process.env.EXTERNAL_TIMER,
       timerUrl: process.env.TIMER_BASE_URL,
     });
-    if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
-      try {
+    try {
+      if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
         const scheduler = JSON.parse(await Scheduler.get(schedulerClockId));
         if (scheduler && scheduler !== null) {
           await deleteTimer(scheduler.timerId);
-          await Scheduler.delete(schedulerClockId);
+          return Scheduler.delete(schedulerClockId);
         }
-      } catch (e) {
-        // empty
+        return null;
       }
+      return Scheduler.timer.stop();
+    } catch (e) {
+      return null;
     }
-    return Scheduler.timer.stop();
   };
 
   Scheduler.once('started', () => setTimeout(() => Scheduler.setClock(clockInterval), 2500));
