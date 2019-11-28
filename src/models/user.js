@@ -5,7 +5,7 @@ import isEmail from 'validator/lib/isEmail';
 import mails from '../services/mails';
 import logger from '../services/logger';
 import utils from '../services/utils';
-import { authLimiter, ipLimiter, userIpLimiter } from '../services/rate-limiter';
+import rateLimiter from '../services/rate-limiter';
 import roleManager from '../services/role-manager';
 
 /**
@@ -146,60 +146,69 @@ const onBeforeLogin = async ctx => {
     username: ctx.args && ctx.args.credentials ? ctx.args.credentials.email : null,
   });
   // const options = {...ctx.args.credentials, ttl: 2 * 7 * 24 * 60 * 60}
-  // const ipAddr = ctx.req.connection && ctx.req.connection.remoteAddress;
   const ipAddr =
     ctx.args.options && ctx.args.options.currentUser && ctx.args.options.currentUser.ip;
-
-  const { userIpLimit, retrySecs, usernameIPkey } = await authLimiter(
-    ctx.args.credentials.email,
+  const username = ctx.args.credentials.email;
+  const { limiter, limiterType, retrySecs, usernameIPkey } = await rateLimiter.getAuthLimiter(
     ipAddr,
+    username,
   );
 
   if (retrySecs > 0) {
-    ctx.res.set('Retry-After', String(retrySecs));
-    ctx.res.status(429).send('Too Many Requests');
-    return null;
+    if (limiter && limiterType) {
+      ctx.res.set('Retry-After', String(retrySecs));
+      // eslint-disable-next-line security/detect-object-injection
+      ctx.res.set('X-RateLimit-Limit', rateLimiter.limits[limiterType]);
+      ctx.res.set('X-RateLimit-Remaining', limiter.remainingPoints);
+      ctx.res.set('X-RateLimit-Reset', new Date(Date.now() + limiter.msBeforeNext));
+    }
+    throw utils.buildError(429, 'TOO_MANY_REQUESTS', 'Too many errors with this ip, unauthorized');
   }
+
   try {
     const token = await ctx.method.ctor.login(ctx.args.credentials, 'user');
     logger.publish(4, `${collectionName}`, 'beforeLogin:res', token);
-    if (userIpLimit !== null && userIpLimit.consumedPoints > 0) {
-      // Reset on successful authorisation
-      await userIpLimiter.delete(usernameIPkey);
-    }
+    await rateLimiter.cleanAuthLimiter(ipAddr, username);
     return token;
-  } catch (err) {
-    // Consume 1 point from limiters on wrong attempt and block if limits are reached
-    try {
-      const promises = [ipLimiter.consume(ipAddr)];
-      try {
-        const user = await ctx.method.ctor.findByEmail(ctx.args.credentials.email);
-        if (user) {
-          // Count failed attempts by Username + IP only for registered users
-          logger.publish(
-            2,
-            `${collectionName}`,
-            'beforeLogin:err',
-            `Failure for user and IP : ${usernameIPkey}`,
-          );
-          promises.push(userIpLimiter.consume(usernameIPkey));
-        }
-      } catch (e) {
-        logger.publish(2, `${collectionName}`, 'beforeLogin:err', `Failure for IP : ${ipAddr}`);
-      }
-      await Promise.all(promises);
-      const error = utils.buildError(400, 'LOGIN_ERROR', 'Email or password is wrong');
+  } catch (error) {
+    if (error.code === 'LOGIN_FAILED_EMAIL_NOT_VERIFIED' || error.code === 'TOO_MANY_REQUESTS') {
       throw error;
-    } catch (rlRejected) {
-      logger.publish(2, `${collectionName}`, 'beforeLogin:err', err);
-      if (rlRejected instanceof Error) {
-        throw rlRejected;
-      } else {
-        ctx.res.set('Retry-After', String(Math.round(rlRejected.msBeforeNext / 1000)) || 1);
-        ctx.res.status(429).send('Too Many Requests');
-        return null;
+    }
+    let loginError = utils.buildError(401, 'LOGIN_ERROR', 'Email or password is worng');
+    let user;
+    try {
+      user = await ctx.method.ctor.findByEmail(username);
+      if (user && user.email) {
+        logger.publish(
+          2,
+          `${collectionName}`,
+          'beforeLogin:err',
+          `Failure for user and IP : ${usernameIPkey}`,
+        );
+      }
+    } catch (e) {
+      logger.publish(2, `${collectionName}`, 'beforeLogin:err', `Failure for IP : ${ipAddr}`);
+    } finally {
+      try {
+        await rateLimiter.setAuthLimiter(ipAddr, user ? username : null);
+      } catch (rlRejected) {
+        logger.publish(2, `${collectionName}`, 'beforeLogin:err2', rlRejected);
+        if (rlRejected instanceof Error) {
+          // loginError = utils.buildError(401, 'LOGIN_ERROR', 'Email or password is worng');
+        } else {
+          // ctx.res.set('Retry-After', String(Math.round(rlRejected.msBeforeNext / 1000)) || 1);
+          // ctx.res.set('X-RateLimit-Limit', rlRejected.consumedPoints - 1);
+          // ctx.res.set('X-RateLimit-Remaining', rlRejected.remainingPoints);
+          // ctx.res.set('X-RateLimit-Reset', new Date(Date.now() + rlRejected.msBeforeNext));
+          loginError = utils.buildError(
+            429,
+            'TOO_MANY_REQUESTS',
+            'Too many errors with this ip, unauthorized',
+          );
+        }
       }
     }
+    throw loginError;
   }
 };
 
@@ -306,7 +315,7 @@ const onBeforeRemote = async ctx => {
         throw error;
       }
     } else if (ctx.method.name === 'login') {
-      return onBeforeLogin(ctx);
+      await onBeforeLogin(ctx);
     }
     return ctx;
   } catch (error) {
@@ -491,6 +500,39 @@ module.exports = function(User) {
       throw error;
     }
   };
+  /**
+   * Update client (as the user) status from MQTT connection status
+   * @method module:User.updateStatus
+   * @param {object} client - MQTT parsed client
+   * @param {boolean} status - MQTT connection status
+   * @returns {function}
+   */
+  User.updateStatus = async (client, status) => {
+    try {
+      if (!client || !client.id || !client.user) {
+        throw new Error('Invalid client');
+      }
+      logger.publish(5, collectionName, 'updateStatus:req', status);
+      const user = await User.findById(client.user);
+      if (user && user.id) {
+        const Client = User.app.models.Client;
+        const ttl = 1 * 60 * 60 * 1000;
+        // client.status = status;
+        if (status) {
+          await Client.set(client.id, JSON.stringify(client), ttl);
+        } else {
+          await Client.delete(client.id);
+        }
+        logger.publish(4, collectionName, 'updateStatus:res', { client, status });
+        return client;
+      }
+      // user not found
+      return null;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'updateStatus:err', error);
+      throw error;
+    }
+  };
 
   /**
    * Event reporting that User model has been attached to the application
@@ -533,6 +575,30 @@ module.exports = function(User) {
    * @returns {function} Mails.sendResetPasswordMail
    */
   User.on('resetPasswordRequest', mails.sendResetPasswordMail);
+
+  /**
+   * Event reporting that a client ( as the user ) connection status has changed.
+   * @event client
+   * @param {object} message - Parsed MQTT message.
+   * @property {object} message.client - MQTT client
+   * @property {boolean} message.status - MQTT client status.
+   * @returns {function} User.updateStatus
+   */
+  User.on('client', async message => {
+    try {
+      logger.publish(2, `${collectionName}`, 'on-client:req', Object.keys(message));
+      if (!message || message === null) throw new Error('Message empty');
+      const status = message.status;
+      const client = message.client;
+      if (!client || !client.user || status === undefined) {
+        throw new Error('Message missing properties');
+      }
+      return User.updateStatus(client, status);
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'on-client:err', error);
+      return null;
+    }
+  });
 
   /**
    * Event reporting that a new user instance will be created.

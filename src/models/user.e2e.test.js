@@ -80,12 +80,15 @@ const userTest = () => {
               setTimeout(() => {
                 broker.stop();
                 done();
-                process.exit(0);
-              }, 3500);
+                // process.exit(0);
+              }, 1500);
             })
             .catch(e => {
-              done(e);
-              process.exit(0);
+              setTimeout(() => {
+                broker.stop();
+                done(e);
+                // process.exit(0);
+              }, 1500);
             });
         },
         tests: {

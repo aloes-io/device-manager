@@ -151,6 +151,39 @@ Stopping containers :
   $  npm run stop:docker
 ```
 
+### With Nginx proxy container
+
+Config :
+
+`./config/nginx-gw.template` is loaded by the dockerfile and can be updated to suit your needs.
+
+Build : ( Must be executed from the root project directory )
+
+```bash
+  $  docker build -t nginx-gw -f config/nginx/gw-dockerfile ./config/nginx
+  $  docker build -t nginx-gw -f config/nginx/gw-dockerfile ./config/nginx --build-arg HTTP_SERVER_PORT=8001
+```
+
+Start container :
+
+```bash
+  $  docker run --rm -it --name nginx-gw -v "$(pwd)"/log/nginx:/var/log/nginx --net="host" nginx-gw
+  $  docker run --rm -it --name nginx-gw --net="host" nginx-gw
+  $  docker run -itd --restart unless-stopped --name nginx-gw --net="host" nginx-gw
+```
+
+Stop container :
+
+```bash
+  $  docker stop nginx-gw
+```
+
+Stop container :
+
+```bash
+  $  docker container rm nginx-gw
+```
+
 ## To deploy with your own TLS / SSL certificates
 
 Read https://nodejs.org/api/tls.html#tls_tls_ssl
@@ -167,7 +200,7 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 - Add tests for Client, Measurement, Scheduler and SensorResource models 
 
-- Implement rate limit for MQTT authentification and HTTP endpoints requiring auth
+- Implement rate limit for HTTP endpoints requiring auth
 
 - Validate rate limiter via e2e tests
 

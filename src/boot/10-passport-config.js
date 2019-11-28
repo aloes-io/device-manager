@@ -33,7 +33,7 @@ module.exports = async function passportConfig(app) {
         passportConfigurator.configureProvider(provider, c);
         return c;
       } catch (error) {
-        throw error;
+        return null;
       }
     });
     //  const configuredProviders = await Promise.all(promises);

@@ -10,10 +10,25 @@ import logger from './logger';
  * @module MQTTClient
  */
 
+let mqttClient;
 const MQTTClient = new EventEmitter();
 // const pubsubVersion = process.env.PUBSUSB_API_VERSION;
 
-let mqttClient;
+MQTTClient.failureCount = 0;
+MQTTClient.maxFailureCount = 10;
+
+const baseOptions = {
+  keepalive: 60,
+  reschedulePings: true,
+  protocolId: 'MQTT',
+  protocolVersion: 4,
+  reconnectPeriod: 1000,
+  connectTimeout: 2 * 1000,
+  clean: false,
+  clientId: null,
+  username: null,
+  password: null,
+};
 
 const serviceNames = ['Device', 'Application', 'Sensor'];
 
@@ -29,6 +44,12 @@ const onApplicationStatus = (app, client, status) => {
 
 const appStatusUpdate = throttle(onApplicationStatus, 50);
 
+const onUserStatus = (app, client, status) => {
+  app.models.User.emit('client', { client, status });
+};
+
+const userStatusUpdate = throttle(onUserStatus, 50);
+
 /**
  * Update models status from MQTT connection status and client properties
  * @method module:MQTTClient~updateModelsStatus
@@ -38,12 +59,14 @@ const appStatusUpdate = throttle(onApplicationStatus, 50);
  */
 const updateModelsStatus = (app, client, status) => {
   try {
-    logger.publish(3, 'mqtt-client', 'updateModelsStatus:req', { status });
+    logger.publish(3, 'mqtt-client', 'updateModelsStatus:req', { status, client });
     if (client && client.user) {
       if (client.devEui) {
         deviceStatusUpdate(app, client, status);
       } else if (client.appId) {
         appStatusUpdate(app, client, status);
+      } else if (client.ownerId) {
+        userStatusUpdate(app, client, status);
       }
     }
     return null;
@@ -351,13 +374,7 @@ const initClient = async (app, config) => {
     });
 
     const mqttClientOptions = {
-      keepalive: 60,
-      reschedulePings: true,
-      protocolId: 'MQTT',
-      protocolVersion: 4,
-      reconnectPeriod: 1000,
-      connectTimeout: 5 * 1000,
-      clean: false,
+      ...baseOptions,
       clientId,
       username: config.ALOES_ID,
       password: config.ALOES_KEY,
@@ -378,6 +395,7 @@ const initClient = async (app, config) => {
     }
 
     mqttClient = await mqtt.connectAsync(mqttBrokerUrl, mqttClientOptions);
+    MQTTClient.failureCount = 0;
 
     mqttClient.on('error', err => {
       logger.publish(4, 'mqtt-client', 'error', err);
@@ -404,7 +422,11 @@ const initClient = async (app, config) => {
     return true;
   } catch (error) {
     logger.publish(2, 'mqtt-client', 'init:err', error);
-    // await mqttClient.end(true);
+    if (MQTTClient.failureCount < MQTTClient.maxFailureCount) {
+      MQTTClient.failureCount += 1;
+      return setTimeout(() => initClient(app, config), baseOptions.reconnectPeriod);
+    }
+    // else await mqttClient.end(true);
     return false;
   }
 };
@@ -460,13 +482,12 @@ const stopClient = async () => {
   try {
     if (mqttClient && mqttClient.connected) {
       logger.publish(2, 'mqtt-client', 'stopping client ', MQTTClient.id);
-      mqttClient.unsubscribe([
+      await mqttClient.unsubscribe([
         `aloes-${process.env.ALOES_ID}/sync`,
         `${MQTTClient.id}/status`,
         `${MQTTClient.id}/rx/#`,
       ]);
-      // await mqttClient.unsubscribe(`${MQTTClient.id}/rx/#`);
-      mqttClient.end(true);
+      await mqttClient.end(true);
       // await mqttClient.end();
     }
     logger.publish(2, 'mqtt-client', 'stopped', MQTTClient.id);

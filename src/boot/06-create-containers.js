@@ -56,6 +56,6 @@ module.exports = async function(server) {
     return accountsContainers;
   } catch (error) {
     logger.publish(2, 'loopback', 'boot:initStorages:err', error);
-    return error;
+    return null;
   }
 };

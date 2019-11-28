@@ -23,6 +23,16 @@ const unless = (paths, middleware) => (req, res, next) => {
   return middleware(req, res, next);
 };
 
+/**
+ * Init HTTP server with new Loopback instance
+ *
+ * Init external services ( MQTT broker )
+ * @method module:Server~authenticateInstance
+ * @param {object} client - Parsed MQTT client
+ * @param {string} username - MQTT client username
+ * @param {object} password - MQTT client password (buffer)
+ * @returns {object}
+ */
 const authenticateInstance = async (client, username, password) => {
   const Client = app.models.Client;
   let status, foundClient;
@@ -40,79 +50,70 @@ const authenticateInstance = async (client, username, password) => {
   }
 
   try {
-    let token, authentification;
-
+    let token, authentification, foundUsername;
     // User login
     try {
       token = await app.models.accessToken.findById(password.toString());
     } catch (e) {
-      console.log('USER MQTT AUTH ERR', e);
       token = null;
-    } finally {
-      if (token && token.userId && token.userId.toString() === username) {
-        status = 0;
-        foundClient.ownerId = token.userId.toString();
-        foundClient.model = 'User';
-      } else {
-        // const user = await app.models.user.findById(username);
-        // if (user) foundUser = username;
-        status = 4;
-      }
+    }
+    if (token && token.userId && token.userId.toString() === username) {
+      status = 0;
+      foundClient.ownerId = token.userId.toString();
+      foundClient.user = username;
+      foundClient.model = 'User';
+    } else {
+      const user = await app.models.user.findById(username);
+      if (user && user.id) foundUsername = username;
     }
 
     // Device auth
-    //     if (status !== 0 && !foundUser) {
     if (status !== 0) {
       try {
         authentification = await app.models.Device.authenticate(username, password.toString());
       } catch (e) {
-        // if (e.code === 403) foundUser = username;
-        authentification = null;
-      } finally {
-        if (authentification && authentification.device && authentification.keyType) {
-          const instance = authentification.device;
-          if (instance.devEui && instance.devEui !== null) {
-            status = 0;
-            foundClient.devEui = instance.devEui;
-            foundClient.model = 'Device';
-          }
-        } else {
-          status = 4;
+        if (e.statusCode === 403 && e.message === 'UNAUTHORIZED') {
+          foundUsername = username;
         }
+        authentification = null;
+      }
+      if (authentification && authentification.device && authentification.keyType) {
+        const instance = authentification.device;
+        status = 0;
+        foundClient.devEui = instance.devEui;
+        foundClient.user = username;
+        foundClient.model = 'Device';
       }
     }
 
     // Application auth
-    //     if (status !== 0 && !foundUser) {
     if (status !== 0) {
       try {
         authentification = await app.models.Application.authenticate(username, password.toString());
       } catch (e) {
-        // if (e.code === 403) foundUser = username;
+        if (e.statusCode === 403 && e.message === 'UNAUTHORIZED') {
+          foundUsername = username;
+        }
         authentification = null;
-      } finally {
-        if (authentification && authentification.application && authentification.keyType) {
-          const instance = authentification.application;
-          if (instance && instance.id) {
-            foundClient.appId = instance.id.toString();
-            foundClient.model = 'Application';
-            status = 0;
-            if (instance.appEui && instance.appEui !== null) {
-              foundClient.appEui = instance.appEui;
-            }
-          }
-        } else {
-          status = 4;
+      }
+      if (authentification && authentification.application && authentification.keyType) {
+        const instance = authentification.application;
+        foundClient.appId = instance.id.toString();
+        foundClient.user = username;
+        foundClient.model = 'Application';
+        status = 0;
+        if (instance.appEui && instance.appEui !== null) {
+          foundClient.appEui = instance.appEui;
         }
       }
     }
 
-    if (status === 0) {
-      const ttl = 1 * 60 * 60 * 1000;
-      foundClient.user = username;
-      await Client.set(client.id, JSON.stringify(foundClient), ttl);
+    if (status !== 0 && foundUsername) {
+      foundClient.user = foundUsername;
+      status = 4;
+    } else if (status === undefined) {
+      status = 2;
     }
-    // else if foundClient.model, Client.delete(client.id)
     logger.publish(3, 'loopback', 'authenticateInstance:res', { status, client: foundClient });
     return { client: foundClient, status };
   } catch (error) {
@@ -121,6 +122,25 @@ const authenticateInstance = async (client, username, password) => {
     return { client: foundClient, status };
   }
 };
+
+/**
+ * Emit publish event
+ * @method module:Server.publish
+ * @returns {function} MQTTClient.publish
+ */
+app.publish = async (topic, payload, retain = false, qos = 0) =>
+  MQTTClient.publish(topic, payload, retain, qos);
+
+app.on('publish', async (topic, payload, retain = false, qos = 0) =>
+  app.publish(topic, payload, retain, qos),
+);
+
+const bootApp = (loopbackApp, options) =>
+  new Promise((resolve, reject) => {
+    boot(loopbackApp, options, err => (err ? reject(err) : resolve(true)));
+  });
+
+app.isStarted = () => app.bootState;
 
 /**
  * Init HTTP server with new Loopback instance
@@ -150,14 +170,16 @@ app.start = async config => {
     app.set('json spaces', 2); // format json responses for easier viewing
     app.set('views', path.join(__dirname, 'views'));
 
-    // workaround when using nginx as load balancer and docker bridge
     // specify multiple subnets as an array
     // app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
     app.set('trust proxy', ip => {
-      logger.publish(2, 'loopback', 'proxy:req', { ip });
-      // if (ip === '127.0.0.1' || ip === '123.123.123.123') return true;
-      // todo : set trusted IPs
-      return true;
+      if (config.HTTP_TRUST_PROXY && config.HTTP_TRUST_PROXY === 'true') {
+        logger.publish(2, 'loopback', 'proxy:req', { ip });
+        // if (ip === '127.0.0.1' || ip === '123.123.123.123') return true;
+        // todo : set trusted IPs
+        return true;
+      }
+      return false;
     });
 
     app.use(flash());
@@ -213,8 +235,7 @@ app.start = async config => {
           const password = req.body.password;
           const result = await authenticateInstance(client, username, password);
           res.set('Access-Control-Allow-Origin', '*');
-          res.json(result);
-          return;
+          return res.json(result);
         } catch (error) {
           throw error;
         }
@@ -230,54 +251,6 @@ app.start = async config => {
     return null;
   }
 };
-
-/**
- * Close the app and services
- * @method module:Server.stop
- * @param {string} signal - process signal
- * @fires MQTTClient.stop
- * @fires Scheduler.stopped
- * @fires Application.stopped
- * @fires Device.stopped
- * @fires Client.stopped
- * @returns {boolean}
- */
-app.stop = async signal => {
-  try {
-    logger.publish(2, 'loopback', 'stopping', signal);
-    MQTTClient.emit('stop');
-    app.models.Application.emit('stopped');
-    app.models.Device.emit('stopped');
-    app.models.Client.emit('stopped');
-    app.models.Scheduler.emit('stopped');
-    app.bootState = false;
-    if (httpServer) httpServer.close();
-    logger.publish(2, 'loopback', 'stopped', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
-    return true;
-  } catch (error) {
-    logger.publish(2, 'loopback', 'stop:err', error);
-    return null;
-  }
-};
-
-/**
- * Emit publish event
- * @method module:Server.publish
- * @returns {function} MQTTClient.publish
- */
-app.publish = async (topic, payload, retain = false, qos = 0) =>
-  MQTTClient.publish(topic, payload, retain, qos);
-
-app.on('publish', async (topic, payload, retain = false, qos = 0) =>
-  app.publish(topic, payload, retain, qos),
-);
-
-const bootApp = (loopbackApp, options) =>
-  new Promise((resolve, reject) => {
-    boot(loopbackApp, options, err => (err ? reject(err) : resolve(true)));
-  });
-
-app.isStarted = () => app.bootState;
 
 /**
  * Bootstrap the application, configure models, datasources and middleware.
@@ -339,6 +312,7 @@ app.on('started', (state, config) => {
       const explorerPath = app.get('loopback-component-explorer').mountPath;
       logger.publish(4, 'loopback', 'Setup', `Explore REST API @: ${baseUrl}${explorerPath}`);
     }
+
     MQTTClient.emit('init', app, config);
     app.models.Scheduler.emit('started');
     app.models.Device.emit('started');
@@ -349,6 +323,35 @@ app.on('started', (state, config) => {
     //  process.send('error');
   }
 });
+
+/**
+ * Close the app and services
+ * @method module:Server.stop
+ * @param {string} signal - process signal
+ * @fires MQTTClient.stop
+ * @fires Scheduler.stopped
+ * @fires Application.stopped
+ * @fires Device.stopped
+ * @fires Client.stopped
+ * @returns {boolean}
+ */
+app.stop = async signal => {
+  try {
+    logger.publish(2, 'loopback', 'stopping', signal);
+    MQTTClient.emit('stop');
+    app.models.Application.emit('stopped');
+    app.models.Device.emit('stopped');
+    app.models.Client.emit('stopped');
+    app.models.Scheduler.emit('stopped');
+    app.bootState = false;
+    if (httpServer) httpServer.close();
+    logger.publish(2, 'loopback', 'stopped', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
+    return true;
+  } catch (error) {
+    logger.publish(2, 'loopback', 'stop:err', error);
+    return null;
+  }
+};
 
 /**
  * Event reporting that the application and all subservice should stop.

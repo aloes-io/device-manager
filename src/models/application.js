@@ -694,6 +694,7 @@ module.exports = Application => {
    */
   Application.on('client', async message => {
     try {
+      logger.publish(2, `${collectionName}`, 'on-client:req', Object.keys(message));
       if (!message || message === null) throw new Error('Message empty');
       const status = message.status;
       const client = message.client;

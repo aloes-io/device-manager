@@ -44,8 +44,11 @@
     "log:docker": "cp deploy/.env_docker .env ; docker-compose --compatibility logs --follow --tail='100'"
   },
   "pre-commit": {
-    "run": ["lint", "test:cover"],
-    "slient": false
+    "run": [
+      "lint",
+      "test:cover"
+    ],
+    "silent": false
   },
   "dependencies": {
     "aedes": "git+https://git@github.com/getlarge/aedes.git#proxy_and_ip_decoder",

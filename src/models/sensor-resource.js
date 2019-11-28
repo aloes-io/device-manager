@@ -34,7 +34,7 @@ module.exports = function(SensorResource) {
       }
       return null;
     } catch (error) {
-      logger.publish(2, `${collectionName}`, 'getCache:err', error);
+      logger.publish(3, `${collectionName}`, 'getCache:err', error);
       return null;
     }
   };
@@ -64,7 +64,7 @@ module.exports = function(SensorResource) {
       logger.publish(4, `${collectionName}`, 'setCache:res', sensor);
       return sensor;
     } catch (error) {
-      logger.publish(2, `${collectionName}`, 'setCache:err', error);
+      logger.publish(3, `${collectionName}`, 'setCache:err', error);
       return null;
     }
   };
@@ -83,7 +83,7 @@ module.exports = function(SensorResource) {
       logger.publish(4, `${collectionName}`, 'deleteCache:res', key);
       return true;
     } catch (error) {
-      logger.publish(2, `${collectionName}`, 'deleteCache:err', error);
+      logger.publish(3, `${collectionName}`, 'deleteCache:err', error);
       return null;
     }
   };
@@ -106,7 +106,7 @@ module.exports = function(SensorResource) {
       logger.publish(4, `${collectionName}`, 'expireCache:res', { key, ttl });
       return true;
     } catch (error) {
-      logger.publish(2, `${collectionName}`, 'expireCache:err', error);
+      logger.publish(3, `${collectionName}`, 'expireCache:err', error);
       return null;
     }
   };
@@ -200,7 +200,7 @@ module.exports = function(SensorResource) {
       logger.publish(4, `${collectionName}`, 'includeCache:res', { count: device.sensors.length });
       return device;
     } catch (error) {
-      logger.publish(2, `${collectionName}`, 'includeCache:err', error);
+      logger.publish(3, `${collectionName}`, 'includeCache:err', error);
       throw error;
     }
   };
@@ -240,7 +240,7 @@ module.exports = function(SensorResource) {
 
       return sensors;
     } catch (error) {
-      logger.publish(2, `${collectionName}`, 'updateCache:err', error);
+      logger.publish(3, `${collectionName}`, 'updateCache:err', error);
       throw error;
     }
   };
@@ -262,7 +262,7 @@ module.exports = function(SensorResource) {
       }
       return sensors;
     } catch (error) {
-      logger.publish(2, `${collectionName}`, 'deleteAll:err', error);
+      logger.publish(3, `${collectionName}`, 'deleteAll:err', error);
       throw error;
     }
   };

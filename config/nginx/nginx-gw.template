@@ -52,9 +52,9 @@ http {
 
   upstream ws_api_servers {
     # local development
-    # server 127.0.0.1:${WS_BROKER_PORT};
+    server 127.0.0.1:${WS_BROKER_PORT};
     # behind load balancer
-    server 127.0.0.1:${HTTP_SERVER_PORT};
+    # server 127.0.0.1:${HTTP_SERVER_PORT};
   }
 
   server {
@@ -87,11 +87,12 @@ http {
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header Forwarded $proxy_add_forwarded;
 
-      # if ($request_uri ~* "/app(/.*$)") {
-      #   set  $path_remainder  $1;
-      # }
-      # proxy_pass http://http_api_servers$path_remainder;
-      proxy_pass http://http_api_servers;
+      if ($request_uri ~* "/app(/.*$)") {
+        set  $path_remainder  $1;
+      }
+      proxy_pass http://http_api_servers$path_remainder;
+      
+      # proxy_pass http://http_api_servers;
     }  
 
     location /ws {

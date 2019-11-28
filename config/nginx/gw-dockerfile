@@ -1,15 +1,3 @@
-# docker build -t nginx-gw -f config/nginx/gw-dockerfile ./config/nginx
-# docker build -t nginx-gw -f config/nginx/gw-dockerfile ./config/nginx --build-arg HTTP_SERVER_PORT=8001
-
-# docker run --rm -it --restart unless-stopped --name nginx-gw -v "$(pwd)"/log/nginx:/etc/nginx/log --net="host" nginx-gw
-# docker run --rm -it --restart unless-stopped --name nginx-gw --net="host" nginx-gw
-# docker run -it --restart unless-stopped --name nginx-gw --net="host" nginx-gw
-
-# docker stop nginx-gw
-
-# docker container rm nginx-gw
-
-
 FROM nginx:latest
 
 ARG HTTP_SERVER_PORT=8000

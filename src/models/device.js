@@ -1339,7 +1339,6 @@ module.exports = function(Device) {
           } else {
             frameCounter = 0;
           }
-          // await Client.set(client.id, undefined);
           await Client.delete(client.id);
         }
         logger.publish(4, collectionName, 'updateStatus:res', client);
@@ -1630,6 +1629,7 @@ module.exports = function(Device) {
    */
   Device.on('client', async message => {
     try {
+      logger.publish(2, `${collectionName}`, 'on-client:req', Object.keys(message));
       if (!message || message === null) throw new Error('Message empty');
       const status = message.status;
       const client = message.client;

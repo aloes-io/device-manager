@@ -13,6 +13,7 @@ import nodeCleanup from 'node-cleanup';
 // import os from 'os';
 import ws from 'websocket-stream';
 import logger from './logger';
+import rateLimiter from './rate-limiter';
 import envVariablesKeys from '../initial-data/variables-keys.json';
 // import { version } from '../package.json';
 
@@ -105,14 +106,19 @@ const getClientProps = client => {
     'model',
     'ip',
     'type',
-    // 'ipAddress',
+    // 'connDetails',
     // 'ipFamily'
   ];
 
   const clientObject = {};
   clientProperties.forEach(key => {
     if (client[key] !== undefined) {
-      clientObject[key] = client[key];
+      if (key === 'connDetails') {
+        clientObject.type = client.connDetails.isWebsocket ? 'WS' : 'MQTT';
+        clientObject.ip = client.connDetails.ipAddress;
+      } else {
+        clientObject[key] = client[key];
+      }
     }
   });
   logger.publish(3, 'broker', 'getClientProps:res', { client: clientObject });
@@ -187,15 +193,12 @@ const pickRandomClient = clientIds => {
 const updateClientStatus = async (client, status) => {
   try {
     if (client && client.user) {
-      const foundClient = getClientProps(client);
-      logger.publish(4, 'broker', 'updateClientStatus:req', { status, client: foundClient });
       const aloesClientsIds = await getClientsByTopic(`aloes-${process.env.ALOES_ID}/sync`);
       if (!aloesClientsIds || aloesClientsIds === null) {
         throw new Error('No Aloes app client subscribed');
       }
-      // if (client.aloesId && !status) {
-      //   await cleanSubscriptions(client);
-      // }
+      const foundClient = getClientProps(client);
+      logger.publish(4, 'broker', 'updateClientStatus:req', { status, client: foundClient });
       if (!client.aloesId) {
         const aloesClient = pickRandomClient(aloesClientsIds);
         if (aloesClient === null) throw new Error('No Aloes app client connected');
@@ -268,30 +271,38 @@ const authenticate = async (client, username, password) => {
       username,
     });
     if (!client || !client.id) return 1;
-    //  console.log("client parser", client.parser)
-    if (!password || password === null || !username || username === null) {
+    if (!password || !username) return 4;
+
+    let status, foundClient;
+    foundClient = getClientProps(client);
+    // if (!foundClient || !foundClient.id) return 5;
+    if (!foundClient || !foundClient.id || !foundClient.ip) return 2;
+
+    const trustProxy = broker.instance.trustProxy();
+    const { limiter, limiterType, retrySecs } = await rateLimiter.getAuthLimiter(
+      foundClient.ip,
+      username,
+    );
+    if (retrySecs > 0) {
+      if (limiter && limiterType) {
+        // client.connDetails['Retry-After'] = String(retrySecs);
+        // client.connDetails['X-RateLimit-Limit'] = rateLimiter.limits[limiterType];
+        // client.connDetails['X-RateLimit-Remaining'] = limiter.remainingPoints;
+        // client.connDetails['X-RateLimit-Reset'] = new Date(Date.now() + limiter.msBeforeNext);
+      }
       return 4;
     }
 
-    let status, foundClient;
     if (
       client.id.startsWith(`aloes-${process.env.ALOES_ID}`) &&
       username === process.env.ALOES_ID &&
       password.toString() === process.env.ALOES_KEY
     ) {
       status = 0;
-      foundClient = getClientProps(client);
       foundClient.user = username;
       foundClient.aloesId = process.env.ALOES_ID;
     } else {
       // todo : identify client model ( user || device || application ), using client.id, username ?
-      foundClient = getClientProps(client);
-      // const { userIpLimit, retrySecs, usernameIPkey } = await authLimiter(
-      //   username,
-      //   foundClient.ip,
-      // );
-      // if (retrySecs > 0) return 5; if ws client, set retry-after header ?
-
       const result = await authentificationRequest({
         client: foundClient,
         username,
@@ -303,33 +314,34 @@ const authenticate = async (client, username, password) => {
       }
     }
 
-    if (!foundClient || !foundClient.id || !foundClient.ip) return 5;
+    // if (!foundClient || !foundClient.id) return 5;
+    if (!foundClient || !foundClient.id || !foundClient.ip) return 2;
     if (status === undefined) status = 2;
     if (status === 0) {
       Object.keys(foundClient).forEach(key => {
         // eslint-disable-next-line security/detect-object-injection
         client[key] = foundClient[key];
       });
-      // if (userIpLimit !== null && userIpLimit.consumedPoints > 0) {
-      //   // Reset on successful authorisation
-      //   await userIpLimiter.delete(usernameIPkey);
-      // }
+      if (trustProxy) {
+        await rateLimiter.cleanAuthLimiter(foundClient.ip, foundClient.user);
+        // remove client.connDetails rateLimit
+      }
     }
-    // else {
-    //   try {
-    //     const promises = [ipLimiter.consume(foundClient.ip)];
-    //     if (foundClient.user) {
-    //       promises.push(userIpLimiter.consume(usernameIPkey));
-    //     }
-    //     await Promise.all(promises);
-    //   } catch (rlRejected) {
-    //     if (rlRejected instanceof Error) {
-    //       status = 5;
-    //     } else {
-    //       status = 2;
-    //     }
-    //   }
-    // }
+
+    if (status !== 0 && trustProxy) {
+      try {
+        await rateLimiter.setAuthLimiter(foundClient.ip, foundClient.user);
+      } catch (rlRejected) {
+        if (rlRejected instanceof Error) {
+          status = 3;
+        } else {
+          //   client.connDetails['Retry-After'] = String(Math.round(rlRejected.msBeforeNext / 1000)) || 1;
+          //   client.connDetails['X-RateLimit-Limit'] = rlRejected.consumedPoints - 1;
+          //   client.connDetails['X-RateLimit-Remaining'] = rlRejected.remainingPoints;
+          //   client.connDetails['X-RateLimit-Reset'] = new Date(Date.now() + rlRejected.msBeforeNext);
+        }
+      }
+    }
 
     return status;
   } catch (error) {
@@ -486,13 +498,13 @@ const onInternalPublished = packet => {
 
 const onExternalPublished = async (packet, client) => {
   try {
-    const foundClient = getClientProps(client);
     const aloesClientsIds = await getClientsByTopic(`aloes-${process.env.ALOES_ID}/sync`);
     if (!aloesClientsIds || aloesClientsIds === null) {
       throw new Error('No Aloes client connected');
     }
     const aloesClient = pickRandomClient(aloesClientsIds);
     if (aloesClient === null) throw new Error('No Aloes client connected');
+    const foundClient = getClientProps(client);
     packet.topic = `${aloesClient.id}/rx/${packet.topic}`;
     // check packet payload type to preformat before stringify
     if (client.devEui) {
@@ -524,7 +536,6 @@ const onPublished = async (packet, client) => {
     logger.publish(4, 'broker', 'onPublished:req', { topic: packet.topic });
     if (client.aloesId) return onInternalPublished(packet, client);
     if (client.user && !client.aloesId) {
-      // todo : rate limit here ( client.id and client.user ) ?
       return delayedOnExternalPublished(packet, client);
     }
     throw new Error('Invalid MQTT client');
@@ -533,17 +544,6 @@ const onPublished = async (packet, client) => {
     throw error;
   }
 };
-
-/**
- * Remove subscriptions for a specific client
- * @method module:Broker~cleanSubscriptions
- * @param {object} client - MQTT client
- * @returns {promise}
- */
-// const cleanSubscriptions = client =>
-//   new Promise((resolve, reject) => {
-//     broker.instance.persistence.cleanSubscriptions(client, (err, res) => (err ? reject(err) : resolve(res)));
-//   });
 
 /**
  * Convert payload before publish
@@ -589,16 +589,19 @@ broker.start = () => {
     }
 
     broker.instance.preConnect = (client, cb) => {
-      // if client.user, rate limit here ?
-      if (client.ipAddress) client.ip = client.ipAddress;
-      logger.publish(2, 'broker', 'preConnect:res', {
-        // clientIp: client.conn ? client.conn.remoteAddress : null,
-        isProxied: client.isProxied,
-        isWebsocket: client.isWebsocket,
-        clientIp: client.ip || null,
-        clientId: client.id || null,
+      logger.publish(3, 'broker', 'preConnect:res', {
+        connDetails: client.connDetails,
       });
-      cb(null, true);
+      if (client.connDetails && client.connDetails.ipAddress) {
+        client.ip = client.connDetails.ipAddress;
+        client.type = client.connDetails.isWebsocket ? 'WS' : 'MQTT';
+        return cb(null, true);
+        // return rateLimiter.ipLimiter
+        //   .get(client.ip)
+        //   .then(res => cb(null, !res || res.consumedPoints < 100))
+        //   .err(e => cb(e, null));
+      }
+      return cb(null, false);
     };
 
     broker.instance.authenticate = (client, username, password, cb) => {
@@ -606,9 +609,9 @@ broker.start = () => {
         .then(status => {
           logger.publish(2, 'broker', 'Authenticate:res', { status });
           if (status !== 0) {
-            const err = new Error('Auth error');
-            err.returnCode = status || 3;
-            return cb(err, null);
+            // const err = new Error('Auth error');
+            // err.returnCode = status || 3;
+            return cb({ returnCode: status || 3 }, null);
           }
           return cb(null, true);
         })
@@ -782,14 +785,18 @@ broker.init = () => {
         },
       });
     }
-
     const aedesConf = {
       mq: emitter(config),
       persistence: persistence(config),
       concurrency: 100,
       heartbeatInterval: 30000, // default : 60000
-      connectTimeout: 5000, // prod : 2000;
-      trustProxy: true,
+      connectTimeout: 2000, // prod : 2000;
+      trustProxy: () => {
+        if (config.MQTT_TRUST_PROXY && config.MQTT_TRUST_PROXY === 'true') {
+          return true;
+        }
+        return false;
+      },
       trustedProxies: [],
     };
 
@@ -837,8 +844,8 @@ broker.init = () => {
       logger.publish(3, 'broker', 'ws broker:err', err);
     });
 
-    broker.instance.on('closed', () => {
-      wsServer.close();
+    broker.instance.once('closed', () => {
+      // wsServer.close();
       httpServer.close();
       tcpServer.close();
       if (
@@ -860,13 +867,14 @@ broker.init = () => {
 
 if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
   logger.publish(1, 'broker', 'init:single', { pid: process.pid });
-  setTimeout(() => broker.init(), 500);
+  setTimeout(() => broker.init(), 1500);
 } else {
   logger.publish(1, 'broker', 'init:cluster', { pid: process.pid });
   process.on('message', packet => {
     console.log('PROCESS PACKET ', packet);
     if (typeof packet.id === 'number' && packet.data && packet.data.ready) {
-      broker.init();
+      // broker.init();
+      setTimeout(() => broker.init(true), 1000);
       process.send({
         type: 'process:msg',
         data: {

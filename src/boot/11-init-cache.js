@@ -8,11 +8,12 @@ module.exports = async function initCache(app) {
       if (process.env.PROCESS_ID !== '0') return null;
       if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
     }
+    logger.publish(2, 'loopback', 'boot:initCache:req', '');
     await app.models.Client.deleteAll();
     await app.models.SensorResource.deleteAll();
     // console.log('connected devices', await app.models.Device.find({ 'clients.length': { gt: 0 } }));
     await app.models.Device.updateAll(
-      { 'clients.length': { gt: 0 } },
+      // { 'clients.length': { gt: 0 } },
       { status: false, clients: [] },
     );
     const devices = await app.models.Device.syncCache('DOWN');
