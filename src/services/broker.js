@@ -278,7 +278,8 @@ const authenticate = async (client, username, password) => {
     // if (!foundClient || !foundClient.id) return 5;
     if (!foundClient || !foundClient.id || !foundClient.ip) return 2;
 
-    const trustProxy = broker.instance.trustProxy();
+    // const trustProxy = broker.instance.trustProxy();
+    const trustProxy = broker.instance.trustProxy;
     const { limiter, limiterType, retrySecs } = await rateLimiter.getAuthLimiter(
       foundClient.ip,
       username,
@@ -791,12 +792,13 @@ broker.init = () => {
       concurrency: 100,
       heartbeatInterval: 30000, // default : 60000
       connectTimeout: 2000, // prod : 2000;
-      trustProxy: () => {
-        if (config.MQTT_TRUST_PROXY && config.MQTT_TRUST_PROXY === 'true') {
-          return true;
-        }
-        return false;
-      },
+      trustProxy: true,
+      // trustProxy: () => {
+      //   if (config.MQTT_TRUST_PROXY && config.MQTT_TRUST_PROXY === 'true') {
+      //     return true;
+      //   }
+      //   return false;
+      // },
       trustedProxies: [],
     };
 
