@@ -383,13 +383,13 @@ const initClient = async (app, config) => {
 
     if (config.MQTT_BROKER_URL) {
       if (config.MQTTS_BROKER_URL) {
-        mqttClientOptions.port = Number(config.MQTTS_BROKER_PORT);
+        // mqttClientOptions.port = Number(config.MQTTS_BROKER_PORT);
         if (config.MQTTS_SELF_SIGNED_CERT) {
           mqttClientOptions.rejectUnauthorized = false;
         }
         mqttBrokerUrl = config.MQTTS_BROKER_URL;
       } else {
-        mqttClientOptions.port = Number(config.MQTT_BROKER_PORT);
+        // mqttClientOptions.port = Number(config.MQTT_BROKER_PORT);
         mqttBrokerUrl = config.MQTT_BROKER_URL;
       }
     }

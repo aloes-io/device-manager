@@ -91,7 +91,7 @@ module.exports = function(Scheduler) {
 
   const stopExternalTimer = async (device, sensor, client, scheduler) => {
     try {
-      // if (!process.env.EXTERNAL_TIMER || !process.env.TIMER_BASE_URL) return null;
+      // if (!process.env.EXTERNAL_TIMER || !process.env.TIMER_SERVER_URL) return null;
       logger.publish(4, `${collectionName}`, 'stopExternalTimer:req', scheduler);
       if (!scheduler || !scheduler.timerId) return null;
       await Scheduler.delete(`sensor-${sensor.id}`);
@@ -131,7 +131,7 @@ module.exports = function(Scheduler) {
     try {
       logger.publish(4, `${collectionName}`, 'stopTimer:req', { sensorId: sensor.id, mode });
       const scheduler = JSON.parse(await Scheduler.get(`sensor-${sensor.id}`));
-      if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
+      if (process.env.EXTERNAL_TIMER && process.env.TIMER_SERVER_URL) {
         await stopExternalTimer(device, sensor, client, scheduler);
       } else {
         await stopInternalTimer(device, sensor, client, scheduler);
@@ -220,7 +220,7 @@ module.exports = function(Scheduler) {
 
   const startExternalTimer = async (device, sensor, client, scheduler) => {
     try {
-      if (!process.env.EXTERNAL_TIMER || !process.env.TIMER_BASE_URL) return null;
+      if (!process.env.EXTERNAL_TIMER || !process.env.TIMER_SERVER_URL) return null;
       logger.publish(3, `${collectionName}`, 'startExternalTimer:req', scheduler);
       let baseUrl = Scheduler.app.get('url');
       if (!baseUrl) {
@@ -313,7 +313,7 @@ module.exports = function(Scheduler) {
       } else if (mode === 1) {
         scheduler.interval = sensor.resources['5538'] * 1000;
       }
-      if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
+      if (process.env.EXTERNAL_TIMER && process.env.TIMER_SERVER_URL) {
         await startExternalTimer(device, sensor, client, scheduler);
       } else {
         await startInternalTimer(device, sensor, client, scheduler);
@@ -809,17 +809,16 @@ module.exports = function(Scheduler) {
    */
   Scheduler.setClock = async interval => {
     try {
-      logger.publish(3, `${collectionName}`, 'setClock:req', {
-        clusterMode: process.env.CLUSTER_MODE,
-        externalTimer: process.env.EXTERNAL_TIMER,
-        timerUrl: process.env.TIMER_BASE_URL,
-      });
-
       if (process.env.CLUSTER_MODE) {
         if (process.env.PROCESS_ID !== '0') return null;
         if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
       }
-      if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
+      logger.publish(3, `${collectionName}`, 'setClock:req', {
+        clusterMode: process.env.CLUSTER_MODE,
+        externalTimer: process.env.EXTERNAL_TIMER,
+        timerUrl: process.env.TIMER_SERVER_URL,
+      });
+      if (process.env.EXTERNAL_TIMER && process.env.TIMER_SERVER_URL) {
         await Scheduler.setExternalClock(interval);
         return Scheduler.setInternalClock(checkExternalClock, interval * 2);
       }
@@ -834,10 +833,10 @@ module.exports = function(Scheduler) {
     logger.publish(3, `${collectionName}`, 'delClock:req', {
       clusterMode: process.env.CLUSTER_MODE,
       externalTimer: process.env.EXTERNAL_TIMER,
-      timerUrl: process.env.TIMER_BASE_URL,
+      timerUrl: process.env.TIMER_SERVER_URL,
     });
     try {
-      if (process.env.EXTERNAL_TIMER && process.env.TIMER_BASE_URL) {
+      if (process.env.EXTERNAL_TIMER && process.env.TIMER_SERVER_URL) {
         const scheduler = JSON.parse(await Scheduler.get(schedulerClockId));
         if (scheduler && scheduler !== null) {
           await deleteTimer(scheduler.timerId);

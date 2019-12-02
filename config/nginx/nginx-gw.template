@@ -39,8 +39,7 @@ http {
     default "$proxy_forwarded_elem";
   }
 
-  log_format custom_combined '$http_x_real_ip - $remote_user [$time_local] "$request" $status $body_bytes_sent $upstream_addr "$http_referer" "$http_user_agent"';
-
+  log_format custom_combined '$server_addr - $remote_addr [$time_local] "$request" $status $body_bytes_sent $upstream_addr "$http_referer" "$http_user_agent"';
 
   # upstream http_client_servers {
   #   server 127.0.0.1:${HTTP_CLIENT_PORT};
@@ -52,9 +51,13 @@ http {
 
   upstream ws_api_servers {
     # local development
-    server 127.0.0.1:${WS_BROKER_PORT};
+    # server 127.0.0.1:${WS_BROKER_PORT};
     # behind load balancer
-    # server 127.0.0.1:${HTTP_SERVER_PORT};
+    server 127.0.0.1:${HTTP_SERVER_PORT};
+  }
+
+  upstream timer_api_servers {
+    server 127.0.0.1:${TIMER_SERVER_PORT};
   }
 
   server {
@@ -63,7 +66,7 @@ http {
     
     server_name ${NGINX_SERVER_HOST};
 
-    access_log /var/log/nginx/http-gw-access.log combined buffer=32k flush=1m;
+    access_log /var/log/nginx/http-gw-access.log custom_combined buffer=32k flush=1m;
     error_log /var/log/nginx/http-gw-error.log warn;
 
     # location / {
@@ -87,12 +90,12 @@ http {
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header Forwarded $proxy_add_forwarded;
 
-      if ($request_uri ~* "/app(/.*$)") {
-        set  $path_remainder  $1;
-      }
-      proxy_pass http://http_api_servers$path_remainder;
-      
-      # proxy_pass http://http_api_servers;
+      # if ($request_uri ~* "/app(/.*$)") {
+      #   set  $path_remainder  $1;
+      # }
+      # proxy_pass http://http_api_servers$path_remainder;
+      proxy_pass http://http_api_servers;
+
     }  
 
     location /ws {
@@ -101,7 +104,7 @@ http {
       proxy_read_timeout 90;
       proxy_set_header Upgrade $http_upgrade;
       proxy_set_header Connection $connection_upgrade;
-      proxy_redirect off;
+      # proxy_redirect off;
 
       proxy_set_header Host $host;
       proxy_set_header X-Real-IP $remote_addr;
@@ -110,11 +113,23 @@ http {
       proxy_set_header Forwarded $proxy_add_forwarded;
     }  
 
+    location /timer {
+      proxy_pass http://timer_api_servers;
+      proxy_http_version 1.1;
+      # proxy_read_timeout 90;
+      # proxy_redirect off;
+
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header Forwarded $proxy_add_forwarded;
+    }  
 	}
 }
 
 stream {
-  log_format mqtt '$server_addr $remote_addr [$time_local] $protocol $status $bytes_received ' 
+  log_format mqtt '$server_addr - $remote_addr [$time_local] $protocol $status $bytes_received ' 
                   '$bytes_sent $upstream_addr';
 
   access_log /var/log/nginx/mqtt-gw-access.log mqtt buffer=32k flush=1m;

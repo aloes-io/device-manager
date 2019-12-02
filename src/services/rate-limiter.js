@@ -63,7 +63,7 @@ const getUsernameIPkey = (username, ip) => `${username}_${ip}`;
 const ipLimiter = () => {
   if (config.NODE_ENV !== 'development' && config.NODE_ENV !== 'test') {
     // const insuranceLimiter = new RateLimiterMemory({
-    //   points: 60, // maxWrongAttemptsByIPperDay / global aloes instances count
+    //   points: 60, // maxWrongAttemptsByIPperDay / (config.HTTP_INSTANCES_COUNT + config.MQTT_INSTANCES_COUNT)
     //   duration: 60,
     // });
     return new RateLimiterRedis({

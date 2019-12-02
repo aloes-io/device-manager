@@ -160,8 +160,8 @@ Config :
 Build : ( Must be executed from the root project directory )
 
 ```bash
-  $  docker build -t nginx-gw -f config/nginx/gw-dockerfile ./config/nginx
-  $  docker build -t nginx-gw -f config/nginx/gw-dockerfile ./config/nginx --build-arg HTTP_SERVER_PORT=8001
+  $  docker build --no-cache -t nginx-gw -f config/nginx/gw-dockerfile ./config/nginx
+  $  docker build --no-cache -t nginx-gw -f config/nginx/gw-dockerfile ./config/nginx --build-arg HTTP_SERVER_PORT=8001
 ```
 
 Start container :
