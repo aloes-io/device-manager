@@ -323,5 +323,5 @@ networks:
   skyring:
     driver: bridge
   aloes:
-    driver: bridge
-    # driver: overlay
+    driver: overlay
+    # driver: bridge

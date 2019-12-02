@@ -13,6 +13,8 @@ import nodeCleanup from 'node-cleanup';
 // import os from 'os';
 import ws from 'websocket-stream';
 import logger from './logger';
+import protocolDecoder from './protocol-decoder';
+
 import rateLimiter from './rate-limiter';
 import envVariablesKeys from '../initial-data/variables-keys.json';
 // import { version } from '../package.json';
@@ -85,6 +87,48 @@ const emitter = config => {
       return delay;
     },
   });
+};
+
+const decodeProtocol = (client, buff) => {
+  const proto = protocolDecoder(client, buff);
+  logger.publish(3, 'broker', 'decodeProtocol:res', {
+    proto,
+  });
+  return proto;
+};
+
+/**
+ * Aedes preConnect hook
+ *
+ * Check client credentials and update client properties
+ *
+ * @method module:Broker~onAuthenticate
+ * @param {object} client - MQTT client
+ * @param {string} [username] - MQTT username
+ * @param {object} [password] - MQTT password
+ * @returns {number} status - CONNACK code
+ * - 0 - Accepted
+ * - 1 - Unacceptable protocol version
+ * - 2 - Identifier rejected
+ * - 3 - Server unavailable
+ * - 4 - Bad user name or password
+ * - 5 - Not authorized
+ */
+const preConnect = (client, cb) => {
+  logger.publish(3, 'broker', 'preConnect:res', {
+    connDetails: client.connDetails,
+  });
+
+  if (client.connDetails && client.connDetails.ipAddress) {
+    client.ip = client.connDetails.ipAddress;
+    client.type = client.connDetails.isWebsocket ? 'WS' : 'MQTT';
+    return cb(null, true);
+    // return rateLimiter.ipLimiter
+    //   .get(client.ip)
+    //   .then(res => cb(null, !res || res.consumedPoints < 100))
+    //   .err(e => cb(e, null));
+  }
+  return cb(null, false);
 };
 
 /**
@@ -248,11 +292,9 @@ const authentificationRequest = async data => {
 };
 
 /**
- * Aedes authentification callback
- *
  * Check client credentials and update client properties
  *
- * @method module:Broker~authenticate
+ * @method module:Broker~onAuthenticate
  * @param {object} client - MQTT client
  * @param {string} [username] - MQTT username
  * @param {object} [password] - MQTT password
@@ -264,9 +306,9 @@ const authentificationRequest = async data => {
  * - 4 - Bad user name or password
  * - 5 - Not authorized
  */
-const authenticate = async (client, username, password) => {
+const onAuthenticate = async (client, username, password) => {
   try {
-    logger.publish(3, 'broker', 'Authenticate:req', {
+    logger.publish(3, 'broker', 'onAuthenticate:req', {
       client: client.id || null,
       username,
     });
@@ -278,7 +320,6 @@ const authenticate = async (client, username, password) => {
     // if (!foundClient || !foundClient.id) return 5;
     if (!foundClient || !foundClient.id || !foundClient.ip) return 2;
 
-    // const trustProxy = broker.instance.trustProxy();
     const trustProxy = broker.instance.trustProxy;
     const { limiter, limiterType, retrySecs } = await rateLimiter.getAuthLimiter(
       foundClient.ip,
@@ -346,19 +387,46 @@ const authenticate = async (client, username, password) => {
 
     return status;
   } catch (error) {
+    logger.publish(2, 'broker', 'onAuthenticate:err', error);
     if (error.code === 'ECONNREFUSED') return 3;
     throw error;
   }
 };
 
 /**
- * Aedes publish authorization callback
- * @method module:Broker~authorizePublish
+ * Aedes authentification hook
+ *
+ * @method module:Broker~authenticate
+ * @param {object} client - MQTT client
+ * @param {string} [username] - MQTT username
+ * @param {object} [password] - MQTT password
+ * @returns {function} cb - Aedes callback
+ */
+const authenticate = (client, username, password, cb) => {
+  onAuthenticate(client, username, password)
+    .then(status => {
+      logger.publish(2, 'broker', 'authenticate:res', { status });
+      if (status !== 0) {
+        // const err = new Error('Auth error');
+        // err.returnCode = status || 3;
+        return cb({ returnCode: status || 3 }, null);
+      }
+      return cb(null, true);
+    })
+    .catch(e => {
+      logger.publish(2, 'broker', 'authenticate:err', e);
+      return cb(e, null);
+    });
+};
+
+/**
+ * Check client properties for publish access
+ * @method module:Broker~onAuthorizePublish
  * @param {object} client - MQTT client
  * @param {object} packet - MQTT packet
  * @returns {boolean}
  */
-const authorizePublish = (client, packet) => {
+const onAuthorizePublish = (client, packet) => {
   const topic = packet.topic;
   if (!topic) return false;
   const topicParts = topic.split('/');
@@ -366,7 +434,7 @@ const authorizePublish = (client, packet) => {
   let auth = false;
   if (!client.user) return auth;
   if (topicParts[0].startsWith(client.user)) {
-    logger.publish(5, 'broker', 'authorizePublish:req', {
+    logger.publish(4, 'broker', 'onAuthorizePublish:req', {
       user: client.user,
     });
     auth = true;
@@ -375,41 +443,54 @@ const authorizePublish = (client, packet) => {
     topicParts[0].startsWith(`aloes-${client.aloesId}`) &&
     (topicParts[1] === `tx` || topicParts[1] === `sync`)
   ) {
-    logger.publish(5, 'broker', 'authorizePublish:req', {
+    logger.publish(5, 'broker', 'onAuthorizePublish:req', {
       user: client.user,
       aloesApp: client.id,
     });
     auth = true;
   } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
     // todo : limit access to device out prefix if any - / endsWith(device.outPrefix)
-    logger.publish(5, 'broker', 'authorizePublish:req', {
+    logger.publish(5, 'broker', 'onAuthorizePublish:req', {
       device: client.devEui,
     });
     auth = true;
   } else if (client.appId && topicParts[0].startsWith(client.appId)) {
-    logger.publish(5, 'broker', 'authorizePublish:req', {
+    logger.publish(5, 'broker', 'onAuthorizePublish:req', {
       application: client.appId,
     });
     auth = true;
   } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
-    logger.publish(5, 'broker', 'authorizePublish:req', {
+    logger.publish(5, 'broker', 'onAuthorizePublish:req', {
       application: client.appEui,
     });
     auth = true;
   }
 
-  logger.publish(3, 'broker', 'authorizePublish:res', { topic, auth });
+  logger.publish(3, 'broker', 'onAuthorizePublish:res', { topic, auth });
   return auth;
 };
 
 /**
- * Aedes subscribe authorization callback
- * @method module:Broker.instance.authorizeSubscribe
+ * Aedes publish authorization callback
+ *
+ * @method module:Broker~authorizePublish
+ * @param {object} client - MQTT client
+ * @param {object} packet - MQTT packet
+ * @returns {function} cb - Aedes callback
+ */
+const authorizePublish = (client, packet, cb) => {
+  if (onAuthorizePublish(client, packet)) return cb(null);
+  return cb(new Error('authorizePublish error'));
+};
+
+/**
+ * Check client properties for subscribe access
+ * @method module:Broker~onAuthorizeSubscribe
  * @param {object} client - MQTT client
  * @param {object} packet - MQTT packet
  * @returns {boolean}
  */
-const authorizeSubscribe = (client, packet) => {
+const onAuthorizeSubscribe = (client, packet) => {
   const topic = packet.topic;
   if (!topic) return false;
   const topicParts = topic.split('/');
@@ -417,7 +498,7 @@ const authorizeSubscribe = (client, packet) => {
   if (!client.user) return auth;
   // const topicIdentifier = topicParts[0].toUpperCase()
   if (topicParts[0].startsWith(client.user)) {
-    logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+    logger.publish(4, 'broker', 'onAuthorizeSubscribe:req', {
       user: client.user,
     });
     auth = true;
@@ -429,7 +510,7 @@ const authorizeSubscribe = (client, packet) => {
       topicParts[1] === `stop` ||
       topicParts[1] === `sync`)
   ) {
-    logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+    logger.publish(5, 'broker', 'onAuthorizeSubscribe:req', {
       user: client.user,
       aloesApp: client.id,
     });
@@ -437,23 +518,36 @@ const authorizeSubscribe = (client, packet) => {
     auth = true;
   } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
     // todo : limit access to device in prefix if any
-    logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+    logger.publish(5, 'broker', 'onAuthorizeSubscribe:req', {
       device: client.devEui,
     });
     auth = true;
   } else if (client.appId && topicParts[0].startsWith(client.appId)) {
-    logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+    logger.publish(5, 'broker', 'onAuthorizeSubscribe:req', {
       application: client.appId,
     });
     auth = true;
   } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
-    logger.publish(5, 'broker', 'authorizeSubscribe:req', {
+    logger.publish(5, 'broker', 'onAuthorizeSubscribe:req', {
       application: client.appEui,
     });
     auth = true;
   }
-  logger.publish(3, 'broker', 'authorizeSubscribe:res', { topic, auth });
+  logger.publish(3, 'broker', 'onAuthorizeSubscribe:res', { topic, auth });
   return auth;
+};
+
+/**
+ * Aedes subscribe authorization callback
+ *
+ * @method module:Broker~authorizeSubscribe
+ * @param {object} client - MQTT client
+ * @param {object} packet - MQTT packet
+ * @returns {function} cb - Aedes callback
+ */
+const authorizeSubscribe = (client, packet, cb) => {
+  if (onAuthorizeSubscribe(client, packet)) return cb(null, packet);
+  return cb(new Error('authorizeSubscribe error'));
 };
 
 // const authorizeForward = (client, packet) => {
@@ -526,7 +620,7 @@ const onExternalPublished = async (packet, client) => {
 const delayedOnExternalPublished = throttle(onExternalPublished, 5);
 
 /**
- * On message published to Aedes broker
+ * Parse message sent to Aedes broker
  * @method module:Broker~onPublished
  * @param {object} packet - MQTT packet
  * @param {object} client - MQTT client
@@ -546,6 +640,19 @@ const onPublished = async (packet, client) => {
   }
 };
 
+/**
+ * Aedes publised hook
+ *
+ * @method module:Broker~published
+ * @param {object} packet - MQTT packet
+ * @param {object} client - MQTT client
+ * @returns {function} cb - Aedes callback
+ */
+const published = (packet, client, cb) => {
+  onPublished(packet, client)
+    .then(() => cb())
+    .catch(() => cb());
+};
 /**
  * Convert payload before publish
  * @method module:Broker.publish
@@ -588,57 +695,6 @@ broker.start = () => {
     } else {
       logger.publish(2, 'broker', 'start', `${process.env.MQTT_BROKER_URL}`);
     }
-
-    broker.instance.preConnect = (client, cb) => {
-      logger.publish(3, 'broker', 'preConnect:res', {
-        connDetails: client.connDetails,
-      });
-      if (client.connDetails && client.connDetails.ipAddress) {
-        client.ip = client.connDetails.ipAddress;
-        client.type = client.connDetails.isWebsocket ? 'WS' : 'MQTT';
-        return cb(null, true);
-        // return rateLimiter.ipLimiter
-        //   .get(client.ip)
-        //   .then(res => cb(null, !res || res.consumedPoints < 100))
-        //   .err(e => cb(e, null));
-      }
-      return cb(null, false);
-    };
-
-    broker.instance.authenticate = (client, username, password, cb) => {
-      authenticate(client, username, password)
-        .then(status => {
-          logger.publish(2, 'broker', 'Authenticate:res', { status });
-          if (status !== 0) {
-            // const err = new Error('Auth error');
-            // err.returnCode = status || 3;
-            return cb({ returnCode: status || 3 }, null);
-          }
-          return cb(null, true);
-        })
-        .catch(e => {
-          logger.publish(2, 'broker', 'Authenticate:err', e);
-          return cb(e, null);
-        });
-    };
-
-    broker.instance.authorizePublish = (client, packet, cb) => {
-      if (authorizePublish(client, packet)) return cb(null);
-      return cb(new Error('authorizePublish error'));
-    };
-
-    broker.instance.authorizeSubscribe = (client, packet, cb) => {
-      if (authorizeSubscribe(client, packet)) return cb(null, packet);
-      return cb(new Error('authorizeSubscribe error'));
-    };
-
-    // broker.instance.authorizeForward = authorizeForward;
-
-    broker.instance.published = (packet, client, cb) => {
-      onPublished(packet, client)
-        .then(() => cb())
-        .catch(() => cb());
-    };
 
     /**
      * On client connected to Aedes broker
@@ -786,12 +842,21 @@ broker.init = () => {
         },
       });
     }
+
+    // const authorizeForward = onAuthorizeForward;
+
     const aedesConf = {
       mq: emitter(config),
       persistence: persistence(config),
       concurrency: 100,
       heartbeatInterval: 30000, // default : 60000
       connectTimeout: 2000, // prod : 2000;
+      decodeProtocol,
+      preConnect,
+      authenticate,
+      published,
+      authorizePublish,
+      authorizeSubscribe,
       trustProxy: true,
       // trustProxy: () => {
       //   if (config.MQTT_TRUST_PROXY && config.MQTT_TRUST_PROXY === 'true') {

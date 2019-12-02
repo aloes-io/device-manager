@@ -1422,7 +1422,7 @@ Update measurement by id
 | description | <code>String</code> | Define OmaResource purpose. |
 | type | <code>string</code> | value type ( string, integer, float, ...) |
 | [operations] | <code>string</code> | authorized operation ( read, write ) |
-| [unit] | <code>string</code> | OmaResource default key : value object |
+| [unit] | <code>string</code> | OmaResource unit ( meter, second, volt ... ) |
 | [range] | <code>array</code> | OmaResource value range |
 
 <a name="module_OmaViews"></a>
@@ -2187,6 +2187,7 @@ Event reporting that a sensor instance / collection is requested
         * [.updatePasswordFromToken(accessToken, newPassword)](#module_User.updatePasswordFromToken) ⇒ <code>boolean</code>
         * [.setNewPassword(ctx, oldPassword, newPassword)](#module_User.setNewPassword) ⇒ <code>object</code>
         * [.sendContactForm(form)](#module_User.sendContactForm)
+        * [.updateStatus(client, status)](#module_User.updateStatus) ⇒ <code>function</code>
         * [.find(filter)](#module_User.find) ⇒ <code>object</code>
         * [.count(where)](#module_User.count) ⇒ <code>number</code>
         * [.findById(id)](#module_User.findById) ⇒ <code>object</code>
@@ -2199,10 +2200,12 @@ Event reporting that a sensor instance / collection is requested
         * [~onBeforeLogin(ctx)](#module_User..onBeforeLogin) ⇒ <code>object</code>
         * [~deleteProps(app, user)](#module_User..deleteProps) ⇒ <code>object</code>
         * [~onBeforeDelete(ctx)](#module_User..onBeforeDelete) ⇒ <code>object</code>
+        * ["attached"](#event_attached)
         * ["verifyEmail" (user)](#event_verifyEmail) ⇒ <code>function</code>
         * ["sendContactForm" (options)](#event_sendContactForm) ⇒ <code>function</code>
         * ["sendMailInvite" (options)](#event_sendMailInvite) ⇒ <code>function</code>
         * ["resetPasswordRequest" (options)](#event_resetPasswordRequest) ⇒ <code>function</code>
+        * ["client" (message)](#event_client) ⇒ <code>function</code>
         * ["before_save" (ctx, user)](#event_before_save) ⇒ <code>function</code>
         * ["after_save" (ctx, user)](#event_after_save) ⇒ <code>function</code>
         * ["before_delete" (ctx)](#event_before_delete) ⇒ <code>function</code>
@@ -2270,6 +2273,18 @@ Sending a request to admin
 | Param | Type | Description |
 | --- | --- | --- |
 | form | <code>object</code> | Client form options |
+
+<a name="module_User.updateStatus"></a>
+
+### User.updateStatus(client, status) ⇒ <code>function</code>
+Update client (as the user) status from MQTT connection status
+
+**Kind**: static method of [<code>User</code>](#module_User)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| client | <code>object</code> | MQTT parsed client |
+| status | <code>boolean</code> | MQTT connection status |
 
 <a name="module_User.find"></a>
 
@@ -2400,6 +2415,12 @@ Delete registered user
 | --- | --- | --- |
 | ctx | <code>object</code> | Loopback context |
 
+<a name="event_attached"></a>
+
+### "attached"
+Event reporting that User model has been attached to the application
+
+**Kind**: event emitted by [<code>User</code>](#module_User)  
 <a name="event_verifyEmail"></a>
 
 ### "verifyEmail" (user) ⇒ <code>function</code>
@@ -2447,6 +2468,25 @@ Event reporting to send password reset link when requested
 | Param | Type | Description |
 | --- | --- | --- |
 | options | <code>object</code> | Mail options |
+
+<a name="event_client"></a>
+
+### "client" (message) ⇒ <code>function</code>
+Event reporting that a client ( as the user ) connection status has changed.
+
+**Kind**: event emitted by [<code>User</code>](#module_User)  
+**Returns**: <code>function</code> - User.updateStatus  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| message | <code>object</code> | Parsed MQTT message. |
+
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| message.client | <code>object</code> | MQTT client |
+| message.status | <code>boolean</code> | MQTT client status. |
 
 <a name="event_before_save"></a>
 

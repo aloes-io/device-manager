@@ -51,9 +51,9 @@ http {
 
   upstream ws_api_servers {
     # local development
-    server 127.0.0.1:${WS_BROKER_PORT};
+    # server 127.0.0.1:${WS_BROKER_PORT};
     # behind load balancer
-    # server 127.0.0.1:${HTTP_SERVER_PORT};
+    server 127.0.0.1:${HTTP_SERVER_PORT};
   }
 
   upstream timer_api_servers {
@@ -93,8 +93,8 @@ http {
       if ($request_uri ~* "/app(/.*$)") {
         set  $path_remainder  $1;
       }
-      proxy_pass http://http_api_servers$path_remainder;
-      # proxy_pass http://http_api_servers;
+      # proxy_pass http://http_api_servers$path_remainder;
+      proxy_pass http://http_api_servers;
 
     }  
 

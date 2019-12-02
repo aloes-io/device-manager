@@ -151,6 +151,39 @@ Stopping containers :
   $  npm run stop:docker
 ```
 
+### With Nginx proxy container
+
+Config :
+
+`./config/nginx-gw.template` is loaded by the dockerfile and can be updated to suit your needs.
+
+Build : ( Must be executed from the root project directory )
+
+```bash
+  $  docker build --no-cache -t nginx-gw -f config/nginx/gw-dockerfile ./config/nginx
+  $  docker build --no-cache -t nginx-gw -f config/nginx/gw-dockerfile ./config/nginx --build-arg HTTP_SERVER_PORT=8001
+```
+
+Start container :
+
+```bash
+  $  docker run --rm -it --name nginx-gw -v "$(pwd)"/log/nginx:/var/log/nginx --net="host" nginx-gw
+  $  docker run --rm -it --name nginx-gw --net="host" nginx-gw
+  $  docker run -itd --restart unless-stopped --name nginx-gw --net="host" nginx-gw
+```
+
+Stop container :
+
+```bash
+  $  docker stop nginx-gw
+```
+
+Stop container :
+
+```bash
+  $  docker container rm nginx-gw
+```
+
 ## To deploy with your own TLS / SSL certificates
 
 Read https://nodejs.org/api/tls.html#tls_tls_ssl
@@ -165,13 +198,21 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 ## TODOs
 
+- Add tests for Client, Measurement, Scheduler and SensorResource models 
+
+- Implement rate limit for HTTP endpoints requiring auth
+
+- Validate rate limiter via e2e tests
+
 - Finish account linking with github
 
 - Add user(s) in a team to easily share devices access ( via collaborators property/role ? )
 
 - Separate resources property from Sensor model to SensorResources model ( instead of sync, as currently implemented ) ?
 
-- Catch and store data related to MQTT traffic ( via specific sensor instance ? )
+- Catch and store data related to MQTT traffic ( https://github.com/mcollina/aedes-logging#readme ; via specific sensor instance ? )
+
+- Update to loopback 4
 
 - Add redis replication config ( docker deployement )
   https://stackoverflow.com/questions/45902031/docker-swarm-redis-and-sentinel-with-master-slave-replication-ip-resolution-cl
