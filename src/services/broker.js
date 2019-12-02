@@ -165,7 +165,7 @@ const getClientProps = client => {
       }
     }
   });
-  logger.publish(3, 'broker', 'getClientProps:res', { client: clientObject });
+  // logger.publish(5, 'broker', 'getClientProps:res', { client: clientObject });
   return clientObject;
   /* eslint-enable security/detect-object-injection */
 };
@@ -262,7 +262,7 @@ const updateClientStatus = async (client, status) => {
   }
 };
 
-const delayedUpdateClientStatus = throttle(updateClientStatus, 100);
+const delayedUpdateClientStatus = throttle(updateClientStatus, 50);
 
 /**
  * HTTP request to Aloes to validate credentials
@@ -431,38 +431,25 @@ const onAuthorizePublish = (client, packet) => {
   if (!topic) return false;
   const topicParts = topic.split('/');
   // const topicIdentifier = topicParts[0].toUpperCase()
+  logger.publish(4, 'broker', 'onAuthorizePublish:req', {
+    client: getClientProps(client),
+  });
   let auth = false;
   if (!client.user) return auth;
   if (topicParts[0].startsWith(client.user)) {
-    logger.publish(4, 'broker', 'onAuthorizePublish:req', {
-      user: client.user,
-    });
     auth = true;
   } else if (
     client.aloesId &&
     topicParts[0].startsWith(`aloes-${client.aloesId}`) &&
     (topicParts[1] === `tx` || topicParts[1] === `sync`)
   ) {
-    logger.publish(5, 'broker', 'onAuthorizePublish:req', {
-      user: client.user,
-      aloesApp: client.id,
-    });
     auth = true;
   } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
     // todo : limit access to device out prefix if any - / endsWith(device.outPrefix)
-    logger.publish(5, 'broker', 'onAuthorizePublish:req', {
-      device: client.devEui,
-    });
     auth = true;
   } else if (client.appId && topicParts[0].startsWith(client.appId)) {
-    logger.publish(5, 'broker', 'onAuthorizePublish:req', {
-      application: client.appId,
-    });
     auth = true;
   } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
-    logger.publish(5, 'broker', 'onAuthorizePublish:req', {
-      application: client.appEui,
-    });
     auth = true;
   }
 
@@ -497,10 +484,10 @@ const onAuthorizeSubscribe = (client, packet) => {
   let auth = false;
   if (!client.user) return auth;
   // const topicIdentifier = topicParts[0].toUpperCase()
+  logger.publish(4, 'broker', 'onAuthorizeSubscribe:req', {
+    client: getClientProps(client),
+  });
   if (topicParts[0].startsWith(client.user)) {
-    logger.publish(4, 'broker', 'onAuthorizeSubscribe:req', {
-      user: client.user,
-    });
     auth = true;
   } else if (
     client.aloesId &&
@@ -510,27 +497,14 @@ const onAuthorizeSubscribe = (client, packet) => {
       topicParts[1] === `stop` ||
       topicParts[1] === `sync`)
   ) {
-    logger.publish(5, 'broker', 'onAuthorizeSubscribe:req', {
-      user: client.user,
-      aloesApp: client.id,
-    });
     //  packet.qos = packet.qos + 2
     auth = true;
   } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
     // todo : limit access to device in prefix if any
-    logger.publish(5, 'broker', 'onAuthorizeSubscribe:req', {
-      device: client.devEui,
-    });
     auth = true;
   } else if (client.appId && topicParts[0].startsWith(client.appId)) {
-    logger.publish(5, 'broker', 'onAuthorizeSubscribe:req', {
-      application: client.appId,
-    });
     auth = true;
   } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
-    logger.publish(5, 'broker', 'onAuthorizeSubscribe:req', {
-      application: client.appEui,
-    });
     auth = true;
   }
   logger.publish(3, 'broker', 'onAuthorizeSubscribe:res', { topic, auth });

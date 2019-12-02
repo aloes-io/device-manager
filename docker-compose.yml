@@ -43,6 +43,7 @@ services:
       - seeds=timer-1:3455,timer-2:3456
       - storage__backend=leveldown
       - storage__path=/var/data/skyring
+    image: aloes/timer-api:latest
     restart: always
     networks:
       - skyring
@@ -63,6 +64,7 @@ services:
       - seeds=timer-1:3455,timer-2:3456
       - storage__backend=leveldown
       - storage__path=/var/data/skyring
+    image: aloes/timer-api:latest
     restart: always
     networks:
       - skyring
@@ -82,6 +84,7 @@ services:
       - seeds=timer-1:3455,timer-2:3456
       - storage__backend=leveldown
       - storage__path=/var/data/skyring
+    image: aloes/timer-api:latest
     restart: always
     networks:
       - skyring
@@ -103,6 +106,7 @@ services:
       - seeds=timer-1:3455,timer-2:3456
       - storage__backend=leveldown
       - storage__path=/var/data/skyring
+    image: aloes/timer-api:latest
     restart: always
     networks:
       - skyring
@@ -124,6 +128,7 @@ services:
       - seeds=timer-1:3455,timer-2:3456
       - storage__backend=leveldown
       - storage__path=/var/data/skyring
+    image: aloes/timer-api:latest
     restart: always
     networks:
       - skyring
@@ -193,6 +198,7 @@ services:
     build:
       context: .
       dockerfile: ./config/docker/broker.dockerfile
+    image: aloes/mqtt-api:latest
     volumes:
       - ./.env:/home/node/device-manager/.env:ro
     restart: always
@@ -208,6 +214,7 @@ services:
     build:
       context: .
       dockerfile: ./config/docker/broker.dockerfile
+    image: aloes/mqtt-api:latest
     volumes:
       - ./.env:/home/node/device-manager/.env:ro
     restart: always
@@ -226,6 +233,7 @@ services:
     build:
       context: .
       dockerfile: ./config/docker/server.dockerfile
+    image: aloes/http-api:latest
     restart: always
     volumes:
       - ./.env:/home/node/device-manager/.env:ro
@@ -249,6 +257,7 @@ services:
     build:
       context: .
       dockerfile: ./config/docker/server.dockerfile
+    image: aloes/http-api:latest
     restart: always
     volumes:
       - ./.env:/home/node/device-manager/.env:ro
@@ -273,6 +282,7 @@ services:
     build:
       context: .
       dockerfile: ./config/docker/server.dockerfile
+    image: aloes/http-api:latest
     restart: always
     volumes:
       - ./.env:/home/node/device-manager/.env:ro
