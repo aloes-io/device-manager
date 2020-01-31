@@ -70,14 +70,14 @@ module.exports = async function initializeDownSampling(app) {
       }
     };
 
-    const promises = await Object.keys(models).map(async modelName => {
+    const promises = Object.keys(models).map(async modelName => {
       const model = models[modelName];
       if (model && model.settings && model.settings.downSampling) {
         const dsRules = model.settings.downSampling;
         logger.publish(4, 'loopback', 'boot:initializeDownSampling:rules', dsRules);
 
         //  Create Retention Policies
-        const rpPromises = await dsRules.map(async dsRule => {
+        const rpPromises = dsRules.map(async dsRule => {
           try {
             const rpName = `rp_${dsRule.duration}`;
             await influxConnector.client.createRetentionPolicy(rpName, {
@@ -114,14 +114,14 @@ module.exports = async function initializeDownSampling(app) {
         );
 
         // Format and create Continuous Queries
-        const cqPromises = await sortedDurations.map(async (duration, i, inputArray) => {
+        const cqPromises = sortedDurations.map(async (duration, i, inputArray) => {
           try {
             if (i < inputArray.length - 1) {
               const nextDuration = inputArray[i + 1];
               const dsRule = dsRules.find(rule => rule.duration === duration);
               if (dsRule) {
                 const msg = await buildContinuousQuery(modelName, dsRule, nextDuration, duration);
-                logger.publish(4, 'loopback', 'boot:initializeDownSampling:continuousQueries', msg);
+                logger.publish(3, 'loopback', 'boot:initializeDownSampling:continuousQueries', msg);
                 const res = await influxConnector.client.createContinuousQuery(
                   msg.cqName,
                   msg.query,

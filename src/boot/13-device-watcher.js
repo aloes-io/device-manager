@@ -32,7 +32,8 @@ export default async function deviceWatcher(app) {
     const devicesByType = await sortByType(devices);
     logger.publish(2, 'loopback', 'boot:watchDevices:res', devicesByType);
     const path = `${__dirname}/../../device-names.json`;
-    await utils.writeFile(path, JSON.stringify(devicesByType));
+    await utils.removeFile(path);
+    await utils.writeFile(path, JSON.stringify(devicesByType, null, 2));
     // const result = await utils.readFile(path);
     return path;
   } catch (error) {

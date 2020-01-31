@@ -13,6 +13,10 @@
       "default": "",
       "required": false
     },
+    "createdAt": {
+      "type": "date",
+      "required": false
+    },
     "description": {
       "type": "string",
       "default": "",

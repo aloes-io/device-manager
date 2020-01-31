@@ -51,30 +51,32 @@ const uploadToContainer = (app, ctx, ownerId, options) =>
 
 const uploadBufferToContainer = (app, buffer, ownerId, name) =>
   new Promise((resolve, reject) => {
-    const bufferStream = new stream.PassThrough();
-    bufferStream.on('error', reject);
-    bufferStream.end(buffer);
-    const type = fileType(buffer);
-    if (!type || !type.ext) reject(new Error('File type information not found'));
-    name = `${name}.${type.ext}`;
-    // const nameParts = name.split('.');
-    // if (nameParts.length < 2) {
-    //   name = `${name}.${type.ext}`;
-    // }
-    // todo append type to name ??
-
-    const writeStream = app.models.container.uploadStream(ownerId.toString(), name);
-    bufferStream.pipe(writeStream);
-    writeStream.on('finish', () => {
-      resolve({
-        type,
-        path: writeStream.path,
-        size: writeStream.bytesWritten,
-        name,
-        //  originalFilename: `${name}`,
-      });
-    });
-    writeStream.on('error', reject);
+    fileType
+      .fromBuffer(buffer)
+      .then(type => {
+        if (!type || !type.ext) reject(new Error('File type information not found'));
+        name = `${name}.${type.ext}`;
+        // const nameParts = name.split('.');
+        // if (nameParts.length < 2) {
+        //   name = `${name}.${type.ext}`;
+        // }
+        const bufferStream = new stream.PassThrough();
+        bufferStream.on('error', reject);
+        bufferStream.end(buffer);
+        const writeStream = app.models.container.uploadStream(ownerId.toString(), name);
+        bufferStream.pipe(writeStream);
+        writeStream.on('finish', () => {
+          resolve({
+            type,
+            path: writeStream.path,
+            size: writeStream.bytesWritten,
+            name,
+            //  originalFilename: `${name}`,
+          });
+        });
+        writeStream.on('error', reject);
+      })
+      .catch(reject);
   });
 
 const removeFileFromContainer = (app, ownerId, name) =>

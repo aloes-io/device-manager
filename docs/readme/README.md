@@ -11,7 +11,7 @@
 - Automatically store sensors value in timeseries ( InfluxDB ), in file, or trigger some timers
 - Interact with external application and share selection of devices
 
-[Swagger Explorer](https://aloes.io/app/explorer)
+[Swagger Explorer](https://aloes.io/app/explorer/)
 
 [Full Docs](https://aloes.frama.io/device-manager/)
 
@@ -151,42 +151,15 @@ Stopping containers :
   $  npm run stop:docker
 ```
 
-### With Nginx proxy container
-
-Config :
-
-`./config/nginx-gw.template` is loaded by the dockerfile and can be updated to suit your needs.
-
-Build : ( Must be executed from the root project directory )
-
-```bash
-  $  docker build --no-cache -t nginx-gw -f config/nginx/gw-dockerfile ./config/nginx
-  $  docker build --no-cache -t nginx-gw -f config/nginx/gw-dockerfile ./config/nginx --build-arg HTTP_SERVER_PORT=8001
-```
-
-Start container :
-
-```bash
-  $  docker run --rm -it --name nginx-gw -v "$(pwd)"/log/nginx:/var/log/nginx --net="host" nginx-gw
-  $  docker run --rm -it --name nginx-gw --net="host" nginx-gw
-  $  docker run -itd --restart unless-stopped --name nginx-gw --net="host" nginx-gw
-```
-
-Stop container :
-
-```bash
-  $  docker stop nginx-gw
-```
-
-Stop container :
-
-```bash
-  $  docker container rm nginx-gw
-```
-
 ## To deploy with your own TLS / SSL certificates
 
 Read https://nodejs.org/api/tls.html#tls_tls_ssl
+
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ./deploy/key.pem -out ./deploy/cert.pem
+
+openssl dhparam -out ./deploy/dhparam.pem 2048
+```
 
 ## To deploy with Localtunnel
 
@@ -198,9 +171,9 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 ## TODOs
 
-- Add tests for Client, Measurement, Scheduler and SensorResource models 
+- Add e2e tests for Client, Measurement, Scheduler and SensorResource models 
 
-- Implement rate limit for HTTP endpoints requiring auth
+- Implement user+ip rate limit for HTTP endpoints requiring auth
 
 - Validate rate limiter via e2e tests
 
@@ -215,6 +188,8 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 - Update to loopback 4
 
 - Add redis replication config ( docker deployement )
-  https://stackoverflow.com/questions/45902031/docker-swarm-redis-and-sentinel-with-master-slave-replication-ip-resolution-cl
+  - https://stackoverflow.com/questions/45902031/docker-swarm-redis-and-sentinel-with-master-slave-replication-ip-resolution-cl
+
+  - https://redis.io/topics/replication#configuring-replication-in-docker-and-nat
 
 - Synchronize data from Aloes ecosystem to a distributed ledger ( IOTA Tangle ? )

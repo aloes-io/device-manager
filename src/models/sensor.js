@@ -23,13 +23,14 @@ const onBeforeSave = async ctx => {
     if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
     if (ctx.instance) {
       logger.publish(5, `${collectionName}`, 'onBeforeSave:req', '');
-      const promises = await filteredProperties.map(async p => ctx.instance.unsetAttribute(p));
+      const promises = filteredProperties.map(async p => ctx.instance.unsetAttribute(p));
       await Promise.all(promises);
     } else if (ctx.data) {
       logger.publish(5, `${collectionName}`, 'onBeforePartialSave:req', '');
       // eslint-disable-next-line security/detect-object-injection
-      const promises = await filteredProperties.map(p => delete ctx.data[p]);
-      await Promise.all(promises);
+      filteredProperties.map(p => delete ctx.data[p]);
+      // const promises = filteredProperties.map(p => delete ctx.data[p]);
+      // await Promise.all(promises);
       ctx.hookState.updateData = ctx.data;
     }
     return ctx;
@@ -51,7 +52,7 @@ const onBeforeSave = async ctx => {
  * @returns {string} method
  */
 const getPersistingMethod = (sensorType, resource, type) => {
-  logger.publish(4, `${collectionName}`, 'getPersistingMethod:req', {
+  logger.publish(5, `${collectionName}`, 'getPersistingMethod:req', {
     type,
   });
   let saveMethod;
@@ -198,7 +199,7 @@ const getPersistingMethod = (sensorType, resource, type) => {
     }
   }
 
-  logger.publish(3, `${collectionName}`, 'getPersistingMethod:res', {
+  logger.publish(4, `${collectionName}`, 'getPersistingMethod:res', {
     method: saveMethod,
   });
   return saveMethod;
@@ -220,7 +221,7 @@ const getPersistingMethod = (sensorType, resource, type) => {
  */
 const persistingResource = async (app, device, sensor, client) => {
   try {
-    logger.publish(4, `${collectionName}`, 'persistingResource:req', {
+    logger.publish(5, `${collectionName}`, 'persistingResource:req', {
       resource: sensor.resource,
     });
     const resourceModel = await app.models.OmaResource.findById(sensor.resource);
@@ -354,13 +355,9 @@ const onBeforeDelete = async ctx => {
   }
 };
 
-const onBeforeRemote = async ctx => {
+const onBeforeRemote = async (app, ctx) => {
   try {
-    if (
-      ctx.method.name.indexOf('find') !== -1 ||
-      ctx.method.name.indexOf('__get') !== -1 ||
-      ctx.method.name.indexOf('get') !== -1
-    ) {
+    if (ctx.method.name.indexOf('find') !== -1 || ctx.method.name.indexOf('get') !== -1) {
       // let sensors;
       // let result = [];
       const options = ctx.args ? ctx.args.options : {};
@@ -368,13 +365,15 @@ const onBeforeRemote = async ctx => {
         throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
       }
       const isAdmin = options.currentUser.roles.includes('admin');
+      const ownerId = utils.getOwnerId(options);
+
       if (ctx.req.query && ctx.req.query.filter) {
         if (!isAdmin) {
           if (typeof ctx.req.query.filter === 'string') {
             ctx.req.query.filter = JSON.parse(ctx.req.query.filter);
           }
           if (!ctx.req.query.filter.where) ctx.req.query.filter.where = {};
-          ctx.req.query.filter.where.ownerId = options.currentUser.id.toString();
+          ctx.req.query.filter.where.ownerId = ownerId;
           // sensors = await Sensor.find(ctx.req.query.filter);
         }
       }
@@ -495,10 +494,6 @@ module.exports = function(Sensor) {
 
   Sensor.validatesPresenceOf('colors');
 
-  // Sensor.validateAsync('type', typeValidator, {
-  //   message: 'Wrong sensor type',
-  // });
-
   Sensor.validate('type', typeValidator, {
     message: 'Wrong sensor type',
   });
@@ -516,6 +511,7 @@ module.exports = function(Sensor) {
   });
 
   Sensor.validatesDateOf('lastSignal', { message: 'lastSignal is not a date' });
+  // Sensor.validatesDateOf('createdAt', { message: 'createdAt is not a date' });
 
   /**
    * Format packet and send it via MQTT broker
@@ -616,6 +612,7 @@ module.exports = function(Sensor) {
           name: attributes.name || null,
           type: attributes.type,
           method: attributes.method,
+          createdAt: Date.now(),
           lastSignal: attributes.lastSignal,
           resources: attributes.resources,
           resource: Number(attributes.resource),
@@ -834,6 +831,11 @@ module.exports = function(Sensor) {
     }
   };
 
+  // Sensor.prototype.__get__measurements = async filter => {
+  //   console.log('GET SENSOR MEASUREMENTS', filter);
+  //   return Sensor.app.models.Measurement.find(filter);
+  // };
+
   /**
    * Build simple where filter based on given attributes
    * @param {object} pattern - IotAgent detected pattern
@@ -1046,7 +1048,7 @@ module.exports = function(Sensor) {
     if (format === 'csv') {
       sensors.forEach(sensor => {
         // eslint-disable-next-line security/detect-object-injection
-        ['measurement', 'icons', 'resources', 'colors'].forEach(p => delete sensor[p]);
+        ['measurements', 'icons', 'resources', 'colors'].forEach(p => delete sensor[p]);
       });
       const result = utils.exportToCSV(sensors, filter);
       return result;
@@ -1121,7 +1123,7 @@ module.exports = function(Sensor) {
    * @param {object} ctx.res - Response
    * @returns {function} Sensor~onBeforeRemote
    */
-  Sensor.beforeRemote('**', onBeforeRemote);
+  Sensor.beforeRemote('**', async ctx => onBeforeRemote(Sensor.app, ctx));
 
   Sensor.afterRemoteError('*', (ctx, next) => {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, '');

@@ -194,39 +194,51 @@ services:
       - timer-3
       - timer-4
       - timer-5
+    ports:
+      - '127.0.0.1:9000:80'
 
   mqtt-api-1:
     env_file: .env
     environment:
-      - SERVER_LOGGER_LEVEL=3
+      - SERVER_LOGGER_LEVEL=4
     build:
       context: .
       dockerfile: ./config/docker/broker.dockerfile
     image: aloes/mqtt-api:latest
     volumes:
       - ./.env:/home/node/device-manager/.env:ro
+      - ./deploy/key.pem:/home/node/device-manager/deploy/key.pem
+      - ./deploy/cert.pem:/home/node/device-manager/deploy/cert.pem
     restart: always
     depends_on:
       - redis
     networks:
       - aloes
+    # ports:
+    #   - '127.0.0.1:2001:${MQTT_BROKER_PORT}'
+    #   - '127.0.0.1:3001:${WS_BROKER_PORT}'
 
   mqtt-api-2:
     env_file: .env
     environment:
-      - SERVER_LOGGER_LEVEL=3
+      - SERVER_LOGGER_LEVEL=4
     build:
       context: .
       dockerfile: ./config/docker/broker.dockerfile
     image: aloes/mqtt-api:latest
     volumes:
       - ./.env:/home/node/device-manager/.env:ro
+      - ./deploy/key.pem:/home/node/device-manager/deploy/key.pem
+      - ./deploy/cert.pem:/home/node/device-manager/deploy/cert.pem
     restart: always
     depends_on:
       - redis
       - mqtt-api-1
     networks:
       - aloes
+    # ports:
+    #   - '127.0.0.1:2002:${MQTT_BROKER_PORT}'
+    #   - '127.0.0.1:3002:${WS_BROKER_PORT}'
 
   http-api-1:
     env_file: .env
@@ -242,6 +254,8 @@ services:
     volumes:
       - ./.env:/home/node/device-manager/.env:ro
       - apivolume:/home/node/device-manager/storage
+      - ./deploy/key.pem:/home/node/device-manager/deploy/key.pem
+      - ./deploy/cert.pem:/home/node/device-manager/deploy/cert.pem
     depends_on:
       - mongo
       - influxdb
@@ -251,6 +265,8 @@ services:
       - mqtt-api-2
     networks:
       - aloes
+    # ports:
+    #   - '127.0.0.1:8001:${HTTP_SERVER_PORT}'
 
   http-api-2:
     env_file: .env
@@ -266,6 +282,8 @@ services:
     volumes:
       - ./.env:/home/node/device-manager/.env:ro
       - apivolume:/home/node/device-manager/storage
+      - ./deploy/key.pem:/home/node/device-manager/deploy/key.pem
+      - ./deploy/cert.pem:/home/node/device-manager/deploy/cert.pem
     depends_on:
       - mongo
       - influxdb
@@ -276,6 +294,8 @@ services:
       - http-api-1
     networks:
       - aloes
+    # ports:
+    #   - '127.0.0.1:8002:${HTTP_SERVER_PORT}'
 
   http-api-3:
     env_file: .env
@@ -291,6 +311,8 @@ services:
     volumes:
       - ./.env:/home/node/device-manager/.env:ro
       - apivolume:/home/node/device-manager/storage
+      - ./deploy/key.pem:/home/node/device-manager/deploy/key.pem
+      - ./deploy/cert.pem:/home/node/device-manager/deploy/cert.pem
     depends_on:
       - mongo
       - influxdb
@@ -302,6 +324,8 @@ services:
       - http-api-2
     networks:
       - aloes
+    # ports:
+    #   - '127.0.0.1:8003:${HTTP_SERVER_PORT}'
 
   api-proxy:
     environment:
@@ -312,7 +336,10 @@ services:
     image: nginx:latest
     restart: always
     volumes:
-      - ./config/nginx/nginx-local.template:/etc/nginx/nginx.template
+      - ./config/nginx/nginx-production.template:/etc/nginx/nginx.template
+      - ./deploy/key.pem:/etc/nginx/certs/${DOMAIN}/key.pem
+      - ./deploy/cert.pem:/etc/nginx/certs/${DOMAIN}/cert.pem
+      - ./deploy/dhparam.pem:/etc/nginx/certs/dhparam.pem
       - ./log/nginx:/etc/nginx/log
     depends_on:
       - mqtt-api-1
@@ -323,10 +350,13 @@ services:
       - timer-proxy
     ports:
       - '80:80'
+      - '443:443'
       - '1883:1883'
+      - '8883:8883'
     networks:
       - aloes
       - skyring
+    # network_mode: host 
     command: /bin/bash -c "envsubst '$${HTTP_SERVER_PORT},$${WS_BROKER_PORT},$${MQTT_BROKER_PORT},$${NGINX_SERVER_HOST}' < /etc/nginx/nginx.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"
 
 volumes:

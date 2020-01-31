@@ -593,7 +593,8 @@ Called when status message has been detected
 <a name="module_MQTTClient..onReceive"></a>
 
 ### MQTTClient~onReceive(app, topic, payload)
-Called when message arrived from the broker to be redirected to the right Model
+Called when message arrived from the broker to be redirected to the right
+Model
 
 **Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
 **Emits**: <code>Application.event:publish</code>, <code>Device.event:publish</code>  

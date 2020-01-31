@@ -20,8 +20,8 @@ MQTTClient.maxFailureCount = 10;
 const baseOptions = {
   keepalive: 60,
   reschedulePings: true,
-  protocolId: 'MQTT',
-  protocolVersion: 4,
+  // protocolId : 'MQTT',
+  // protocolVersion : 4,
   reconnectPeriod: 1000,
   connectTimeout: 2 * 1000,
   clean: false,
@@ -59,7 +59,7 @@ const userStatusUpdate = throttle(onUserStatus, 50);
  */
 const updateModelsStatus = (app, client, status) => {
   try {
-    logger.publish(3, 'mqtt-client', 'updateModelsStatus:req', { status, client });
+    logger.publish(4, 'mqtt-client', 'updateModelsStatus:req', { status, client });
     if (client && client.user) {
       if (client.devEui) {
         deviceStatusUpdate(app, client, status);
@@ -86,7 +86,7 @@ const updateModelsStatus = (app, client, status) => {
 const findPattern = async (app, packet, client) => {
   try {
     let pattern = null;
-    logger.publish(4, 'mqtt-client', 'findPattern:req', client);
+    logger.publish(5, 'mqtt-client', 'findPattern:req', client);
     if (client && client.id) {
       if (client.appId && client.appId !== null) {
         pattern = await app.models.Application.detector(packet, client);
@@ -102,7 +102,7 @@ const findPattern = async (app, packet, client) => {
     //   pattern = await app.models.Device.detector(packet);
     //   //  pattern = await aloesClientPatternDetector(packet);
     // }
-    logger.publish(3, 'mqtt-client', 'findPattern:res', { topic: packet.topic, pattern });
+    logger.publish(4, 'mqtt-client', 'findPattern:res', { topic: packet.topic, pattern });
     if (
       !pattern ||
       pattern === null ||
@@ -162,7 +162,7 @@ const redirectMessage = (packet, client, pattern) => {
 };
 
 const setBrokerPayload = payload => {
-  logger.publish(4, 'mqtt-client', 'setBrokerPayload:req', typeof payload);
+  logger.publish(5, 'mqtt-client', 'setBrokerPayload:req', typeof payload);
   try {
     if (typeof payload === 'string') {
       payload = JSON.parse(payload);
@@ -171,16 +171,16 @@ const setBrokerPayload = payload => {
         payload = JSON.parse(payload.toString());
       }
     }
-    logger.publish(4, 'mqtt-client', 'setBrokerPayload:res', typeof payload);
+    logger.publish(5, 'mqtt-client', 'setBrokerPayload:res', typeof payload);
     return payload;
   } catch (error) {
-    logger.publish(4, 'mqtt-client', 'setBrokerPayload:err', typeof payload);
+    logger.publish(3, 'mqtt-client', 'setBrokerPayload:err', typeof payload);
     return payload;
   }
 };
 
 const setInstancePayload = payload => {
-  logger.publish(4, 'mqtt-client', 'setInstancePayload:req', typeof payload);
+  logger.publish(5, 'mqtt-client', 'setInstancePayload:req', typeof payload);
   try {
     // console.log('incoming payload', payload);
     if (typeof payload === 'string') {
@@ -193,7 +193,7 @@ const setInstancePayload = payload => {
         // payload = JSON.parse(Buffer.from(payload.data).toString());
       }
     }
-    logger.publish(4, 'mqtt-client', 'setInstancePayload:res', typeof payload);
+    logger.publish(5, 'mqtt-client', 'setInstancePayload:res', typeof payload);
     return payload;
   } catch (error) {
     logger.publish(3, 'mqtt-client', 'setInstancePayload:err', typeof payload);
@@ -227,7 +227,7 @@ const onStatus = async (app, topic, payload) => {
 };
 
 const onModelPublish = (app, serviceName, pattern, packet, client) => {
-  logger.publish(3, 'mqtt-client', 'onModelPublish:req', { serviceName });
+  logger.publish(5, 'mqtt-client', 'onModelPublish:req', { serviceName });
   if (!serviceNames.some(name => name.toLowerCase() === serviceName.toLowerCase())) return;
   // eslint-disable-next-line security/detect-object-injection
   const Model = app.models[serviceName];
@@ -237,7 +237,8 @@ const onModelPublish = (app, serviceName, pattern, packet, client) => {
 // const debounceModelPublish = throttle(onModelPublish, 10);
 
 /**
- * Called when message arrived from the broker to be redirected to the right Model
+ * Called when message arrived from the broker to be redirected to the right
+ * Model
  * @method module:MQTTClient~onReceive
  * @param {object} app - Loopback app
  * @param {object} topic - MQTT topic
@@ -247,14 +248,13 @@ const onModelPublish = (app, serviceName, pattern, packet, client) => {
  */
 const onReceive = async (app, topic, payload) => {
   try {
-    logger.publish(3, 'mqtt-client', 'onReceive:req', { topic });
+    logger.publish(5, 'mqtt-client', 'onReceive:req', { topic });
     payload = setBrokerPayload(payload);
     const client = payload.client;
     const packet = { topic, payload: setInstancePayload(payload.payload) };
     const pattern = await findPattern(app, packet, client);
     if (!pattern || !pattern.name) {
-      return null;
-      //  throw new Error('no pattern found');
+      throw new Error('no pattern found');
     }
     // set payload based on pattern found ?
     const serviceName = redirectMessage(packet, client, pattern);
@@ -368,31 +368,37 @@ const initClient = async (app, config) => {
       clientId = `aloes-${config.ALOES_ID}`;
     }
     MQTTClient.id = clientId;
-    logger.publish(4, 'mqtt-client', 'init:req', {
-      clientId,
-      processId: config.processId,
-    });
 
     const mqttClientOptions = {
       ...baseOptions,
       clientId,
       username: config.ALOES_ID,
       password: config.ALOES_KEY,
-      // will: { topic: `${clientId}/status`, payload: 'KO?', retain: false, qos: 0 },
+      // will: { topic: `${clientId}/status`, payload: 'KO?', retain: false,
+      // qos: 0 },
     };
 
     if (config.MQTT_BROKER_URL) {
       if (config.MQTTS_BROKER_URL) {
+        // mqttClientOptions.protocol = 'mqtts';
         // mqttClientOptions.port = Number(config.MQTTS_BROKER_PORT);
         if (config.MQTTS_SELF_SIGNED_CERT) {
           mqttClientOptions.rejectUnauthorized = false;
+        } else {
+          mqttClientOptions.rejectUnauthorized = true;
         }
         mqttBrokerUrl = config.MQTTS_BROKER_URL;
       } else {
         // mqttClientOptions.port = Number(config.MQTT_BROKER_PORT);
+        // mqttClientOptions.protocol = 'mqtt';
         mqttBrokerUrl = config.MQTT_BROKER_URL;
       }
     }
+
+    logger.publish(4, 'mqtt-client', 'init:req', {
+      ...mqttClientOptions,
+      processId: config.processId,
+    });
 
     mqttClient = await mqtt.connectAsync(mqttBrokerUrl, mqttClientOptions);
     MQTTClient.failureCount = 0;

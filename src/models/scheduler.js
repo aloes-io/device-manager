@@ -46,7 +46,7 @@ module.exports = function(Scheduler) {
         });
 
         if (device.appIds && device.appIds.length > 0) {
-          await device.appIds.map(async appId => {
+          const pubPromises = device.appIds.map(async appId => {
             try {
               const parts = packet.topic.split('/');
               parts[0] = appId;
@@ -57,6 +57,7 @@ module.exports = function(Scheduler) {
               return null;
             }
           });
+          await Promise.all(pubPromises);
         }
         Scheduler.app.emit('publish', packet.topic, packet.payload, false, 0);
         return scheduler;
@@ -92,21 +93,22 @@ module.exports = function(Scheduler) {
   const stopExternalTimer = async (device, sensor, client, scheduler) => {
     try {
       // if (!process.env.EXTERNAL_TIMER || !process.env.TIMER_SERVER_URL) return null;
+      if (!scheduler || !scheduler.timerId) throw new Error('Missing timer');
       logger.publish(4, `${collectionName}`, 'stopExternalTimer:req', scheduler);
-      if (!scheduler || !scheduler.timerId) return null;
       await Scheduler.delete(`sensor-${sensor.id}`);
       await deleteTimer(scheduler.timerId);
       await Scheduler.publish(device, scheduler, 'DELETE', client);
       return scheduler.lastTime;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'stopExternalTimer:err', error);
-      throw error;
+      return null;
     }
   };
 
   const stopInternalTimer = async (device, sensor, client, scheduler) => {
     try {
       const timer = timers[`${sensor.id}`];
+      if (!timer && !scheduler) throw new Error('Missing timer');
       logger.publish(4, `${collectionName}`, 'stopInternalTimer:req', scheduler);
       let lastTime;
       if (timer) {
@@ -119,11 +121,10 @@ module.exports = function(Scheduler) {
         await Scheduler.publish(device, scheduler, 'DELETE', client);
         // if sensor.resources['5525'] > 0 setTimeout to update 5543
       }
-      if (!timer && !scheduler) throw new Error('Missing timer');
       return lastTime;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'stopInternalTimer:err', error);
-      throw error;
+      return null;
     }
   };
 
@@ -260,7 +261,7 @@ module.exports = function(Scheduler) {
       return lastTime;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'startExternalTimer:err', error);
-      throw error;
+      return null;
     }
   };
 
@@ -293,7 +294,7 @@ module.exports = function(Scheduler) {
       return lastTime;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'startInternalTimer:err', error);
-      throw error;
+      return null;
     }
   };
 
@@ -511,17 +512,16 @@ module.exports = function(Scheduler) {
   Scheduler.cacheIterator = async function*(filter) {
     const iterator = Scheduler.iterateKeys(filter);
     try {
-      while (true) {
-        const key = await iterator.next();
-        // const key = iterator.next();
-        if (!key) {
-          return;
-        }
-
-        yield key;
+      const key = await iterator.next();
+      if (!key) {
+        return;
       }
+      yield key;
+    } catch (e) {
+      logger.publish(3, `${collectionName}`, 'cacheIterator:err', e);
+      return;
     } finally {
-      logger.publish(5, `${collectionName}`, 'cacheIterator:res', 'over');
+      logger.publish(5, `${collectionName}`, 'cacheIterator:res', 'done');
     }
   };
 
@@ -533,7 +533,7 @@ module.exports = function(Scheduler) {
    */
   Scheduler.getAll = async filter => {
     try {
-      logger.publish(5, `${collectionName}`, 'includeCache:req', '');
+      logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
       const schedulers = [];
       for await (const key of Scheduler.cacheIterator(filter)) {
         if (key && key !== null) {
@@ -547,7 +547,7 @@ module.exports = function(Scheduler) {
       }
       return schedulers;
     } catch (error) {
-      logger.publish(2, `${collectionName}`, 'includeCache:err', error);
+      logger.publish(2, `${collectionName}`, 'getAll:err', error);
       throw error;
     }
   };
@@ -561,7 +561,7 @@ module.exports = function(Scheduler) {
   Scheduler.deleteAll = async filter => {
     try {
       const schedulers = [];
-      logger.publish(4, `${collectionName}`, 'deleteAll:req', '');
+      logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
       for await (const key of Scheduler.cacheIterator(filter)) {
         if (key && key !== null) {
           schedulers.push(key);
@@ -588,26 +588,30 @@ module.exports = function(Scheduler) {
     try {
       const topic = `aloes-${process.env.ALOES_ID}/${collectionName}/HEAD`;
       const payload = { date: new Date(data.time), time: data.time, lastTime: data.lastTime };
-      // logger.publish(4, `${collectionName}`, 'onTick:req', payload.date);
       const schedulers = await Scheduler.getAll({ match: 'sensor-*' });
-      const promises = await schedulers.map(async scheduler => {
+      logger.publish(4, `${collectionName}`, 'onTick:req', { schedulersCount: schedulers.length });
+      const promises = schedulers.map(async scheduler => {
         try {
           let timeLeft = Math.round((scheduler.stopTime - Date.now()) / 1000);
-          // console.log('active scheduler timeLeft', timeLeft);
           const device = await Scheduler.app.models.Device.findById(scheduler.deviceId);
           const sensor = await Scheduler.app.models.SensorResource.getCache(
             scheduler.deviceId,
             scheduler.sensorId,
           );
-          if (timeLeft < 0) {
-            timeLeft = 0;
-            // await stopTimer(device, sensor, null);
-          }
           sensor.resources['5544'] += Math.round(data.delay / 1000);
           sensor.resources['5543'] = 0;
           sensor.resources['5850'] = 1;
           sensor.resources['5523'] = 'started';
-          return Scheduler.app.models.Sensor.createOrUpdate(device, sensor, 5538, timeLeft);
+
+          const clients = await Scheduler.app.models.Client.getAll({ match: `${device.ownerId}*` });
+          const client = clients.length ? clients[0] : null;
+          if (timeLeft <= 0) {
+            timeLeft = 0;
+            // in case timer callback/webhook was not triggered
+            await stopTimer(device, sensor, client);
+          }
+          logger.publish(3, `${collectionName}`, 'onTick:res', { timeLeft, client });
+          return Scheduler.app.models.Sensor.createOrUpdate(device, sensor, 5538, timeLeft, client);
         } catch (error) {
           return null;
         }
@@ -644,6 +648,9 @@ module.exports = function(Scheduler) {
         if (scheduler.isUpdating) {
           return scheduler;
         }
+        // logger.publish(4, `${collectionName}`, 'onTick:res', payload);
+        // const deltaTime = thisTime - scheduler.lastTime;
+        // const interval = Math.max(clockInterval - deltaTime, 0);
         const diff = Date.now() - scheduler.stopTime;
         logger.publish(3, `${collectionName}`, 'onTickHook:diff', {
           stopTime: scheduler.stopTime,
@@ -661,10 +668,7 @@ module.exports = function(Scheduler) {
         time: thisTime,
         lastTime: scheduler.lastTime || +new Date(),
       };
-      // logger.publish(4, `${collectionName}`, 'onTick:res', payload);
-      // const deltaTime = thisTime - scheduler.lastTime;
-      // const interval = Math.max(clockInterval - deltaTime, 0);
-      // console.log('TIMER interval:', deltaTime, interval);
+
       let baseUrl = Scheduler.app.get('url');
       if (!baseUrl) {
         baseUrl = process.env.HTTP_SERVER_URL;
@@ -710,7 +714,7 @@ module.exports = function(Scheduler) {
       if (!body.secret || (body.secret && body.secret !== process.env.ALOES_KEY)) {
         return null;
       }
-      const hook = debounce(onTickHook, 250);
+      const hook = debounce(onTickHook, 150);
       return hook(body);
       // return onTickHook(body);
     } catch (error) {
@@ -750,7 +754,7 @@ module.exports = function(Scheduler) {
           // uri: `${baseUrl}${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}/${collectionName}s/on-timeout`;
         },
       };
-      logger.publish(4, `${collectionName}`, 'setExternalClock:callback', timer.callback.uri);
+      // logger.publish(4, `${collectionName}`, 'setExternalClock:callback', timer.callback.uri);
 
       const response = await createTimer(timer);
       if (response && response.location && response.location.split('/')) {
@@ -850,8 +854,24 @@ module.exports = function(Scheduler) {
     }
   };
 
+  /**
+   * Event reporting that application started
+   *
+   * Trigger Scheduler starting routine
+   *
+   * @event stopped
+   * @returns {functions} Scheduler.setClock
+   */
   Scheduler.once('started', () => setTimeout(() => Scheduler.setClock(clockInterval), 2500));
 
+  /**
+   * Event reporting that application stopped
+   *
+   * Trigger Scheduler stopping routine
+   *
+   * @event stopped
+   * @returns {functions} Scheduler.delClock
+   */
   Scheduler.on('stopped', async () => {
     try {
       if (process.env.CLUSTER_MODE) {

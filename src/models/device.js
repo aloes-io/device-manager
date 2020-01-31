@@ -139,9 +139,7 @@ const onBeforeSave = async ctx => {
     if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
     if (ctx.instance) {
       logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
-      const promises = await filteredProperties.map(async prop =>
-        ctx.instance.unsetAttribute(prop),
-      );
+      const promises = filteredProperties.map(async prop => ctx.instance.unsetAttribute(prop));
       await Promise.all(promises);
       if (ctx.instance.transportProtocol && ctx.instance.transportProtocol !== null) {
         await setDeviceQRCode(ctx.instance);
@@ -231,12 +229,13 @@ const createProps = async (app, instance) => {
       public: false,
     });
     instance = await createKeys(instance);
-    // todo create a sensor 3310 to report event and request network load
+    // todo create a sensor 3310 to report event and request network load ?
     if (!instance.address() || !instance.apiKey) {
       await app.models.Device.destroyById(instance.id);
       // await instance.destroy()
       throw new Error('no device address');
     }
+    instance.createdAt = Date.now();
     return app.models.Device.publish(instance, 'POST');
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'createProps:err', error);
@@ -284,6 +283,92 @@ const updateProps = async (app, instance) => {
   }
 };
 
+/**
+ * Create relations on instance creation
+ * @method module:Device~onAfterSave
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
+const onAfterSave = async ctx => {
+  try {
+    if (ctx.hookState.updateData) {
+      logger.publish(3, `${collectionName}`, 'onAfterPartialSave:req', ctx.hookState.updateData);
+      const updatedProps = Object.keys(ctx.hookState.updateData);
+      if (updatedProps.some(prop => prop === 'status')) {
+        // todo : if (ctx.where) update all ctx.where
+        if (ctx.instance && ctx.instance.id) await ctx.Model.publish(ctx.instance, 'HEAD');
+      }
+    } else if (ctx.instance && ctx.Model.app) {
+      logger.publish(3, `${collectionName}`, 'onAfterSave:req', ctx.instance);
+      if (ctx.isNewInstance) {
+        await createProps(ctx.Model.app, ctx.instance);
+      } else {
+        await updateProps(ctx.Model.app, ctx.instance);
+      }
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'onAfterSave:err', error);
+    throw error;
+  }
+};
+
+/**
+ * Remove device dependencies
+ * @method module:Device~deleteProps
+ * @param {object} app - Loopback app
+ * @param {object} instance
+ * @returns {function} Device.publish
+ */
+const deleteProps = async (app, instance) => {
+  try {
+    if (!instance || !instance.id || !instance.ownerId) {
+      return null;
+      //  throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
+    }
+    logger.publish(4, `${collectionName}`, 'deleteProps:req', instance);
+    await app.models.Address.destroyAll({
+      ownerId: instance.id,
+    });
+    const sensors = await instance.sensors.find();
+    if (sensors && sensors !== null) {
+      const promises = sensors.map(async sensor => sensor.delete());
+      await Promise.all(promises);
+    }
+    await app.models.Device.publish(instance, 'DELETE');
+    return instance;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
+    return null;
+  }
+};
+
+/**
+ * Delete relations on instance(s) deletetion
+ * @method module:Device~onBeforeDelete
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
+const onBeforeDelete = async ctx => {
+  try {
+    logger.publish(3, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
+    if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
+      const device = await ctx.Model.findById(ctx.where.id);
+      await deleteProps(ctx.Model.app, device);
+    } else {
+      const filter = { where: ctx.where };
+      const devices = await ctx.Model.find(filter);
+      if (devices && devices.length > 0) {
+        await Promise.all(devices.map(async device => deleteProps(ctx.Model.app, device)));
+      }
+    }
+    return ctx;
+  } catch (error) {
+    logger.publish(2, `${collectionName}`, 'onBeforeDelete:err', error);
+    throw error;
+  }
+};
+
 const appendCachedSensors = async (app, ctx) => {
   try {
     logger.publish(4, `${collectionName}`, 'appendCachedSensors:req', {
@@ -297,7 +382,7 @@ const appendCachedSensors = async (app, ctx) => {
     if (ctx.method.name.startsWith('__get')) {
       const modelName = ctx.method.name.split('__')[2];
       const params = ctx.req.params;
-      //  console.log('[DEVICE] beforeRemote get:req', modelName, params);
+      // console.log('[DEVICE] beforeRemote get:req', modelName, params);
       if (modelName === 'sensors' && params && params.id) {
         getSensors = true;
         const id = params.id;
@@ -355,96 +440,10 @@ const appendCachedSensors = async (app, ctx) => {
       const promises = await result.map(app.models.SensorResource.includeCache);
       result = await Promise.all(promises);
     }
-    // logger.publish(4, `${collectionName}`, 'appendCachedSensors:res', result.length || 0);
+    logger.publish(4, `${collectionName}`, 'appendCachedSensors:res', result ? result.length : 0);
     return result;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'appendCachedSensors:err', error);
-    throw error;
-  }
-};
-
-/**
- * Create relations on instance creation
- * @method module:Device~onAfterSave
- * @param {object} ctx - Loopback context
- * @returns {object} ctx
- */
-const onAfterSave = async ctx => {
-  try {
-    if (ctx.hookState.updateData) {
-      logger.publish(3, `${collectionName}`, 'onAfterPartialSave:req', ctx.hookState.updateData);
-      const updatedProps = Object.keys(ctx.hookState.updateData);
-      if (updatedProps.some(prop => prop === 'status')) {
-        // todo : if (ctx.where) update all ctx.where
-        if (ctx.instance && ctx.instance.id) await ctx.Model.publish(ctx.instance, 'HEAD');
-      }
-    } else if (ctx.instance && ctx.Model.app) {
-      logger.publish(3, `${collectionName}`, 'onAfterSave:req', ctx.instance);
-      if (ctx.isNewInstance) {
-        await createProps(ctx.Model.app, ctx.instance);
-      } else {
-        await updateProps(ctx.Model.app, ctx.instance);
-      }
-    }
-    return ctx;
-  } catch (error) {
-    logger.publish(2, `${collectionName}`, 'onAfterSave:err', error);
-    throw error;
-  }
-};
-
-/**
- * Remove device dependencies
- * @method module:Device~deleteProps
- * @param {object} app - Loopback app
- * @param {object} instance
- * @returns {function} Device.publish
- */
-const deleteProps = async (app, instance) => {
-  try {
-    if (!instance || !instance.id || !instance.ownerId) {
-      return null;
-      //  throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
-    }
-    logger.publish(4, `${collectionName}`, 'deleteProps:req', instance);
-    await app.models.Address.destroyAll({
-      ownerId: instance.id,
-    });
-    const sensors = await instance.sensors.find();
-    if (sensors && sensors !== null) {
-      const promises = await sensors.map(async sensor => sensor.delete());
-      await Promise.all(promises);
-    }
-    await app.models.Device.publish(instance, 'DELETE');
-    return instance;
-  } catch (error) {
-    logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
-    return null;
-  }
-};
-
-/**
- * Delete relations on instance(s) deletetion
- * @method module:Device~onBeforeDelete
- * @param {object} ctx - Loopback context
- * @returns {object} ctx
- */
-const onBeforeDelete = async ctx => {
-  try {
-    logger.publish(3, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
-    if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
-      const device = await ctx.Model.findById(ctx.where.id);
-      await deleteProps(ctx.Model.app, device);
-    } else {
-      const filter = { where: ctx.where };
-      const devices = await ctx.Model.find(filter);
-      if (devices && devices.length > 0) {
-        await Promise.all(devices.map(async device => deleteProps(ctx.Model.app, device)));
-      }
-    }
-    return ctx;
-  } catch (error) {
-    logger.publish(2, `${collectionName}`, 'onBeforeDelete:err', error);
     throw error;
   }
 };
@@ -463,20 +462,24 @@ const onBeforeRemote = async (app, ctx) => {
         throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
       }
       const isAdmin = options.currentUser.roles.includes('admin');
+      const ownerId = utils.getOwnerId(options);
+
       if (ctx.req.query && ctx.req.query.filter) {
         if (!isAdmin) {
           if (typeof ctx.req.query.filter === 'string') {
             ctx.req.query.filter = JSON.parse(ctx.req.query.filter);
           }
           if (!ctx.req.query.filter.where) ctx.req.query.filter.where = {};
-          ctx.req.query.filter.where.ownerId = options.currentUser.id.toString();
+          ctx.req.query.filter.where.ownerId = ownerId;
         }
       }
       if (ctx.req.params) {
         if (!isAdmin) {
-          ctx.req.params.ownerId = options.currentUser.id.toString();
+          ctx.req.params.ownerId = ownerId;
         }
       }
+      // console.log('[DEVICE] beforeRemote get:req', ctx.method.name, ctx.req.params, ctx.req.query);
+
       const result = await appendCachedSensors(app, ctx);
       if (result && result !== null) {
         ctx.result = result;
@@ -499,9 +502,11 @@ const onBeforeRemote = async (app, ctx) => {
         throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
       }
       const isAdmin = options.currentUser.roles.includes('admin');
+      const ownerId = utils.getOwnerId(options);
+
       if (!isAdmin) {
         if (!ctx.args.attributes) ctx.args.attributes = {};
-        ctx.args.attributes.ownerId = options.currentUser.id.toString();
+        ctx.args.attributes.ownerId = ownerId;
       }
     } else if (ctx.method.name === 'onPublish') {
       const options = ctx.args ? ctx.args.options : {};
@@ -835,6 +840,7 @@ module.exports = function(Device) {
 
   Device.validatesUniquenessOf('name', { scopedTo: ['ownerId'] });
 
+  // Device.validatesDateOf('createdAt', { message: 'createdAt is not a date' });
   // Device.validatesDateOf("lastSignal", {message: "lastSignal is not a date"});
 
   /**
@@ -1288,7 +1294,7 @@ module.exports = function(Device) {
     try {
       //  if (packet.topic.startsWith('$SYS')) return null;
       if (packet.topic.split('/')[0] === '$SYS') return null;
-      if (client && !client.ownerId && !client.devEui && !client.devAddr) return null;
+      if (client && !client.ownerId && !client.devEui) return null;
       const pattern = await iotAgent.patternDetector(packet);
       logger.publish(5, collectionName, 'detector:res', { topic: packet.topic, pattern });
       return pattern;
@@ -1345,7 +1351,7 @@ module.exports = function(Device) {
         await device.updateAttributes({
           frameCounter,
           status,
-          // lastSignal: new Date(),
+          lastSignal: Date.now(),
           clients,
         });
         return client;
@@ -1675,6 +1681,14 @@ module.exports = function(Device) {
 
   // Device.once('started', () => setTimeout(() => Device.setClock(clockInterval), 2500));
 
+  /**
+   * Event reporting that application stopped
+   *
+   * Trigger Device stopping routine
+   *
+   * @event stopped
+   * @returns {functions} Device.syncCache
+   */
   Device.on('stopped', async () => {
     try {
       if (process.env.CLUSTER_MODE) {

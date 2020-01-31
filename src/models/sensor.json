@@ -34,6 +34,10 @@
       "description": "last measurement",
       "default": null
     },
+    "createdAt": {
+      "type": "date",
+      "required": false
+    },
     "lastSignal": {
       "type": "date",
       "required": false
@@ -390,6 +394,29 @@
       "http": {
         "verb": "post",
         "path": "/export"
+      }
+    },
+    "__get__measurements": {
+      "accepts": [
+        {
+          "arg": "sensorId",
+          "type": "string",
+          "required": true
+        },
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "root": true,
+        "arg": "result",
+        "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/:sensorId/measurements"
       }
     }
   }

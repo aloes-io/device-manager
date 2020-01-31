@@ -71,6 +71,12 @@ utils.writeFile = (filePath, data, opts = 'utf8') =>
     fs.appendFile(filePath, data, opts, err => (err ? reject(err) : resolve()));
   });
 
+utils.removeFile = filePath =>
+  new Promise((resolve, reject) => {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    fs.unlink(filePath, err => (err && err.code !== 'ENOENT' ? reject(err) : resolve()));
+  });
+
 utils.generateKey = (hmacKey, algorithm, encoding) => {
   hmacKey = hmacKey || 'loopback';
   algorithm = algorithm || 'sha1';
@@ -136,11 +142,20 @@ utils.exportToCSV = (input, filter) => {
     }
 
     const csv = Papa.unparse(selection);
-    // console.log('export csv', csv);
     return csv;
   } catch (error) {
     throw error;
   }
+};
+
+utils.getOwnerId = options => {
+  if (options.currentUser && options.currentUser.type) {
+    if (options.currentUser.type === 'User') {
+      return options.currentUser.id.toString();
+    }
+    return options.currentUser.ownerId.toString();
+  }
+  return null;
 };
 
 export default utils;

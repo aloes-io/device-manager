@@ -44,7 +44,7 @@ const createProps = async (app, user) => {
         throw e;
       }
     }
-
+    user.createdAt = Date.now();
     if (!user.emailVerified) {
       app.models.user.emit('verifyEmail', user);
     }
@@ -74,10 +74,13 @@ const onBeforeSave = async ctx => {
         role = 'user';
       }
       ctx.data.role = role;
+      ctx.data.updatedAt = Date.now();
       ctx.hookState.updateData = ctx.data;
     } else if (ctx.instance) {
       logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
       role = JSON.parse(JSON.stringify(ctx.instance)).role;
+      ctx.instance.setAttribute({ updatedAt: Date.now() });
+
       if (!appRoles.includes(role)) {
         ctx.instance.setAttribute({ role: 'user' });
       } else {
@@ -330,6 +333,9 @@ module.exports = function(User) {
     min: 5,
     message: { min: 'User password is too short' },
   });
+
+  // User.validatesDateOf('createdAt', { message: 'createdAt is not a date' });
+  // User.validatesDateOf('updatedAt', { message: 'updatedAt is not a date' });
 
   /**
    * Find a user by its email address and send a confirmation link
@@ -743,7 +749,7 @@ module.exports = function(User) {
   User.disableRemoteMethodByName('prototype.__unlink__role');
 
   User.disableRemoteMethodByName('prototype.__create__applications');
-  User.disableRemoteMethodByName('prototype.__count__applications');
+  // User.disableRemoteMethodByName('prototype.__count__applications');
   User.disableRemoteMethodByName('prototype.__updateById__applications');
   User.disableRemoteMethodByName('prototype.__delete__applications');
   User.disableRemoteMethodByName('prototype.__deleteById__applications');
@@ -752,11 +758,20 @@ module.exports = function(User) {
   User.disableRemoteMethodByName('prototype.__unlink__applications');
 
   User.disableRemoteMethodByName('prototype.__create__devices');
-  User.disableRemoteMethodByName('prototype.__count__devices');
+  // User.disableRemoteMethodByName('prototype.__count__devices');
   User.disableRemoteMethodByName('prototype.__updateById__devices');
   User.disableRemoteMethodByName('prototype.__delete__devices');
   User.disableRemoteMethodByName('prototype.__deleteById__devices');
   User.disableRemoteMethodByName('prototype.__destroyById__devices');
+  User.disableRemoteMethodByName('prototype.__link__devices');
+  User.disableRemoteMethodByName('prototype.__unlink__devices');
+
+  User.disableRemoteMethodByName('prototype.__create__sensors');
+  // User.disableRemoteMethodByName('prototype.__count__sensors');
+  User.disableRemoteMethodByName('prototype.__updateById__sensors');
+  User.disableRemoteMethodByName('prototype.__delete__sensors');
+  User.disableRemoteMethodByName('prototype.__deleteById__sensors');
+  User.disableRemoteMethodByName('prototype.__destroyById__sensors');
   User.disableRemoteMethodByName('prototype.__link__devices');
   User.disableRemoteMethodByName('prototype.__unlink__devices');
 

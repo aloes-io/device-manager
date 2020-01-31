@@ -188,6 +188,7 @@ Event reporting that an address instance / collection is requested
         * [~detector(packet, client)](#module_Application..detector) ⇒ <code>object</code>
         * ["client" (message)](#event_client) ⇒ <code>function</code>
         * ["publish" (message)](#event_publish) ⇒ <code>function</code>
+        * ["stopped"](#event_stopped)
         * ["before_save" (ctx)](#event_before_save) ⇒ <code>function</code>
         * ["after_save" (ctx)](#event_after_save) ⇒ <code>function</code>
         * ["before_delete" (ctx)](#event_before_delete) ⇒ <code>function</code>
@@ -521,6 +522,14 @@ Event reporting that an application client sent a message.
 | message.pattern | <code>object</code> | Pattern detected |
 | message.client | <code>object</code> | MQTT client |
 
+<a name="event_stopped"></a>
+
+### "stopped"
+Event reporting that application stopped
+
+Trigger Application stopping routine
+
+**Kind**: event emitted by [<code>Application</code>](#module_Application)  
 <a name="event_before_save"></a>
 
 ### "before_save" (ctx) ⇒ <code>function</code>
@@ -582,8 +591,12 @@ Event reporting that an application instance will be deleted.
 
 
 * [Client](#module_Client)
-    * [.cacheIterator([filter])](#module_Client.cacheIterator) ⇒ <code>string</code>
-    * [.deleteAll()](#module_Client.deleteAll) ⇒ <code>array</code>
+    * _static_
+        * [.cacheIterator([filter])](#module_Client.cacheIterator) ⇒ <code>string</code>
+        * [.getAll([filter])](#module_Client.getAll) ⇒ <code>array</code>
+        * [.deleteAll()](#module_Client.deleteAll) ⇒ <code>array</code>
+    * _inner_
+        * ["stopped"](#event_stopped)
 
 <a name="module_Client.cacheIterator"></a>
 
@@ -597,6 +610,18 @@ Iterate over each Client keys found in cache
 | --- | --- | --- |
 | [filter] | <code>object</code> | Client filter |
 
+<a name="module_Client.getAll"></a>
+
+### Client.getAll([filter]) ⇒ <code>array</code>
+Find clients in the cache
+
+**Kind**: static method of [<code>Client</code>](#module_Client)  
+**Returns**: <code>array</code> - schedulers - Cached clients  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| [filter] | <code>object</code> | Client filter |
+
 <a name="module_Client.deleteAll"></a>
 
 ### Client.deleteAll() ⇒ <code>array</code>
@@ -604,6 +629,14 @@ Delete clients stored in cache
 
 **Kind**: static method of [<code>Client</code>](#module_Client)  
 **Returns**: <code>array</code> - clients - Cached clients keys  
+<a name="event_stopped"></a>
+
+### "stopped"
+Event reporting that application stopped
+
+Trigger Client stopping routine
+
+**Kind**: event emitted by [<code>Client</code>](#module_Client)  
 <a name="module_Device"></a>
 
 ## Device
@@ -671,6 +704,7 @@ Delete clients stored in cache
         * [~parseMessage(app, packet, pattern, client)](#module_Device..parseMessage) ⇒ <code>object</code>
         * ["client" (message)](#event_client) ⇒ <code>function</code>
         * ["publish" (message)](#event_publish) ⇒ <code>functions</code> \| <code>functions</code>
+        * ["stopped"](#event_stopped) ⇒ <code>functions</code>
         * ["before_save" (ctx)](#event_before_save) ⇒ <code>function</code>
         * ["after_save" (ctx)](#event_after_save) ⇒ <code>function</code>
         * ["before_delete" (ctx)](#event_before_delete) ⇒ <code>function</code>
@@ -1104,6 +1138,15 @@ Event reporting that a device client sent a message.
 | message.device | <code>object</code> | Found Device instance |
 | [message.client] | <code>object</code> | MQTT client |
 
+<a name="event_stopped"></a>
+
+### "stopped" ⇒ <code>functions</code>
+Event reporting that application stopped
+
+Trigger Device stopping routine
+
+**Kind**: event emitted by [<code>Device</code>](#module_Device)  
+**Returns**: <code>functions</code> - Device.syncCache  
 <a name="event_before_save"></a>
 
 ### "before_save" (ctx) ⇒ <code>function</code>
@@ -1463,6 +1506,8 @@ Update measurement by id
         * [~onTimeout(data)](#module_Scheduler..onTimeout) ⇒ <code>object</code>
         * [~onTick(data)](#module_Scheduler..onTick) ⇒ <code>object</code>
         * [~onTickHook(body)](#module_Scheduler..onTickHook) ⇒ <code>function</code>
+        * ["stopped"](#event_stopped) ⇒ <code>functions</code>
+        * ["stopped"](#event_stopped) ⇒ <code>functions</code>
 
 <a name="module_Scheduler.publish"></a>
 
@@ -1609,6 +1654,24 @@ validate webhook content before dispatch
 | --- | --- | --- |
 | body | <code>object</code> | Timer callback data |
 
+<a name="event_stopped"></a>
+
+### "stopped" ⇒ <code>functions</code>
+Event reporting that application started
+
+Trigger Scheduler starting routine
+
+**Kind**: event emitted by [<code>Scheduler</code>](#module_Scheduler)  
+**Returns**: <code>functions</code> - Scheduler.setClock  
+<a name="event_stopped"></a>
+
+### "stopped" ⇒ <code>functions</code>
+Event reporting that application stopped
+
+Trigger Scheduler stopping routine
+
+**Kind**: event emitted by [<code>Scheduler</code>](#module_Scheduler)  
+**Returns**: <code>functions</code> - Scheduler.delClock  
 <a name="module_SensorResource"></a>
 
 ## SensorResource

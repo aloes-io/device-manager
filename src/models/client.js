@@ -28,35 +28,66 @@ module.exports = function(Client) {
    * @returns {string} key - Cached key
    */
   Client.cacheIterator = async function*(filter) {
-    let iterator;
-    if (filter && filter.match) {
-      iterator = Client.iterateKeys(filter);
-    } else {
-      iterator = Client.iterateKeys();
-    }
+    const iterator = Client.iterateKeys(filter);
     try {
-      while (true) {
-        const key = iterator.next();
-        //  const key = await iterator.next();
-        if (!key) {
-          return;
-        }
-        yield key;
+      const key = await iterator.next();
+      if (!key) {
+        return;
       }
+      yield key;
+      // while (true) {
+      //   // eslint-disable-next-line no-await-in-loop
+      //   const key = await iterator.next();
+      //   if (!key) {
+      //     return;
+      //   }
+      //   yield key;
+      // }
+    } catch (e) {
+      logger.publish(3, `${collectionName}`, 'cacheIterator:err', e);
+      return;
     } finally {
-      logger.publish(4, `${collectionName}`, 'cacheIterator:res', 'over');
+      logger.publish(5, `${collectionName}`, 'cacheIterator:res', 'done');
+    }
+  };
+
+  /**
+   * Find clients in the cache
+   * @method module:Client.getAll
+   * @param {object} [filter] - Client filter
+   * @returns {array} schedulers - Cached clients
+   */
+  Client.getAll = async filter => {
+    try {
+      logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
+      const clients = [];
+      for await (const key of Client.cacheIterator(filter)) {
+        if (key && key !== null) {
+          try {
+            const client = JSON.parse(await Client.get(key));
+            clients.push(client);
+          } catch (e) {
+            // empty
+          }
+        }
+      }
+      return clients;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'getAll:err', error);
+      throw error;
     }
   };
 
   /**
    * Delete clients stored in cache
    * @method module:Client.deleteAll
+   * @param {object} [filter] - Client filter
    * @returns {array} clients - Cached clients keys
    */
-  Client.deleteAll = async () => {
+  Client.deleteAll = async filter => {
     try {
       const clients = [];
-      logger.publish(4, `${collectionName}`, 'deleteAll:req', '');
+      logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
       for await (const key of Client.cacheIterator()) {
         if (key && key !== null) {
           clients.push(key);
@@ -70,12 +101,25 @@ module.exports = function(Client) {
     }
   };
 
+  /**
+   * Event reporting that application stopped
+   *
+   * Trigger Client stopping routine
+   *
+   * @event stopped
+   */
   Client.on('stopped', async () => {
     try {
+      if (process.env.CLUSTER_MODE) {
+        if (process.env.PROCESS_ID !== '0') return null;
+        if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+      }
+      logger.publish(3, `${collectionName}`, 'on-stop:res', '');
       await Client.deleteAll();
       return true;
     } catch (error) {
-      throw error;
+      logger.publish(2, `${collectionName}`, 'on-stop:err', error);
+      return false;
     }
   });
 };

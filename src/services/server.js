@@ -1,14 +1,14 @@
 /* Copyright 2019 Edouard Maleix, read LICENSE */
 
+import flash from 'express-flash';
+import fallback from 'express-history-api-fallback';
 import loopback from 'loopback';
 import boot from 'loopback-boot';
 import explorer from 'loopback-component-explorer';
-import fallback from 'express-history-api-fallback';
-import flash from 'express-flash';
 import path from 'path';
 //  import {ensureLoggedIn} from 'connect-ensure-login';
-import MQTTClient from './mqtt-client';
 import logger from './logger';
+import MQTTClient from './mqtt-client';
 
 /**
  * @module Server
@@ -37,7 +37,8 @@ const authenticateInstance = async (client, username, password) => {
   const Client = app.models.Client;
   let status, foundClient;
   if (!client || !client.id) return { client: null, status: 1 };
-  // todo : find a way to verify in auth request, against which model authenticate
+  // todo : find a way to verify in auth request, against which model
+  // authenticate
   try {
     const savedClient = JSON.parse(await Client.get(client.id));
     if (!savedClient || !savedClient.model) {
@@ -158,7 +159,7 @@ app.start = async config => {
     app.set('port', Number(config.HTTP_SERVER_PORT));
     //  app.set('cookieSecret', config.COOKIE_SECRET);
 
-    if (config.MQTTS_BROKER_URL) {
+    if (config.MQTTS_BROKER_URL && config.MQTTS_BROKER_URL.length > 1) {
       app.set('mqtt url', config.MQTTS_BROKER_URL);
       app.set('mqtt port', Number(config.MQTTS_BROKER_PORT));
     } else {
@@ -198,7 +199,8 @@ app.start = async config => {
 
     httpServer = app.listen(() => {
       // EXTERNAL AUTH
-      //  app.get('/auth/account', ensureLoggedIn('/login'), (req, res, next) => {
+      //  app.get('/auth/account', ensureLoggedIn('/login'), (req, res, next) =>
+      //  {
       app.get('/auth/account', (req, res, next) => {
         console.log('auth/account', req.url);
         res.set('Access-Control-Allow-Origin', '*');

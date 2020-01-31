@@ -59,6 +59,10 @@
       "required": true,
       "default": 0
     },
+    "createdAt": {
+      "type": "date",
+      "required": false
+    },
     "lastSignal": {
       "type": "date",
       "required": false

@@ -51,8 +51,7 @@ module.exports = function(SensorResource) {
     try {
       const key = `deviceId-${deviceId}-sensorId-${sensor.id}`;
       // eslint-disable-next-line security/detect-object-injection
-      const promises = await filteredProperties.map(p => delete sensor[p]);
-      await Promise.all(promises);
+      filteredProperties.map(p => delete sensor[p]);
       if (typeof sensor !== 'string') {
         sensor = JSON.stringify(sensor);
       }
@@ -139,9 +138,7 @@ module.exports = function(SensorResource) {
           sensors = await Promise.all(promises);
         } else if (direction === 'DOWN') {
           // sync mongo with redis
-          const promises = await sensors.map(async sensor =>
-            SensorResource.setCache(device.id, sensor),
-          );
+          const promises = sensors.map(async sensor => SensorResource.setCache(device.id, sensor));
           sensors = await Promise.all(promises);
         }
       }
@@ -155,23 +152,23 @@ module.exports = function(SensorResource) {
   /**
    * Async generator sending cache key promise
    * @method module:SensorResource.cacheIterator
-   * @param {object} filter - Key filter
+   * @param {object} [filter] - Key filter
    * @property {string} filter.match - glob string
    * @returns {string} key - Cached key
    */
   SensorResource.cacheIterator = async function*(filter) {
     const iterator = SensorResource.iterateKeys(filter);
     try {
-      while (true) {
-        const key = await iterator.next();
-        //  const key = iterator.next();
-        if (!key) {
-          return;
-        }
-        yield key;
+      const key = await iterator.next();
+      if (!key) {
+        return;
       }
+      yield key;
+    } catch (e) {
+      logger.publish(3, `${collectionName}`, 'cacheIterator:err', e);
+      return;
     } finally {
-      logger.publish(5, `${collectionName}`, 'cacheIterator:res', 'over');
+      logger.publish(5, `${collectionName}`, 'cacheIterator:res', 'done');
     }
   };
 
@@ -248,13 +245,14 @@ module.exports = function(SensorResource) {
   /**
    * Delete sensor resources stored in cache
    * @method module:SensorResource.deleteAll
+   * @param {object} [filter] - Key filter
    * @returns {array} sensors - Cached sensors keys
    */
-  SensorResource.deleteAll = async () => {
+  SensorResource.deleteAll = async filter => {
     try {
       const sensors = [];
-      logger.publish(4, `${collectionName}`, 'deleteAll:req', '');
-      for await (const key of SensorResource.cacheIterator()) {
+      logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
+      for await (const key of SensorResource.cacheIterator(filter)) {
         if (key && key !== null) {
           sensors.push(key);
           await SensorResource.delete(key);

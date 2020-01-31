@@ -29,9 +29,7 @@ const onBeforeSave = async ctx => {
 
     if (ctx.instance) {
       logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
-      const promises = await filteredProperties.map(async prop =>
-        ctx.instance.unsetAttribute(prop),
-      );
+      const promises = filteredProperties.map(async prop => ctx.instance.unsetAttribute(prop));
       await Promise.all(promises);
       logger.publish(4, collectionName, 'onBeforeSave:res', ctx.instance);
       return ctx;
@@ -669,7 +667,7 @@ module.exports = Application => {
         });
         if (devices && devices.length > 0) {
           devices = JSON.parse(JSON.stringify(devices));
-          const promises = await devices.map(Application.app.models.SensorResource.includeCache);
+          const promises = devices.map(Application.app.models.SensorResource.includeCache);
           application.devices = await Promise.all(promises);
         } else {
           application.devices = [];
@@ -730,6 +728,13 @@ module.exports = Application => {
     }
   });
 
+  /**
+   * Event reporting that application stopped
+   *
+   * Trigger Application stopping routine
+   *
+   * @event stopped
+   */
   Application.on('stopped', async () => {
     try {
       if (process.env.CLUSTER_MODE) {

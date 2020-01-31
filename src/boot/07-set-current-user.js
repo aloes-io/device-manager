@@ -1,6 +1,5 @@
 /* Copyright 2019 Edouard Maleix, read LICENSE */
 
-import throttle from 'lodash.throttle';
 import isAlphanumeric from 'validator/lib/isAlphanumeric';
 import isLength from 'validator/lib/isLength';
 import logger from '../services/logger';
@@ -82,7 +81,7 @@ module.exports = app => {
             devEui: device.devEui,
             roles: ['user'],
             type: 'Device',
-            // onwerId: device.ownerId
+            ownerId: device.ownerId,
           };
           logger.publish(4, 'loopback', 'setCurrentUser:res', {
             method: ctx.methodString,
@@ -115,7 +114,7 @@ module.exports = app => {
             appEui: application.appEui,
             roles: ['user'],
             type: 'Application',
-            // onwerId: application.ownerId
+            ownerId: application.ownerId,
           };
           logger.publish(4, 'loopback', 'setCurrentUser:res', {
             method: ctx.methodString,
@@ -145,10 +144,8 @@ module.exports = app => {
     }
   };
 
-  const delayedSetCurrentUser = throttle(setCurrentUser, 5);
-
   app
     .remotes()
     .phases.addBefore('invoke', 'set-current-user')
-    .use(delayedSetCurrentUser);
+    .use(setCurrentUser);
 };

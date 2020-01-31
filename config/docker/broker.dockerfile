@@ -24,7 +24,7 @@ RUN npm run build
 ###############################################################################
 # Step 2 : Run image
 #
-FROM node:lts-alpine as mqtt-api
+FROM node:lts-alpine AS mqtt-api
 
 ENV NODE_NAME=device-manager
 

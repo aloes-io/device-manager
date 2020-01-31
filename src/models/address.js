@@ -107,7 +107,8 @@ module.exports = function(Address) {
   Address.verify = async address => {
     try {
       logger.publish(4, `${collectionName}`, 'verify:req', address);
-      const requestAddress = { countryCode: 'fr' };
+      // const requestAddress = { countryCode: 'fr' };
+      const requestAddress = {};
       if (address.street && address.city) {
         requestAddress.address = `${address.street} ${address.city}`;
       } else if (!address.street && address.city) {
