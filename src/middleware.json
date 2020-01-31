@@ -23,12 +23,10 @@
         "includeSubDomains": true
       }
     },
-    "helmet#hidePoweredBy": {},
+    "helmet#hidePoweredBy": { "enabled": true },
     "helmet#ieNoOpen": {},
     "helmet#noSniff": {},
-    "helmet#noCache": {
-      "enabled": false
-    }
+    "helmet#noCache": { "enabled": false }
   },
   "session": {},
   "auth": {},
@@ -39,10 +37,11 @@
       }
     },
     "body-parser#json": {
+      "limit": "500kb",
       "verify": true
     },
     "body-parser#raw": {
-      "limit": "200kb",
+      "limit": "1mb",
       "type": "*/*"
     }
   },
@@ -59,7 +58,7 @@
     "strong-error-handler": {
       "params": {
         "debug": false,
-        "log": true,
+        "log": false,
         "safeFields": ["errorCode"]
       }
     }

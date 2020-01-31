@@ -4,6 +4,7 @@
  * This script creates weighted random load on the sample server.
  */
 
+/* eslint-disable security/detect-object-injection  */
 import request from 'request';
 import table from 'text-table';
 import weighted from 'weighted';
@@ -22,7 +23,6 @@ function toJSON(body) {
   if (typeof body !== 'string') {
     return body;
   }
-
   return JSON.parse(body);
 }
 
@@ -31,7 +31,6 @@ function toJSON(body) {
  */
 function randomHalf(arr) {
   const size = Math.ceil(arr.length / 2);
-
   return shuffle({ deck: arr }).draw(size);
 }
 
@@ -82,7 +81,6 @@ function weighChoices(routes) {
   const choices = routes.reduce((obj, route) => {
     obj[route] = Math.random();
     total += obj[route];
-
     return obj;
   }, {});
 

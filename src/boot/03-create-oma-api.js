@@ -1,8 +1,14 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import { omaObjects, omaResources, omaViews } from 'oma-json';
 import logger from '../services/logger';
 
 export default async function createOmaApi(server) {
   try {
+    if (process.env.CLUSTER_MODE) {
+      if (process.env.PROCESS_ID !== '0') return null;
+      if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+    }
     const foundOmaObjects = await server.models.OmaObject.find();
     // todo update models based on package.json version for oma-json
     if (foundOmaObjects.length === omaObjects.length) {

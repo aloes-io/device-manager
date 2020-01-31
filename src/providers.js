@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 module.exports = {
   local: {
     provider: 'local',
@@ -5,8 +7,8 @@ module.exports = {
     usernameField: 'email',
     passwordField: 'password',
     domain: process.env.DOMAIN,
-    //    clientID: '12212',
     authPath: `${process.env.REST_API_ROOT}/auth/login`,
+    // authPath: `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}/auth/login`,
     //    callbackPath: `/api/auth/login`,
     //    successRedirect: '/auth/account',
     //     failureRedirect: '/local',
@@ -25,7 +27,9 @@ module.exports = {
     clientID: process.env.GITHUB_CLIENT_ID_LOGIN,
     clientSecret: process.env.GITHUB_CLIENT_SECRET_LOGIN,
     callbackURL: `${process.env.HTTP_SERVER_URL}/auth/github/callback`,
+    // callbackURL: `${process.env.HTTP_SERVER_URL}/${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}/auth/github/callback`,
     authPath: `${process.env.REST_API_ROOT}/auth/github`,
+    // authPath: `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}/auth/github`,
     callbackPath: `/auth/github/callback`,
     successRedirect: `${process.env.HTTP_CLIENT_URL}/auth`,
     successFlash: true,
@@ -45,6 +49,7 @@ module.exports = {
     clientSecret: process.env.GITHUB_CLIENT_SECRET_LINK,
     callbackURL: `${process.env.HTTP_SERVER_URL}/link/github/callback`,
     authPath: `${process.env.REST_API_ROOT}/link/github`,
+    // authPath: `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}/link/github`,
     callbackPath: `/link/github/callback`,
     successRedirect: `${process.env.HTTP_CLIENT_URL}/auth`,
     successFlash: true,

@@ -1,21 +1,27 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable import/no-extraneous-dependencies */
 import { expect } from 'chai';
 import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
 import testHelper from '../services/test-helper';
 
+// todo mock device mqtt connection
+
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
+const restApiPath = `${process.env.REST_API_ROOT}`;
+// const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
 const sensorTest = () => {
   const deviceFactory = testHelper.factories.device;
   const sensorFactory = testHelper.factories.sensor;
-  const loginUrl = '/api/Users/login';
+  const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Sensors';
-  const apiUrl = `/api/${collectionName}/`;
+  const apiUrl = `${restApiPath}/${collectionName}/`;
 
-  describe(collectionName, () => {
+  describe(`${collectionName} HTTP`, () => {
     const DeviceModel = app.models.Device;
     const SensorModel = app.models.Sensor;
     let users, devices, sensors, userIds;
@@ -31,58 +37,63 @@ const sensorTest = () => {
       },
     };
 
+    async function before() {
+      try {
+        this.timeout(delayBeforeTesting);
+        users = await Promise.all([
+          testHelper.access.admin.create(app),
+          testHelper.access.user.create(app),
+        ]);
+        userIds = [users[0].id, users[1].id];
+
+        const deviceModels = Array(2)
+          .fill('')
+          .map((_, index) => {
+            if (index === 0) {
+              return deviceFactory(index + 1, userIds[0]);
+            }
+            return deviceFactory(index + 1, userIds[1]);
+          });
+        await DeviceModel.create(deviceModels).then(res => {
+          devices = res.map(model => model.toJSON());
+          return res;
+        });
+
+        const sensorModels = Array(5)
+          .fill('')
+          .map((_, index) => {
+            if (index <= 2) {
+              return sensorFactory(index + 1, devices[0], userIds[0]);
+            }
+            return sensorFactory(index + 1, devices[1], userIds[1]);
+          });
+        // console.log('CREATED SENSORS MODELS ', sensorModels);
+        await SensorModel.create(sensorModels).then(res => {
+          sensors = res.map(model => model.toJSON());
+          return res;
+        });
+        return sensors;
+      } catch (error) {
+        console.log(`[TEST] ${collectionName} before:err`, error);
+        return null;
+      }
+    }
+
+    function after(done) {
+      this.timeout(4000);
+      Promise.all([
+        SensorModel.destroyAll(),
+        DeviceModel.destroyAll(),
+        app.models.user.destroyAll(),
+      ])
+        .then(() => done())
+        .catch(e => done(e));
+    }
+
     const e2eTestsSuite = {
       [`[TEST] ${collectionName} E2E Tests`]: {
-        async before() {
-          try {
-            this.timeout(7000);
-            users = await Promise.all([
-              testHelper.access.admin.create(app),
-              testHelper.access.user.create(app),
-            ]);
-            userIds = [users[0].id, users[1].id];
-
-            const deviceModels = Array(2)
-              .fill('')
-              .map((_, index) => {
-                if (index === 0) {
-                  return deviceFactory(index + 1, userIds[0]);
-                }
-                return deviceFactory(index + 1, userIds[1]);
-              });
-            await DeviceModel.create(deviceModels).then(res => {
-              devices = res.map(model => model.toJSON());
-              return res;
-            });
-
-            const sensorModels = Array(5)
-              .fill('')
-              .map((_, index) => {
-                if (index <= 2) {
-                  return sensorFactory(index + 1, devices[0], userIds[0]);
-                }
-                return sensorFactory(index + 1, devices[1], userIds[1]);
-              });
-            // console.log('CREATED SENSORS MODELS ', sensorModels);
-            await SensorModel.create(sensorModels).then(res => {
-              sensors = res.map(model => model.toJSON());
-              return res;
-            });
-            return sensors;
-          } catch (error) {
-            console.log(`[TEST] ${collectionName} before:err`, error);
-            return error;
-          }
-        },
-        // beforeEach() {
-        //   this.timeout(5000);
-        // },
-        after: () =>
-          Promise.all([
-            SensorModel.destroyAll(),
-            DeviceModel.destroyAll(),
-            app.models.user.destroyAll(),
-          ]),
+        before,
+        after,
         tests: {
           '[TEST] Verifying "Create" access': {
             tests: [
@@ -220,7 +231,7 @@ const sensorTest = () => {
                 auth: profiles.user,
                 url: () => `${apiUrl}search`,
                 body: () => ({
-                  filter: { text: sensors[0].type },
+                  filter: { text: sensors[0].type.toString() },
                 }),
                 expect: resp => {
                   expect(resp.status).to.be.equal(200);
@@ -263,7 +274,7 @@ const sensorTest = () => {
                 verb: 'post',
                 url: () => `${apiUrl}on-publish`,
                 body: () => ({
-                  device: { ...devices[2] },
+                  device: { ...devices[1] },
                   sensor: { ...sensors[0], value: 10, lastSignal: new Date() },
                   client: {
                     id: users[1].id,
@@ -278,7 +289,7 @@ const sensorTest = () => {
                 auth: profiles.user,
                 url: () => `${apiUrl}on-publish`,
                 body: () => ({
-                  device: { ...devices[2] },
+                  device: { ...devices[1] },
                   sensor: { ...sensors[0], value: 10, lastSignal: new Date() },
                   client: {
                     id: users[1].id,
@@ -304,4 +315,4 @@ const sensorTest = () => {
 setTimeout(() => {
   sensorTest();
   run();
-}, delayBeforeTesting);
+}, delayBeforeTesting * 1.5);

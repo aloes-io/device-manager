@@ -1,0 +1,65 @@
+# Copyright 2019 Edouard Maleix, read LICENSE
+
+worker_processes 4;
+
+events { 
+	worker_connections 1024; 
+}
+
+http {
+
+	map $http_upgrade $connection_upgrade {
+		default upgrade;
+		'' close;
+	}
+
+	upstream aloes_http_api_servers {
+		least_conn;
+		server api:${HTTP_SERVER_PORT};
+	}
+
+	upstream aloes_ws_api_servers {
+		least_conn;
+		server api:${WS_BROKER_PORT};
+	}
+
+	server {
+		listen ${NGINX_HTTP_SERVER_PORT};
+		listen [::]:${NGINX_HTTP_SERVER_PORT} ipv6only=on;
+
+		# location / {
+		# }
+
+		location /app/ {
+			proxy_pass http://aloes_http_api_servers/;
+			proxy_redirect off;
+			proxy_http_version 1.1;
+		}  
+
+		location /ws {
+			proxy_pass http://aloes_ws_api_servers;
+			proxy_redirect off;
+			proxy_http_version 1.1;
+			proxy_set_header Upgrade $http_upgrade;
+			proxy_set_header Connection $connection_upgrade;
+		}  
+	}
+
+}
+
+stream {
+
+	upstream aloes_mqtt_api_servers {
+		least_conn;
+		server api:${MQTT_BROKER_PORT};
+	}
+
+	server {
+		listen ${MQTT_BROKER_PORT} so_keepalive=on;
+		listen [::]:${MQTT_BROKER_PORT} ipv6only=on;
+		proxy_pass aloes_mqtt_api_servers;
+		proxy_connect_timeout 2s;
+		proxy_timeout 60s;
+	}
+
+}

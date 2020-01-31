@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable no-underscore-dangle */
 import ejs from 'ejs';
 import * as fs from 'fs';
@@ -13,11 +15,12 @@ const codeNames = {
   401: 'Unauthorized',
   403: 'Forbidden',
   404: 'Not Found',
+  415: 'Unsupported',
 };
 
 utils.buildError = (statusCode, code, message) => {
+  // eslint-disable-next-line security/detect-object-injection
   const err = new Error(code || codeNames[statusCode] || message || 'An error occurred!');
-  // const err = new Error(message);
   err.statusCode = statusCode;
   // err.code = code;
   return err;
@@ -31,12 +34,10 @@ utils.mkDirByPathSync = async (targetDir, { isRelativeToScript = false } = {}) =
   return targetDir.split(sep).reduce((parentDir, childDir) => {
     const curDir = path.resolve(baseDir, parentDir, childDir);
     try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
       fs.mkdirSync(curDir);
     } catch (err) {
-      if (err.code === 'EEXIST') {
-        // curDir already exists!
-        return curDir;
-      }
+      if (err.code === 'EEXIST') return curDir;
       // To avoid `EISDIR` error on Mac and `EACCES`-->`ENOENT` and `EPERM` on Windows.
       if (err.code === 'ENOENT') {
         // Throw the original parentDir error on curDir `ENOENT` failure.
@@ -60,12 +61,20 @@ utils.renderTemplate = options =>
 
 utils.readFile = (filePath, opts = 'utf8') =>
   new Promise((resolve, reject) => {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.readFile(filePath, opts, (err, data) => (err ? reject(err) : resolve(data)));
   });
 
 utils.writeFile = (filePath, data, opts = 'utf8') =>
   new Promise((resolve, reject) => {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.appendFile(filePath, data, opts, err => (err ? reject(err) : resolve()));
+  });
+
+utils.removeFile = filePath =>
+  new Promise((resolve, reject) => {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    fs.unlink(filePath, err => (err && err.code !== 'ENOENT' ? reject(err) : resolve()));
   });
 
 utils.generateKey = (hmacKey, algorithm, encoding) => {
@@ -115,7 +124,9 @@ utils.exportToCSV = (input, filter) => {
       // });
 
       const filterTemplate = {};
+      // todo : filter valid keys
       Object.keys(filter).forEach(key => {
+        // eslint-disable-next-line security/detect-object-injection
         filterTemplate[key] = filter[key];
       });
 
@@ -131,11 +142,20 @@ utils.exportToCSV = (input, filter) => {
     }
 
     const csv = Papa.unparse(selection);
-    // console.log('export csv', csv);
     return csv;
   } catch (error) {
     throw error;
   }
+};
+
+utils.getOwnerId = options => {
+  if (options.currentUser && options.currentUser.type) {
+    if (options.currentUser.type === 'User') {
+      return options.currentUser.id.toString();
+    }
+    return options.currentUser.ownerId.toString();
+  }
+  return null;
 };
 
 export default utils;

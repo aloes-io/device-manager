@@ -22,6 +22,7 @@ npm-debug.log
 /dist/
 /build/
 /log/
+/test
 #config files
 .env
 /config/.env

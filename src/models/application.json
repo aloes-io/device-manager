@@ -13,6 +13,10 @@
       "default": "",
       "required": false
     },
+    "createdAt": {
+      "type": "date",
+      "required": false
+    },
     "description": {
       "type": "string",
       "default": "",
@@ -110,6 +114,32 @@
     {
       "accessType": "*",
       "principalType": "ROLE",
+      "principalId": "admin",
+      "permission": "ALLOW",
+      "property": [
+        "find",
+        "findById",
+        "count",
+        "exists",
+        "patchAttributes",
+        "updateAttributes",
+        "replaceAttributes",
+        "replaceById",
+        "destroyById",
+        "deleteById",
+        "delete",
+        "onPublish",
+        "__get__collaborators",
+        "__create__collaborators",
+        "__add__collaborators",
+        "__findById__collaborators",
+        "__updateById__collaborators",
+        "__destroyById__collaborators"
+      ]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
       "principalId": "$everyone",
       "permission": "DENY"
     },
@@ -118,21 +148,21 @@
       "principalType": "ROLE",
       "principalId": "$everyone",
       "permission": "ALLOW",
-      "property": ["getState"]
+      "property": ["updateStatus", "authenticate", "getState", "getFullState"]
     },
     {
       "accessType": "*",
       "principalType": "ROLE",
       "principalId": "$authenticated",
       "permission": "ALLOW",
-      "property": ["create", "find", "findById", "exists"]
+      "property": ["create", "find", "count", "exists", "refreshToken", "onPublish"]
     },
     {
       "accessType": "*",
       "principalType": "ROLE",
       "principalId": "$collaborator",
       "permission": "ALLOW",
-      "property": ["create", "find", "findById", "replaceById", "replaceOrCreate", "exists"]
+      "property": ["findById", "replaceById", "replaceOrCreate", "exists"]
     },
     {
       "accessType": "*",
@@ -142,12 +172,13 @@
       "property": [
         "replaceById",
         "destroyById",
+        "deleteById",
         "replaceOrCreate",
         "updateById",
         "updateAttributes",
+        "patchAttributes",
         "upsert",
         "exists",
-        "delete",
         "find",
         "findById",
         "refreshToken",
@@ -173,15 +204,45 @@
           "arg": "packet",
           "type": "object",
           "required": true
+        },
+        {
+          "arg": "client",
+          "type": "object",
+          "required": false
         }
       ],
       "returns": {
-        "arg": "result",
-        "type": "object"
+        "arg": "application",
+        "type": "object",
+        "root": true
       },
       "http": {
         "verb": "post",
         "path": "/on-publish"
+      }
+    },
+    "updateStatus": {
+      "description": ["Update MQTT client attached to an application"],
+      "accepts": [
+        {
+          "arg": "client",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "status",
+          "type": "boolean",
+          "required": true
+        }
+      ],
+      "returns": {
+        "arg": "application",
+        "type": "object",
+        "root": true
+      },
+      "http": {
+        "verb": "post",
+        "path": "/update-status"
       }
     },
     "refreshToken": {
@@ -195,8 +256,8 @@
           }
         },
         {
-          "arg": "application",
-          "type": "object",
+          "arg": "appId",
+          "type": "string",
           "required": true
         }
       ],
@@ -206,7 +267,7 @@
       },
       "http": {
         "verb": "post",
-        "path": "/refresh-token"
+        "path": "/refresh-token/:appId"
       }
     },
     "authenticate": {
@@ -239,12 +300,11 @@
           "arg": "appId",
           "type": "string",
           "required": true
-        },
-        { "arg": "options", "type": "object", "http": "optionsFromRequest" }
+        }
       ],
       "returns": {
         "root": true,
-        "type": "string"
+        "type": "object"
       },
       "http": {
         "verb": "get",

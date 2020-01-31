@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import app from './server';
 import utils from './utils';
 import logger from './logger';
@@ -9,15 +11,22 @@ const inviteTemplate = `${__dirname}/../views/mail-invite.ejs`;
 const contactFormTemplate = `${__dirname}/../views/contact-form.ejs`;
 const collectionName = 'Mail';
 
+const serverBaseUrl = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}`;
+// const serverBaseUrl = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/${
+//   process.env.REST_API_VERSION
+// }`;
+
 const baseConf = {
   type: 'email',
   to: '',
   from: emailFrom,
   text: '',
   headers: { 'Mime-Version': '1.0' },
-  host: `${process.env.HTTP_SERVER_HOST}`,
-  port: Number(process.env.HTTP_SERVER_PORT),
+  host: `${process.env.DOMAIN}`,
+  port: process.env.HTTP_SECURE ? 443 : 80,
+  // port: Number(process.env.HTTP_SERVER_PORT),
   restApiRoot: process.env.REST_API_ROOT,
+  // restApiRoot: `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`,
   serverUrl: process.env.HTTP_SERVER_URL,
   url: '',
 };
@@ -84,7 +93,7 @@ mails.send = async options => {
     return result;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'send:err', error);
-    throw error;
+    return { message: 'email not sent' };
   }
 };
 
@@ -111,9 +120,9 @@ mails.verifyEmail = async user => {
     const options = {
       ...config.verifyOptions,
       to: user.email,
-      verifyHref: `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/users/confirm?uid=${
-        user.id
-      }&redirect=${process.env.HTTP_CLIENT_URL}/login`,
+      verifyHref: `${serverBaseUrl}/users/confirm?uid=${user.id}&redirect=${
+        process.env.HTTP_CLIENT_URL
+      }/login`,
       user,
       text: `Please confirm account creation by opening this link`,
     };
@@ -128,7 +137,7 @@ mails.verifyEmail = async user => {
     return result;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'verifyEmail:err', error);
-    throw error;
+    return null;
   }
 };
 
@@ -152,7 +161,6 @@ mails.sendResetPasswordMail = async options => {
     await mails.send(newOptions);
   } catch (error) {
     logger.publish(4, `${collectionName}`, 'sendResetPasswordMail:err', error);
-    throw error;
   }
 };
 
@@ -175,7 +183,7 @@ mails.sendContactForm = async options => {
     logger.publish(4, `${collectionName}`, 'sendContactForm:req', newOptions);
     await mails.send(newOptions);
   } catch (error) {
-    throw error;
+    logger.publish(2, `${collectionName}`, 'sendContactForm:err', error);
   }
 };
 
@@ -193,7 +201,7 @@ mails.sendMailInvite = async options => {
     logger.publish(4, `${collectionName}`, 'sendMailInvite:req', newOptions);
     await mails.send(newOptions);
   } catch (error) {
-    throw error;
+    logger.publish(2, `${collectionName}`, 'sendConsendMailInvitetactForm:err', error);
   }
 };
 

@@ -1,4 +1,7 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable import/no-extraneous-dependencies */
+/* eslint-disable security/detect-non-literal-regexp */
 import { expect } from 'chai';
 import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
@@ -7,18 +10,21 @@ import testHelper from '../services/test-helper';
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
+const restApiPath = `${process.env.REST_API_ROOT}`;
+// const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
 const addressTest = () => {
   const deviceFactory = testHelper.factories.device;
   const addressFactory = testHelper.factories.address;
-  const loginUrl = '/api/Users/login';
+  const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Addresses';
-  const apiUrl = `/api/${collectionName}/`;
-  const deviceApiUrl = `/api/Devices/`;
-  const userApiUrl = `/api/Users/`;
+  const apiUrl = `${restApiPath}/${collectionName}/`;
+  const deviceApiUrl = `${restApiPath}/Devices/`;
+  const userApiUrl = `${restApiPath}/Users/`;
 
   describe(collectionName, function() {
-    this.timeout(4000);
+    this.timeout(5000);
+    this.slow(2000);
     const DeviceModel = app.models.Device;
     const AddressModel = app.models.Address;
     let devices, users, userAddress, deviceAddress;
@@ -54,7 +60,6 @@ const addressTest = () => {
             });
 
             // console.log('USER ADDRESS ', userAddress);
-
             const deviceModels = Array(2)
               .fill('')
               .map((_, index) => {
@@ -75,15 +80,20 @@ const addressTest = () => {
                 ],
               },
             });
-            console.log('DEVICE ADDRESS ', deviceAddress);
+            // console.log('DEVICE ADDRESS ', deviceAddress);
 
             return devices;
           } catch (error) {
             console.log(`[TEST] ${collectionName} before:err`, error);
-            return error;
+            return null;
           }
         },
-        after: () => Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()]),
+        after(done) {
+          this.timeout(3000);
+          Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
+            .then(() => done())
+            .catch(e => done(e));
+        },
         tests: {
           '[TEST] Verifying "Create" access': {
             tests: [
@@ -386,4 +396,4 @@ const addressTest = () => {
 setTimeout(() => {
   addressTest();
   run();
-}, delayBeforeTesting);
+}, delayBeforeTesting * 1.5);

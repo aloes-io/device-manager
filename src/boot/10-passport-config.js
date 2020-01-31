@@ -1,10 +1,16 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
+/* eslint-disable security/detect-object-injection */
 import loopbackPassport from 'loopback-component-passport';
 import providers from '../providers';
 import logger from '../services/logger';
 
 module.exports = async function passportConfig(app) {
   try {
-    // Passport configurators..
+    if (process.env.CLUSTER_MODE) {
+      if (process.env.PROCESS_ID !== '0') return null;
+      if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+    }
     const PassportConfigurator = loopbackPassport.PassportConfigurator;
     const passportConfigurator = new PassportConfigurator(app);
     logger.publish(4, 'loopback', 'boot:passportConfig:req', providers);
@@ -27,7 +33,7 @@ module.exports = async function passportConfig(app) {
         passportConfigurator.configureProvider(provider, c);
         return c;
       } catch (error) {
-        throw error;
+        return null;
       }
     });
     //  const configuredProviders = await Promise.all(promises);
@@ -35,6 +41,7 @@ module.exports = async function passportConfig(app) {
     return configuredProviders;
   } catch (error) {
     logger.publish(2, 'loopback', 'boot:passportConfig:err', error);
-    throw error;
+    // throw error;
+    return null;
   }
 };

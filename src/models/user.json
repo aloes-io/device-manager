@@ -10,8 +10,16 @@
   },
   "mixins": {},
   "restrictResetPasswordTokenScope": true,
-  "emailVerificationRequired": false,
+  "emailVerificationRequired": true,
   "properties": {
+    "createdAt": {
+      "type": "date",
+      "required": false
+    },
+    "updatedAt": {
+      "type": "date",
+      "required": false
+    },
     "firstName": {
       "type": "string",
       "required": false
@@ -100,6 +108,11 @@
       "foreignKey": "principalId",
       "through": "RoleMapping"
     },
+    "sensors": {
+      "type": "hasMany",
+      "model": "Sensor",
+      "foreignKey": "ownerId"
+    },
     "teams": {
       "type": "hasMany",
       "model": "Team",
@@ -149,10 +162,12 @@
         "__findById__devices",
         "__updateById__devices",
         "__destroyById__devices",
+        "__count__devices",
         "__get__sensors",
         "__findById__sensors",
         "__updateById__sensors",
         "__destroyById__sensors",
+        "__count__sensors",
         "__get__applications",
         "__create__applications",
         "__findById__applications",

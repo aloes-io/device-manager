@@ -1,8 +1,14 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import utils from '../services/utils';
 import logger from '../services/logger';
 
 module.exports = async function(server) {
   try {
+    if (process.env.CLUSTER_MODE) {
+      if (process.env.PROCESS_ID !== '0') return null;
+      if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+    }
     const User = server.models.user;
     const Files = server.models.Files;
     //  const Application = server.models.Application;
@@ -50,6 +56,6 @@ module.exports = async function(server) {
     return accountsContainers;
   } catch (error) {
     logger.publish(2, 'loopback', 'boot:initStorages:err', error);
-    return error;
+    return null;
   }
 };

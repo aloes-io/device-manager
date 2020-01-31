@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable import/no-extraneous-dependencies */
 import fs from 'fs';
 import FormData from 'form-data';
@@ -7,11 +9,12 @@ import { omaObjects, omaViews } from 'oma-json';
 import roleManager from './role-manager';
 import deviceTypes from '../initial-data/device-types.json';
 
+let lastAddressId = 0;
+let lastApplicationId = 0;
 let lastDeviceId = 0;
 let lastSensorId = 0;
 let lastMeasurmentId = 0;
 let lastFileId = 0;
-let lastAddressId = 0;
 let lastUserId = 0;
 
 function addressFactory(id, owner) {
@@ -40,6 +43,169 @@ function addressFactory(id, owner) {
     ownerType,
   };
   return address;
+}
+
+async function fileFactory(type) {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  const readFile = promisify(fs.readFile);
+  const buffer = await readFile(`${path.resolve('.')}/docs/.vuepress/public/logo.png`);
+  if (type === 'formdata') {
+    const formData = new FormData();
+    formData.append('file', buffer, {
+      filename: `test.png`,
+      contentType: 'application/octet-stream',
+      mimeType: 'application/octet-stream',
+    });
+    return formData;
+  }
+  return buffer;
+}
+
+function fileMetaFactory(id, file, ownerId) {
+  if (id) {
+    lastFileId = id;
+  } else {
+    lastFileId += 1;
+    id = lastFileId;
+  }
+  ownerId = ownerId || lastUserId;
+
+  const baseUrl = `${process.env.REST_API_ROOT}/Files/`;
+  // const baseUrl = `${process.env.REST_API_ROOT}/${process.env.API_VERSION}/Files/`
+  return {
+    name: file.name,
+    type: 'image/png',
+    size: file.size,
+    role: file.role,
+    url: `${baseUrl}${ownerId}/download/${file.name}`,
+    ownerId,
+  };
+}
+
+function applicationFactory(id, ownerId) {
+  if (id) {
+    lastApplicationId = id;
+  } else {
+    lastApplicationId += 1;
+    id = lastApplicationId;
+  }
+  ownerId = ownerId || lastUserId;
+  return {
+    name: `Application ${id}`,
+    appEui: `12345${id}`,
+    transportProtocol: 'aloeslight',
+    ownerId,
+  };
+}
+
+function clientFactory(profile, type, key) {
+  let clientId;
+  if (type === 'user') {
+    clientId = `${profile.id}-${Math.random()
+      .toString(16)
+      .substr(2, 8)}`;
+  } else if (type === 'device') {
+    clientId = `${profile.devEui}-${Math.random()
+      .toString(16)
+      .substr(2, 8)}`;
+  } else if (type === 'application') {
+    clientId = `${profile.appEui}-${Math.random()
+      .toString(16)
+      .substr(2, 8)}`;
+  } else {
+    clientId = profile.id;
+  }
+  return {
+    keepalive: 60,
+    reschedulePings: true,
+    reconnectPeriod: 1000,
+    connectTimeout: 2 * 1000,
+    protocolId: 'MQTT',
+    protocolVersion: 4,
+    clean: true,
+    clientId,
+    username: profile.id.toString(),
+    password: key.toString(),
+    will: { topic: `${clientId}/status`, payload: 'KO?', retain: false, qos: 0 },
+  };
+}
+
+function deviceFactory(id, ownerId) {
+  if (id) {
+    lastDeviceId = id;
+  } else {
+    lastDeviceId += 1;
+    id = lastDeviceId;
+  }
+  ownerId = ownerId || lastUserId;
+  const deviceTypesList = Object.keys(deviceTypes);
+  return {
+    name: `Device ${id}`,
+    type: deviceTypesList[Math.floor(Math.random() * deviceTypesList.length)],
+    devEui: `12345${id}`,
+    transportProtocol: 'aloeslight',
+    messageProtocol: 'aloeslight',
+    ownerId,
+  };
+}
+
+function measurementFactory(id, sensor, ownerId) {
+  if (id) {
+    lastMeasurmentId = id;
+  } else {
+    lastMeasurmentId += 1;
+    id = lastMeasurmentId;
+  }
+  ownerId = ownerId || lastUserId;
+  return {
+    value: 1,
+    timestamp: new Date().getTime(),
+    type: sensor.type,
+    resource: sensor.resource,
+    nativeSensorId: sensor.nativeSensorId,
+    nativeNodeId: sensor.nativeNodeId,
+    sensorId: sensor.id,
+    deviceId: sensor.deviceId,
+    ownerId,
+  };
+}
+
+function sensorFactory(id, device, ownerId) {
+  if (id) {
+    lastSensorId = id;
+  } else {
+    lastSensorId += 1;
+    id = lastSensorId;
+  }
+  ownerId = ownerId || lastUserId;
+  if (!device) return null;
+  const omaObject = omaObjects[Math.floor(Math.random() * omaObjects.length)];
+  const resourceKeys = Object.keys(omaObject.resources);
+  let resource = Number(resourceKeys[Math.floor(Math.random() * resourceKeys.length)]);
+  const omaView = omaViews.find(view => view.value === omaObject.value);
+
+  if (resource === 0 || resource === 5 || resource === 6) {
+    // these resources have no description yet
+    resource = 5700;
+  }
+
+  return {
+    name: omaObject.name,
+    type: omaObject.value,
+    resource,
+    resources: omaObject.resources,
+    frameCounter: 0,
+    icons: omaView.icons,
+    colors: omaView.resources,
+    nativeSensorId: id,
+    nativeNodeId: 0,
+    nativeType: omaObject.value,
+    ownerId,
+    devEui: device.devEui,
+    transportProtocol: device.transportProtocol,
+    messageProtocol: device.messageProtocol,
+    deviceId: device.id,
+  };
 }
 
 function userFactory(id, role) {
@@ -80,126 +246,17 @@ function buildMethods(profile) {
   };
 }
 
-async function fileFactory(type) {
-  const readFile = promisify(fs.readFile);
-  const buffer = await readFile(`${path.resolve('.')}/docs/.vuepress/public/logo.png`);
-  if (type === 'formdata') {
-    const formData = new FormData();
-    formData.append('file', buffer, {
-      filename: `test.png`,
-      contentType: 'application/octet-stream',
-      mimeType: 'application/octet-stream',
-    });
-    return formData;
-  }
-  return buffer;
-}
-
-function fileMetaFactory(id, file, ownerId) {
-  if (id) {
-    lastFileId = id;
-  } else {
-    lastFileId += 1;
-    id = lastFileId;
-  }
-  ownerId = ownerId || lastUserId;
-
-  const CONTAINERS_URL = `${process.env.REST_API_ROOT}/Files/`;
-  return {
-    name: file.name,
-    type: 'image/png',
-    size: file.size,
-    role: file.role,
-    url: `${CONTAINERS_URL}${ownerId}/download/${file.name}`,
-    ownerId,
-  };
-}
-
-function deviceFactory(id, ownerId) {
-  if (id) {
-    lastDeviceId = id;
-  } else {
-    lastDeviceId += 1;
-    id = lastDeviceId;
-  }
-  ownerId = ownerId || lastUserId;
-  const deviceTypesList = Object.keys(deviceTypes);
-  return {
-    name: `Device ${id}`,
-    type: deviceTypesList[Math.floor(Math.random() * deviceTypesList.length)],
-    devEui: `12345${id}`,
-    transportProtocol: 'aloeslight',
-    messageProtocol: 'aloeslight',
-    ownerId,
-  };
-}
-
-function sensorFactory(id, device, ownerId) {
-  if (id) {
-    lastSensorId = id;
-  } else {
-    lastSensorId += 1;
-    id = lastSensorId;
-  }
-  ownerId = ownerId || lastUserId;
-  if (!device) return null;
-  const omaObject = omaObjects[Math.floor(Math.random() * omaObjects.length)];
-  const resourceKeys = Object.keys(omaObject.resources);
-  let resource = resourceKeys[Math.floor(Math.random() * resourceKeys.length)];
-  const omaView = omaViews.find(view => view.value === omaObject.value);
-
-  if (resource === 0 || resource === '0') {
-    resource = 3300;
-  }
-  return {
-    name: omaObject.name,
-    type: omaObject.value,
-    resource,
-    resources: omaObject.resources,
-    frameCounter: 0,
-    icons: omaView.icons,
-    colors: omaView.resources,
-    nativeSensorId: id,
-    nativeNodeId: 0,
-    nativeType: omaObject.value,
-    ownerId,
-    devEui: device.devEui,
-    transportProtocol: device.transportProtocol,
-    messageProtocol: device.messageProtocol,
-    deviceId: device.id,
-  };
-}
-
-function measurementFactory(id, sensor, ownerId) {
-  if (id) {
-    lastMeasurmentId = id;
-  } else {
-    lastMeasurmentId += 1;
-    id = lastMeasurmentId;
-  }
-  ownerId = ownerId || lastUserId;
-  return {
-    value: 1,
-    timestamp: new Date().getTime(),
-    type: sensor.type,
-    resource: sensor.resource,
-    nativeSensorId: sensor.nativeSensorId,
-    nativeNodeId: sensor.nativeNodeId,
-    sensorId: sensor.id,
-    deviceId: sensor.deviceId,
-    ownerId,
-  };
-}
-
 module.exports = {
   factories: {
-    user: userFactory,
     address: addressFactory,
+    application: applicationFactory,
+    client: clientFactory,
+    device: deviceFactory,
     file: fileFactory,
     fileMeta: fileMetaFactory,
-    device: deviceFactory,
-    sensor: sensorFactory,
     measurement: measurementFactory,
+    sensor: sensorFactory,
+    user: userFactory,
   },
   access: {
     admin: buildMethods(userFactory(undefined, 'admin')),

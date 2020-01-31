@@ -1,8 +1,25 @@
-//  import {ensureLoggedIn} from 'connect-ensure-login';
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
+/* eslint-disable global-require */
+import isEmail from 'validator/lib/isEmail';
 import mails from '../services/mails';
 import logger from '../services/logger';
 import utils from '../services/utils';
+import rateLimiter from '../services/rate-limiter';
 import roleManager from '../services/role-manager';
+
+/**
+ * @module User
+ * @property {string} id  Database generated ID
+ * @property {string} firstName
+ * @property {string} lastName
+ * @property {string} fullName
+ * @property {string} fullAddress
+ * @property {string} avatarImgUrl
+ * @property {string} headerImgUrl
+ * @property {boolean} status
+ * @property {string} role admin or user
+ */
 
 const collectionName = 'User';
 
@@ -19,21 +36,17 @@ const createProps = async (app, user) => {
         public: false,
       });
     }
-    // const container = await utils.mkDirByPathSync(`${process.env.FS_PATH}/${user.id}`);
-    // console.log(`[${collectionName.toUpperCase()}] createProps:res`, container);
     try {
       await app.models.Files.createContainer(user.id);
     } catch (e) {
-      console.log(`[${collectionName.toUpperCase()}] createProps:e`, e);
+      logger.publish(3, `${collectionName}`, 'createProps:err', e);
       if (e.code !== 'EEXIST') {
         throw e;
       }
     }
-
+    user.createdAt = Date.now();
     if (!user.emailVerified) {
       app.models.user.emit('verifyEmail', user);
-      // await mails.verifyEmail(user);
-      // console.log('response after save ', response);
     }
     // logger.publish(4, `${collectionName}`, 'createProps:res', user);
     return user;
@@ -61,18 +74,20 @@ const onBeforeSave = async ctx => {
         role = 'user';
       }
       ctx.data.role = role;
+      ctx.data.updatedAt = Date.now();
       ctx.hookState.updateData = ctx.data;
     } else if (ctx.instance) {
       logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
       role = JSON.parse(JSON.stringify(ctx.instance)).role;
+      ctx.instance.setAttribute({ updatedAt: Date.now() });
+
       if (!appRoles.includes(role)) {
         ctx.instance.setAttribute({ role: 'user' });
       } else {
         ctx.instance.setAttribute({ role });
       }
     }
-    const data = ctx.data || ctx.instance || ctx.currentInstance;
-    logger.publish(4, `${collectionName}`, 'onBeforeSave:res', { data, role });
+    logger.publish(4, `${collectionName}`, 'onBeforeSave:res', { role });
     return ctx;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'onBeforeSave:err', error);
@@ -120,10 +135,96 @@ const onAfterSave = async ctx => {
   }
 };
 
+/**
+ * Control access validity and limit access if needed before login request
+ *
+ * Incrementing counter on failure and resetting it on success
+ *
+ * @method module:User~onBeforeLogin
+ * @param {object} ctx - Loopback context
+ * @returns {object} ctx
+ */
+const onBeforeLogin = async ctx => {
+  logger.publish(4, `${collectionName}`, 'beforeLogin:req', {
+    username: ctx.args && ctx.args.credentials ? ctx.args.credentials.email : null,
+  });
+  // const options = {...ctx.args.credentials, ttl: 2 * 7 * 24 * 60 * 60}
+  const ipAddr =
+    ctx.args.options && ctx.args.options.currentUser && ctx.args.options.currentUser.ip;
+  const username = ctx.args.credentials.email;
+  const { limiter, limiterType, retrySecs, usernameIPkey } = await rateLimiter.getAuthLimiter(
+    ipAddr,
+    username,
+  );
+
+  if (retrySecs > 0) {
+    if (limiter && limiterType) {
+      ctx.res.set('Retry-After', String(retrySecs));
+      // eslint-disable-next-line security/detect-object-injection
+      ctx.res.set('X-RateLimit-Limit', rateLimiter.limits[limiterType]);
+      ctx.res.set('X-RateLimit-Remaining', limiter.remainingPoints);
+      ctx.res.set('X-RateLimit-Reset', new Date(Date.now() + limiter.msBeforeNext));
+    }
+    throw utils.buildError(429, 'TOO_MANY_REQUESTS', 'Too many errors with this ip, unauthorized');
+  }
+
+  try {
+    const token = await ctx.method.ctor.login(ctx.args.credentials, 'user');
+    logger.publish(4, `${collectionName}`, 'beforeLogin:res', token);
+    await rateLimiter.cleanAuthLimiter(ipAddr, username);
+    return token;
+  } catch (error) {
+    if (error.code === 'LOGIN_FAILED_EMAIL_NOT_VERIFIED' || error.code === 'TOO_MANY_REQUESTS') {
+      throw error;
+    }
+    let loginError = utils.buildError(401, 'LOGIN_ERROR', 'Email or password is worng');
+    let user;
+    try {
+      user = await ctx.method.ctor.findByEmail(username);
+      if (user && user.email) {
+        logger.publish(
+          2,
+          `${collectionName}`,
+          'beforeLogin:err',
+          `Failure for user and IP : ${usernameIPkey}`,
+        );
+      }
+    } catch (e) {
+      logger.publish(2, `${collectionName}`, 'beforeLogin:err', `Failure for IP : ${ipAddr}`);
+    } finally {
+      try {
+        await rateLimiter.setAuthLimiter(ipAddr, user ? username : null);
+      } catch (rlRejected) {
+        logger.publish(2, `${collectionName}`, 'beforeLogin:err2', rlRejected);
+        if (rlRejected instanceof Error) {
+          // loginError = utils.buildError(401, 'LOGIN_ERROR', 'Email or password is worng');
+        } else {
+          // ctx.res.set('Retry-After', String(Math.round(rlRejected.msBeforeNext / 1000)) || 1);
+          // ctx.res.set('X-RateLimit-Limit', rlRejected.consumedPoints - 1);
+          // ctx.res.set('X-RateLimit-Remaining', rlRejected.remainingPoints);
+          // ctx.res.set('X-RateLimit-Reset', new Date(Date.now() + rlRejected.msBeforeNext));
+          loginError = utils.buildError(
+            429,
+            'TOO_MANY_REQUESTS',
+            'Too many errors with this ip, unauthorized',
+          );
+        }
+      }
+    }
+    throw loginError;
+  }
+};
+
+/**
+ * Delete relations on instance(s) deletion
+ * @method module:User~deleteProps
+ * @param {object} app - Loopback app
+ * @param {object} user - user to delete
+ * @returns {object} ctx
+ */
 const deleteProps = async (app, user) => {
   try {
-    logger.publish(5, `${collectionName}`, 'deleteProps:req', user);
-    // console.log('INSTANCE ', user);
+    logger.publish(4, `${collectionName}`, 'deleteProps:req', user);
     if (user.address && (await user.address.get()) !== null) {
       // console.log('user ADDRESS', await user.address.get());
       await user.address.destroy();
@@ -155,7 +256,7 @@ const deleteProps = async (app, user) => {
 };
 
 /**
- * Delete relations on instance(s) deletetion
+ * Delete registered user
  * @method module:User~onBeforeDelete
  * @param {object} ctx - Loopback context
  * @returns {object} ctx
@@ -179,7 +280,7 @@ const onBeforeDelete = async ctx => {
   }
 };
 
-const onBeforeRemote = async (app, ctx) => {
+const onBeforeRemote = async ctx => {
   try {
     if (
       ctx.method.name.indexOf('upsert') !== -1 ||
@@ -193,7 +294,6 @@ const onBeforeRemote = async (app, ctx) => {
       const authorizedRoles = options && options.authorizedRoles ? options.authorizedRoles : {};
       const role = data.role || 'user';
       const isAdmin = options && options.currentUser && options.currentUser.roles.includes('admin');
-      // isAdmin = ctx.options && ctx.options.authorizedRoles && ctx.options.authorizedRoles.admin;
       // console.log('authorizedRoles, isAdmin & data', isAdmin, options, data);
       const nonAdminChangingRoleToAdmin = role === 'admin' && !isAdmin;
       const nonOwnerChangingPassword =
@@ -218,16 +318,7 @@ const onBeforeRemote = async (app, ctx) => {
         throw error;
       }
     } else if (ctx.method.name === 'login') {
-      logger.publish(4, `${collectionName}`, 'beforeLogin:req', ctx.args);
-      try {
-        // const options = {...ctx.args.credentials, ttl: 2 * 7 * 24 * 60 * 60}
-        const token = await app.models.User.login(ctx.args.credentials, 'user');
-        logger.publish(4, `${collectionName}`, 'beforeLogin:res', token);
-        return token;
-      } catch (err) {
-        logger.publish(2, `${collectionName}`, 'beforeLogin:err', err);
-        throw err;
-      }
+      await onBeforeLogin(ctx);
     }
     return ctx;
   } catch (error) {
@@ -236,24 +327,15 @@ const onBeforeRemote = async (app, ctx) => {
   }
 };
 
-/**
- * @module User
- * @property {string} id  Database generated ID
- * @property {string} firstName
- * @property {string} lastName
- * @property {string} fullName
- * @property {string} fullAddress
- * @property {string} avatarImgUrl
- * @property {string} headerImgUrl
- * @property {boolean} status
- * @property {string} role admin or user
- */
 module.exports = function(User) {
   //  User.validatesAbsenceOf('deleted', {unless: 'admin'});
   User.validatesLengthOf('password', {
     min: 5,
     message: { min: 'User password is too short' },
   });
+
+  // User.validatesDateOf('createdAt', { message: 'createdAt is not a date' });
+  // User.validatesDateOf('updatedAt', { message: 'updatedAt is not a date' });
 
   /**
    * Find a user by its email address and send a confirmation link
@@ -264,6 +346,10 @@ module.exports = function(User) {
   User.findByEmail = async email => {
     try {
       logger.publish(4, `${collectionName}`, 'findByEmail:req', email);
+      if (!isEmail(email)) {
+        const error = utils.buildError(400, 'INVALID_INPUT', 'Email is not valid');
+        throw error;
+      }
       const user = await User.findOne({
         where: { email },
         fields: {
@@ -276,7 +362,6 @@ module.exports = function(User) {
         const error = utils.buildError(404, 'USER_NOT_FOUND', `User doesn't exist`);
         throw error;
       }
-      // User.app.emit('verifyEmail', user);
       logger.publish(4, `${collectionName}`, 'findByEmail:res', user);
       return user;
     } catch (error) {
@@ -294,6 +379,10 @@ module.exports = function(User) {
   User.verifyEmail = async user => {
     try {
       logger.publish(4, `${collectionName}`, 'verifyEmail:req', user);
+      if (!user || !user.id) {
+        const error = utils.buildError(400, 'INVALID_INPUT', 'User is not valid');
+        throw error;
+      }
       const instance = await User.findById(user.id, {
         fields: {
           email: true,
@@ -417,6 +506,49 @@ module.exports = function(User) {
       throw error;
     }
   };
+  /**
+   * Update client (as the user) status from MQTT connection status
+   * @method module:User.updateStatus
+   * @param {object} client - MQTT parsed client
+   * @param {boolean} status - MQTT connection status
+   * @returns {function}
+   */
+  User.updateStatus = async (client, status) => {
+    try {
+      if (!client || !client.id || !client.user) {
+        throw new Error('Invalid client');
+      }
+      logger.publish(5, collectionName, 'updateStatus:req', status);
+      const user = await User.findById(client.user);
+      if (user && user.id) {
+        const Client = User.app.models.Client;
+        const ttl = 1 * 60 * 60 * 1000;
+        // client.status = status;
+        if (status) {
+          await Client.set(client.id, JSON.stringify(client), ttl);
+        } else {
+          await Client.delete(client.id);
+        }
+        logger.publish(4, collectionName, 'updateStatus:res', { client, status });
+        return client;
+      }
+      // user not found
+      return null;
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'updateStatus:err', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Event reporting that User model has been attached to the application
+   * @event attached
+   */
+  User.on('attached', () => {
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      User.definition.settings.emailVerificationRequired = false;
+    }
+  });
 
   /**
    * Event reporting to trigger mails.verifyEmail
@@ -449,6 +581,30 @@ module.exports = function(User) {
    * @returns {function} Mails.sendResetPasswordMail
    */
   User.on('resetPasswordRequest', mails.sendResetPasswordMail);
+
+  /**
+   * Event reporting that a client ( as the user ) connection status has changed.
+   * @event client
+   * @param {object} message - Parsed MQTT message.
+   * @property {object} message.client - MQTT client
+   * @property {boolean} message.status - MQTT client status.
+   * @returns {function} User.updateStatus
+   */
+  User.on('client', async message => {
+    try {
+      logger.publish(2, `${collectionName}`, 'on-client:req', Object.keys(message));
+      if (!message || message === null) throw new Error('Message empty');
+      const status = message.status;
+      const client = message.client;
+      if (!client || !client.user || status === undefined) {
+        throw new Error('Message missing properties');
+      }
+      return User.updateStatus(client, status);
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'on-client:err', error);
+      return null;
+    }
+  });
 
   /**
    * Event reporting that a new user instance will be created.
@@ -487,27 +643,59 @@ module.exports = function(User) {
    * Event reporting that a remote user method has been requested
    * @event before_*
    * @param {object} ctx - Express context.
-   * @param {object} ctx.req - Request
-   * @param {object} ctx.res - Response
    * @returns {function} User~onBeforeRemote
    */
-  User.beforeRemote('**', async ctx => onBeforeRemote(User.app, ctx));
+  User.beforeRemote('**', onBeforeRemote);
 
-  User.afterRemoteError('confirm', async ctx => {
-    logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
-    ctx.res.redirect(process.env.HTTP_CLIENT_URL);
-    return ctx;
+  User.afterRemoteError('**', (ctx, next) => {
+    logger.publish(4, `${collectionName}`, `afterRemote ${ctx.methodString}:err`, '');
+    if (ctx.methodString === 'confirm') {
+      ctx.res.redirect(process.env.HTTP_CLIENT_URL);
+    }
+    next();
   });
 
-  // User.afterRemoteError('*', async (ctx) => {
-  //   logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
-  //   // ctx.result = new Error(
-  //   //   `[${collectionName.toUpperCase()}]  error on this remote method : ${
-  //   //     ctx.methodString
-  //   //   }`,
-  //   // );
-  //   return null;
-  // });
+  /**
+   * Find users
+   * @method module:User.find
+   * @param {object} filter
+   * @returns {object}
+   */
+
+  /**
+   * Returns users length
+   * @method module:User.count
+   * @param {object} where
+   * @returns {number}
+   */
+
+  /**
+   * Find user by id
+   * @method module:User.findById
+   * @param {any} id
+   * @returns {object}
+   */
+
+  /**
+   * Create user
+   * @method module:User.create
+   * @param {object} user
+   * @returns {object}
+   */
+
+  /**
+   * Update user by id
+   * @method module:User.updateById
+   * @param {any} id
+   * @returns {object}
+   */
+
+  /**
+   * Delete user by id
+   * @method module:User.deleteById
+   * @param {any} id
+   * @returns {object}
+   */
 
   User.disableRemoteMethodByName('count');
   User.disableRemoteMethodByName('upsertWithWhere');
@@ -561,7 +749,7 @@ module.exports = function(User) {
   User.disableRemoteMethodByName('prototype.__unlink__role');
 
   User.disableRemoteMethodByName('prototype.__create__applications');
-  User.disableRemoteMethodByName('prototype.__count__applications');
+  // User.disableRemoteMethodByName('prototype.__count__applications');
   User.disableRemoteMethodByName('prototype.__updateById__applications');
   User.disableRemoteMethodByName('prototype.__delete__applications');
   User.disableRemoteMethodByName('prototype.__deleteById__applications');
@@ -570,11 +758,20 @@ module.exports = function(User) {
   User.disableRemoteMethodByName('prototype.__unlink__applications');
 
   User.disableRemoteMethodByName('prototype.__create__devices');
-  User.disableRemoteMethodByName('prototype.__count__devices');
+  // User.disableRemoteMethodByName('prototype.__count__devices');
   User.disableRemoteMethodByName('prototype.__updateById__devices');
   User.disableRemoteMethodByName('prototype.__delete__devices');
   User.disableRemoteMethodByName('prototype.__deleteById__devices');
   User.disableRemoteMethodByName('prototype.__destroyById__devices');
+  User.disableRemoteMethodByName('prototype.__link__devices');
+  User.disableRemoteMethodByName('prototype.__unlink__devices');
+
+  User.disableRemoteMethodByName('prototype.__create__sensors');
+  // User.disableRemoteMethodByName('prototype.__count__sensors');
+  User.disableRemoteMethodByName('prototype.__updateById__sensors');
+  User.disableRemoteMethodByName('prototype.__delete__sensors');
+  User.disableRemoteMethodByName('prototype.__deleteById__sensors');
+  User.disableRemoteMethodByName('prototype.__destroyById__sensors');
   User.disableRemoteMethodByName('prototype.__link__devices');
   User.disableRemoteMethodByName('prototype.__unlink__devices');
 

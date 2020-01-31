@@ -1,21 +1,25 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable import/no-extraneous-dependencies */
 import { expect } from 'chai';
 import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
+import broker from '../services/broker';
 import testHelper from '../services/test-helper';
 // import mails from '../services/mails';
 
 const delayBeforeTesting = 7000;
+const restApiPath = `${process.env.REST_API_ROOT}`;
+// const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
 const userTest = () => {
   const userFactory = testHelper.factories.user;
-  const loginUrl = '/api/Users/login';
+  const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Users';
-  const apiUrl = `/api/${collectionName}/`;
+  const apiUrl = `${restApiPath}/${collectionName}/`;
 
-  describe(collectionName, function() {
-    this.timeout(7000);
-
+  describe(`${collectionName} HTTP`, () => {
+    // this.timeout(7000);
     const UserModel = app.models.user;
     let userModels;
 
@@ -40,7 +44,7 @@ const userTest = () => {
       [`[TEST] ${collectionName} E2E Tests`]: {
         async before() {
           try {
-            this.timeout(7000);
+            this.timeout(delayBeforeTesting);
             const result = await Promise.all([
               testHelper.access.admin.create(app),
               UserModel.create(users),
@@ -66,10 +70,27 @@ const userTest = () => {
             return result;
           } catch (error) {
             console.log(`[TEST] ${collectionName} before:err`, error);
-            return error;
+            return null;
           }
         },
-        after: () => Promise.all([UserModel.destroyAll()]),
+        after(done) {
+          this.timeout(5000);
+          Promise.all([UserModel.destroyAll(), app.stop()])
+            .then(() => {
+              setTimeout(() => {
+                broker.stop();
+                done();
+                // process.exit(0);
+              }, 1500);
+            })
+            .catch(e => {
+              setTimeout(() => {
+                broker.stop();
+                done(e);
+                // process.exit(0);
+              }, 1500);
+            });
+        },
         tests: {
           '[TEST] Verifying "Create" access': {
             tests: [
@@ -152,7 +173,8 @@ const userTest = () => {
                 name: "user's password is NOT sent to client",
                 verb: 'get',
                 url: getUser0Url,
-                auth: [profiles.user, profiles.admin],
+                // auth: [profiles.user, profiles.admin],
+                auth: profiles.admin,
                 expect: res => expect(res.body.password).to.be.undefined,
               },
               {
@@ -292,6 +314,15 @@ const userTest = () => {
                 expect: 200,
               },
               {
+                name: 'user CANNOT update his password without access token',
+                verb: 'post',
+                url: () => `${apiUrl}update-password-from-token`,
+                body: () => ({
+                  newPassword: 'TRICKYPASSWORD',
+                }),
+                expect: 400,
+              },
+              {
                 name: 'user CAN update his password from access token',
                 steps: [
                   {
@@ -305,7 +336,7 @@ const userTest = () => {
                     headers: () => ({
                       authorization: step0Response.body.id.toString(),
                     }),
-                    url: () => `${apiUrl}/update-password-from-token`,
+                    url: () => `${apiUrl}update-password-from-token`,
                     body: () => ({
                       newPassword: 'TRICKYPASSWORD',
                       accessToken: step0Response.body,
@@ -337,4 +368,4 @@ const userTest = () => {
 setTimeout(() => {
   userTest();
   run();
-}, delayBeforeTesting);
+}, delayBeforeTesting * 1.5);

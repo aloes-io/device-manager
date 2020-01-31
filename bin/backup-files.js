@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 // **********************
 // Simple Node.js Backup script
 // @Author: Eralp Kor
@@ -8,6 +9,8 @@
 // If files set read only attribute they will not be copied
 // If destination file same as source it will be overwritten
 
+/* eslint-disable security/detect-non-literal-fs-filename */
+/* eslint-disable security/detect-object-injection */
 const fs = require('fs');
 const path = require('path');
 const args = require('yargs')

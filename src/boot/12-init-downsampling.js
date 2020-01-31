@@ -1,7 +1,14 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
+/* eslint-disable security/detect-object-injection */
 import logger from '../services/logger';
 
 module.exports = async function initializeDownSampling(app) {
   try {
+    if (process.env.CLUSTER_MODE) {
+      if (process.env.PROCESS_ID !== '0') return null;
+      if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+    }
     const influxConnector = app.datasources.points.connector;
     const models = app.models;
     influxConnector.retentionPolicies = {};
@@ -32,7 +39,8 @@ module.exports = async function initializeDownSampling(app) {
             }
             return query;
           } catch (error) {
-            return error;
+            logger.publish(3, 'loopback', 'boot:initializeDownSampling:aggregateProps:err', error);
+            return null;
           }
         };
 
@@ -52,18 +60,24 @@ module.exports = async function initializeDownSampling(app) {
         //  console.log('continuousQueryName: ', continuousQueryName);
         return { cqName: continuousQueryName, query };
       } catch (error) {
-        return error;
+        logger.publish(
+          3,
+          'loopback',
+          'boot:initializeDownSampling:buildContinuousQuery:err',
+          error,
+        );
+        return null;
       }
     };
 
-    const promises = await Object.keys(models).map(async modelName => {
+    const promises = Object.keys(models).map(async modelName => {
       const model = models[modelName];
       if (model && model.settings && model.settings.downSampling) {
         const dsRules = model.settings.downSampling;
         logger.publish(4, 'loopback', 'boot:initializeDownSampling:rules', dsRules);
 
         //  Create Retention Policies
-        const rpPromises = await dsRules.map(async dsRule => {
+        const rpPromises = dsRules.map(async dsRule => {
           try {
             const rpName = `rp_${dsRule.duration}`;
             await influxConnector.client.createRetentionPolicy(rpName, {
@@ -75,7 +89,13 @@ module.exports = async function initializeDownSampling(app) {
             // console.log('rpName : ', rpName);
             return rpName;
           } catch (error) {
-            return error;
+            logger.publish(
+              3,
+              'loopback',
+              'boot:initializeDownSampling:initializeDownSampling:err',
+              error,
+            );
+            return null;
           }
         });
 
@@ -94,14 +114,14 @@ module.exports = async function initializeDownSampling(app) {
         );
 
         // Format and create Continuous Queries
-        const cqPromises = await sortedDurations.map(async (duration, i, inputArray) => {
+        const cqPromises = sortedDurations.map(async (duration, i, inputArray) => {
           try {
             if (i < inputArray.length - 1) {
               const nextDuration = inputArray[i + 1];
               const dsRule = dsRules.find(rule => rule.duration === duration);
               if (dsRule) {
                 const msg = await buildContinuousQuery(modelName, dsRule, nextDuration, duration);
-                logger.publish(4, 'loopback', 'boot:initializeDownSampling:res', msg);
+                logger.publish(3, 'loopback', 'boot:initializeDownSampling:continuousQueries', msg);
                 const res = await influxConnector.client.createContinuousQuery(
                   msg.cqName,
                   msg.query,
@@ -112,7 +132,13 @@ module.exports = async function initializeDownSampling(app) {
             }
             return null;
           } catch (error) {
-            return error;
+            logger.publish(
+              3,
+              'loopback',
+              'boot:initializeDownSampling:continuousQueries:err',
+              error,
+            );
+            return null;
           }
         });
         const continuousQueries = await Promise.all(cqPromises);
@@ -125,6 +151,6 @@ module.exports = async function initializeDownSampling(app) {
     return result;
   } catch (error) {
     logger.publish(2, 'loopback', 'boot:initializeDownSampling:err', error);
-    return error;
+    return null;
   }
 };

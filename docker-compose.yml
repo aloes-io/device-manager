@@ -1,50 +1,14 @@
+# Copyright 2019 Edouard Maleix, read LICENSE
+
 version: '3.7'
 
-services:
-  api:
-    env_file: .env
-    build:
-      context: .
-      dockerfile: local.dockerfile
-    image: getlarge/${NODE_NAME}:0.5
-    ports:
-      - '${HTTP_SERVER_PORT}:${HTTP_SERVER_PORT}'
-      - '${MQTT_BROKER_PORT}:${MQTT_BROKER_PORT}'
-      - '${MQTTS_BROKER_PORT}:${MQTTS_BROKER_PORT}'
-      - '${WS_BROKER_PORT}:${WS_BROKER_PORT}'
-    expose:
-      - '${HTTP_SERVER_PORT}'
-      - '${MQTT_BROKER_PORT}'
-      - '${MQTTS_BROKER_PORT}'
-      - '${WS_BROKER_PORT}'
-    depends_on:
-      - mongo
-      - influxdb
-      - redis
-      - timer-proxy
-    volumes:
-      - ./.env:/home/node/device-manager/.env:ro
-      - ./deploy/device-manager-local.key:/home/node/device-manager/deploy/device-manager-local.key:ro
-      - ./deploy/device-manager-local.crt:/home/node/device-manager/deploy/device-manager-local.crt:ro
-      - apivolume:/home/node/device-manager/storage
-      # - /opt/device-manager-${NODE_ENV}-storage:/home/node/${NODE_NAME}/storage
-    links:
-      - mongo
-      - redis
-      - influxdb
-      - timer-proxy
-    deploy:
-      resources:
-        limits:
-          memory: 500M
-        reservations:
-          memory: 200M
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: '100MB'
-        max-file: '3'
+networks:
+  skyring:
+    driver: bridge
+  aloes:
+    driver: bridge
 
+services:
   mongo:
     env_file: ./config/mongo/.env
     image: mongo:4.1.13
@@ -52,18 +16,26 @@ services:
     volumes:
       - ./config/mongo/mongo-init.sh:/docker-entrypoint-initdb.d/mongo-init.sh:ro
       - mongovolume:/data/db
+    networks:
+      - aloes
 
   influxdb:
     env_file: ./config/influx/.env
     image: influxdb:1.7-alpine
+    restart: always
     volumes:
       - influxvolume:/var/lib/influxdb
+    networks:
+      - aloes
 
   redis:
     image: redis:5-alpine
+    restart: always
     volumes:
       - redisvolume:/data
       - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - aloes
     command: ['redis-server', '/usr/local/etc/redis/redis.conf']
 
   timer-1:
@@ -77,6 +49,8 @@ services:
       - seeds=timer-1:3455,timer-2:3456
       - storage__backend=leveldown
       - storage__path=/var/data/skyring
+    image: aloes/timer-api:latest
+    restart: always
     networks:
       - skyring
     depends_on:
@@ -96,6 +70,8 @@ services:
       - seeds=timer-1:3455,timer-2:3456
       - storage__backend=leveldown
       - storage__path=/var/data/skyring
+    image: aloes/timer-api:latest
+    restart: always
     networks:
       - skyring
     depends_on:
@@ -114,6 +90,8 @@ services:
       - seeds=timer-1:3455,timer-2:3456
       - storage__backend=leveldown
       - storage__path=/var/data/skyring
+    image: aloes/timer-api:latest
+    restart: always
     networks:
       - skyring
     depends_on:
@@ -134,6 +112,8 @@ services:
       - seeds=timer-1:3455,timer-2:3456
       - storage__backend=leveldown
       - storage__path=/var/data/skyring
+    image: aloes/timer-api:latest
+    restart: always
     networks:
       - skyring
     depends_on:
@@ -154,6 +134,8 @@ services:
       - seeds=timer-1:3455,timer-2:3456
       - storage__backend=leveldown
       - storage__path=/var/data/skyring
+    image: aloes/timer-api:latest
+    restart: always
     networks:
       - skyring
     depends_on:
@@ -169,39 +151,41 @@ services:
     image: nats:latest
     volumes:
       - ./config/nats:/tmp
-    command: >
-      -c /tmp/a.conf -D
+    restart: always
     networks:
       - skyring
+    command: >
+      -c /tmp/a.conf -D
 
   nats-b:
     image: nats:latest
     volumes:
       - ./config/nats:/tmp
-    command: >
-      -c /tmp/b.conf -D
     depends_on:
       - nats-a
+    restart: always
     networks:
       - skyring
+    command: >
+      -c /tmp/b.conf -D
 
   nats-c:
     image: nats:latest
     volumes:
       - ./config/nats:/tmp
+    restart: always
     depends_on:
       - nats-a
-    command: >
-      -c /tmp/c.conf -D
     networks:
       - skyring
+    command: >
+      -c /tmp/c.conf -D
 
   timer-proxy:
-    image: 'nginx:latest'
+    image: nginx:latest
     volumes:
       - ./config/nginx/skyring.conf:/etc/nginx/nginx.conf
-    ports:
-      - '${TIMER_PORT}:80'
+    restart: always
     networks:
       - skyring
     depends_on:
@@ -211,12 +195,142 @@ services:
       - timer-4
       - timer-5
 
+  mqtt-api-1:
+    env_file: .env
+    environment:
+      - SERVER_LOGGER_LEVEL=3
+    build:
+      context: .
+      dockerfile: ./config/docker/broker.dockerfile
+    image: aloes/mqtt-api:latest
+    volumes:
+      - ./.env:/home/node/device-manager/.env:ro
+    restart: always
+    depends_on:
+      - redis
+    networks:
+      - aloes
+
+  mqtt-api-2:
+    env_file: .env
+    environment:
+      - SERVER_LOGGER_LEVEL=3
+    build:
+      context: .
+      dockerfile: ./config/docker/broker.dockerfile
+    image: aloes/mqtt-api:latest
+    volumes:
+      - ./.env:/home/node/device-manager/.env:ro
+    restart: always
+    depends_on:
+      - redis
+      - mqtt-api-1
+    networks:
+      - aloes
+
+  http-api-1:
+    env_file: .env
+    environment:
+      - SERVER_LOGGER_LEVEL=4
+      - INSTANCES_COUNT=2
+      - INSTANCES_PREFIX=1
+    build:
+      context: .
+      dockerfile: ./config/docker/server.dockerfile
+    image: aloes/http-api:latest
+    restart: always
+    volumes:
+      - ./.env:/home/node/device-manager/.env:ro
+      - apivolume:/home/node/device-manager/storage
+    depends_on:
+      - mongo
+      - influxdb
+      - redis
+      - timer-proxy
+      - mqtt-api-1
+      - mqtt-api-2
+    networks:
+      - aloes
+
+  http-api-2:
+    env_file: .env
+    environment:
+      - SERVER_LOGGER_LEVEL=4
+      - INSTANCES_COUNT=2
+      - INSTANCES_PREFIX=2
+    build:
+      context: .
+      dockerfile: ./config/docker/server.dockerfile
+    image: aloes/http-api:latest
+    restart: always
+    volumes:
+      - ./.env:/home/node/device-manager/.env:ro
+      - apivolume:/home/node/device-manager/storage
+    depends_on:
+      - mongo
+      - influxdb
+      - redis
+      - timer-proxy
+      - mqtt-api-1
+      - mqtt-api-2
+      - http-api-1
+    networks:
+      - aloes
+
+  http-api-3:
+    env_file: .env
+    environment:
+      - SERVER_LOGGER_LEVEL=4
+      - INSTANCES_COUNT=2
+      - INSTANCES_PREFIX=3
+    build:
+      context: .
+      dockerfile: ./config/docker/server.dockerfile
+    image: aloes/http-api:latest
+    restart: always
+    volumes:
+      - ./.env:/home/node/device-manager/.env:ro
+      - apivolume:/home/node/device-manager/storage
+    depends_on:
+      - mongo
+      - influxdb
+      - redis
+      - timer-proxy
+      - mqtt-api-1
+      - mqtt-api-2
+      - http-api-1
+      - http-api-2
+    networks:
+      - aloes
+
+  api-proxy:
+    environment:
+      - WS_BROKER_PORT=${WS_BROKER_PORT}
+      - MQTT_BROKER_PORT=${MQTT_BROKER_PORT}
+      - HTTP_SERVER_PORT=${HTTP_SERVER_PORT}
+      - NGINX_SERVER_HOST=${DOMAIN}
+    image: nginx:latest
+    restart: always
+    volumes:
+      - ./config/nginx/nginx-local.template:/etc/nginx/nginx.template
+      - ./log/nginx:/etc/nginx/log
+    depends_on:
+      - mqtt-api-1
+      - mqtt-api-2
+      - http-api-1
+      - http-api-2
+      - http-api-3
+      - timer-proxy
+    ports:
+      - '80:80'
+      - '1883:1883'
+    networks:
+      - aloes
+      - skyring
+    command: /bin/bash -c "envsubst '$${HTTP_SERVER_PORT},$${WS_BROKER_PORT},$${MQTT_BROKER_PORT},$${NGINX_SERVER_HOST}' < /etc/nginx/nginx.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"
+
 volumes:
   mongovolume:
   redisvolume:
   influxvolume:
   apivolume:
-
-networks:
-  skyring:
-    driver: bridge

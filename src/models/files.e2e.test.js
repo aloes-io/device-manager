@@ -6,6 +6,8 @@ import testHelper from '../services/test-helper';
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
+const restApiPath = `${process.env.REST_API_ROOT}`;
+// const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
 function fileTest() {
   const collectionName = 'Files';
@@ -15,8 +17,8 @@ function fileTest() {
   describe(collectionName, function() {
     this.timeout(4000);
     const FileModel = app.models.files;
-    const loginUrl = '/api/Users/login';
-    const apiUrl = `/api/${collectionName}/`;
+    const loginUrl = `${restApiPath}/Users/login`;
+    const apiUrl = `${restApiPath}/${collectionName}/`;
 
     let defaultFile, formData, formDataBody, formDataHeaders, filesMeta, userIds;
 
@@ -35,7 +37,7 @@ function fileTest() {
       [`[TEST] ${collectionName} E2E Tests`]: {
         async before() {
           try {
-            this.timeout(9000);
+            this.timeout(delayBeforeTesting);
             const result = await Promise.all([
               testHelper.access.admin.create(app),
               testHelper.access.user.create(app),
@@ -48,17 +50,22 @@ function fileTest() {
             formDataHeaders = formData.getHeaders();
             formDataBody = formData.getBuffer();
             filesMeta = await Promise.all([
-              FileModel.uploadBuffer(defaultFile, userIds[0], 'test1.png'),
-              FileModel.uploadBuffer(defaultFile, userIds[1], 'test1.png'),
-              FileModel.uploadBuffer(defaultFile, userIds[1], 'test2.png'),
+              FileModel.uploadBuffer(defaultFile, userIds[0], 'test1'),
+              FileModel.uploadBuffer(defaultFile, userIds[1], 'test1'),
+              FileModel.uploadBuffer(defaultFile, userIds[1], 'test2'),
             ]);
             return filesMeta;
           } catch (error) {
             console.log(`[TEST] ${collectionName} before:err`, error);
-            return error;
+            return null;
           }
         },
-        after: () => Promise.all([FileModel.destroyAll(), app.models.user.destroyAll()]),
+        after(done) {
+          this.timeout(4000);
+          Promise.all([FileModel.destroyAll(), app.models.user.destroyAll()])
+            .then(() => done())
+            .catch(e => done(e));
+        },
         tests: {
           '[TEST] Verifying "Create" access': {
             tests: [
@@ -92,7 +99,7 @@ function fileTest() {
               {
                 name: 'everyone CANNOT upload buffer',
                 verb: 'post',
-                url: () => `${apiUrl}${userIds[1]}/upload-buffer/test.png`,
+                url: () => `${apiUrl}${userIds[1]}/upload-buffer/test`,
                 headers: {
                   'Content-Type': 'application/octet-stream',
                 },
@@ -109,7 +116,7 @@ function fileTest() {
                     expect: 200,
                   },
                   step0Response => ({
-                    url: () => `${apiUrl}${userIds[1]}/upload/test.png`,
+                    url: () => `${apiUrl}${userIds[1]}/upload/test`,
                     verb: 'post',
                     body: formDataBody,
                     headers: {
@@ -126,7 +133,7 @@ function fileTest() {
                 name: 'user CAN upload buffer',
                 verb: 'post',
                 auth: profiles.user,
-                url: () => `${apiUrl}${userIds[1]}/upload-buffer/test1.png`,
+                url: () => `${apiUrl}${userIds[1]}/upload-buffer/test1`,
                 headers: {
                   'Content-Type': 'application/octet-stream',
                 },
@@ -137,7 +144,7 @@ function fileTest() {
                 name: 'admin CAN upload buffer',
                 verb: 'post',
                 auth: profiles.admin,
-                url: () => `${apiUrl}${userIds[0]}/upload-buffer/test.png`,
+                url: () => `${apiUrl}${userIds[0]}/upload-buffer/test`,
                 headers: {
                   'Content-Type': 'application/octet-stream',
                 },
@@ -338,4 +345,4 @@ function fileTest() {
 setTimeout(() => {
   fileTest();
   run();
-}, delayBeforeTesting);
+}, delayBeforeTesting * 1.5);

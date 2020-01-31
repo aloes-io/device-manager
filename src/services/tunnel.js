@@ -1,3 +1,5 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 import dotenv from 'dotenv';
 import localtunnel from 'localtunnel';
 import nodeCleanup from 'node-cleanup';

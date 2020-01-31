@@ -59,6 +59,10 @@
       "required": true,
       "default": 0
     },
+    "createdAt": {
+      "type": "date",
+      "required": false
+    },
     "lastSignal": {
       "type": "date",
       "required": false
@@ -460,8 +464,7 @@
           "arg": "deviceId",
           "type": "string",
           "required": true
-        },
-        { "arg": "options", "type": "object", "http": "optionsFromRequest" }
+        }
       ],
       "returns": {
         "root": true,

@@ -1,7 +1,15 @@
+/* Copyright 2019 Edouard Maleix, read LICENSE */
+
 /* eslint-disable no-param-reassign */
+import jugglerUtils from 'loopback-datasource-juggler/lib/utils';
+
 import { publish } from 'iot-agent';
+import { omaObjects, omaResources } from 'oma-json';
+import isLength from 'validator/lib/isLength';
 import logger from '../services/logger';
 import utils from '../services/utils';
+
+const collectionName = 'Measurement';
 
 /**
  * @module Measurement
@@ -15,28 +23,30 @@ import utils from '../services/utils';
  * @property {String} sensorId Device instance Id which has generated this measurement
  */
 module.exports = function(Measurement) {
-  const collectionName = 'Measurement';
-
-  async function typeValidator(err) {
-    if (this.type && this.type.toString().length <= 4) {
-      if (await Measurement.app.models.OmaObject.exists(this.type)) {
-        return;
-      }
+  function typeValidator(err) {
+    if (
+      !this.type ||
+      !isLength(this.type.toString(), { min: 1, max: 4 }) ||
+      !omaObjects.some(object => object.value === this.type)
+    ) {
+      err();
     }
-    err();
   }
 
-  async function resourceValidator(err) {
-    if (this.resource && this.resource.toString().length <= 4) {
-      if (await Measurement.app.models.OmaResource.exists(this.resource)) {
-        return;
-      }
+  function resourceValidator(err) {
+    if (
+      this.resource === undefined ||
+      !isLength(this.resource.toString(), { min: 1, max: 4 }) ||
+      !omaResources.some(resource => resource.value === this.resource)
+    ) {
+      err();
     }
-    err();
   }
 
   Measurement.validatesPresenceOf('sensorId');
+
   Measurement.validatesPresenceOf('deviceId');
+
   Measurement.validatesPresenceOf('ownerId');
 
   Measurement.validate('type', typeValidator, {
@@ -46,6 +56,13 @@ module.exports = function(Measurement) {
   Measurement.validate('resource', resourceValidator, {
     message: 'Wrong measurement resource',
   });
+
+  /**
+   * Create measurement
+   * @method module:Measurement.create
+   * @param {object} sensor
+   * @returns {object}
+   */
 
   /**
    * Format packet and send it via MQTT broker
@@ -134,7 +151,7 @@ module.exports = function(Measurement) {
       if (sensor.nativeNodeId) {
         measurement.nativeNodeId = sensor.nativeNodeId;
       }
-      logger.publish(4, `${collectionName}`, 'compose:res', {
+      logger.publish(3, `${collectionName}`, 'compose:res', {
         measurement,
       });
       return measurement;
@@ -145,33 +162,63 @@ module.exports = function(Measurement) {
   };
 
   Measurement.once('dataSourceAttached', Model => {
+    const buildQuery = (filter, rp) =>
+      new Promise((resolve, reject) => {
+        if (!Model.app || !Model.app.datasources.points) {
+          reject(new Error('Invalid point datasource'));
+        } else {
+          Model.app.datasources.points.connector.buildQuery(
+            collectionName,
+            filter,
+            rp,
+            (err, query) => (err ? reject(err) : resolve(query)),
+          );
+        }
+      });
+
+    const getRetentionPolicies = filter => {
+      const retentionPolicies = [];
+      const influxConnector = Model.app.datasources.points.connector;
+      if (typeof filter.rp === 'object') {
+        Object.keys(filter.rp).forEach(keyFilter => {
+          if (keyFilter === 'inq') {
+            Object.values(filter.rp.inq).forEach(rp => {
+              // todo : validate rp
+              // eslint-disable-next-line security/detect-object-injection
+              if (influxConnector.retentionPolicies[rp]) {
+                retentionPolicies.push(rp);
+              }
+            });
+          }
+        });
+      } else if (typeof filter.rp === 'string') {
+        if (influxConnector.retentionPolicies[filter.rp]) {
+          retentionPolicies.push(filter.rp);
+        }
+      }
+      logger.publish(5, `${collectionName}`, 'getRetentionPolicies:req', {
+        retentionPolicies,
+      });
+      return retentionPolicies;
+    };
+
     const findMeasurements = async filter => {
       try {
+        if (!Model.app || !Model.app.datasources.points) {
+          throw new Error('Invalid point datasource');
+        }
         const influxConnector = Model.app.datasources.points.connector;
 
         let retentionPolicies = []; // '0s' || '2h';
         if (filter.where) {
+          // console.log('FIND MEASUREMENTS BEFORE', filter.where);
+
           if (filter.where.and) {
             filter.where.and.forEach((subFilter, index) => {
               Object.keys(subFilter).forEach(key => {
                 if (key === 'rp') {
-                  if (typeof subFilter[key] === 'object') {
-                    Object.keys(subFilter[key]).forEach(keyFilter => {
-                      if (keyFilter === 'inq') {
-                        subFilter[key].inq.forEach(rp => {
-                          if (influxConnector.retentionPolicies[rp]) {
-                            retentionPolicies.push(rp);
-                          }
-                        });
-                      }
-                    });
-                  } else if (typeof subFilter[key] === 'string') {
-                    if (influxConnector.retentionPolicies[subFilter[key]]) {
-                      retentionPolicies.push(subFilter[key]);
-                    }
-                  }
+                  retentionPolicies = [...retentionPolicies, ...getRetentionPolicies(subFilter)];
                   filter.where.and.splice(index, 1);
-                  // delete subFilter[key];
                 }
               });
             });
@@ -179,21 +226,7 @@ module.exports = function(Measurement) {
             filter.where.or.forEach((subFilter, index) => {
               Object.keys(subFilter).forEach(key => {
                 if (key === 'rp') {
-                  if (typeof subFilter[key] === 'object') {
-                    Object.keys(subFilter[key]).forEach(keyFilter => {
-                      if (keyFilter === 'inq') {
-                        subFilter[key].inq.forEach(rp => {
-                          if (influxConnector.retentionPolicies[rp]) {
-                            retentionPolicies.push(rp);
-                          }
-                        });
-                      }
-                    });
-                  } else if (typeof subFilter[key] === 'string') {
-                    if (influxConnector.retentionPolicies[subFilter[key]]) {
-                      retentionPolicies.push(subFilter[key]);
-                    }
-                  }
+                  retentionPolicies = [...retentionPolicies, ...getRetentionPolicies(subFilter)];
                   filter.where.or.splice(index, 1);
                   // delete subFilter[key];
                 }
@@ -202,28 +235,13 @@ module.exports = function(Measurement) {
           } else {
             Object.keys(filter.where).forEach(key => {
               if (key === 'rp') {
-                if (typeof filter.where.rp === 'object') {
-                  Object.keys(filter.where.rp).forEach(keyFilter => {
-                    if (keyFilter === 'inq') {
-                      filter.where.rp.inq.forEach(rp => {
-                        if (influxConnector.retentionPolicies[rp]) {
-                          retentionPolicies.push(rp);
-                        }
-                      });
-                    }
-                  });
-                } else if (typeof filter.where.rp === 'string') {
-                  if (influxConnector.retentionPolicies[filter.where.rp]) {
-                    retentionPolicies.push(filter.where.rp);
-                  }
-                }
+                retentionPolicies = [...retentionPolicies, ...getRetentionPolicies(filter.where)];
                 delete filter.where.rp;
               }
             });
           }
         }
-
-        if (!retentionPolicies || !retentionPolicies[0]) {
+        if (!retentionPolicies || !retentionPolicies.length) {
           retentionPolicies = ['2h']; // '0s';
         }
         logger.publish(4, `${collectionName}`, 'findMeasurements:retentionPolicies', {
@@ -231,78 +249,103 @@ module.exports = function(Measurement) {
         });
 
         let result = [];
-        const promises = await retentionPolicies.map(async rp => {
+        const promises = retentionPolicies.map(async rp => {
           try {
-            let query;
-            influxConnector.buildQuery(collectionName, filter, rp, (err, res) => {
-              if (err) throw err;
-              query = res;
-            });
-            //  logger.publish(4, `${collectionName}`, 'findMeasurements:res', { query });
+            const query = await buildQuery(filter, rp);
+            //  logger.publish(4, `${collectionName}`, 'findMeasurements:req1', { query });
             const measurements = await influxConnector.client.query(query);
             result = [...result, ...measurements];
             return measurements;
           } catch (error) {
-            return error;
+            return null;
           }
         });
 
         await Promise.all(promises);
-        result.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-        //  console.log('MEASUREMENTS 2 ', result);
-        logger.publish(4, `${collectionName}`, 'findMeasurements:res', { result });
+
+        if (result && result.length) {
+          result.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+        } else {
+          result = [];
+        }
+        logger.publish(4, `${collectionName}`, 'findMeasurements:res', {
+          count: result.length,
+        });
         return result;
       } catch (error) {
-        throw error;
+        logger.publish(2, `${collectionName}`, 'findMeasurements:err', error);
+        return null;
+        //  throw error;
       }
     };
 
-    Model.findById = async (id, options) => {
+    /**
+     * Find measurement by id
+     * @method module:Measurement.findById
+     * @param {any} id
+     * @param {object} filter
+     * @returns {object}
+     */
+    Model.findById = (id, options, cb) => {
       try {
-        logger.publish(4, `${collectionName}`, 'find:req', { id });
+        logger.publish(4, `${collectionName}`, 'findById:req', { id });
+        cb = cb || jugglerUtils.createPromiseCallback();
+
         if (!options.accessToken && !options.apikey) {
-          throw utils.buildError(403, 'INVALID_AUTH', 'No token found in HTTP Options');
+          cb(utils.buildError(403, 'INVALID_AUTH', 'No token found in HTTP Options'), null);
+          return;
         }
-        let ownerId;
-        if (options.accessToken) {
-          ownerId = options.accessToken.userId.toString();
-        } else if (options.apiKey && options.appId) {
-          const application = await Model.app.models.Application.findById(options.appId);
-          ownerId = application.ownerId;
-        }
+        const ownerId = utils.getOwnerId(options);
+
         if (!ownerId) {
-          throw utils.buildError(401, 'UNAUTHORZIED', 'Invalid user');
+          cb(utils.buildError(401, 'UNAUTHORIZED', 'Invalid user'), null);
+          return;
         }
         const filter = { ownerId };
         filter.id = id;
-        const result = await findMeasurements(filter);
-        return result[0];
+        // const result = await findMeasurements(filter);
+        // return result && result.length ? result[0] : null;
+
+        findMeasurements(filter)
+          .then(res => cb(null, res ? res[0] : []))
+          .catch(err => cb(err, null));
       } catch (error) {
         logger.publish(2, `${collectionName}`, 'findById:err', error);
-        throw error;
+        cb(error, null);
       }
     };
 
-    Model.find = async (filter, options) => {
+    /**
+     * Find measurements
+     * @method module:Measurement.find
+     * @param {object} filter
+     * @returns {object}
+     */
+    Model.find = (filter, options, cb) => {
       try {
         logger.publish(4, `${collectionName}`, 'find:req', { filter });
-        //  console.log(`${collectionName}`, 'find:req', options);
+        cb = cb || jugglerUtils.createPromiseCallback();
         if (!options.accessToken && !options.apikey) {
-          throw utils.buildError(403, 'INVALID_AUTH', 'No token found in HTTP Options');
+          cb(utils.buildError(403, 'INVALID_AUTH', 'No token found in HTTP Options'), null);
+          return;
         }
         if (!filter || filter === null) {
-          throw utils.buildError(400, 'INVALID_ARG', 'Missing filter in argument');
+          cb(utils.buildError(400, 'INVALID_ARG', 'Missing filter in argument'), null);
+          return;
         }
-        let ownerId;
-        if (options.accessToken) {
-          ownerId = options.accessToken.userId.toString();
-        } else if (options.apiKey && options.appId) {
-          const application = await Model.app.models.Application.findById(options.appId);
-          ownerId = application.ownerId;
-        }
+
+        const ownerId = utils.getOwnerId(options);
+
         if (!ownerId) {
-          throw utils.buildError(401, 'UNAUTHORZIED', 'Invalid user');
+          cb(utils.buildError(401, 'UNAUTHORIZED', 'Invalid user'), null);
+          return;
         }
+        if (typeof filter === 'string') {
+          filter = JSON.parse(filter);
+        } else {
+          filter = JSON.parse(JSON.stringify(filter));
+        }
+
         if (filter.where) {
           if (filter.where.and) {
             filter.where.and.push({ ownerId });
@@ -312,26 +355,40 @@ module.exports = function(Measurement) {
         } else {
           filter.where = { ownerId };
         }
-        const result = await findMeasurements(filter);
-        return result;
+
+        findMeasurements(filter)
+          .then(res => cb(null, res))
+          .catch(err => cb(err, null));
       } catch (error) {
         logger.publish(2, `${collectionName}`, 'find:err', error);
-        throw error;
+        cb(error, null);
       }
     };
 
     const updateMeasurement = async (attributes, instance) => {
       try {
+        if (!Model.app || !Model.app.datasources.points) {
+          throw new Error('Invalid point datasource');
+        }
         const influxConnector = Model.app.datasources.points.connector;
         const query = influxConnector.updatePoint(collectionName, attributes, instance);
         logger.publish(4, `${collectionName}`, 'updateMeasurement:res', { query });
         //  const result = await influxConnector.client.query(query);
+        // await Measurement.publish(device, instance, 'PUT');
         return query;
       } catch (error) {
-        throw error;
+        logger.publish(2, `${collectionName}`, 'updateMeasurement:err', error);
+        return null;
       }
     };
 
+    /**
+     * Update measurement by id
+     * @method module:Measurement.updateById
+     * @param {any} id
+     * @param {object} filter
+     * @returns {object}
+     */
     Model.replaceById = async (id, data, options) => {
       try {
         logger.publish(4, `${collectionName}`, 'replaceById:req', { id });
@@ -373,12 +430,12 @@ module.exports = function(Measurement) {
           delete filter.where;
         }
         const instances = await findMeasurements(filter);
-        const resPromise = await instances.map(async instance => {
+        const resPromise = instances.map(async instance => {
           try {
             const measurement = await updateMeasurement(data, instance);
             return measurement;
           } catch (error) {
-            return error;
+            return null;
           }
         });
         const result = await Promise.all(resPromise);
@@ -391,16 +448,21 @@ module.exports = function(Measurement) {
 
     const deleteMeasurement = async filter => {
       try {
+        if (!Model.app || !Model.app.datasources.points) {
+          throw new Error('Invalid point datasource');
+        }
         let query = `DELETE FROM "${collectionName}" `;
         const influxConnector = Model.app.datasources.points.connector;
         const subQuery = await influxConnector.buildWhere(filter, collectionName);
         query += `${subQuery} ;`;
         logger.publish(4, `${collectionName}`, 'deleteMeasurement:res', { query });
-        const result = await influxConnector.client.query(query);
-        return result;
+        await influxConnector.client.query(query);
+        // const instance = await findMeasurements(filter);
+        // await Measurement.publish(device, instance, 'DELETE');
+        return null;
       } catch (error) {
-        return error;
-        // throw error;
+        logger.publish(2, `${collectionName}`, 'deleteMeasurement:err', error);
+        return null;
       }
     };
 
@@ -412,6 +474,13 @@ module.exports = function(Measurement) {
     //   }
     // };
 
+    /**
+     * Delete measurement by id
+     * @method module:Measuremenr.deleteById
+     * @param {any} id
+     * @param {object} options
+     * @returns {object}
+     */
     Model.deleteById = async (id, options) => {
       try {
         logger.publish(4, `${collectionName}`, 'deleteById:req', { id });
@@ -425,9 +494,7 @@ module.exports = function(Measurement) {
           const application = await Model.app.models.Application.findById(options.appId);
           filter.ownerId = application.ownerId;
         }
-        if (!filter.ownerId) {
-          throw utils.buildError(401, 'UNAUTHORZIED', 'Invalid user');
-        }
+        if (!filter.ownerId) throw utils.buildError(401, 'UNAUTHORZIED', 'Invalid user');
         filter.id = id;
         const result = await deleteMeasurement(filter);
         return result;
@@ -482,13 +549,13 @@ module.exports = function(Measurement) {
     };
   });
 
-  Measurement.beforeRemote('**', (ctx, unused, next) => {
-    //  console.log('beofre getState', ctx.args);
-    if (!ctx.req.headers.apikey) return next();
-    if (ctx.req.headers.apikey) ctx.args.options.apikey = ctx.req.headers.apikey;
-    if (ctx.req.headers.appId) ctx.args.options.appId = ctx.req.headers.appId;
-    return next();
-  });
+  // Measurement.afterRemote('**', (ctx, res, next) => {
+  //   //  console.log('after remote', ctx.args);
+  //   if (ctx.method.name.indexOf('find') !== -1) {
+  //     console.log('after find measurements', res);
+  //   }
+  //   next();
+  // });
 
   Measurement.afterRemoteError('*', async ctx => {
     logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, '');
@@ -499,7 +566,7 @@ module.exports = function(Measurement) {
   Measurement.disableRemoteMethodByName('exists');
   Measurement.disableRemoteMethodByName('upsert');
   Measurement.disableRemoteMethodByName('replaceOrCreate');
-  //  Measurement.disableRemoteMethodByName('prototype.updateAttributes');
-  //  Measurement.disableRemoteMethodByName('prototype.patchAttributes');
+  Measurement.disableRemoteMethodByName('prototype.updateAttributes');
+  Measurement.disableRemoteMethodByName('prototype.patchAttributes');
   Measurement.disableRemoteMethodByName('createChangeStream');
 };
