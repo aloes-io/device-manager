@@ -38,7 +38,8 @@ if [ -z "${DBNAME}" -o -z "${CONTAINERNAME}" ]; then
     exit 1
 fi
 
-docker exec -i ${CONTAINERNAME} mongodump --db ${DBNAME} --host ${CONTAINERNAME} --username ${MONGO_USER} --password ${MONGO_PASS} 
+docker exec -i ${CONTAINERNAME} mongodump --db ${DBNAME} --host ${CONTAINERNAME} \
+ --username ${MONGO_USER} --password ${MONGO_PASS} 
 docker cp ${CONTAINERNAME}:/dump/${DBNAME} ./${DBNAME}
 docker exec -i ${CONTAINERNAME} rm -r /dump/${DBNAME}
 

@@ -16,7 +16,7 @@
     "docs:serve": "light-server -s public -p 7000 --servePrefix /device-manager/",
     "clean": "rm -rf dist && mkdir dist",
     "build": "npm run clean ; npx babel src --out-dir dist --copy-files",
-    "build:docker": "cp deploy/.env_docker .env ; docker-compose --compatibility build",
+    "build:docker": "cp deploy/.env_docker .env ; docker-compose build",
     "build:docker:prod": "cp deploy/.env_docker .env ; docker-compose --compatibility -f docker-compose-production.yml build",
     "build:test": "cp deploy/.env_development .env ; export NODE_ENV=development",
     "build:test:docker": "docker-compose -f docker-compose-test.yml --compatibility build",

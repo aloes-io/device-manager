@@ -17,7 +17,7 @@ WORKDIR /home/node/$NODE_NAME
 COPY src ./src/
 COPY package*.json ./
 
-RUN npm ci 
+RUN npm ci
 # RUN npm install --production
 RUN npm run build
 
@@ -29,6 +29,7 @@ FROM node:lts-alpine AS http-api
 ENV NODE_NAME=device-manager
 
 RUN mkdir -p /home/node/$NODE_NAME
+RUN mkdir -p /home/node/$NODE_NAME/bin
 WORKDIR /home/node/$NODE_NAME
 RUN mkdir -p ./storage
 
@@ -40,7 +41,6 @@ COPY --from=builder /home/node/$NODE_NAME/dist ./dist/
 COPY --from=builder /home/node/$NODE_NAME/node_modules ./node_modules/
 
 STOPSIGNAL SIGINT
-# STOPSIGNAL 0
 
 CMD ["node","bin/pm2-server.js", "--start"]
 

@@ -18,7 +18,6 @@ COPY src ./src/
 COPY package*.json ./
 
 RUN npm ci 
-# RUN npm install --production
 RUN npm run build
 
 ###############################################################################
@@ -39,7 +38,6 @@ COPY --from=builder /home/node/$NODE_NAME/dist ./dist/
 COPY --from=builder /home/node/$NODE_NAME/node_modules ./node_modules/
 
 STOPSIGNAL SIGINT
-# STOPSIGNAL 0
 
 CMD ["node","bin/pm2-broker.js", "--start"]
 
