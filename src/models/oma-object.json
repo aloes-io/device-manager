@@ -28,6 +28,10 @@
     "resources": {
       "type": "object",
       "required": true
+    },
+    "version": {
+      "type": "string",
+      "required": false
     }
   },
   "protected": [],

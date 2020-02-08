@@ -22,7 +22,7 @@ import nodeCleanup from 'node-cleanup';
 import app from './services/server';
 import logger from './services/logger';
 import envVariablesKeys from './initial-data/variables-keys.json';
-// import { version } from '../package.json';
+import { version } from '../package.json';
 
 // process.env.REST_API_VERSION = `v${version.substr(0,3)}`;
 
@@ -46,6 +46,7 @@ const boot = processId => {
 
   const config = {
     ...envVariables,
+    version,
     processId,
     // REST_API_VERSION: process.env.REST_API_VERSION,
     appRootDir: __dirname,

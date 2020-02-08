@@ -46,12 +46,13 @@ if [ -z "${DUMPDIR}" -o -z "${CONTAINERNAME}" ]; then
     exit 1
 fi
 
-echo "Attempting to restore mongodb dump at ${DUMPDIR} into container ${CONTAINERNAME}"
+echo "Attempting to restore MongoDB dump at ${DUMPDIR} into container ${CONTAINERNAME}"
 read -r -p "Is this what you want? [y/N] " response
 case $response in
     [yY][eE][sS]|[yY])
     docker cp ${DUMPDIR} ${CONTAINERNAME}:${DUMPDIR}
-    docker exec -i ${CONTAINERNAME} mongorestore --drop --db ${DBNAME} --host ${CONTAINERNAME} --username ${MONGO_USER} --password ${MONGO_PASS} ${DUMPDIR}
+    docker exec -i ${CONTAINERNAME} mongorestore --drop --db ${DBNAME} --host ${CONTAINERNAME} \
+     --username ${MONGO_USER} --password ${MONGO_PASS} ${DUMPDIR}
     docker exec -i ${CONTAINERNAME} rm -r ${DUMPDIR}
         ;;
     *)

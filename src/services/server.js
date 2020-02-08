@@ -269,6 +269,7 @@ app.init = async config => {
     // if (require.main === module) {
     //   return app.start(config);
     // }
+    // app.version = config.version;
     return app.start(config);
   } catch (error) {
     logger.publish(2, 'loopback', 'init:err', error);

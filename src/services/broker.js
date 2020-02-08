@@ -12,7 +12,7 @@ import ws from 'websocket-stream';
 import envVariablesKeys from '../initial-data/variables-keys.json';
 import logger from './logger';
 import rateLimiter from './rate-limiter';
-// import { version } from '../package.json';
+import { version } from '../../package.json';
 
 // process.env.PUBSUB_API_VERSION = `v${version.substr(0,3)}`;
 
@@ -21,6 +21,7 @@ import rateLimiter from './rate-limiter';
  */
 const broker = {
   config: {},
+  version,
 };
 
 /**
@@ -205,6 +206,11 @@ const getClientsByTopic = topic =>
       .on('error', reject);
   });
 
+const getAloesClientTopic = clientId => {
+  const aloesPrefix = `aloes-${process.env.ALOES_ID}`;
+  const processId = clientId.substring(aloesPrefix.length + 1);
+  return `${aloesPrefix}/${processId}`;
+};
 /**
  * Give an array of clientIds, find a connected client
  * @method module:Broker~pickRandomClient
@@ -243,9 +249,9 @@ const updateClientStatus = async (client, status) => {
       logger.publish(4, 'broker', 'updateClientStatus:req', { status, client: foundClient });
       if (!client.aloesId) {
         const aloesClient = pickRandomClient(aloesClientsIds);
-        if (aloesClient === null) throw new Error('No Aloes app client connected');
+        if (!aloesClient) throw new Error('No Aloes app client connected');
         const packet = {
-          topic: `${aloesClient.id}/status`,
+          topic: `${getAloesClientTopic(aloesClient.id)}/status`,
           payload: Buffer.from(JSON.stringify({ status, client: foundClient })),
           retain: false,
           qos: 1,
@@ -413,8 +419,6 @@ const authenticate = (client, username, password, cb) => {
     .then(status => {
       logger.publish(3, 'broker', 'authenticate:res', { status });
       if (status !== 0) {
-        // const err = new Error('Auth error');
-        // err.returnCode = status || 3;
         return cb({ returnCode: status || 3 }, null);
       }
       return cb(null, true);
@@ -436,27 +440,27 @@ const onAuthorizePublish = (client, packet) => {
   const topic = packet.topic;
   if (!topic) return false;
   const topicParts = topic.split('/');
-  // const topicIdentifier = topicParts[0].toUpperCase()
+  const topicIdentifier = topicParts[0];
   logger.publish(5, 'broker', 'onAuthorizePublish:req', {
-    client: getClientProps(client),
+    topic: topicParts,
   });
   let auth = false;
   if (!client.user) return auth;
-  if (topicParts[0].startsWith(client.user)) {
+  if (topicIdentifier.startsWith(client.user)) {
     auth = true;
   } else if (
     client.aloesId &&
-    topicParts[0].startsWith(`aloes-${client.aloesId}`) &&
-    (topicParts[1] === `tx` || topicParts[1] === `sync`)
+    topicIdentifier.startsWith(`aloes-${client.aloesId}`) &&
+    (topicParts[2] === `tx` || topicParts[1] === `sync`)
   ) {
     auth = true;
-  } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
+  } else if (client.devEui && topicIdentifier.startsWith(client.devEui)) {
     // todo : limit access to device out prefix if any - /
     // endsWith(device.outPrefix)
     auth = true;
-  } else if (client.appId && topicParts[0].startsWith(client.appId)) {
+  } else if (client.appId && topicIdentifier.startsWith(client.appId)) {
     auth = true;
-  } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
+  } else if (client.appEui && topicIdentifier.startsWith(client.appEui)) {
     auth = true;
   }
 
@@ -487,31 +491,32 @@ const authorizePublish = (client, packet, cb) => {
 const onAuthorizeSubscribe = (client, packet) => {
   const topic = packet.topic;
   if (!topic) return false;
-  const topicParts = topic.split('/');
   let auth = false;
   if (!client.user) return auth;
-  // const topicIdentifier = topicParts[0].toUpperCase()
+  const topicParts = topic.split('/');
+  const topicIdentifier = topicParts[0];
   logger.publish(5, 'broker', 'onAuthorizeSubscribe:req', {
-    client: getClientProps(client),
+    topic: topicParts,
   });
-  if (topicParts[0].startsWith(client.user)) {
+  if (topicIdentifier.startsWith(client.user)) {
     auth = true;
   } else if (
     client.aloesId &&
-    topicParts[0].startsWith(`aloes-${client.aloesId}`) &&
-    (topicParts[1] === `rx` ||
-      topicParts[1] === `status` ||
-      topicParts[1] === `stop` ||
+    topicIdentifier.startsWith(`aloes-${client.aloesId}`) &&
+    (topicParts[2] === `rx` ||
+      topicParts[2] === `tx` ||
+      topicParts[2] === `status` ||
+      topicParts[2] === `stop` ||
       topicParts[1] === `sync`)
   ) {
     //  packet.qos = packet.qos + 2
     auth = true;
-  } else if (client.devEui && topicParts[0].startsWith(client.devEui)) {
+  } else if (client.devEui && topicIdentifier.startsWith(client.devEui)) {
     // todo : limit access to device in prefix if any
     auth = true;
-  } else if (client.appId && topicParts[0].startsWith(client.appId)) {
+  } else if (client.appId && topicIdentifier.startsWith(client.appId)) {
     auth = true;
-  } else if (client.appEui && topicParts[0].startsWith(client.appEui)) {
+  } else if (client.appEui && topicIdentifier.startsWith(client.appEui)) {
     auth = true;
   }
   logger.publish(4, 'broker', 'onAuthorizeSubscribe:res', { topic, auth });
@@ -561,8 +566,8 @@ const authorizeSubscribe = (client, packet, cb) => {
 
 const onInternalPublished = packet => {
   const topicParts = packet.topic.split('/');
-  if (topicParts[1] === 'tx') {
-    packet.topic = topicParts.slice(2, topicParts.length).join('/');
+  if (topicParts[2] === 'tx') {
+    packet.topic = topicParts.slice(3, topicParts.length).join('/');
     packet.qos = 1;
     // packet.retain = false;
     // console.log('broker, reformatted packet to instance', packet);
@@ -574,14 +579,16 @@ const onInternalPublished = packet => {
 
 const onExternalPublished = async (packet, client) => {
   try {
-    const aloesClientsIds = await getClientsByTopic(`aloes-${process.env.ALOES_ID}/sync`);
+    const aloesId = process.env.ALOES_ID;
+    const aloesClientsIds = await getClientsByTopic(`aloes-${aloesId}/sync`);
     if (!aloesClientsIds || aloesClientsIds === null) {
       throw new Error('No Aloes client connected');
     }
     const aloesClient = pickRandomClient(aloesClientsIds);
     if (aloesClient === null) throw new Error('No Aloes client connected');
     const foundClient = getClientProps(client);
-    packet.topic = `${aloesClient.id}/rx/${packet.topic}`;
+    packet.topic = `${getAloesClientTopic(aloesClient.id)}/rx/${packet.topic}`;
+
     // check packet payload type to preformat before stringify
     if (client.devEui) {
       // packet.payload = packet.payload.toString('binary');
@@ -726,7 +733,7 @@ broker.start = () => {
      * @param {object} err - MQTT Error
      */
     broker.instance.on('clientError', (client, err) => {
-      logger.publish(2, 'broker', 'onClientError', { clientId: client.id, error: err.message });
+      logger.publish(3, 'broker', 'onClientError', { clientId: client.id, error: err.message });
     });
 
     /**
@@ -736,7 +743,7 @@ broker.start = () => {
      * @param {object} err - MQTT Error
      */
     broker.instance.on('connectionError', (client, err) => {
-      logger.publish(2, 'broker', 'onConnectionError', { clientId: client.id, error: err.message });
+      logger.publish(3, 'broker', 'onConnectionError', { clientId: client.id, error: err.message });
       // client.close();
     });
 
@@ -854,15 +861,6 @@ broker.init = () => {
         ws: { port: Number(config.WS_BROKER_PORT) },
       },
     };
-
-    // if (config.MQTTS_BROKER_PORT && config.MQTTS_BROKER_PORT.length > 1) {
-    //   broker.config.interfaces.mqtts = {
-    //     port: Number(config.MQTTS_BROKER_PORT),
-    //   };
-    // }
-    // if (config.WSS_BROKER_PORT && config.WSS_BROKER_PORT.length > 1) {
-    //   broker.config.interfaces.wss = { port: Number(config.WSS_BROKER_PORT) };
-    // }
 
     if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
       const Redis = require('ioredis');

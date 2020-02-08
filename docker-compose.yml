@@ -198,7 +198,7 @@ services:
   mqtt-api-1:
     env_file: .env
     environment:
-      - SERVER_LOGGER_LEVEL=3
+      - SERVER_LOGGER_LEVEL=4
     build:
       context: .
       dockerfile: ./config/docker/broker.dockerfile
@@ -214,7 +214,7 @@ services:
   mqtt-api-2:
     env_file: .env
     environment:
-      - SERVER_LOGGER_LEVEL=3
+      - SERVER_LOGGER_LEVEL=4
     build:
       context: .
       dockerfile: ./config/docker/broker.dockerfile

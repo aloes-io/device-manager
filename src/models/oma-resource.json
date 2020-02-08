@@ -36,6 +36,10 @@
     "range": {
       "type": "array",
       "required": false
+    },
+    "version": {
+      "type": "string",
+      "required": false
     }
   },
   "protected": [],
