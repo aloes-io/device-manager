@@ -25,6 +25,10 @@
       "type": "array",
       "default": [],
       "required": true
+    },
+    "version": {
+      "type": "string",
+      "required": false
     }
   },
   "protected": [],

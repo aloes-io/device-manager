@@ -12,7 +12,7 @@ import ws from 'websocket-stream';
 import envVariablesKeys from '../initial-data/variables-keys.json';
 import logger from './logger';
 import rateLimiter from './rate-limiter';
-// import { version } from '../package.json';
+import { version } from '../../package.json';
 
 // process.env.PUBSUB_API_VERSION = `v${version.substr(0,3)}`;
 
@@ -21,6 +21,7 @@ import rateLimiter from './rate-limiter';
  */
 const broker = {
   config: {},
+  version,
 };
 
 /**

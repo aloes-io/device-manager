@@ -11,11 +11,6 @@ const inviteTemplate = `${__dirname}/../views/mail-invite.ejs`;
 const contactFormTemplate = `${__dirname}/../views/contact-form.ejs`;
 const collectionName = 'Mail';
 
-const serverBaseUrl = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}`;
-// const serverBaseUrl = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/${
-//   process.env.REST_API_VERSION
-// }`;
-
 const baseConf = {
   type: 'email',
   to: '',
@@ -120,7 +115,7 @@ mails.verifyEmail = async user => {
     const options = {
       ...config.verifyOptions,
       to: user.email,
-      verifyHref: `${serverBaseUrl}/users/confirm?uid=${user.id}&redirect=${
+      verifyHref: `${config.serverUrl}${config.restApiRoot}/users/confirm?uid=${user.id}&redirect=${
         process.env.HTTP_CLIENT_URL
       }/login`,
       user,
@@ -133,7 +128,7 @@ mails.verifyEmail = async user => {
     //   logger.publish(2, `${collectionName}`, 'verifyEmail:err', error);
     //   throw error;
     // }
-    logger.publish(2, `${collectionName}`, 'verifyEmail:res', result);
+    logger.publish(4, `${collectionName}`, 'verifyEmail:res', result);
     return result;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'verifyEmail:err', error);
