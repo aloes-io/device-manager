@@ -171,7 +171,7 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 ## TODOs
 
-- Add e2e tests for Client, Measurement, Scheduler and SensorResource models 
+- Add e2e tests for Client, Measurement and SensorResource models 
 
 - Implement user+ip rate limit for HTTP endpoints requiring auth
 

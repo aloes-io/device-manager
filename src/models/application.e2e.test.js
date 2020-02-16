@@ -5,12 +5,11 @@ import { expect } from 'chai';
 import lbe2e from 'lb-declarative-e2e-test';
 import mqtt from 'mqtt';
 import app from '../index';
-import testHelper from '../services/test-helper';
+import testHelper, { clientEvent, timeout } from '../services/test-helper';
 
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
-const afterTestDelay = 2000;
 const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
@@ -20,7 +19,6 @@ const applicationTest = () => {
   const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Applications';
   const apiUrl = `${restApiPath}/${collectionName}/`;
-
   const ApplicationModel = app.models.Application;
   let applications, users, userIds, packets;
 
@@ -34,12 +32,11 @@ const applicationTest = () => {
       userIds = [users[0].id, users[1].id];
       const models = Array(5)
         .fill('')
-        .map((_, index) => {
-          if (index <= 1) {
-            return applicationFactory(index + 1, userIds[0]);
-          }
-          return applicationFactory(index + 1, userIds[1]);
-        });
+        .map((_, index) =>
+          index <= 1
+            ? applicationFactory(index + 1, userIds[0])
+            : applicationFactory(index + 1, userIds[1]),
+        );
       // console.log('CREATED applications MODELS ', models);
       const res = await ApplicationModel.create(models);
       applications = res.map(model => model.toJSON());
@@ -64,12 +61,8 @@ const applicationTest = () => {
     }
   }
 
-  function afterTests(done) {
-    setTimeout(() => {
-      Promise.all([ApplicationModel.destroyAll(), app.models.user.destroyAll()])
-        .then(() => done())
-        .catch(e => done(e));
-    }, afterTestDelay);
+  async function afterTests() {
+    return Promise.all([ApplicationModel.destroyAll(), app.models.user.destroyAll()]);
   }
 
   describe(`${collectionName} HTTP`, function() {
@@ -160,44 +153,79 @@ const applicationTest = () => {
             tests: [
               {
                 name: 'everyone CANNOT update',
-                verb: 'put',
+                verb: 'patch',
                 url: () => apiUrl + applications[0].id,
-                body: () => ({
-                  ...applications[0],
-                  name: `${applications[0].name} - updated`,
-                }),
+                body: () => ({ name: `${applications[0].name} - updated` }),
                 expect: 401,
               },
               {
                 name: 'user CANNOT update ALL',
+                verb: 'patch',
+                auth: profiles.user,
+                url: () => `${apiUrl}${applications[0].id}`,
+                body: () => ({ name: `${applications[0].name} - updated` }),
+                expect: 401,
+              },
+              {
+                name: 'user CAN update OWN',
+                verb: 'patch',
+                auth: profiles.user,
+                url: () => `${apiUrl}${applications[2].id}`,
+                body: () => ({ name: `${applications[2].name} - updated` }),
+                expect: 200,
+              },
+              {
+                name: 'admin CAN update ALL',
+                verb: 'patch',
+                auth: profiles.admin,
+                url: () => `${apiUrl}${applications[2].id}`,
+                body: () => ({ name: `${applications[2].name} - updated` }),
+                expect: 200,
+              },
+            ],
+          },
+          '[TEST] Verifying "Replace" access': {
+            tests: [
+              {
+                name: 'everyone CANNOT replace',
+                verb: 'put',
+                url: () => apiUrl + applications[0].id,
+                body: () => ({
+                  ...applications[0],
+                  name: `${applications[0].name} - replaced`,
+                }),
+                expect: 401,
+              },
+              {
+                name: 'user CANNOT replace ALL',
                 verb: 'put',
                 auth: profiles.user,
                 url: () => `${apiUrl}${applications[0].id}`,
                 body: () => ({
                   ...applications[0],
-                  name: `${applications[0].name} - updated`,
+                  name: `${applications[0].name} - replaced`,
                 }),
                 expect: 401,
               },
               {
-                name: 'user CAN update OWN',
+                name: 'user CAN replace OWN',
                 verb: 'put',
                 auth: profiles.user,
                 url: () => `${apiUrl}${applications[2].id}`,
                 body: () => ({
                   ...applications[2],
-                  name: `${applications[2].name} - updated`,
+                  name: `${applications[2].name} - replaced`,
                 }),
                 expect: 200,
               },
               {
-                name: 'admin CAN update ALL',
+                name: 'admin CAN replace ALL',
                 verb: 'put',
                 auth: profiles.admin,
                 url: () => `${apiUrl}${applications[2].id}`,
                 body: () => ({
                   ...applications[2],
-                  name: `${applications[2].name} - updated`,
+                  name: `${applications[2].name} - replaced`,
                 }),
                 expect: 200,
               },
@@ -388,14 +416,19 @@ const applicationTest = () => {
           beforeTests()
             .then(() => done())
             .catch(e => done(e)),
-        2000,
+        1000,
       );
     });
 
-    after(function(done) {
-      this.timeout(delayBeforeTesting);
-      afterTests(done);
-    });
+    after(done =>
+      setTimeout(
+        () =>
+          afterTests()
+            .then(() => done())
+            .catch(done),
+        1000,
+      ),
+    );
 
     it('everyone CANNOT connect to backend', function(done) {
       const testMaxDuration = 4000;
@@ -434,7 +467,7 @@ const applicationTest = () => {
       });
     });
 
-    it('application CAN connect to backend', function(done) {
+    it('application CAN connect and its status is updated accordingly', async function() {
       const testMaxDuration = 4000;
       this.timeout(testMaxDuration);
       this.slow(testMaxDuration / 2);
@@ -442,19 +475,19 @@ const applicationTest = () => {
         app.get('mqtt url'),
         clientFactory(applications[1], 'application', applications[1].apiKey),
       );
-      client.once('error', () => {
+
+      const packet = await clientEvent(client, 'connect');
+      expect(packet.returnCode).to.be.equal(0);
+      await timeout(async () => {
+        const application = await ApplicationModel.findById(applications[1].id);
+        expect(application.status).to.be.equal(true);
         client.end();
-        done(new Error('Should be connected'));
-      });
-      client.on('offline', () => {
-        // check application status
-      });
-      client.once('connect', packet => {
-        expect(packet.returnCode).to.be.equal(0);
-        // check application status
-        setTimeout(() => client.end(), 500);
-        done();
-      });
+      }, 150);
+
+      return timeout(async () => {
+        const application = await ApplicationModel.findById(applications[1].id);
+        expect(application.status).to.be.equal(false);
+      }, 150);
     });
 
     it('application CANNOT publish to ANY route', function(done) {

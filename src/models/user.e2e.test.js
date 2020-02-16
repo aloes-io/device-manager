@@ -38,8 +38,6 @@ const userTest = () => {
       },
     };
 
-    const getUser0Url = () => `${apiUrl}${userModels[0].id}`;
-
     const e2eTestsSuite = {
       [`[TEST] ${collectionName} E2E Tests`]: {
         async before() {
@@ -52,20 +50,6 @@ const userTest = () => {
 
             userModels = result[1];
             userModels.push(result[0]);
-            // console.log('userModels', userModels);
-
-            // todo handle emailVerification ..
-            // const promises = await userModels.map(async user => {
-            //   if (!user.emailVerified) {
-            //     const response = await mails.verifyEmail(user);
-            //      console.log('response after save ', response);
-            //     if (response && response.user) {
-            //       await userModel.confirm(user.id, response.user.verificationToken, 'http://ed-X510URR:8080/login');
-            //     }
-            //   }
-            //   return user;
-            // });
-            // await Promise.all(promises);
 
             return result;
           } catch (error) {
@@ -73,62 +57,53 @@ const userTest = () => {
             return null;
           }
         },
+
         after(done) {
           this.timeout(5000);
           Promise.all([UserModel.destroyAll(), app.stop()])
-            .then(() => {
-              setTimeout(() => {
-                broker.stop();
-                done();
-                // process.exit(0);
-              }, 1500);
-            })
-            .catch(e => {
-              setTimeout(() => {
-                broker.stop();
-                done(e);
-                // process.exit(0);
-              }, 1500);
-            });
+            .then(() => broker.stop())
+            .then(() => done())
+            .catch(e => done(e));
         },
+
         tests: {
           '[TEST] Verifying "Create" access': {
             tests: [
               {
-                name: 'everyone CAN create "role: user" user',
+                name: 'everyone CAN create "roleName: user" user',
                 verb: 'post',
                 url: apiUrl,
                 body: userFactory(undefined, 'user'),
                 expect: 200,
               },
               {
-                name: 'everyone CANNOT create "role: admin" user',
+                name: 'everyone CANNOT create "roleName: admin" user',
                 verb: 'post',
                 url: apiUrl,
                 body: userFactory(undefined, 'admin'),
                 expect: 403,
               },
               {
-                name: 'user CANNOT create "role: admin" user',
+                name: 'user CANNOT create "roleName: admin" user',
                 verb: 'post',
-                url: apiUrl,
                 auth: profiles.user,
+                url: apiUrl,
                 body: userFactory(undefined, 'admin'),
                 expect: 403,
               },
               {
-                name: 'admin CAN create "role: user" user',
+                name: 'admin CAN create "roleName: user" user',
                 verb: 'post',
-                url: apiUrl,
                 auth: profiles.admin,
+                url: apiUrl,
                 body: userFactory(undefined, 'user'),
                 expect: 200,
               },
               {
-                name: 'admin CAN create "role: admin" user',
+                name: 'admin CAN create "roleName: admin" user',
                 verb: 'post',
-                url: apiUrl,
                 auth: profiles.admin,
+                url: apiUrl,
                 body: userFactory(undefined, 'admin'),
                 expect: 200,
               },
@@ -139,7 +114,7 @@ const userTest = () => {
               {
                 name: 'everyone CANNOT read user details',
                 verb: 'get',
-                url: getUser0Url,
+                url: () => `${apiUrl}${userModels[0].id}`,
                 expect: 401,
               },
               {
@@ -151,45 +126,47 @@ const userTest = () => {
               {
                 name: 'user CANNOT read user details',
                 verb: 'get',
-                url: () => `${apiUrl}${userModels[1].id}`,
                 auth: profiles.user, // user 0
+                url: () => `${apiUrl}${userModels[1].id}`,
                 expect: 401,
               },
               {
                 name: 'user CANNOT read user list',
                 verb: 'get',
-                url: apiUrl,
                 auth: profiles.user,
+                url: apiUrl,
                 expect: 401,
               },
               {
                 name: 'user CAN read his OWN details',
                 verb: 'get',
-                url: getUser0Url,
                 auth: profiles.user,
+                url: () => `${apiUrl}${userModels[0].id}`,
                 expect: 200,
               },
               {
                 name: "user's password is NOT sent to client",
                 verb: 'get',
-                url: getUser0Url,
-                // auth: [profiles.user, profiles.admin],
                 auth: profiles.admin,
+                url: () => `${apiUrl}${userModels[0].id}`,
                 expect: res => expect(res.body.password).to.be.undefined,
               },
               {
                 name: 'admin CAN read user details',
                 verb: 'get',
-                url: getUser0Url,
                 auth: profiles.admin,
+                url: () => `${apiUrl}${userModels[0].id}`,
                 expect: 200,
               },
               {
                 name: 'admin CAN read user list',
                 verb: 'get',
-                url: apiUrl,
                 auth: profiles.admin,
-                expect: 200,
+                url: apiUrl,
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                  // expect(resp.body[0].id).to.be.equal(userModels[0].id);
+                },
               },
             ],
           },
@@ -198,57 +175,106 @@ const userTest = () => {
               {
                 name: "everyone CANNOT update user's details",
                 verb: 'patch',
-                url: getUser0Url,
+                url: () => `${apiUrl}${userModels[0].id}`,
                 body: { firstName: 'test' },
                 expect: 401,
               },
               {
                 name: "user CANNOT update another user's details",
                 verb: 'patch',
-                url: () => `${apiUrl}${userModels[1].id}`,
                 auth: profiles.user, // user 0
+                url: () => `${apiUrl}${userModels[1].id}`,
                 body: { firstName: 'test' },
                 expect: 401,
               },
               {
                 name: 'user CAN update his OWN details',
                 verb: 'patch',
-                url: getUser0Url,
                 auth: profiles.user,
+                url: () => `${apiUrl}${userModels[0].id}`,
                 body: { firstName: 'test' },
                 expect: 200,
               },
               {
-                name: 'user CANNOT update his OWN details to "role: admin"',
+                name: 'user CANNOT update his OWN details to "roleName: admin"',
                 verb: 'patch',
-                url: getUser0Url,
                 auth: profiles.user,
-                body: { role: 'admin' },
+                url: () => `${apiUrl}${userModels[0].id}`,
+                body: { roleName: 'admin' },
                 expect: 403,
               },
 
               {
                 name: "admin CAN update user's details",
                 verb: 'patch',
-                url: getUser0Url,
                 auth: profiles.admin,
+                url: () => `${apiUrl}${userModels[0].id}`,
                 body: { firstName: 'test' },
                 expect: 200,
               },
               {
                 name: "admin CANNOT update user's password",
                 verb: 'patch',
-                url: getUser0Url,
                 auth: profiles.admin,
+                url: () => `${apiUrl}${userModels[0].id}`,
                 body: { password: 'someEasyOnes' },
                 expect: 403,
               },
               {
-                name: 'admin CAN update user\'s details to "role: admin"',
+                name: 'admin CAN update user\'s details to "roleName: admin"',
                 verb: 'patch',
-                url: getUser0Url,
                 auth: profiles.admin,
-                body: { role: 'admin' },
+                url: () => `${apiUrl}${userModels[0].id}`,
+                body: { roleName: 'admin' },
+                expect: 200,
+              },
+            ],
+          },
+          '[TEST] Verifying "Replace" access': {
+            tests: [
+              {
+                name: "everyone CANNOT replace user's details",
+                verb: 'put',
+                url: () => `${apiUrl}${userModels[0].id}`,
+                body: () => ({ ...userModels[0], firstName: 'test' }),
+                expect: 401,
+              },
+              {
+                name: "user CANNOT replace another user's details",
+                verb: 'put',
+                auth: profiles.user, // user 0
+                url: () => `${apiUrl}${userModels[1].id}`,
+                body: () => ({ ...userModels[0], firstName: 'test' }),
+                expect: 401,
+              },
+              {
+                name: 'user CAN replace his OWN details',
+                verb: 'put',
+                auth: profiles.user,
+                url: () => `${apiUrl}${userModels[0].id}`,
+                body: () => ({ ...userModels[0], firstName: 'test' }),
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body.firstName).to.be.equal('test');
+                },
+              },
+              {
+                name: "admin CAN replace user's details",
+                verb: 'put',
+                auth: profiles.admin,
+                url: () => `${apiUrl}${userModels[0].id}`,
+                body: () => ({ ...userModels[0], firstName: 'test' }),
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body.firstName).to.be.equal('test');
+                },
+              },
+              {
+                name: 'admin CAN replace user\'s details with "roleName: user"',
+                verb: 'put',
+                auth: profiles.admin,
+                url: () => `${apiUrl}${userModels[0].id}`,
+                body: () => ({ ...userModels[0], roleName: 'user' }),
                 expect: 200,
               },
             ],

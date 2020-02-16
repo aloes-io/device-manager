@@ -5,14 +5,16 @@
 import aedes from 'aedes';
 import { protocolDecoder } from 'aedes-protocol-decoder';
 import axios from 'axios';
-import dotenv from 'dotenv';
-import throttle from 'lodash.throttle';
+// import dotenv from 'dotenv';
+// import throttle from 'lodash.throttle';
 import nodeCleanup from 'node-cleanup';
 import ws from 'websocket-stream';
 import envVariablesKeys from '../initial-data/variables-keys.json';
 import logger from './logger';
 import rateLimiter from './rate-limiter';
 import { version } from '../../package.json';
+
+require('dotenv').config();
 
 // process.env.PUBSUB_API_VERSION = `v${version.substr(0,3)}`;
 
@@ -249,7 +251,7 @@ const updateClientStatus = async (client, status) => {
       logger.publish(4, 'broker', 'updateClientStatus:req', { status, client: foundClient });
       if (!client.aloesId) {
         const aloesClient = pickRandomClient(aloesClientsIds);
-        if (!aloesClient) throw new Error('No Aloes app client connected');
+        if (!aloesClient || !aloesClient.id) throw new Error('No Aloes app client connected');
         const packet = {
           topic: `${getAloesClientTopic(aloesClient.id)}/status`,
           payload: Buffer.from(JSON.stringify({ status, client: foundClient })),
@@ -266,7 +268,7 @@ const updateClientStatus = async (client, status) => {
   }
 };
 
-const delayedUpdateClientStatus = throttle(updateClientStatus, 50);
+// const delayedUpdateClientStatus = throttle(updateClientStatus, 50);
 
 /**
  * HTTP request to Aloes to validate credentials
@@ -585,7 +587,7 @@ const onExternalPublished = async (packet, client) => {
       throw new Error('No Aloes client connected');
     }
     const aloesClient = pickRandomClient(aloesClientsIds);
-    if (aloesClient === null) throw new Error('No Aloes client connected');
+    if (!aloesClient || !aloesClient.id) throw new Error('No Aloes client connected');
     const foundClient = getClientProps(client);
     packet.topic = `${getAloesClientTopic(aloesClient.id)}/rx/${packet.topic}`;
 
@@ -695,7 +697,8 @@ broker.start = () => {
     broker.instance.on('client', async client => {
       try {
         logger.publish(3, 'broker', 'onClientConnect', client.id);
-        await delayedUpdateClientStatus(client, true);
+        // await delayedUpdateClientStatus(client, true);
+        await updateClientStatus(client, true);
       } catch (error) {
         logger.publish(2, 'broker', 'onClientConnect:err', error);
       }
@@ -710,8 +713,8 @@ broker.start = () => {
     broker.instance.on('clientDisconnect', async client => {
       try {
         logger.publish(3, 'broker', 'onClientDisconnect', client.id);
-        await delayedUpdateClientStatus(client, false);
-        // await updateClientStatus(client, false);
+        // await delayedUpdateClientStatus(client, false);
+        await updateClientStatus(client, false);
       } catch (error) {
         logger.publish(2, 'broker', 'onClientDisconnect:err', error);
       }
@@ -769,7 +772,7 @@ broker.start = () => {
  * @method module:Broker.stop
  * @returns {boolean}
  */
-broker.stop = () => {
+broker.stop = async () => {
   try {
     // const aloesTopicPrefix = `aloes-${process.env.ALOES_ID}`;
     // const packet = {
@@ -783,7 +786,7 @@ broker.stop = () => {
       url: `${process.env.MQTT_BROKER_URL}`,
       brokers: broker.instance && broker.instance.brokers,
     });
-    if (broker.instance) broker.instance.close();
+    if (broker.instance) await broker.instance.close();
     return true;
   } catch (error) {
     logger.publish(2, 'broker', 'stop:err', error);
@@ -842,17 +845,22 @@ const initServers = (brokerInterfaces, brokerInstance) => {
  */
 broker.init = () => {
   try {
-    let config = {};
-    if (!process.env.CI) {
-      const result = dotenv.config();
-      if (result.error) throw result.error;
-      config = result.parsed;
-    } else {
-      envVariablesKeys.forEach(key => {
-        // eslint-disable-next-line security/detect-object-injection
-        config[key] = process.env[key];
-      });
-    }
+    const config = {};
+    // if (!process.env.CI) {
+    //   const result = dotenv.config();
+    //   if (result.error) throw result.error;
+    //   config = result.parsed;
+    // } else {
+    //   envVariablesKeys.forEach(key => {
+    //     // eslint-disable-next-line security/detect-object-injection
+    //     config[key] = process.env[key];
+    //   });
+    // }
+
+    envVariablesKeys.forEach(key => {
+      // eslint-disable-next-line security/detect-object-injection
+      config[key] = process.env[key];
+    });
 
     broker.config = {
       ...config,
@@ -948,20 +956,14 @@ if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
 }
 
 nodeCleanup((exitCode, signal) => {
-  try {
-    if (signal && signal !== null) {
-      logger.publish(1, 'broker', 'exit:req', { exitCode, signal, pid: process.pid });
-      broker.stop();
-      setTimeout(() => process.kill(process.pid, signal), 5000);
-      nodeCleanup.uninstall();
-      return false;
-    }
-    return true;
-  } catch (error) {
-    logger.publish(1, 'broker', 'exit:err', error);
-    process.kill(process.pid, signal);
-    throw error;
+  if (signal && signal !== null) {
+    logger.publish(1, 'broker', 'exit:req', { exitCode, signal, pid: process.pid });
+    broker.stop();
+    setTimeout(() => process.kill(process.pid, signal), 5000);
+    nodeCleanup.uninstall();
+    return false;
   }
+  return true;
 });
 
 export default broker;

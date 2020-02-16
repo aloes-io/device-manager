@@ -3,25 +3,18 @@
 import initialUsersList from '../initial-data/base-accounts.json';
 import logger from '../services/logger';
 import roleManager from '../services/role-manager';
+import utils from '../services/utils';
 
 module.exports = async function createSampleAccounts(app) {
   try {
-    if (process.env.CLUSTER_MODE) {
-      if (process.env.PROCESS_ID !== '0') return null;
-      if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
-    }
+    if (!utils.isMasterProcess(process.env)) return;
     const User = app.models.user;
-    const accounts = await User.find().then(res => {
-      if (res.length < 1) {
-        return User.create(initialUsersList);
-      }
-      return res;
-    });
+    const accounts = await User.find().then(res =>
+      res.length < 1 ? User.create(initialUsersList).then(res) : res,
+    );
     await roleManager.setUserRole(app, accounts[0].id, 'admin', true);
     logger.publish(4, 'loopback', 'boot:createSampleAccounts:res', accounts);
-    return accounts;
   } catch (error) {
     logger.publish(2, 'loopback', 'boot:createSampleAccounts:err', error);
-    throw error;
   }
 };

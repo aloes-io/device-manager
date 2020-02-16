@@ -2,32 +2,30 @@
 
 import { omaObjects, omaResources, omaViews, version } from 'oma-json';
 import logger from '../services/logger';
+import utils from '../services/utils';
 
 export default async function createOmaApi(server) {
   try {
-    if (process.env.CLUSTER_MODE) {
-      if (process.env.PROCESS_ID !== '0') return null;
-      if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
-    }
+    if (!utils.isMasterProcess(process.env)) return;
     // update models based on package.json version for oma-json
     const foundOmaObjects = await server.models.OmaObject.find();
-    if (foundOmaObjects.length === omaObjects.length) {
-      if (foundOmaObjects[0].version && foundOmaObjects[0].version === version) {
-        return null;
-      }
+    if (
+      foundOmaObjects.length === omaObjects.length &&
+      foundOmaObjects[0].version &&
+      foundOmaObjects[0].version === version
+    ) {
+      return;
     }
 
     await server.models.OmaObject.destroyAll();
     omaObjects.forEach(object => {
       object.id = object.value;
       object.version = version;
-      return object;
     });
     const savedOmaObjects = await server.models.OmaObject.create(omaObjects);
     omaResources.forEach(resource => {
       resource.id = resource.value;
       resource.version = version;
-      return resource;
     });
 
     await server.models.OmaResource.destroyAll();
@@ -35,7 +33,6 @@ export default async function createOmaApi(server) {
     omaViews.forEach(resource => {
       resource.id = resource.value;
       resource.version = version;
-      return resource;
     });
 
     await server.models.OmaView.destroyAll();
@@ -45,14 +42,7 @@ export default async function createOmaApi(server) {
       savedOmaResources,
       savedOmaViews,
     });
-
-    return {
-      omaObjects: savedOmaObjects,
-      omaResources: savedOmaResources,
-      omaViews: savedOmaViews,
-    };
   } catch (error) {
     logger.publish(2, 'loopback', 'boot:createOmaApi:err', error);
-    throw error;
   }
 }

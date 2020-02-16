@@ -26,7 +26,6 @@ const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'err
 const onBeforeSave = async ctx => {
   try {
     if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
-
     if (ctx.instance) {
       logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
       const promises = filteredProperties.map(async prop => ctx.instance.unsetAttribute(prop));
@@ -154,10 +153,6 @@ const onAfterSave = async ctx => {
  */
 const deleteProps = async (app, instance) => {
   try {
-    if (!instance || !instance.id || !instance.ownerId) {
-      // throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid application instance');
-      return null;
-    }
     logger.publish(4, `${collectionName}`, 'deleteProps:req', instance);
     // const Device = app.models.Device;
     // const devices = await Device.find({ where: { appEui: instance.appEui } });
@@ -166,10 +161,8 @@ const deleteProps = async (app, instance) => {
     //   await Promise.all(promises);
     // }
     await app.models.Application.publish(instance, 'DELETE');
-    return instance;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
-    return null;
   }
 };
 
@@ -212,42 +205,29 @@ const onBeforeRemote = async ctx => {
       if (!options || !options.currentUser) {
         throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
       }
+      const ownerId = utils.getOwnerId(options);
       const isAdmin = options.currentUser.roles.includes('admin');
-      if (ctx.req.query && ctx.req.query.filter) {
-        if (!isAdmin) {
-          if (typeof ctx.req.query.filter === 'string') {
-            ctx.req.query.filter = JSON.parse(ctx.req.query.filter);
-          }
-          if (!ctx.req.query.filter.where) ctx.req.query.filter.where = {};
-          ctx.req.query.filter.where.ownerId = options.currentUser.id.toString();
+      if (ctx.req.query && ctx.req.query.filter && !isAdmin) {
+        if (typeof ctx.req.query.filter === 'string') {
+          ctx.req.query.filter = JSON.parse(ctx.req.query.filter);
         }
+        if (!ctx.req.query.filter.where) ctx.req.query.filter.where = {};
+        ctx.req.query.filter.where.ownerId = ownerId;
       }
-      if (ctx.req.params) {
-        if (!isAdmin) {
-          ctx.req.params.ownerId = options.currentUser.id.toString();
-        }
+      if (ctx.req.params && !isAdmin) {
+        ctx.req.params.ownerId = ownerId;
       }
-    } else if (ctx.method.name === 'onPublish') {
+    } else if (ctx.method.name === 'refreshToken') {
       const options = ctx.args ? ctx.args.options : {};
       if (!options || !options.currentUser) {
         throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
       }
-      // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.client);
-      const isAdmin = options.currentUser.roles.includes('admin');
-      if (!ctx.args.client) ctx.args.client = {};
-      // ctx.args.client.user = options.currentUser.id.toString();
-      if (!isAdmin) {
-        ctx.args.client.user = options.currentUser.id.toString();
-        if (options.currentUser.appEui) {
-          ctx.args.client.appEui = options.currentUser.appEui;
-        }
-      }
-    } else if (ctx.method.name === 'updateStatus') {
+      ctx.args.ownerId = utils.getOwnerId(options);
+    } else if (ctx.method.name === 'onPublish' || ctx.method.name === 'updateStatus') {
       const options = ctx.args ? ctx.args.options : {};
       if (!options || !options.currentUser) {
         throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
       }
-      // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.client);
       const isAdmin = options.currentUser.roles.includes('admin');
       if (!ctx.args.client) ctx.args.client = {};
       if (!isAdmin) {
@@ -261,18 +241,15 @@ const onBeforeRemote = async ctx => {
       if (!options || !options.currentUser) {
         throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
       }
-      // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.deviceId);
       const isAdmin = options.currentUser.roles.includes('admin');
-      if (!isAdmin) {
-        if (options.currentUser.appEui) {
-          if (options.currentUser.id.toString() !== ctx.args.appId.toString()) {
-            const error = utils.buildError(
-              401,
-              'INVALID_USER',
-              'Only application itself can trigger this endpoint',
-            );
-            throw error;
-          }
+      if (!isAdmin && options.currentUser.appEui) {
+        if (options.currentUser.id.toString() !== ctx.args.appId.toString()) {
+          const error = utils.buildError(
+            401,
+            'INVALID_USER',
+            'Only application itself can trigger this endpoint',
+          );
+          throw error;
         }
       }
     }
@@ -428,16 +405,14 @@ module.exports = Application => {
    * Create new keys, and update Application instance
    * @method module:Application.refreshToken
    * @param {string} appId - Application instance id
+   * @param {string} ownerId - Application owner id
    * @returns {function} application.updateAttributes
    */
-  Application.refreshToken = async (ctx, appId) => {
+  Application.refreshToken = async (appId, ownerId) => {
     try {
       logger.publish(4, `${collectionName}`, 'refreshToken:req', appId);
-      if (!ctx.req.accessToken) throw utils.buildError(403, 'NO_TOKEN', 'User is not authentified');
-
-      if (!appId) throw new Error('missing argument');
       const application = await Application.findById(appId);
-      if (ctx.req.accessToken.userId.toString() !== application.ownerId.toString()) {
+      if (ownerId !== application.ownerId.toString()) {
         const error = utils.buildError(401, 'INVALID_OWNER', "User doesn't own this device");
         throw error;
       }
@@ -572,15 +547,8 @@ module.exports = Application => {
             });
 
             await Promise.all(
-              devices.map(async device => {
-                try {
-                  return device.updateAttributes({ frameCounter, status });
-                } catch (e) {
-                  return null;
-                }
-              }),
+              devices.map(async device => device.updateAttributes({ frameCounter, status })),
             );
-            // await Promise.all(updateDevices);
           }
           await Client.delete(client.id);
         }
@@ -692,16 +660,15 @@ module.exports = Application => {
    */
   Application.on('client', async message => {
     try {
-      logger.publish(2, `${collectionName}`, 'on-client:req', Object.keys(message));
+      logger.publish(3, `${collectionName}`, 'on-client:req', Object.keys(message));
       if (!message || message === null) throw new Error('Message empty');
-      const status = message.status;
-      const client = message.client;
+      const { client, status } = message;
       if (!client || !client.user) {
         throw new Error('Message missing properties');
       }
       await Application.updateStatus(client, status);
     } catch (error) {
-      throw error;
+      logger.publish(2, `${collectionName}`, 'on-client:err', error);
     }
   });
 
@@ -717,9 +684,7 @@ module.exports = Application => {
   Application.on('publish', async message => {
     try {
       if (!message || message === null) throw new Error('Message empty');
-      const packet = message.packet;
-      const pattern = message.pattern;
-      const client = message.client;
+      const { client, packet, pattern } = message;
       logger.publish(4, collectionName, 'on:publish:req', pattern.name);
       if (!packet || !pattern) throw new Error('Message missing properties');
       await Application.onPublish(packet, client, pattern);
@@ -737,16 +702,12 @@ module.exports = Application => {
    */
   Application.on('stopped', async () => {
     try {
-      if (process.env.CLUSTER_MODE) {
-        if (process.env.PROCESS_ID !== '0') return null;
-        if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+      if (utils.isMasterProcess(process.env)) {
+        await Application.updateAll({ status: true }, { status: false, clients: [] });
+        logger.publish(3, `${collectionName}`, 'on-stop:res', '');
       }
-      await Application.updateAll({ status: true }, { status: false, clients: [] });
-      logger.publish(3, `${collectionName}`, 'on-stop:res', '');
-      return null;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-stop:err', error);
-      return null;
     }
   });
 

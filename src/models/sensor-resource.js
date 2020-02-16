@@ -69,8 +69,8 @@ module.exports = function(SensorResource) {
   };
 
   /**
-   * Set TTL for a sensor store in cache
-   * @method module:SensorResource.expireCache
+   * Delete a sensor stored in cache
+   * @method module:SensorResource.deleteCache
    * @param {string} deviceId - Device Id owning the sensor
    * @param {string} sensorId - Sensor instance Id
    * @returns {boolean} success
@@ -88,7 +88,7 @@ module.exports = function(SensorResource) {
   };
 
   /**
-   * Set TTL for a sensor store in cache
+   * Set TTL for a sensor stored in cache
    * @method module:SensorResource.expireCache
    * @param {string} deviceId - Device Id owning the sensor
    * @param {object} sensor - Sensor instance to save
@@ -150,7 +150,7 @@ module.exports = function(SensorResource) {
   };
 
   /**
-   * Async generator sending cache key promise
+   * Async generator sending cache key
    * @method module:SensorResource.cacheIterator
    * @param {object} [filter] - Key filter
    * @property {string} filter.match - glob string
@@ -185,13 +185,11 @@ module.exports = function(SensorResource) {
       logger.publish(5, `${collectionName}`, 'includeCache:req', { filter });
       device.sensors = [];
       for await (const key of SensorResource.cacheIterator(filter)) {
-        if (key && key !== null) {
-          try {
-            const sensor = JSON.parse(await SensorResource.get(key));
-            device.sensors.push(sensor);
-          } catch (e) {
-            // empty
-          }
+        try {
+          const sensor = JSON.parse(await SensorResource.get(key));
+          device.sensors.push(sensor);
+        } catch (e) {
+          // empty
         }
       }
       logger.publish(4, `${collectionName}`, 'includeCache:res', { count: device.sensors.length });
@@ -216,22 +214,20 @@ module.exports = function(SensorResource) {
       };
       logger.publish(5, `${collectionName}`, 'updateCache:req', { filter });
       for await (const key of SensorResource.cacheIterator(filter)) {
-        if (key && key !== null) {
-          try {
-            let sensor = JSON.parse(await SensorResource.get(key));
-            sensor = {
-              ...sensor,
-              devEui: device.devEui,
-              transportProtocol: device.transportProtocol,
-              transportProtocolVersion: device.transportProtocolVersion,
-              messageProtocol: device.messageProtocol,
-              messageProtocolVersion: device.messageProtocolVersion,
-            };
-            await SensorResource.setCache(device.id, sensor);
-            sensors.push(sensor);
-          } catch (e) {
-            // empty
-          }
+        try {
+          let sensor = JSON.parse(await SensorResource.get(key));
+          sensor = {
+            ...sensor,
+            devEui: device.devEui,
+            transportProtocol: device.transportProtocol,
+            transportProtocolVersion: device.transportProtocolVersion,
+            messageProtocol: device.messageProtocol,
+            messageProtocolVersion: device.messageProtocolVersion,
+          };
+          await SensorResource.setCache(device.id, sensor);
+          sensors.push(sensor);
+        } catch (e) {
+          // empty
         }
       }
 
@@ -254,8 +250,8 @@ module.exports = function(SensorResource) {
       logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
       for await (const key of SensorResource.cacheIterator(filter)) {
         if (key && key !== null) {
-          sensors.push(key);
           await SensorResource.delete(key);
+          sensors.push(key);
         }
       }
       return sensors;

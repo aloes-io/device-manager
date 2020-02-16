@@ -2,13 +2,12 @@
 
 /* eslint-disable security/detect-object-injection */
 import logger from '../services/logger';
+import utils from '../services/utils';
 
 module.exports = async function initializeDownSampling(app) {
   try {
-    if (process.env.CLUSTER_MODE) {
-      if (process.env.PROCESS_ID !== '0') return null;
-      if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
-    }
+    if (!utils.isMasterProcess(process.env)) return;
+
     const influxConnector = app.datasources.points.connector;
     const models = app.models;
     influxConnector.retentionPolicies = {};
@@ -147,10 +146,8 @@ module.exports = async function initializeDownSampling(app) {
       return null;
     });
 
-    const result = await Promise.all(promises);
-    return result;
+    await Promise.all(promises);
   } catch (error) {
     logger.publish(2, 'loopback', 'boot:initializeDownSampling:err', error);
-    return null;
   }
 };

@@ -394,16 +394,14 @@
       "description": ["Refresh or create API key"],
       "accepts": [
         {
-          "arg": "ctx",
-          "type": "object",
-          "http": {
-            "source": "context"
-          }
-        },
-        {
           "arg": "deviceId",
           "type": "string",
           "required": true
+        },
+        {
+          "arg": "ownerId",
+          "type": "string",
+          "required": false
         }
       ],
       "returns": {

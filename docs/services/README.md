@@ -87,7 +87,7 @@ Init MQTT and WS Broker with new Aedes instance
 Aedes persistence layer
 
 **Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>function</code> - aedesPersistenceRedis  
+**Returns**: <code>function</code> - aedesPersistence | aedesPersistenceRedis  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -99,7 +99,7 @@ Aedes persistence layer
 Aedes event emitter
 
 **Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>function</code> - MQEmitterRedis  
+**Returns**: <code>function</code> - MQEmitter | MQEmitterRedis  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -456,7 +456,7 @@ Promise wrapper to send verification email after user registration
         * [~onStatus(app, topic, payload)](#module_MQTTClient..onStatus) ⇒ <code>function</code>
         * [~onReceive(app, topic, payload)](#module_MQTTClient..onReceive)
         * [~onMessage(app, topic, payload)](#module_MQTTClient..onMessage) ⇒ <code>functions</code> \| <code>functions</code>
-        * [~startClient(clientId)](#module_MQTTClient..startClient)
+        * [~startClient()](#module_MQTTClient..startClient)
         * [~initClient(app, config)](#module_MQTTClient..initClient) ⇒ <code>boolean</code>
         * [~stopClient()](#module_MQTTClient..stopClient) ⇒ <code>boolean</code>
 
@@ -621,15 +621,10 @@ Parse the message arriving from the broker
 
 <a name="module_MQTTClient..startClient"></a>
 
-### MQTTClient~startClient(clientId)
+### MQTTClient~startClient()
 Setup MQTT client listeners
 
 **Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| clientId | <code>string</code> | MQTT clientId |
-
 <a name="module_MQTTClient..initClient"></a>
 
 ### MQTTClient~initClient(app, config) ⇒ <code>boolean</code>

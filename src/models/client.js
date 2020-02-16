@@ -2,6 +2,7 @@
 
 /* eslint-disable no-restricted-syntax */
 import logger from '../services/logger';
+import utils from '../services/utils';
 
 /**
  * @module Client
@@ -62,13 +63,11 @@ module.exports = function(Client) {
       logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
       const clients = [];
       for await (const key of Client.cacheIterator(filter)) {
-        if (key && key !== null) {
-          try {
-            const client = JSON.parse(await Client.get(key));
-            clients.push(client);
-          } catch (e) {
-            // empty
-          }
+        try {
+          const client = JSON.parse(await Client.get(key));
+          clients.push(client);
+        } catch (e) {
+          // empty
         }
       }
       return clients;
@@ -90,8 +89,8 @@ module.exports = function(Client) {
       logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
       for await (const key of Client.cacheIterator()) {
         if (key && key !== null) {
-          clients.push(key);
           await Client.delete(key);
+          clients.push(key);
         }
       }
       return clients;
@@ -110,10 +109,7 @@ module.exports = function(Client) {
    */
   Client.on('stopped', async () => {
     try {
-      if (process.env.CLUSTER_MODE) {
-        if (process.env.PROCESS_ID !== '0') return null;
-        if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
-      }
+      if (!utils.isMasterProcess(process.env)) return false;
       logger.publish(3, `${collectionName}`, 'on-stop:res', '');
       await Client.deleteAll();
       return true;
