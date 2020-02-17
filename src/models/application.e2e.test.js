@@ -416,7 +416,7 @@ const applicationTest = () => {
           beforeTests()
             .then(() => done())
             .catch(e => done(e)),
-        1000,
+        2000,
       );
     });
 

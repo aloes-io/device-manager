@@ -577,7 +577,7 @@ const deviceTest = () => {
           beforeTests()
             .then(() => done())
             .catch(done),
-        1000,
+        2000,
       );
     });
 
@@ -590,13 +590,6 @@ const deviceTest = () => {
         1000,
       );
     });
-
-    // after(function(done) {
-    //   this.timeout(delayBeforeTesting);
-    //   afterTests()
-    //     .then(() => done())
-    //     .catch(done);
-    // });
 
     it('everyone CANNOT connect to backend', function(done) {
       const testMaxDuration = 2000;

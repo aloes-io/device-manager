@@ -408,7 +408,7 @@ const sensorTest = () => {
           beforeTests()
             .then(() => done())
             .catch(done),
-        1000,
+        2000,
       );
     });
 
