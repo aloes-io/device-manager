@@ -283,14 +283,11 @@ const persistingResource = async (app, device, sensor, client) => {
  */
 const onAfterSave = async ctx => {
   try {
-    // if (ctx.instance) console.log('SENSOR', ctx.instance);
     logger.publish(3, `${collectionName}`, 'onAfterSave:req', ctx.hookState);
-    if (ctx.hookState.updateData) {
-      return ctx;
-      //  } else if (ctx.instance.id && !ctx.isNewInstance && ctx.instance.ownerId) {
-    } else if (ctx.instance.id && ctx.instance.ownerId) {
+    if (ctx.instance.id && ctx.instance.ownerId) {
       await ctx.Model.app.models.SensorResource.setCache(ctx.instance.deviceId, ctx.instance);
     }
+    // if (ctx.hookState.updateData) {}
     return ctx;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'onAfterSave:err', error);
@@ -307,25 +304,16 @@ const onAfterSave = async ctx => {
  */
 const deleteProps = async (app, sensor) => {
   try {
-    if (!sensor || !sensor.id || !sensor.ownerId) {
-      return null;
-      //   throw utils.buildError(403, 'INVALID_SENSOR', 'Invalid sensor instance');
-    }
     logger.publish(3, `${collectionName}`, 'deleteProps:req', sensor);
-    try {
-      await app.models.Measurement.destroyAll({
-        sensorId: sensor.id.toString(),
-      });
-    } catch (e) {
-      // empty
-    }
+    app.models.Measurement.destroyAll({
+      sensorId: sensor.id.toString(),
+    }).catch(e => e);
+
     await app.models.SensorResource.deleteCache(sensor.deviceId, sensor.id);
     const device = await app.models.Device.findById(sensor.deviceId);
     await app.models.Sensor.publish(device, sensor, 'DELETE');
-    return sensor;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
-    return null;
   }
 };
 
@@ -366,16 +354,13 @@ const onBeforeRemote = async (app, ctx) => {
       }
       const isAdmin = options.currentUser.roles.includes('admin');
       const ownerId = utils.getOwnerId(options);
-
-      if (ctx.req.query && ctx.req.query.filter) {
-        if (!isAdmin) {
-          if (typeof ctx.req.query.filter === 'string') {
-            ctx.req.query.filter = JSON.parse(ctx.req.query.filter);
-          }
-          if (!ctx.req.query.filter.where) ctx.req.query.filter.where = {};
-          ctx.req.query.filter.where.ownerId = ownerId;
-          // sensors = await Sensor.find(ctx.req.query.filter);
+      if (ctx.req.query && ctx.req.query.filter && !isAdmin) {
+        if (typeof ctx.req.query.filter === 'string') {
+          ctx.req.query.filter = JSON.parse(ctx.req.query.filter);
         }
+        if (!ctx.req.query.filter.where) ctx.req.query.filter.where = {};
+        ctx.req.query.filter.where.ownerId = ownerId;
+        // sensors = await Sensor.find(ctx.req.query.filter);
       }
       // if (ctx.req.params && ctx.req.params.id) {
       //   if (!isAdmin) {
@@ -643,7 +628,8 @@ module.exports = function(Sensor) {
         let newSensor = await device.sensors.create(sensor);
         newSensor = JSON.parse(JSON.stringify(newSensor));
         return newSensor;
-      } else if (device.sensors()[0] && device.sensors()[0].id) {
+      }
+      if (device.sensors()[0] && device.sensors()[0].id) {
         sensor = device.sensors()[0];
         sensor = JSON.parse(JSON.stringify(sensor));
         const keys = Object.keys(attributes);
@@ -701,7 +687,8 @@ module.exports = function(Sensor) {
         // should be saved in compose
         // await device.sensors.updateById(sensor.id, sensor);
         return Sensor.publish(device, sensor, 'HEAD', client);
-      } else if (!sensor.isNewInstance && sensor.id) {
+      }
+      if (!sensor.isNewInstance && sensor.id) {
         let updatedSensor = await SensorResource.getCache(device.id, sensor.id);
         if (!updatedSensor) {
           throw utils.buildError(404, 'INVALID_SENSOR', 'Sensor not found');
@@ -738,58 +725,53 @@ module.exports = function(Sensor) {
         name: sensor.name,
       });
 
-      if (sensor.isNewInstance) {
-        const error = utils.buildError(400, 'INVALID_SENSOR', 'Sensor not validated yet');
-        throw error;
-      }
       if (resourceValue === undefined || resourceKey === undefined || resourceKey === null) {
         const error = utils.buildError(400, 'INVALID_ARGS', 'Missing Sensor key/value to update');
         throw error;
       }
+      if (sensor.isNewInstance || !sensor || !sensor.id) {
+        const error = utils.buildError(400, 'INVALID_SENSOR', 'Sensor not validated yet');
+        throw error;
+      }
 
       const SensorResource = Sensor.app.models.SensorResource;
-      if (sensor.id) {
-        let updatedSensor = await SensorResource.getCache(sensor.deviceId, sensor.id);
-        if (!updatedSensor || !updatedSensor.id) {
-          throw utils.buildError(404, 'INVALID_SENSOR', 'Sensor not found');
-        }
-        sensor.resources = { ...sensor.resources, ...updatedSensor.resources };
-        updatedSensor = await updateAloesSensors(
-          { ...updatedSensor, ...sensor },
-          Number(resourceKey),
-          resourceValue,
-        );
-        logger.publish(3, `${collectionName}`, 'createOrUpdate:res', {
-          inType: typeof resourceValue,
-          outType: typeof updatedSensor.resources[updatedSensor.resource],
-        });
-
-        updatedSensor.frameCounter += 1;
-        // updatedSensor.value = null; free sensor space ?
-
-        const lastSignal = new Date(updatedSensor.lastSignal).getTime();
-        if (!updatedSensor.lastSync) {
-          updatedSensor.lastSync = lastSignal;
-        }
-
-        const result = await persistingResource(Sensor.app, device, updatedSensor, client);
-        if (result && result.sensor) {
-          updatedSensor = result.sensor;
-        }
-        if (
-          updatedSensor.frameCounter % 25 === 0 ||
-          lastSignal > updatedSensor.lastSync + 30 * 1000
-        ) {
-          updatedSensor.lastSync = lastSignal;
-          await device.sensors.updateById(sensor.id, updatedSensor);
-        }
-        // TODO : Define cache TTL with env vars ?
-        await SensorResource.setCache(device.id, updatedSensor);
-        await Sensor.publish(device, updatedSensor, 'PUT', client);
-        return updatedSensor;
+      let updatedSensor = await SensorResource.getCache(sensor.deviceId, sensor.id);
+      if (!updatedSensor || !updatedSensor.id) {
+        throw utils.buildError(404, 'INVALID_SENSOR', 'Sensor not found in cache');
       }
-      const error = utils.buildError(400, 'INVALID_SENSOR', 'no valid sensor to update');
-      throw error;
+      sensor.resources = { ...sensor.resources, ...updatedSensor.resources };
+      updatedSensor = await updateAloesSensors(
+        { ...updatedSensor, ...sensor },
+        Number(resourceKey),
+        resourceValue,
+      );
+      logger.publish(3, `${collectionName}`, 'createOrUpdate:res', {
+        inType: typeof resourceValue,
+        outType: typeof updatedSensor.resources[updatedSensor.resource],
+      });
+
+      updatedSensor.frameCounter += 1;
+      // updatedSensor.value = null; free sensor space ?
+      const lastSignal = new Date(updatedSensor.lastSignal).getTime();
+      if (!updatedSensor.lastSync) {
+        updatedSensor.lastSync = lastSignal;
+      }
+
+      const result = await persistingResource(Sensor.app, device, updatedSensor, client);
+      if (result && result.sensor) {
+        updatedSensor = result.sensor;
+      }
+      if (
+        updatedSensor.frameCounter % 25 === 0 ||
+        lastSignal > updatedSensor.lastSync + 30 * 1000
+      ) {
+        updatedSensor.lastSync = lastSignal;
+        await device.sensors.updateById(sensor.id, updatedSensor);
+      }
+      // TODO : Define cache TTL with env vars ?
+      await SensorResource.setCache(device.id, updatedSensor);
+      await Sensor.publish(device, updatedSensor, 'PUT', client);
+      return updatedSensor;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'createOrUpdate:err', error);
       throw error;
@@ -887,7 +869,7 @@ module.exports = function(Sensor) {
   Sensor.execute = async (device, sensor, method, client) => {
     try {
       logger.publish(3, `${collectionName}`, 'execute:req', method);
-      // also  replace sensor when they share same nativeSensorId and nativeNodeId but type has changed ?
+      // also replace sensor when they share same nativeSensorId and nativeNodeId but type has changed ?
       switch (method.toUpperCase()) {
         case 'HEAD':
           await Sensor.handlePresentation(device, sensor, client);
@@ -978,14 +960,14 @@ module.exports = function(Sensor) {
    */
   Sensor.search = async filter => {
     logger.publish(4, `${collectionName}`, 'search:req', filter);
+    if (
+      !filter.text ||
+      !isLength(filter.text, { min: 2, max: 30 }) ||
+      !isAlphanumeric(filter.text)
+    ) {
+      throw new Error('Invalid search content');
+    }
     try {
-      if (
-        !filter.text ||
-        !isLength(filter.text, { min: 2, max: 30 }) ||
-        !isAlphanumeric(filter.text)
-      ) {
-        throw new Error('Invalid search content');
-      }
       /* eslint-disable security/detect-non-literal-regexp */
       // use OMA object description as lexic
       const omaObjectsList = await Sensor.app.models.OmaObject.find({
@@ -1006,15 +988,10 @@ module.exports = function(Sensor) {
               { transportProtocol: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
             ],
           };
-          let sensors = await Sensor.find({
+          const sensors = await Sensor.find({
             where: whereFilter,
           });
-          if (!sensors || sensors === null) {
-            sensors = [];
-          } else {
-            sensors = JSON.parse(JSON.stringify(sensors));
-          }
-          return [...sensors];
+          return !sensors || sensors === null ? [] : [...JSON.parse(JSON.stringify(sensors))];
         } catch (e) {
           return null;
         }
@@ -1070,11 +1047,8 @@ module.exports = function(Sensor) {
   Sensor.on('publish', async message => {
     try {
       if (!message || message === null) throw new Error('Message empty');
-      const device = message.device;
+      const { attributes, client, device, sensor } = message;
       //  const pattern = message.pattern;
-      const attributes = message.attributes;
-      const client = message.client;
-      const sensor = message.sensor;
       if (!device || (!attributes && !sensor)) throw new Error('Message missing properties');
       await Sensor.onPublish(device, attributes, sensor, client);
     } catch (error) {
@@ -1116,7 +1090,7 @@ module.exports = function(Sensor) {
   Sensor.observe('before delete', onBeforeDelete);
 
   /**
-   * Event reporting that a sensor instance / collection is requested
+   * Event reporting that a sensor method is requested
    * @event before_*
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request

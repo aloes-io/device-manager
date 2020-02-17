@@ -2,11 +2,13 @@
 
 /* eslint-disable global-require */
 /* eslint-disable import/no-mutable-exports */
-import dotenv from 'dotenv';
+// import dotenv from 'dotenv';
 import Redis from 'ioredis';
 import { RateLimiterMemory, RateLimiterRedis } from 'rate-limiter-flexible';
 import logger from '../services/logger';
 import envVariablesKeys from '../initial-data/variables-keys.json';
+
+require('dotenv').config();
 
 /**
  * @module rateLimiter
@@ -16,17 +18,11 @@ const moduleName = 'rateLimiter';
 const maxWrongAttemptsByIPperDay = 100;
 const maxConsecutiveFailsByUsernameAndIP = 15;
 
-let config = {};
-if (!process.env.CI) {
-  const result = dotenv.config();
-  if (result.error) throw result.error;
-  config = result.parsed;
-} else {
-  envVariablesKeys.forEach(key => {
-    // eslint-disable-next-line security/detect-object-injection
-    config[key] = process.env[key];
-  });
-}
+const config = {};
+envVariablesKeys.forEach(key => {
+  // eslint-disable-next-line security/detect-object-injection
+  config[key] = process.env[key];
+});
 
 if (config.NODE_ENV !== 'development' && config.NODE_ENV !== 'test') {
   redisClient = new Redis({

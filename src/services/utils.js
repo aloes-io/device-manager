@@ -148,6 +148,20 @@ utils.exportToCSV = (input, filter) => {
   }
 };
 
+utils.isMasterProcess = env => {
+  // if (process.env.CLUSTER_MODE) {
+  //   if (process.env.PROCESS_ID !== '0') return null;
+  //   if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+  // }
+  if (
+    env.CLUSTER_MODE &&
+    (env.PROCESS_ID !== '0' || (env.INSTANCES_PREFIX && env.INSTANCES_PREFIX !== '1'))
+  ) {
+    return false;
+  }
+  return true;
+};
+
 utils.getOwnerId = options => {
   if (options.currentUser && options.currentUser.type) {
     if (options.currentUser.type === 'User') {

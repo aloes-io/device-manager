@@ -6,12 +6,11 @@ import iotAgent from 'iot-agent';
 import lbe2e from 'lb-declarative-e2e-test';
 import mqtt from 'mqtt';
 import app from '../index';
-import testHelper from '../services/test-helper';
+import testHelper, { clientEvent, timeout } from '../services/test-helper';
 
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
-const afterTestDelay = 2000;
 const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
@@ -27,7 +26,6 @@ const deviceTest = () => {
 
   async function beforeTests() {
     try {
-      // this.timeout(delayBeforeTesting);
       users = await Promise.all([
         testHelper.access.admin.create(app),
         testHelper.access.user.create(app),
@@ -35,12 +33,9 @@ const deviceTest = () => {
       userIds = [users[0].id, users[1].id];
       const models = Array(5)
         .fill('')
-        .map((_, index) => {
-          if (index <= 1) {
-            return deviceFactory(index + 1, userIds[0]);
-          }
-          return deviceFactory(index + 1, userIds[1]);
-        });
+        .map((_, index) =>
+          index <= 1 ? deviceFactory(index + 1, userIds[0]) : deviceFactory(index + 1, userIds[1]),
+        );
       // console.log('CREATED DEVICES MODELS ', models);
       const res = await DeviceModel.create(models);
       devices = res.map(model => model.toJSON());
@@ -58,7 +53,6 @@ const deviceTest = () => {
       };
       packets = [userPacket, devicePacket];
       patterns = packets.map(pac => iotAgent.patternDetector(pac));
-      // console.log('FOUND PATTERNS ', patterns);
       return devices;
     } catch (error) {
       console.log(`[TEST] ${collectionName} before:err`, error);
@@ -66,12 +60,16 @@ const deviceTest = () => {
     }
   }
 
-  function afterTests(done) {
-    setTimeout(() => {
-      Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
-        .then(() => done())
-        .catch(e => done(e));
-    }, afterTestDelay);
+  // function afterTests(done) {
+  //   setTimeout(() => {
+  //     Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
+  //       .then(() => done())
+  //       .catch(e => done(e));
+  //   }, afterTestDelay);
+  // }
+
+  async function afterTests() {
+    return Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()]);
   }
 
   describe(`${collectionName} HTTP`, function() {
@@ -162,46 +160,93 @@ const deviceTest = () => {
             tests: [
               {
                 name: 'everyone CANNOT update',
-                verb: 'put',
+                verb: 'patch',
                 url: () => apiUrl + devices[0].id,
-                body: () => ({
-                  ...devices[0],
-                  name: `${devices[0].name} - updated`,
-                }),
+                body: () => ({ name: `${devices[0].name} - updated` }),
                 expect: 401,
               },
               {
                 name: 'user CANNOT update ALL',
+                verb: 'patch',
+                auth: profiles.user,
+                url: () => `${apiUrl}${devices[0].id}`,
+                body: () => ({ name: `${devices[0].name} - updated` }),
+                expect: 401,
+              },
+              {
+                name: 'user CAN update OWN',
+                verb: 'patch',
+                auth: profiles.user,
+                url: () => `${apiUrl}${devices[2].id}`,
+                body: () => ({ name: `${devices[2].name} - updated` }),
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body.name).to.be.equal(`${devices[2].name} - updated`);
+                },
+              },
+              {
+                name: 'admin CAN update ALL',
+                verb: 'patch',
+                auth: profiles.admin,
+                url: () => `${apiUrl}${devices[2].id}`,
+                body: () => ({ name: `${devices[2].name} - updated` }),
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body.name).to.be.equal(`${devices[2].name} - updated`);
+                },
+              },
+            ],
+          },
+          '[TEST] Verifying "Replace" access': {
+            tests: [
+              {
+                name: 'everyone CANNOT replace',
+                verb: 'put',
+                url: () => apiUrl + devices[0].id,
+                body: () => ({
+                  ...devices[0],
+                  name: `${devices[0].name} - replaced`,
+                }),
+                expect: 401,
+              },
+              {
+                name: 'user CANNOT replace ALL',
                 verb: 'put',
                 auth: profiles.user,
                 url: () => `${apiUrl}${devices[0].id}`,
                 body: () => ({
                   ...devices[0],
-                  name: `${devices[0].name} - updated`,
+                  name: `${devices[0].name} - replaced`,
                 }),
                 expect: 401,
               },
               {
-                name: 'user CAN update OWN',
+                name: 'user CAN replace OWN',
                 verb: 'put',
                 auth: profiles.user,
                 url: () => `${apiUrl}${devices[2].id}`,
                 body: () => ({
                   ...devices[2],
-                  name: `${devices[2].name} - updated`,
+                  name: `${devices[2].name} - replaced`,
                 }),
-                expect: 200,
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body.name).to.be.equal(`${devices[2].name} - replaced`);
+                },
               },
               {
-                name: 'admin CAN update ALL',
+                name: 'admin CAN replace ALL',
                 verb: 'put',
                 auth: profiles.admin,
                 url: () => `${apiUrl}${devices[2].id}`,
                 body: () => ({
                   ...devices[2],
-                  name: `${devices[2].name} - updated`,
+                  name: `${devices[2].name} - replaced`,
                 }),
-                expect: 200,
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body.name).to.be.equal(`${devices[2].name} - replaced`);
+                },
               },
             ],
           },
@@ -218,14 +263,20 @@ const deviceTest = () => {
                 verb: 'delete',
                 auth: profiles.user,
                 url: () => `${apiUrl}${devices[2].id}`,
-                expect: 200,
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body.count).to.be.equal(1);
+                },
               },
               {
                 name: 'admin CAN delete ALL',
                 verb: 'delete',
                 auth: profiles.admin,
                 url: () => `${apiUrl}${devices[3].id}`,
-                expect: 200,
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body.count).to.be.equal(1);
+                },
               },
             ],
           },
@@ -525,18 +576,23 @@ const deviceTest = () => {
         () =>
           beforeTests()
             .then(() => done())
-            .catch(e => done(e)),
+            .catch(done),
         2000,
       );
     });
 
-    after(function(done) {
-      this.timeout(delayBeforeTesting);
-      afterTests(done);
+    after(done => {
+      setTimeout(
+        () =>
+          afterTests()
+            .then(() => done())
+            .catch(done),
+        1000,
+      );
     });
 
     it('everyone CANNOT connect to backend', function(done) {
-      const testMaxDuration = 4000;
+      const testMaxDuration = 2000;
       this.timeout(testMaxDuration);
       this.slow(testMaxDuration / 2);
 
@@ -554,7 +610,7 @@ const deviceTest = () => {
     });
 
     it('device CANNOT connect with wrong credentials', function(done) {
-      const testMaxDuration = 4000;
+      const testMaxDuration = 2000;
       this.timeout(testMaxDuration);
       this.slow(testMaxDuration / 2);
       const client = mqtt.connect(
@@ -572,31 +628,31 @@ const deviceTest = () => {
       });
     });
 
-    it('device CAN connect to backend', function(done) {
-      const testMaxDuration = 4000;
+    it('device CAN connect and its status is updated accordingly', async function() {
+      const testMaxDuration = 2500;
       this.timeout(testMaxDuration);
       this.slow(testMaxDuration / 2);
       const client = mqtt.connect(
         app.get('mqtt url'),
         clientFactory(devices[1], 'device', devices[1].apiKey),
       );
-      client.once('error', () => {
+
+      const packet = await clientEvent(client, 'connect');
+      expect(packet.returnCode).to.be.equal(0);
+      await timeout(async () => {
+        const device = await DeviceModel.findById(devices[1].id);
+        expect(device.status).to.be.equal(true);
         client.end();
-        done(new Error('Should be connected'));
-      });
-      client.on('offline', () => {
-        // check device status
-      });
-      client.once('connect', packet => {
-        expect(packet.returnCode).to.be.equal(0);
-        // check device status
-        setTimeout(() => client.end(), 500);
-        done();
-      });
+      }, 150);
+
+      return timeout(async () => {
+        const device = await DeviceModel.findById(devices[1].id);
+        expect(device.status).to.be.equal(false);
+      }, 150);
     });
 
     it('device CANNOT publish to ANY route', function(done) {
-      const testMaxDuration = 5000;
+      const testMaxDuration = 3000;
       this.timeout(testMaxDuration);
       this.slow(testMaxDuration / 2);
       const client = mqtt.connect(
@@ -627,16 +683,18 @@ const deviceTest = () => {
     });
 
     it('device CAN publish to OWN route', function(done) {
-      const testMaxDuration = 5000;
+      const testMaxDuration = 3000;
       this.timeout(testMaxDuration);
       this.slow(testMaxDuration / 2);
       const client = mqtt.connect(
         app.get('mqtt url'),
         clientFactory(devices[1], 'device', devices[1].apiKey),
       );
+
       client.once('error', e => {
         done(e);
       });
+
       client.once('offline', () => {
         client.end();
         done(new Error('Should not been offlined'));

@@ -18,7 +18,7 @@ import roleManager from '../services/role-manager';
  * @property {string} avatarImgUrl
  * @property {string} headerImgUrl
  * @property {boolean} status
- * @property {string} role admin or user
+ * @property {string} roleName admin or user
  */
 
 const collectionName = 'User';
@@ -64,30 +64,28 @@ const createProps = async (app, user) => {
  */
 const onBeforeSave = async ctx => {
   try {
-    let role;
-    const appRoles = await roleManager.getAppRoles();
+    let roleName;
+    const appRoles = roleManager.getAppRoles();
     if (ctx.data) {
       logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.data);
-      // filteredProperties.forEach(p => delete ctx.data[p]);
-      role = ctx.data.role;
-      if (!role || !appRoles.includes(role)) {
-        role = 'user';
+      roleName = ctx.data.roleName;
+      if (!roleName || !appRoles.includes(roleName)) {
+        roleName = 'user';
       }
-      ctx.data.role = role;
+      ctx.data.roleName = roleName;
       ctx.data.updatedAt = Date.now();
       ctx.hookState.updateData = ctx.data;
     } else if (ctx.instance) {
       logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
-      role = JSON.parse(JSON.stringify(ctx.instance)).role;
       ctx.instance.setAttribute({ updatedAt: Date.now() });
-
-      if (!appRoles.includes(role)) {
-        ctx.instance.setAttribute({ role: 'user' });
+      roleName = ctx.instance.roleName;
+      if (!appRoles.includes(roleName)) {
+        ctx.instance.setAttribute({ roleName: 'user' });
       } else {
-        ctx.instance.setAttribute({ role });
+        ctx.instance.setAttribute({ roleName });
       }
     }
-    logger.publish(4, `${collectionName}`, 'onBeforeSave:res', { role });
+    logger.publish(4, `${collectionName}`, 'onBeforeSave:res', { roleName });
     return ctx;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'onBeforeSave:err', error);
@@ -105,7 +103,6 @@ const onAfterSave = async ctx => {
   try {
     logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.instance);
     if (ctx.hookState.updateData) {
-      // logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.hookState.updateData);
       // const updatedProps = Object.keys(ctx.hookState.updateData);
       return ctx;
     }
@@ -123,9 +120,9 @@ const onAfterSave = async ctx => {
       }
     }
 
-    if (!ctx.isNewInstance || ctx.instance.role === 'admin') {
-      const role = JSON.parse(JSON.stringify(ctx.instance)).role;
-      await roleManager.setUserRole(ctx.Model.app, ctx.instance.id, role, !ctx.isNewInstance);
+    if (!ctx.isNewInstance || ctx.instance.roleName === 'admin') {
+      const roleName = ctx.instance.roleName;
+      await roleManager.setUserRole(ctx.Model.app, ctx.instance.id, roleName, !ctx.isNewInstance);
     }
     logger.publish(4, `${collectionName}`, 'onAfterSave:res', ctx.instance);
     return ctx;
@@ -177,7 +174,7 @@ const onBeforeLogin = async ctx => {
     if (error.code === 'LOGIN_FAILED_EMAIL_NOT_VERIFIED' || error.code === 'TOO_MANY_REQUESTS') {
       throw error;
     }
-    let loginError = utils.buildError(401, 'LOGIN_ERROR', 'Email or password is worng');
+    let loginError = utils.buildError(401, 'LOGIN_ERROR', 'Email or password is wrong');
     let user;
     try {
       user = await ctx.method.ctor.findByEmail(username);
@@ -292,30 +289,27 @@ const onBeforeRemote = async ctx => {
       const options = ctx.args ? ctx.args.options : {};
       const data = ctx.args.data;
       const authorizedRoles = options && options.authorizedRoles ? options.authorizedRoles : {};
-      const role = data.role || 'user';
+      const roleName = data.roleName || 'user';
       const isAdmin = options && options.currentUser && options.currentUser.roles.includes('admin');
       // console.log('authorizedRoles, isAdmin & data', isAdmin, options, data);
-      const nonAdminChangingRoleToAdmin = role === 'admin' && !isAdmin;
+      const nonAdminChangingRoleToAdmin = roleName === 'admin' && !isAdmin;
       const nonOwnerChangingPassword =
         !ctx.isNewInstance && authorizedRoles.owner !== true && data.password !== undefined;
 
       if (nonAdminChangingRoleToAdmin) {
-        const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to update this user');
-        throw error;
+        throw utils.buildError(403, 'NO_ADMIN', 'Unauthorized to update this user');
       }
       if (nonOwnerChangingPassword) {
-        const error = utils.buildError(403, 'NO_OWNER', 'Unauthorized to update this user');
-        throw error;
+        throw utils.buildError(403, 'NO_OWNER', 'Unauthorized to update this user');
       }
     } else if (ctx.method.name.indexOf('create') !== -1) {
       const options = ctx.args ? ctx.args.options : {};
       const data = ctx.args.data;
-      const role = data.role || 'user';
+      const roleName = data.roleName || 'user';
       const isAdmin = options && options.currentUser && options.currentUser.roles.includes('admin');
       // console.log('authorizedRoles, isAdmin & data', isAdmin, options, data);
-      if (role === 'admin' && !isAdmin) {
-        const error = utils.buildError(403, 'NO_ADMIN', 'Unauthorized to create this user');
-        throw error;
+      if (roleName === 'admin' && !isAdmin) {
+        throw utils.buildError(403, 'NO_ADMIN', 'Unauthorized to create this user');
       }
     } else if (ctx.method.name === 'login') {
       await onBeforeLogin(ctx);
@@ -347,8 +341,7 @@ module.exports = function(User) {
     try {
       logger.publish(4, `${collectionName}`, 'findByEmail:req', email);
       if (!isEmail(email)) {
-        const error = utils.buildError(400, 'INVALID_INPUT', 'Email is not valid');
-        throw error;
+        throw utils.buildError(400, 'INVALID_INPUT', 'Email is not valid');
       }
       const user = await User.findOne({
         where: { email },
@@ -359,8 +352,7 @@ module.exports = function(User) {
         },
       });
       if (!user || user === null) {
-        const error = utils.buildError(404, 'USER_NOT_FOUND', `User doesn't exist`);
-        throw error;
+        throw utils.buildError(404, 'USER_NOT_FOUND', `User doesn't exist`);
       }
       logger.publish(4, `${collectionName}`, 'findByEmail:res', user);
       return user;

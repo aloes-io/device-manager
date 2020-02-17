@@ -20,11 +20,18 @@
       "principalType": "ROLE",
       "principalId": "$everyone",
       "permission": "ALLOW",
-      "property": ["onTick", "onTimeout"]
+      "property": ["onTickHook", "onTimeout", "createOrUpdate"]
+    },
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$authenticated",
+      "permission": "ALLOW",
+      "property": ["createOrUpdate"]
     }
   ],
   "methods": {
-    "onTick": {
+    "onTickHook": {
       "description": ["Endpoint for timer instance callback ( Scheduler clock )"],
       "accepts": [
         {
@@ -35,6 +42,11 @@
           }
         }
       ],
+      "returns": {
+        "root": true,
+        "arg": "success",
+        "type": "boolean"
+      },
       "http": {
         "verb": "post",
         "path": "/on-tick"
@@ -51,9 +63,43 @@
           }
         }
       ],
+      "returns": {
+        "root": true,
+        "arg": "success",
+        "type": "boolean"
+      },
       "http": {
         "verb": "post",
         "path": "/on-timeout"
+      }
+    },
+    "createOrUpdate": {
+      "description": ["Endpoint to parse scheduler events from a sensor"],
+      "accepts": [
+        {
+          "arg": "device",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "sensor",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "client",
+          "type": "object",
+          "required": false
+        }
+      ],
+      "returns": {
+        "root": true,
+        "arg": "result",
+        "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/create-or-update"
       }
     }
   }

@@ -164,7 +164,7 @@ Event reporting that an address instance / collection is requested
         * [.resetKeys()](#module_Application+resetKeys) ⇒ <code>object</code>
     * _static_
         * [.publish(application, [client])](#module_Application.publish)
-        * [.refreshToken(appId)](#module_Application.refreshToken) ⇒ <code>function</code>
+        * [.refreshToken(appId, ownerId)](#module_Application.refreshToken) ⇒ <code>function</code>
         * [.onPublish(packet, client, pattern)](#module_Application.onPublish) ⇒ <code>functions</code>
         * [.updateStatus(client, status)](#module_Application.updateStatus) ⇒ <code>function</code>
         * [.authenticate(applicationId, key)](#module_Application.authenticate) ⇒ <code>object</code>
@@ -215,7 +215,7 @@ Format packet and send it via MQTT broker
 
 <a name="module_Application.refreshToken"></a>
 
-### Application.refreshToken(appId) ⇒ <code>function</code>
+### Application.refreshToken(appId, ownerId) ⇒ <code>function</code>
 Create new keys, and update Application instance
 
 **Kind**: static method of [<code>Application</code>](#module_Application)  
@@ -224,6 +224,7 @@ Create new keys, and update Application instance
 | Param | Type | Description |
 | --- | --- | --- |
 | appId | <code>string</code> | Application instance id |
+| ownerId | <code>string</code> | Application owner id |
 
 <a name="module_Application.onPublish"></a>
 
@@ -594,7 +595,7 @@ Event reporting that an application instance will be deleted.
     * _static_
         * [.cacheIterator([filter])](#module_Client.cacheIterator) ⇒ <code>string</code>
         * [.getAll([filter])](#module_Client.getAll) ⇒ <code>array</code>
-        * [.deleteAll()](#module_Client.deleteAll) ⇒ <code>array</code>
+        * [.deleteAll([filter])](#module_Client.deleteAll) ⇒ <code>array</code>
     * _inner_
         * ["stopped"](#event_stopped)
 
@@ -624,11 +625,16 @@ Find clients in the cache
 
 <a name="module_Client.deleteAll"></a>
 
-### Client.deleteAll() ⇒ <code>array</code>
+### Client.deleteAll([filter]) ⇒ <code>array</code>
 Delete clients stored in cache
 
 **Kind**: static method of [<code>Client</code>](#module_Client)  
 **Returns**: <code>array</code> - clients - Cached clients keys  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| [filter] | <code>object</code> | Client filter |
+
 <a name="event_stopped"></a>
 
 ### "stopped"
@@ -672,7 +678,7 @@ Trigger Client stopping routine
         * [.resetKeys()](#module_Device+resetKeys) ⇒ <code>object</code>
     * _static_
         * [.publish(device, method, [client])](#module_Device.publish)
-        * [.refreshToken(deviceId)](#module_Device.refreshToken) ⇒ <code>object</code>
+        * [.refreshToken(deviceId, ownerId)](#module_Device.refreshToken) ⇒ <code>object</code>
         * [.syncCache([direction])](#module_Device.syncCache)
         * [.findByPattern(pattern, attributes)](#module_Device.findByPattern) ⇒ <code>object</code>
         * [.search(filter)](#module_Device.search) ⇒ <code>array</code>
@@ -733,7 +739,7 @@ Format packet and send it via MQTT broker
 
 <a name="module_Device.refreshToken"></a>
 
-### Device.refreshToken(deviceId) ⇒ <code>object</code>
+### Device.refreshToken(deviceId, ownerId) ⇒ <code>object</code>
 Create new keys, and update Device instance
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
@@ -742,6 +748,7 @@ Create new keys, and update Device instance
 | Param | Type | Description |
 | --- | --- | --- |
 | deviceId | <code>object</code> | Device instance id |
+| ownerId | <code>object</code> | Device owner id |
 
 <a name="module_Device.syncCache"></a>
 
@@ -1495,19 +1502,20 @@ Update measurement by id
 * [Scheduler](#module_Scheduler)
     * _static_
         * [.publish(device, measurement, [method], [client])](#module_Scheduler.publish)
-        * [.onTimeout(body)](#module_Scheduler.onTimeout) ⇒ <code>function</code>
+        * [.onTimeout(body)](#module_Scheduler.onTimeout) ⇒ <code>object</code>
         * [.createOrUpdate(device, sensor, [client])](#module_Scheduler.createOrUpdate) ⇒ <code>object</code>
         * [.cacheIterator([filter])](#module_Scheduler.cacheIterator) ⇒ <code>string</code>
         * [.getAll([filter])](#module_Scheduler.getAll) ⇒ <code>array</code>
         * [.deleteAll([filter])](#module_Scheduler.deleteAll) ⇒ <code>array</code>
-        * [.onTick(body)](#module_Scheduler.onTick) ⇒ <code>function</code>
+        * [.onTick(data)](#module_Scheduler.onTick)
+        * [.onTickHook(body)](#module_Scheduler.onTickHook) ⇒ <code>function</code>
         * [.setClock(interval)](#module_Scheduler.setClock) ⇒ <code>functions</code> \| <code>functions</code>
     * _inner_
-        * [~onTimeout(data)](#module_Scheduler..onTimeout) ⇒ <code>object</code>
-        * [~onTick(data)](#module_Scheduler..onTick) ⇒ <code>object</code>
-        * [~onTickHook(body)](#module_Scheduler..onTickHook) ⇒ <code>function</code>
-        * ["stopped"](#event_stopped) ⇒ <code>functions</code>
-        * ["stopped"](#event_stopped) ⇒ <code>functions</code>
+        * [~onTickHook(body)](#module_Scheduler..onTickHook) ⇒ <code>boolean</code>
+        * ["stopped"](#event_stopped) ⇒ <code>functions</code> \| <code>null</code>
+        * ["stopped"](#event_stopped) ⇒ <code>functions</code> \| <code>null</code>
+        * ["tick"](#event_tick) ⇒ <code>functions</code>
+        * ["before_*" (ctx)](#event_before_*) ⇒ <code>function</code>
 
 <a name="module_Scheduler.publish"></a>
 
@@ -1526,15 +1534,15 @@ Format packet and send it via MQTT broker
 
 <a name="module_Scheduler.onTimeout"></a>
 
-### Scheduler.onTimeout(body) ⇒ <code>function</code>
-Endpoint for Sensor timers hooks
+### Scheduler.onTimeout(body) ⇒ <code>object</code>
+Scheduler timeout callback / webhook ( sensor timer )
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>function</code> - Scheduler~onTimeout  
+**Returns**: <code>object</code> - payload - Updated scheduler and sensor  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| body | <code>object</code> | Timer callback data |
+| body | <code>object</code> | Timer callback body |
 
 <a name="module_Scheduler.createOrUpdate"></a>
 
@@ -1588,7 +1596,21 @@ Delete schedulers stored in cache
 
 <a name="module_Scheduler.onTick"></a>
 
-### Scheduler.onTick(body) ⇒ <code>function</code>
+### Scheduler.onTick(data)
+Scheduler tick event ( scheduler clock )
+
+Update every sensor having an active scheduler
+
+**Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
+**Emits**: <code>Scheduler.event:publish</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| data | <code>object</code> | Timer event data |
+
+<a name="module_Scheduler.onTickHook"></a>
+
+### Scheduler.onTickHook(body) ⇒ <code>function</code>
 Endpoint for Scheduler external timeout hooks
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
@@ -1614,41 +1636,15 @@ else a DeltaTimer instance will be created and stored in memory
 | --- | --- | --- |
 | interval | <code>number</code> | Timeout interval |
 
-<a name="module_Scheduler..onTimeout"></a>
-
-### Scheduler~onTimeout(data) ⇒ <code>object</code>
-Scheduler timeout callback ( sensor timers )
-
-**Kind**: inner method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>object</code> - payload - Updated timeout  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| data | <code>object</code> | Timer callback data |
-
-<a name="module_Scheduler..onTick"></a>
-
-### Scheduler~onTick(data) ⇒ <code>object</code>
-Scheduler timeout callback ( scheduler clock )
-
-Update every sensor having an active scheduler
-
-**Kind**: inner method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>object</code> - payload; - Updated timeout  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| data | <code>object</code> | Timer callback data |
-
 <a name="module_Scheduler..onTickHook"></a>
 
-### Scheduler~onTickHook(body) ⇒ <code>function</code>
+### Scheduler~onTickHook(body) ⇒ <code>boolean</code>
 Scheduler timeout callback ( scheduler clock )
 
 validate webhook content before dispatch
 
 **Kind**: inner method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>function</code> - Scheduler~onTick  
+**Emits**: <code>Scheduler.event:ticked</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1656,22 +1652,45 @@ validate webhook content before dispatch
 
 <a name="event_stopped"></a>
 
-### "stopped" ⇒ <code>functions</code>
+### "stopped" ⇒ <code>functions</code> \| <code>null</code>
 Event reporting that application started
 
 Trigger Scheduler starting routine
 
 **Kind**: event emitted by [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>functions</code> - Scheduler.setClock  
+**Returns**: <code>functions</code> \| <code>null</code> - Scheduler.setClock  
 <a name="event_stopped"></a>
 
-### "stopped" ⇒ <code>functions</code>
+### "stopped" ⇒ <code>functions</code> \| <code>null</code>
 Event reporting that application stopped
 
 Trigger Scheduler stopping routine
 
 **Kind**: event emitted by [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>functions</code> - Scheduler.delClock  
+**Returns**: <code>functions</code> \| <code>null</code> - Scheduler.delClock  
+<a name="event_tick"></a>
+
+### "tick" ⇒ <code>functions</code>
+Event reporting tick
+
+Trigger Scheduler tick routine
+
+**Kind**: event emitted by [<code>Scheduler</code>](#module_Scheduler)  
+**Returns**: <code>functions</code> - Scheduler.onTick  
+<a name="event_before_*"></a>
+
+### "before_*" (ctx) ⇒ <code>function</code>
+Event reporting that a Scheduler method is requested
+
+**Kind**: event emitted by [<code>Scheduler</code>](#module_Scheduler)  
+**Returns**: <code>function</code> - Scheduler~onBeforeRemote  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
+
 <a name="module_SensorResource"></a>
 
 ## SensorResource
@@ -1685,12 +1704,12 @@ Trigger Scheduler stopping routine
 * [SensorResource](#module_SensorResource)
     * [.getCache(deviceId, sensorId)](#module_SensorResource.getCache) ⇒ <code>object</code>
     * [.setCache(deviceId, sensor, [ttl])](#module_SensorResource.setCache) ⇒ <code>object</code>
-    * [.expireCache(deviceId, sensorId)](#module_SensorResource.expireCache) ⇒ <code>boolean</code>
+    * [.deleteCache(deviceId, sensorId)](#module_SensorResource.deleteCache) ⇒ <code>boolean</code>
     * [.expireCache(deviceId, sensor, [ttl])](#module_SensorResource.expireCache) ⇒ <code>boolean</code>
-    * [.cacheIterator(filter)](#module_SensorResource.cacheIterator) ⇒ <code>string</code>
+    * [.cacheIterator([filter])](#module_SensorResource.cacheIterator) ⇒ <code>string</code>
     * [.includeCache(device)](#module_SensorResource.includeCache)
     * [.updateCache(device)](#module_SensorResource.updateCache) ⇒ <code>array</code>
-    * [.deleteAll()](#module_SensorResource.deleteAll) ⇒ <code>array</code>
+    * [.deleteAll([filter])](#module_SensorResource.deleteAll) ⇒ <code>array</code>
 
 <a name="module_SensorResource.getCache"></a>
 
@@ -1719,10 +1738,10 @@ Create or update sensor instance into the cache memory
 | sensor | <code>object</code> | Sensor instance to save |
 | [ttl] | <code>number</code> | Expire delay |
 
-<a name="module_SensorResource.expireCache"></a>
+<a name="module_SensorResource.deleteCache"></a>
 
-### SensorResource.expireCache(deviceId, sensorId) ⇒ <code>boolean</code>
-Set TTL for a sensor store in cache
+### SensorResource.deleteCache(deviceId, sensorId) ⇒ <code>boolean</code>
+Delete a sensor stored in cache
 
 **Kind**: static method of [<code>SensorResource</code>](#module_SensorResource)  
 **Returns**: <code>boolean</code> - success  
@@ -1735,7 +1754,7 @@ Set TTL for a sensor store in cache
 <a name="module_SensorResource.expireCache"></a>
 
 ### SensorResource.expireCache(deviceId, sensor, [ttl]) ⇒ <code>boolean</code>
-Set TTL for a sensor store in cache
+Set TTL for a sensor stored in cache
 
 **Kind**: static method of [<code>SensorResource</code>](#module_SensorResource)  
 **Returns**: <code>boolean</code> - success  
@@ -1748,15 +1767,15 @@ Set TTL for a sensor store in cache
 
 <a name="module_SensorResource.cacheIterator"></a>
 
-### SensorResource.cacheIterator(filter) ⇒ <code>string</code>
-Async generator sending cache key promise
+### SensorResource.cacheIterator([filter]) ⇒ <code>string</code>
+Async generator sending cache key
 
 **Kind**: static method of [<code>SensorResource</code>](#module_SensorResource)  
 **Returns**: <code>string</code> - key - Cached key  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| filter | <code>object</code> | Key filter |
+| [filter] | <code>object</code> | Key filter |
 
 **Properties**
 
@@ -1789,11 +1808,16 @@ Update device's sensors stored in cache
 
 <a name="module_SensorResource.deleteAll"></a>
 
-### SensorResource.deleteAll() ⇒ <code>array</code>
+### SensorResource.deleteAll([filter]) ⇒ <code>array</code>
 Delete sensor resources stored in cache
 
 **Kind**: static method of [<code>SensorResource</code>](#module_SensorResource)  
 **Returns**: <code>array</code> - sensors - Cached sensors keys  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| [filter] | <code>object</code> | Key filter |
+
 <a name="module_Sensor"></a>
 
 ## Sensor
@@ -2214,7 +2238,7 @@ Event reporting that a/several sensor instance(s) will be deleted.
 <a name="event_before_*"></a>
 
 ### "before_*" (ctx) ⇒ <code>function</code>
-Event reporting that a sensor instance / collection is requested
+Event reporting that a sensor method is requested
 
 **Kind**: event emitted by [<code>Sensor</code>](#module_Sensor)  
 **Returns**: <code>function</code> - Sensor~onBeforeRemote  
@@ -2240,7 +2264,7 @@ Event reporting that a sensor instance / collection is requested
 | avatarImgUrl | <code>string</code> |  |
 | headerImgUrl | <code>string</code> |  |
 | status | <code>boolean</code> |  |
-| role | <code>string</code> | admin or user |
+| roleName | <code>string</code> | admin or user |
 
 
 * [User](#module_User)

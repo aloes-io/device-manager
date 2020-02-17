@@ -43,7 +43,7 @@
     "status": {
       "type": "boolean"
     },
-    "role": {
+    "roleName": {
       "type": "string"
     },
     "deleted": {
@@ -51,6 +51,7 @@
       "default": false
     }
   },
+  "protected": ["roleName"],
   "hidden": ["deleted"],
   "validations": [],
   "relations": {

@@ -28,7 +28,7 @@ function addressFactory(id, owner) {
   }
   if (owner.devEui) {
     ownerType = 'Device';
-  } else if (owner.role) {
+  } else if (owner.roleName) {
     ownerType = 'User';
   }
   const address = {
@@ -96,6 +96,13 @@ function applicationFactory(id, ownerId) {
     transportProtocol: 'aloeslight',
     ownerId,
   };
+}
+
+function clientEvent(client, event) {
+  return new Promise((resolve, reject) => {
+    client.once(event, resolve);
+    client.once('error', reject);
+  });
 }
 
 function clientFactory(profile, type, key) {
@@ -170,7 +177,7 @@ function measurementFactory(id, sensor, ownerId) {
   };
 }
 
-function sensorFactory(id, device, ownerId) {
+function sensorFactory(id, device, ownerId, sensorType) {
   if (id) {
     lastSensorId = id;
   } else {
@@ -179,7 +186,13 @@ function sensorFactory(id, device, ownerId) {
   }
   ownerId = ownerId || lastUserId;
   if (!device) return null;
-  const omaObject = omaObjects[Math.floor(Math.random() * omaObjects.length)];
+  let omaObject;
+  if (sensorType) {
+    omaObject = omaObjects.find(obj => obj.value === sensorType);
+  }
+  if (!omaObject) {
+    omaObject = omaObjects[Math.floor(Math.random() * omaObjects.length)];
+  }
   const resourceKeys = Object.keys(omaObject.resources);
   let resource = Number(resourceKeys[Math.floor(Math.random() * resourceKeys.length)]);
   const omaView = omaViews.find(view => view.value === omaObject.value);
@@ -197,7 +210,8 @@ function sensorFactory(id, device, ownerId) {
     frameCounter: 0,
     icons: omaView.icons,
     colors: omaView.resources,
-    nativeSensorId: id,
+    // nativeSensorId: id,
+    nativeSensorId: 1,
     nativeNodeId: 0,
     nativeType: omaObject.value,
     ownerId,
@@ -208,17 +222,17 @@ function sensorFactory(id, device, ownerId) {
   };
 }
 
-function userFactory(id, role) {
+function userFactory(id, roleName) {
   id = id || lastUserId + 1;
   lastUserId = id;
   const user = {
-    email: `${role || 'name'}-${id}@aloes.io`,
+    email: `${roleName || 'name'}-${id}@aloes.io`,
     password: `user-${id}-pwd`,
     // emailVerified: true,
   };
 
-  if (role) {
-    user.role = role;
+  if (roleName) {
+    user.roleName = roleName;
   }
   return user;
 }
@@ -236,7 +250,7 @@ function buildMethods(profile) {
         .then(user => {
           // restricted the admin creation in app:
           // admin role cannot be set without a valid admin session
-          if (profile.role === 'admin') {
+          if (profile.roleName === 'admin') {
             // need to manually set the role here
             return roleManager.setUserRole(app, user.id, 'admin', true).then(() => user); // force the return of the user
           }
@@ -245,8 +259,22 @@ function buildMethods(profile) {
     login: app => app.models.user.login(profile),
   };
 }
+function timeout(fn, delay) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        fn();
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    }, delay);
+  });
+}
 
 module.exports = {
+  clientEvent,
+  timeout,
   factories: {
     address: addressFactory,
     application: applicationFactory,

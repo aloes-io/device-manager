@@ -322,24 +322,19 @@ const onAfterSave = async ctx => {
  */
 const deleteProps = async (app, instance) => {
   try {
-    if (!instance || !instance.id || !instance.ownerId) {
-      return null;
-      //  throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
+    if (instance && instance.id && instance.ownerId) {
+      logger.publish(4, `${collectionName}`, 'deleteProps:req', instance);
+      await app.models.Address.destroyAll({
+        ownerId: instance.id,
+      });
+      const sensors = await instance.sensors.find();
+      if (sensors && sensors !== null) {
+        await Promise.all(sensors.map(async sensor => sensor.delete()));
+      }
+      await app.models.Device.publish(instance, 'DELETE');
     }
-    logger.publish(4, `${collectionName}`, 'deleteProps:req', instance);
-    await app.models.Address.destroyAll({
-      ownerId: instance.id,
-    });
-    const sensors = await instance.sensors.find();
-    if (sensors && sensors !== null) {
-      const promises = sensors.map(async sensor => sensor.delete());
-      await Promise.all(promises);
-    }
-    await app.models.Device.publish(instance, 'DELETE');
-    return instance;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
-    return null;
   }
 };
 
@@ -463,20 +458,15 @@ const onBeforeRemote = async (app, ctx) => {
       }
       const isAdmin = options.currentUser.roles.includes('admin');
       const ownerId = utils.getOwnerId(options);
-
-      if (ctx.req.query && ctx.req.query.filter) {
-        if (!isAdmin) {
-          if (typeof ctx.req.query.filter === 'string') {
-            ctx.req.query.filter = JSON.parse(ctx.req.query.filter);
-          }
-          if (!ctx.req.query.filter.where) ctx.req.query.filter.where = {};
-          ctx.req.query.filter.where.ownerId = ownerId;
+      if (ctx.req.query && ctx.req.query.filter && !isAdmin) {
+        if (typeof ctx.req.query.filter === 'string') {
+          ctx.req.query.filter = JSON.parse(ctx.req.query.filter);
         }
+        if (!ctx.req.query.filter.where) ctx.req.query.filter.where = {};
+        ctx.req.query.filter.where.ownerId = ownerId;
       }
-      if (ctx.req.params) {
-        if (!isAdmin) {
-          ctx.req.params.ownerId = ownerId;
-        }
+      if (ctx.req.params && !isAdmin) {
+        ctx.req.params.ownerId = ownerId;
       }
       // console.log('[DEVICE] beforeRemote get:req', ctx.method.name, ctx.req.params, ctx.req.query);
 
@@ -503,32 +493,21 @@ const onBeforeRemote = async (app, ctx) => {
       }
       const isAdmin = options.currentUser.roles.includes('admin');
       const ownerId = utils.getOwnerId(options);
-
       if (!isAdmin) {
         if (!ctx.args.attributes) ctx.args.attributes = {};
         ctx.args.attributes.ownerId = ownerId;
       }
-    } else if (ctx.method.name === 'onPublish') {
+    } else if (ctx.method.name === 'refreshToken') {
       const options = ctx.args ? ctx.args.options : {};
       if (!options || !options.currentUser) {
         throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
       }
-      // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.client);
-      const isAdmin = options.currentUser.roles.includes('admin');
-      if (!ctx.args.client) ctx.args.client = {};
-      // ctx.args.client.user = options.currentUser.id.toString();
-      if (!isAdmin) {
-        ctx.args.client.user = options.currentUser.id;
-        if (options.currentUser.devEui) {
-          ctx.args.client.devEui = options.currentUser.devEui;
-        }
-      }
-    } else if (ctx.method.name === 'updateStatus') {
+      ctx.args.ownerId = utils.getOwnerId(options);
+    } else if (ctx.method.name === 'onPublish' || ctx.method.name === 'updateStatus') {
       const options = ctx.args ? ctx.args.options : {};
       if (!options || !options.currentUser) {
         throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
       }
-      // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.client);
       const isAdmin = options.currentUser.roles.includes('admin');
       if (!ctx.args.client) ctx.args.client = {};
       if (!isAdmin) {
@@ -544,16 +523,14 @@ const onBeforeRemote = async (app, ctx) => {
       }
       // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.deviceId);
       const isAdmin = options.currentUser.roles.includes('admin');
-      if (!isAdmin) {
-        if (options.currentUser.devEui) {
-          if (options.currentUser.id.toString() !== ctx.args.deviceId.toString()) {
-            const error = utils.buildError(
-              401,
-              'INVALID_USER',
-              'Only device itself can trigger this endpoint',
-            );
-            throw error;
-          }
+      if (!isAdmin && options.currentUser.devEui) {
+        if (options.currentUser.id.toString() !== ctx.args.deviceId.toString()) {
+          const error = utils.buildError(
+            401,
+            'INVALID_USER',
+            'Only device itself can trigger this endpoint',
+          );
+          throw error;
         }
       }
     }
@@ -667,9 +644,7 @@ const parseMessage = async (app, packet, pattern, client) => {
 
 const checkHeader = (headers, key, value = false) => {
   // eslint-disable-next-line security/detect-object-injection
-  if (!headers || !headers[key]) return false;
-  // eslint-disable-next-line security/detect-object-injection
-  if (value && headers[key] !== value) return false;
+  if (!headers || !headers[key] || (value && headers[key] !== value)) return false;
   return true;
 };
 
@@ -733,7 +708,6 @@ const updateESP = async (ctx, deviceId, version) => {
 
     const fileMeta = await ctx.Model.app.models.files.findOne(fileFilter);
     //  const fileMeta = await device.files.findOne(fileFilter);
-
     if (version && fileMeta.version && fileMeta.version === version) {
       throw utils.buildError(304, 'UNCHANGED', 'already up to date');
     }
@@ -928,19 +902,18 @@ module.exports = function(Device) {
    * Create new keys, and update Device instance
    * @method module:Device.refreshToken
    * @param {object} deviceId - Device instance id
+   * @param {object} ownerId - Device owner id
    * @returns {object} device
    */
-  Device.refreshToken = async (ctx, deviceId) => {
+  Device.refreshToken = async (deviceId, ownerId) => {
     try {
-      logger.publish(4, `${collectionName}`, 'refreshToken:req', deviceId);
-      if (!ctx.req.accessToken) throw utils.buildError(403, 'NO_TOKEN', 'User is not authentified');
+      logger.publish(4, `${collectionName}`, 'refreshToken:req', { deviceId, ownerId });
       const device = await Device.findById(deviceId);
+      if (ownerId !== device.ownerId.toString()) {
+        const error = utils.buildError(401, 'INVALID_OWNER', "User doesn't own this device");
+        throw error;
+      }
       if (device && device !== null) {
-        if (ctx.req.accessToken.userId.toString() !== device.ownerId.toString()) {
-          const error = utils.buildError(401, 'INVALID_OWNER', "User doesn't own this device");
-          throw error;
-        }
-        // await device.resetKeys()
         const attributes = {
           clientKey: utils.generateKey('client'),
           apiKey: utils.generateKey('apiKey'),
@@ -1284,8 +1257,8 @@ module.exports = function(Device) {
   };
 
   /**
-   * Detect application known pattern and load the application instance
-   * @method module:Application~detector
+   * Detect device known pattern and load the application instance
+   * @method module:Device~detector
    * @param {object} packet - MQTT packet
    * @param {object} client - MQTT client
    * @returns {object} pattern
@@ -1585,11 +1558,9 @@ module.exports = function(Device) {
   const onSync = async data => {
     try {
       logger.publish(4, `${collectionName}`, 'onSync:res', data.time);
-      const devices = await Device.syncCache('UP');
-      return devices;
+      await Device.syncCache('UP');
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'onSync:err', error);
-      return null;
     }
   };
 
@@ -1604,20 +1575,16 @@ module.exports = function(Device) {
   Device.setClock = async interval => {
     try {
       logger.publish(4, `${collectionName}`, 'setClock:req', interval);
-      if (process.env.CLUSTER_MODE) {
-        if (process.env.PROCESS_ID !== '0') return null;
-        if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+      if (utils.isMasterProcess(process.env)) {
+        if (Device.timer && Device.timer !== null) {
+          Device.timer.stop();
+        }
+        Device.timer = new DeltaTimer(onSync, {}, interval);
+        Device.start = Device.timer.start();
+        logger.publish(3, `${collectionName}`, 'setClock:res', Device.start);
       }
-      if (Device.timer && Device.timer !== null) {
-        Device.timer.stop();
-      }
-      Device.timer = new DeltaTimer(onSync, {}, interval);
-      Device.start = Device.timer.start();
-      logger.publish(3, `${collectionName}`, 'setClock:res', Device.start);
-      return Device.timer;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'setClock:err', error);
-      return null;
     }
   };
 
@@ -1635,17 +1602,15 @@ module.exports = function(Device) {
    */
   Device.on('client', async message => {
     try {
-      logger.publish(2, `${collectionName}`, 'on-client:req', Object.keys(message));
+      logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
       if (!message || message === null) throw new Error('Message empty');
-      const status = message.status;
-      const client = message.client;
+      const { client, status } = message;
       if (!client || !client.user || status === undefined) {
         throw new Error('Message missing properties');
       }
-      return Device.updateStatus(client, status);
+      await Device.updateStatus(client, status);
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-client:err', error);
-      return null;
     }
   });
 
@@ -1663,10 +1628,7 @@ module.exports = function(Device) {
   Device.on('publish', async message => {
     try {
       if (!message || message === null) throw new Error('Message empty');
-      const packet = message.packet;
-      const client = message.client;
-      const pattern = message.pattern;
-      const device = message.device;
+      const { client, device, packet, pattern } = message;
       logger.publish(4, collectionName, 'on-publish:req', pattern.name);
       if (!pattern) throw new Error('Message is missing pattern');
       if (device && device !== null) {
@@ -1691,17 +1653,14 @@ module.exports = function(Device) {
    */
   Device.on('stopped', async () => {
     try {
-      if (process.env.CLUSTER_MODE) {
-        if (process.env.PROCESS_ID !== '0') return null;
-        if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
+      if (utils.isMasterProcess(process.env)) {
+        logger.publish(3, `${collectionName}`, 'on-stop:res', '');
+        Device.delClock();
+        // await Device.updateAll({ status: true }, { status: false, clients: [] });
+        await Device.syncCache('UP');
       }
-      logger.publish(3, `${collectionName}`, 'on-stop:res', '');
-      Device.delClock();
-      // await Device.updateAll({ status: true }, { status: false, clients: [] });
-      return Device.syncCache('UP');
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-stop:err', error);
-      return null;
     }
   });
 

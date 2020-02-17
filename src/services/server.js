@@ -347,7 +347,7 @@ app.stop = async signal => {
     app.models.Client.emit('stopped');
     app.models.Scheduler.emit('stopped');
     app.bootState = false;
-    if (httpServer) httpServer.close();
+    if (httpServer) await httpServer.close();
     logger.publish(2, 'loopback', 'stopped', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
     return true;
   } catch (error) {
