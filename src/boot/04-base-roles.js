@@ -6,12 +6,7 @@ import roleManager from '../services/role-manager';
 // import utils from '../services/utils';
 
 module.exports = async function createBaseRoles(app) {
-  try {
-    // if (!utils.isMasterProcess(process.env)) return null;
-    const roles = await roleManager.setAppRoles(app, initialRolesList);
-    logger.publish(4, 'loopback', 'boot:createBaseRoles:res', roles);
-  } catch (error) {
-    logger.publish(2, 'loopback', 'boot:createBaseRoles:err', error);
-    throw error;
-  }
+  // if (!utils.isMasterProcess(process.env)) return null;
+  const roles = await roleManager.setAppRoles(app, initialRolesList);
+  logger.publish(4, 'loopback', 'boot:createBaseRoles:res', roles);
 };

@@ -4,86 +4,125 @@
 /* eslint-disable no-restricted-syntax */
 import logger from '../services/logger';
 
+const collectionName = 'SensorResource';
+
+const setCacheKey = (deviceId, sensorId, resourceId) => {
+  if (resourceId) {
+    return `deviceId-${deviceId}-sensorId-${sensorId}-resourceId-${resourceId}`;
+  }
+  return `deviceId-${deviceId}-sensorId-${sensorId}-resourceId-*`;
+};
+
 /**
  * @module SensorResource
  * @property {String} sensor Stringified Sensor instance
+ * @property {String} resource Stringified Sensor resource instance
  */
 module.exports = function(SensorResource) {
-  const collectionName = 'SensorResource';
-  const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
-
-  SensorResource.disableRemoteMethodByName('count');
-  SensorResource.disableRemoteMethodByName('upsertWithWhere');
-  SensorResource.disableRemoteMethodByName('replaceOrCreate');
-  SensorResource.disableRemoteMethodByName('createChangeStream');
-
   /**
    * Find Sensor instance from the cache
-   * @method module:SensorResource.getCache
+   * @method module:SensorResource.find
    * @param {string} deviceId - Device Id owning the sensor
    * @param {string} sensorId - Sensor instance Id
-   * @returns {object} sensor
+   * @param {string} [resourceId] - OMA Resource key
+   * @returns {object} resource(s)
    */
-  SensorResource.getCache = async (deviceId, sensorId) => {
+  SensorResource.find = async (deviceId, sensorId, resourceId) => {
+    let result = null;
     try {
-      const resourceKey = `deviceId-${deviceId}-sensorId-${sensorId}`;
-      const cachedSensor = await SensorResource.get(resourceKey);
-      if (cachedSensor && cachedSensor !== null) {
-        logger.publish(4, `${collectionName}`, 'getCache:res', cachedSensor);
-        return JSON.parse(cachedSensor);
+      logger.publish(4, `${collectionName}`, 'find:req', { deviceId, sensorId, resourceId });
+      if (resourceId) {
+        const key = setCacheKey(deviceId, sensorId, resourceId);
+        const cachedResource = await SensorResource.get(key);
+        if (cachedResource) {
+          result = JSON.parse(cachedResource);
+        }
+      } else {
+        const filter = { match: setCacheKey(deviceId, sensorId) };
+        const cachedResources = await SensorResource.getAll(filter);
+        result = {};
+        if (cachedResources) {
+          cachedResources.forEach(resource => {
+            const [resourceKey] = Object.keys(resource);
+            const [resourceValue] = Object.values(resource);
+            if (!resourceKey) return;
+            // eslint-disable-next-line security/detect-object-injection
+            result[resourceKey] = resourceValue;
+          });
+        }
       }
-      return null;
+      logger.publish(3, `${collectionName}`, 'find:res', { result });
+      return result;
     } catch (error) {
-      logger.publish(3, `${collectionName}`, 'getCache:err', error);
-      return null;
+      logger.publish(2, `${collectionName}`, 'find:err', error);
+      return result;
     }
   };
 
   /**
    * Create or update sensor instance into the cache memory
-   * @method module:SensorResource.setCache
+   * @method module:SensorResource.save
    * @param {string} deviceId - Device Id owning the sensor
-   * @param {object} sensor - Sensor instance to save
+   * @param {string} sensorId - Sensor Id owning the resource
+   * @param {object} resources - Resource(s) instance to save
    * @param {number} [ttl] - Expire delay
    * @returns {object} sensor
    */
-  SensorResource.setCache = async (deviceId, sensor, ttl) => {
+  SensorResource.save = async (deviceId, sensorId, resources, ttl) => {
     try {
-      const key = `deviceId-${deviceId}-sensorId-${sensor.id}`;
-      // eslint-disable-next-line security/detect-object-injection
-      filteredProperties.map(p => delete sensor[p]);
-      if (typeof sensor !== 'string') {
-        sensor = JSON.stringify(sensor);
-      }
-      if (ttl && ttl !== null) {
-        await SensorResource.set(key, sensor, ttl);
-      } else {
-        await SensorResource.set(key, sensor);
-      }
-      logger.publish(4, `${collectionName}`, 'setCache:res', sensor);
-      return sensor;
+      const resourceKeys = Object.keys(resources);
+      logger.publish(4, `${collectionName}`, 'save:req', {
+        deviceId,
+        sensorId,
+        resourceKeys,
+      });
+      const result = {};
+      await Promise.all(
+        resourceKeys.map(async resourceKey => {
+          const key = setCacheKey(deviceId, sensorId, resourceKey);
+          // todo : sqve as buffer ?
+          // eslint-disable-next-line security/detect-object-injection
+          const resource = JSON.stringify({ [resourceKey]: resources[resourceKey] });
+          if (ttl && ttl !== null) {
+            await SensorResource.set(key, resource, ttl);
+          } else {
+            await SensorResource.set(key, resource);
+          }
+          // eslint-disable-next-line security/detect-object-injection
+          result[resourceKey] = resources[resourceKey];
+          return resource;
+        }),
+      );
+      logger.publish(3, `${collectionName}`, 'save:res', { result });
+      return result;
     } catch (error) {
-      logger.publish(3, `${collectionName}`, 'setCache:err', error);
+      logger.publish(2, `${collectionName}`, 'save:err', error);
       return null;
     }
   };
 
   /**
    * Delete a sensor stored in cache
-   * @method module:SensorResource.deleteCache
+   * @method module:SensorResource.remove
    * @param {string} deviceId - Device Id owning the sensor
    * @param {string} sensorId - Sensor instance Id
+   * @param {string} [resourceId] - OMA Resource key
    * @returns {boolean} success
    */
-  SensorResource.deleteCache = async (deviceId, sensorId) => {
+  SensorResource.remove = async (deviceId, sensorId, resourceId) => {
     try {
-      const key = `deviceId-${deviceId}-sensorId-${sensorId}`;
-      await SensorResource.delete(key);
-      logger.publish(4, `${collectionName}`, 'deleteCache:res', key);
+      if (resourceId) {
+        const key = setCacheKey(deviceId, sensorId, resourceId);
+        await SensorResource.delete(key);
+      } else {
+        const filter = { match: setCacheKey(deviceId, sensorId) };
+        await SensorResource.deleteAll(filter);
+      }
+      logger.publish(4, `${collectionName}`, 'remove:res', { deviceId, sensorId, resourceId });
       return true;
     } catch (error) {
-      logger.publish(3, `${collectionName}`, 'deleteCache:err', error);
-      return null;
+      logger.publish(2, `${collectionName}`, 'remove:err', error);
+      return false;
     }
   };
 
@@ -91,62 +130,16 @@ module.exports = function(SensorResource) {
    * Set TTL for a sensor stored in cache
    * @method module:SensorResource.expireCache
    * @param {string} deviceId - Device Id owning the sensor
-   * @param {object} sensor - Sensor instance to save
+   * @param {string} sensorId - Sensor instance Id
+   * @param {string} resourceId - OMA Resource key
    * @param {number} [ttl] - Sensor instance Id
    * @returns {boolean} success
    */
-  SensorResource.expireCache = async (deviceId, sensorId, ttl) => {
-    try {
-      const key = `deviceId-${deviceId}-sensorId-${sensorId}`;
-      if (!ttl) {
-        ttl = 1;
-      }
-      await SensorResource.expire(key, ttl);
-      logger.publish(4, `${collectionName}`, 'expireCache:res', { key, ttl });
-      return true;
-    } catch (error) {
-      logger.publish(3, `${collectionName}`, 'expireCache:err', error);
-      return null;
-    }
-  };
-
-  /**
-   * Synchronize cache memory with database on disk
-   * @method module:Sensor.syncCache
-   * @param {object} device - Device Instance to sync
-   * @param {string} [direction] - UP to save on disk | DOWN to save on cache,
-   */
-  SensorResource.syncCache = async (device, direction = 'DOWN') => {
-    try {
-      let sensors = await device.sensors.find();
-      logger.publish(4, `${collectionName}`, 'syncCache:req', { direction });
-      if (sensors && sensors !== null) {
-        if (direction === 'UP') {
-          // sync redis with mongo
-          const promises = await sensors.map(async sensor => {
-            try {
-              const cachedSensor = await SensorResource.getCache(device.id, sensor.id);
-              if (cachedSensor && cachedSensor !== null) {
-                delete cachedSensor.id;
-                return sensor.updateAttributes(cachedSensor);
-              }
-              return null;
-            } catch (e) {
-              return null;
-            }
-          });
-          sensors = await Promise.all(promises);
-        } else if (direction === 'DOWN') {
-          // sync mongo with redis
-          const promises = sensors.map(async sensor => SensorResource.setCache(device.id, sensor));
-          sensors = await Promise.all(promises);
-        }
-      }
-      return sensors;
-    } catch (error) {
-      logger.publish(3, `${collectionName}`, 'syncCache:err', error);
-      throw error;
-    }
+  SensorResource.expireCache = async (deviceId, sensorId, resourceId, ttl = 1) => {
+    const key = setCacheKey(deviceId, sensorId, resourceId);
+    await SensorResource.expire(key, ttl);
+    logger.publish(4, `${collectionName}`, 'expireCache:res', { key, ttl });
+    return true;
   };
 
   /**
@@ -158,106 +151,87 @@ module.exports = function(SensorResource) {
    */
   SensorResource.cacheIterator = async function*(filter) {
     const iterator = SensorResource.iterateKeys(filter);
-    try {
+    let empty = false;
+    while (!empty) {
+      // eslint-disable-next-line no-await-in-loop
       const key = await iterator.next();
       if (!key) {
+        empty = true;
         return;
       }
       yield key;
-    } catch (e) {
-      logger.publish(3, `${collectionName}`, 'cacheIterator:err', e);
-      return;
-    } finally {
-      logger.publish(5, `${collectionName}`, 'cacheIterator:res', 'done');
     }
   };
 
   /**
-   * Find sensors in the cache and add to device instance
-   * @method module:SensorResource.includeCache
-   * @param {object} device - device instance
-   */
-  SensorResource.includeCache = async device => {
-    try {
-      const filter = {
-        match: `deviceId-${device.id}-sensorId-*`,
-      };
-      logger.publish(5, `${collectionName}`, 'includeCache:req', { filter });
-      device.sensors = [];
-      for await (const key of SensorResource.cacheIterator(filter)) {
-        try {
-          const sensor = JSON.parse(await SensorResource.get(key));
-          device.sensors.push(sensor);
-        } catch (e) {
-          // empty
-        }
-      }
-      logger.publish(4, `${collectionName}`, 'includeCache:res', { count: device.sensors.length });
-      return device;
-    } catch (error) {
-      logger.publish(3, `${collectionName}`, 'includeCache:err', error);
-      throw error;
-    }
-  };
-
-  /**
-   * Update device's sensors stored in cache
-   * @method module:SensorResource.updateCache
-   * @param {object} device - Device instance
-   * @returns {array} sensor
-   */
-  SensorResource.updateCache = async device => {
-    try {
-      const sensors = [];
-      const filter = {
-        match: `deviceId-${device.id}-sensorId-*`,
-      };
-      logger.publish(5, `${collectionName}`, 'updateCache:req', { filter });
-      for await (const key of SensorResource.cacheIterator(filter)) {
-        try {
-          let sensor = JSON.parse(await SensorResource.get(key));
-          sensor = {
-            ...sensor,
-            devEui: device.devEui,
-            transportProtocol: device.transportProtocol,
-            transportProtocolVersion: device.transportProtocolVersion,
-            messageProtocol: device.messageProtocol,
-            messageProtocolVersion: device.messageProtocolVersion,
-          };
-          await SensorResource.setCache(device.id, sensor);
-          sensors.push(sensor);
-        } catch (e) {
-          // empty
-        }
-      }
-
-      return sensors;
-    } catch (error) {
-      logger.publish(3, `${collectionName}`, 'updateCache:err', error);
-      throw error;
-    }
-  };
-
-  /**
-   * Delete sensor resources stored in cache
+   * Get SensorResource instances stored in cache
    * @method module:SensorResource.deleteAll
    * @param {object} [filter] - Key filter
-   * @returns {array} sensors - Cached sensors keys
+   * @returns {object[]} resources - Cached sensorResources
+   */
+  SensorResource.getAll = async filter => {
+    const resources = [];
+    logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
+    for await (const key of SensorResource.cacheIterator(filter)) {
+      try {
+        if (key && key !== null) {
+          const resource = JSON.parse(await SensorResource.get(key));
+          resources.push(resource);
+        }
+      } catch (e) {
+        // empty
+      }
+    }
+    return resources;
+  };
+
+  /**
+   * Delete SensorResource instance(s) stored in cache
+   * @method module:SensorResource.deleteAll
+   * @param {object} [filter] - Key filter
+   * @returns {string[]} resources - Cached SensorResource keys
    */
   SensorResource.deleteAll = async filter => {
-    try {
-      const sensors = [];
-      logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
-      for await (const key of SensorResource.cacheIterator(filter)) {
-        if (key && key !== null) {
-          await SensorResource.delete(key);
-          sensors.push(key);
-        }
+    const resources = [];
+    logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
+    for await (const key of SensorResource.cacheIterator(filter)) {
+      if (key && key !== null) {
+        await SensorResource.delete(key);
+        resources.push(key);
       }
-      return sensors;
-    } catch (error) {
-      logger.publish(3, `${collectionName}`, 'deleteAll:err', error);
-      throw error;
     }
+    return resources;
   };
+
+  // /**
+  //  * Find resources in the cache and add to sensor instance
+  //  * @method module:SensorResource.includeCache
+  //  * @param {object} sensor - sensor instance
+  //  */
+  // SensorResource.includeCache = async sensor => {
+  //   const filter = {
+  //     match: `deviceId-${sensor.deviceId}-sensorId-${sensor.id}`,
+  //   };
+  //   logger.publish(5, `${collectionName}`, 'includeCache:req', { filter });
+  //   sensor.resources = {};
+  //   for await (const key of SensorResource.cacheIterator(filter)) {
+  //     try {
+  //       const resource = JSON.parse(await SensorResource.get(key));
+  //       sensor.resources[Object.keys(resource)[0]] = Object.values(resource)[0];
+  //     } catch (e) {
+  //       // empty
+  //     }
+  //   }
+  //   logger.publish(4, `${collectionName}`, 'includeCache:res', {
+  //     count: Object.keys(sensor.resources.length),
+  //   });
+  //   return sensor;
+  // };
+
+  SensorResource.disableRemoteMethodByName('get');
+  SensorResource.disableRemoteMethodByName('set');
+  SensorResource.disableRemoteMethodByName('keys');
+  SensorResource.disableRemoteMethodByName('iterateKeys');
+  SensorResource.disableRemoteMethodByName('ttl');
+  SensorResource.disableRemoteMethodByName('expire');
 };

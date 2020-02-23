@@ -67,11 +67,7 @@ const schedulerTest = () => {
 
   function afterTests(done) {
     setTimeout(() => {
-      Promise.all([
-        SensorModel.destroyAll(),
-        DeviceModel.destroyAll(),
-        app.models.user.destroyAll(),
-      ])
+      Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
         .then(() => done())
         .catch(done);
     }, afterTestDelay);
@@ -108,7 +104,6 @@ const schedulerTest = () => {
                 auth: profiles.user,
                 url: () => `${apiUrl}create-or-update`,
                 body: () => ({
-                  device: { ...devices[1] },
                   sensor: {
                     ...sensors[3],
                     resources: {
@@ -137,7 +132,6 @@ const schedulerTest = () => {
                 auth: profiles.user,
                 url: () => `${apiUrl}create-or-update`,
                 body: () => ({
-                  device: { ...devices[1] },
                   sensor: {
                     ...sensors[3],
                     resources: {
@@ -165,7 +159,6 @@ const schedulerTest = () => {
                 auth: profiles.user,
                 url: () => `${apiUrl}create-or-update`,
                 body: () => ({
-                  device: { ...devices[1] },
                   sensor: {
                     ...sensors[3],
                     resources: {

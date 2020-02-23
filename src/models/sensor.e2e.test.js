@@ -25,7 +25,7 @@ const sensorTest = () => {
   const sensorsCount = 8;
   const DeviceModel = app.models.Device;
   const SensorModel = app.models.Sensor;
-  const SensorResourceModel = app.models.SensorResource;
+  // const SensorResourceModel = app.models.SensorResource;
   let users, devices, sensors, userIds, packets;
 
   async function beforeTests() {
@@ -169,11 +169,37 @@ const sensorTest = () => {
                 expect: 401,
               },
               {
+                name: 'everyone CANNOT read ALL resources',
+                verb: 'get',
+                url: () => `${apiUrl}${sensors[4].id}/resources`,
+                expect: 401,
+              },
+              {
                 name: 'everyone CAN read OWN',
                 verb: 'get',
                 auth: profiles.user,
                 url: () => `${apiUrl}${sensors[4].id}`,
                 expect: 200,
+              },
+              {
+                name: 'everyone CAN read OWN resources',
+                verb: 'get',
+                auth: profiles.user,
+                url: () => `${apiUrl}${sensors[4].id}/resources`,
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body).to.deep.equal(sensors[4].resources);
+                },
+              },
+              {
+                name: 'everyone CAN read OWN resources by id',
+                verb: 'get',
+                auth: profiles.user,
+                url: () => `${apiUrl}${sensors[3].id}/resources/5700`,
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body).to.deep.equal({ '5700': 0 });
+                },
               },
               {
                 name: 'admin CAN read ALL',
@@ -253,31 +279,53 @@ const sensorTest = () => {
               },
               {
                 name: 'user CAN replace OWN',
-                verb: 'put',
-                auth: profiles.user,
-                url: () => `${apiUrl}${sensors[3].id}`,
-                body: () => ({
-                  ...sensors[3],
-                  name: `${sensors[3].name} - replaced`,
-                }),
-                expect: resp => {
-                  expect(resp.status).to.be.equal(200);
-                  expect(resp.body.name).to.be.equal(`${sensors[3].name} - replaced`);
-                },
+                steps: [
+                  {
+                    verb: 'get',
+                    auth: profiles.user,
+                    url: () => `${apiUrl}${sensors[3].id}/resources`,
+                    expect: 200,
+                  },
+                  step0Response => ({
+                    verb: 'put',
+                    auth: profiles.user,
+                    url: () => `${apiUrl}${sensors[3].id}`,
+                    body: () => ({
+                      ...sensors[3],
+                      name: `${sensors[3].name} - replaced`,
+                      resources: { ...step0Response.body },
+                    }),
+                    expect: resp => {
+                      expect(resp.status).to.be.equal(200);
+                      expect(resp.body.name).to.be.equal(`${sensors[3].name} - replaced`);
+                    },
+                  }),
+                ],
               },
               {
                 name: 'admin CAN replace ALL',
-                verb: 'put',
-                auth: profiles.admin,
-                url: () => `${apiUrl}${sensors[4].id}`,
-                body: () => ({
-                  ...sensors[4],
-                  name: `${sensors[4].name} - replaced`,
-                }),
-                expect: resp => {
-                  expect(resp.status).to.be.equal(200);
-                  expect(resp.body.name).to.be.equal(`${sensors[4].name} - replaced`);
-                },
+                steps: [
+                  {
+                    verb: 'get',
+                    auth: profiles.admin,
+                    url: () => `${apiUrl}${sensors[4].id}/resources`,
+                    expect: 200,
+                  },
+                  step0Response => ({
+                    verb: 'put',
+                    auth: profiles.admin,
+                    url: () => `${apiUrl}${sensors[4].id}`,
+                    body: () => ({
+                      ...sensors[4],
+                      name: `${sensors[4].name} - replaced`,
+                      resources: { ...step0Response.body },
+                    }),
+                    expect: resp => {
+                      expect(resp.status).to.be.equal(200);
+                      expect(resp.body.name).to.be.equal(`${sensors[4].name} - replaced`);
+                    },
+                  }),
+                ],
               },
             ],
           },
@@ -361,30 +409,53 @@ const sensorTest = () => {
                 name: 'everyone CANNOT publish',
                 verb: 'post',
                 url: () => `${apiUrl}on-publish`,
-                body: () => ({
-                  device: { ...devices[1] },
-                  sensor: { ...sensors[0], value: 10, lastSignal: new Date() },
-                  client: {
-                    id: users[1].id,
-                    user: users[1].id,
-                  },
-                }),
+                body: () => {
+                  return {
+                    device: { ...devices[1] },
+                    sensor: {
+                      ...sensors[0],
+                      value: 10,
+                      // resources,
+                    },
+                    client: {
+                      id: users[1].id,
+                      user: users[1].id,
+                    },
+                  };
+                },
                 expect: 401,
               },
               {
                 name: 'User CAN publish',
-                verb: 'post',
-                auth: profiles.user,
-                url: () => `${apiUrl}on-publish`,
-                body: () => ({
-                  device: { ...devices[1] },
-                  sensor: { ...sensors[0], value: 10, lastSignal: new Date() },
-                  client: {
-                    id: users[1].id,
-                    user: users[1].id,
+                steps: [
+                  {
+                    verb: 'get',
+                    auth: profiles.admin,
+                    url: () => `${apiUrl}${sensors[0].id}/resources`,
+                    expect: 200,
                   },
-                }),
-                expect: 200,
+                  step0Response => ({
+                    verb: 'post',
+                    auth: profiles.admin,
+                    url: () => `${apiUrl}on-publish`,
+                    body: () => ({
+                      device: { ...devices[1] },
+                      sensor: {
+                        ...sensors[0],
+                        value: 10,
+                        resources: { ...step0Response.body },
+                      },
+                      client: {
+                        id: users[1].id,
+                        user: users[1].id,
+                      },
+                    }),
+                    expect: resp => {
+                      expect(resp.status).to.be.equal(200);
+                      // expect(resp.body.name).to.be.equal(`${sensors[3].name} - replaced`);
+                    },
+                  }),
+                ],
               },
             ],
           },
@@ -437,9 +508,9 @@ const sensorTest = () => {
       client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
 
       await timeout(async () => {
-        const sensor = await SensorResourceModel.getCache(devices[1].id, sensors[index].id);
+        const sensor = await SensorModel.findById(sensors[index].id);
         client.end();
-        expect(sensor.value).to.be.equal(packets[index].payload);
+        expect(sensor.value).to.be.equal(Number(packets[index].payload));
       }, 150);
     });
 
@@ -458,9 +529,9 @@ const sensorTest = () => {
       client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
 
       await timeout(async () => {
-        const sensor = await SensorResourceModel.getCache(devices[1].id, sensors[index].id);
+        const sensor = await SensorModel.findById(sensors[index].id);
         client.end();
-        expect(sensor.value).to.be.equal(packets[index].payload);
+        expect(sensor.value).to.be.equal(Number(packets[index].payload));
       }, 150);
     });
 
@@ -479,7 +550,7 @@ const sensorTest = () => {
       client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
 
       await timeout(async () => {
-        const sensor = await SensorResourceModel.getCache(devices[1].id, sensors[index].id);
+        const sensor = await SensorModel.findById(sensors[index].id);
         client.end();
         expect(sensor.value).to.be.equal(packets[index].payload);
       }, 150);
@@ -500,9 +571,9 @@ const sensorTest = () => {
       client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
 
       await timeout(async () => {
-        const sensor = await SensorResourceModel.getCache(devices[1].id, sensors[index].id);
+        const sensor = await SensorModel.findById(sensors[index].id);
         client.end();
-        expect(sensor.value).to.be.equal(packets[index].payload);
+        expect(sensor.value.toString()).to.be.equal(packets[index].payload);
       }, 150);
     });
   });

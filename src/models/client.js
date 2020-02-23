@@ -17,11 +17,6 @@ import utils from '../services/utils';
 module.exports = function(Client) {
   const collectionName = 'Client';
 
-  Client.disableRemoteMethodByName('count');
-  Client.disableRemoteMethodByName('upsertWithWhere');
-  Client.disableRemoteMethodByName('replaceOrCreate');
-  Client.disableRemoteMethodByName('createChangeStream');
-
   /**
    * Iterate over each Client keys found in cache
    * @method module:Client.cacheIterator
@@ -30,25 +25,15 @@ module.exports = function(Client) {
    */
   Client.cacheIterator = async function*(filter) {
     const iterator = Client.iterateKeys(filter);
-    try {
+    let empty = false;
+    while (!empty) {
+      // eslint-disable-next-line no-await-in-loop
       const key = await iterator.next();
       if (!key) {
+        empty = true;
         return;
       }
       yield key;
-      // while (true) {
-      //   // eslint-disable-next-line no-await-in-loop
-      //   const key = await iterator.next();
-      //   if (!key) {
-      //     return;
-      //   }
-      //   yield key;
-      // }
-    } catch (e) {
-      logger.publish(3, `${collectionName}`, 'cacheIterator:err', e);
-      return;
-    } finally {
-      logger.publish(5, `${collectionName}`, 'cacheIterator:res', 'done');
     }
   };
 
@@ -59,22 +44,17 @@ module.exports = function(Client) {
    * @returns {array} schedulers - Cached clients
    */
   Client.getAll = async filter => {
-    try {
-      logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
-      const clients = [];
-      for await (const key of Client.cacheIterator(filter)) {
-        try {
-          const client = JSON.parse(await Client.get(key));
-          clients.push(client);
-        } catch (e) {
-          // empty
-        }
+    logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
+    const clients = [];
+    for await (const key of Client.cacheIterator(filter)) {
+      try {
+        const client = JSON.parse(await Client.get(key));
+        clients.push(client);
+      } catch (e) {
+        // empty
       }
-      return clients;
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'getAll:err', error);
-      throw error;
     }
+    return clients;
   };
 
   /**
@@ -84,20 +64,15 @@ module.exports = function(Client) {
    * @returns {array} clients - Cached clients keys
    */
   Client.deleteAll = async filter => {
-    try {
-      const clients = [];
-      logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
-      for await (const key of Client.cacheIterator()) {
-        if (key && key !== null) {
-          await Client.delete(key);
-          clients.push(key);
-        }
+    const clients = [];
+    logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
+    for await (const key of Client.cacheIterator()) {
+      if (key && key !== null) {
+        await Client.delete(key);
+        clients.push(key);
       }
-      return clients;
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'deleteAll:err', error);
-      throw error;
     }
+    return clients;
   };
 
   /**
@@ -118,4 +93,11 @@ module.exports = function(Client) {
       return false;
     }
   });
+
+  Client.disableRemoteMethodByName('get');
+  Client.disableRemoteMethodByName('set');
+  Client.disableRemoteMethodByName('keys');
+  Client.disableRemoteMethodByName('iterateKeys');
+  Client.disableRemoteMethodByName('ttl');
+  Client.disableRemoteMethodByName('expire');
 };
