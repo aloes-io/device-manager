@@ -390,7 +390,7 @@ const updateProps = async sensor => {
   try {
     /* eslint-disable no-underscore-dangle */
     /* eslint-disable camelcase */
-    await sensor.__update__resources(sensor.resources);
+    await sensor.__replace__resources(sensor.resources);
     /* eslint-enable no-underscore-dangle */
     /* eslint-enable camelcase */
   } catch (error) {

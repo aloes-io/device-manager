@@ -182,8 +182,8 @@
         "__get__resources",
         "__findById__resources",
         "__create__resources",
-        "__update__resources",
-        "__updateByI__resources",
+        "__replace__resources",
+        "__replaceById__resources",
         "__delete__resources",
         "__destroyById__resources"
       ]
@@ -202,7 +202,7 @@
         "onPublish",
         "findById",
         "__get__measurements",
-        "getResources"
+        "__get__resources"
       ]
     },
     {
@@ -231,8 +231,8 @@
         "__get__resources",
         "__findById__resources",
         "__create__resources",
-        "__update__resources",
-        "__updateByI__resources",
+        "__replace__resources",
+        "__replaceById__resources",
         "__delete__resources",
         "__destroyById__resources"
       ]
@@ -461,8 +461,8 @@
         "path": "/resources"
       }
     },
-    "prototype.__update__resources": {
-      "description": "Update the sensor resources",
+    "prototype.__replace__resources": {
+      "description": "Replace the sensor resources",
       "accepts": [
         {
           "arg": "resources",
@@ -481,13 +481,6 @@
     },
     "prototype.__delete__resources": {
       "description": "Delete the sensor resources",
-      "accepts": [
-        {
-          "arg": "resources",
-          "type": "object",
-          "required": true
-        }
-      ],
       "returns": {
         "root": true,
         "type": "boolean"

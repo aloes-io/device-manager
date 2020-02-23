@@ -52,7 +52,7 @@ const sensorTest = () => {
         Array(sensorsCount)
           .fill('')
           .map((_, index) =>
-            index <= 2
+            index < 2
               ? sensorFactory(index + 1, devices[0], userIds[0])
               : sensorFactory(index + 1, devices[1], userIds[1], sensorTypes[index]),
           ),
@@ -142,6 +142,23 @@ const sensorTest = () => {
                 expect: 200,
               },
               {
+                name: 'user CAN create OWN resources',
+                verb: 'post',
+                auth: profiles.user,
+                url: () => `${apiUrl}${sensors[2].id}/resources`,
+                body: () => ({
+                  resources: {
+                    '5700': 30,
+                  },
+                }),
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body).to.deep.equal({
+                    '5700': 30,
+                  });
+                },
+              },
+              {
                 name: 'admin CAN create',
                 verb: 'post',
                 auth: profiles.admin,
@@ -175,14 +192,14 @@ const sensorTest = () => {
                 expect: 401,
               },
               {
-                name: 'everyone CAN read OWN',
+                name: 'user CAN read OWN',
                 verb: 'get',
                 auth: profiles.user,
                 url: () => `${apiUrl}${sensors[4].id}`,
                 expect: 200,
               },
               {
-                name: 'everyone CAN read OWN resources',
+                name: 'user CAN read OWN resources',
                 verb: 'get',
                 auth: profiles.user,
                 url: () => `${apiUrl}${sensors[4].id}/resources`,
@@ -192,7 +209,7 @@ const sensorTest = () => {
                 },
               },
               {
-                name: 'everyone CAN read OWN resources by id',
+                name: 'user CAN read OWN resources by id',
                 verb: 'get',
                 auth: profiles.user,
                 url: () => `${apiUrl}${sensors[3].id}/resources/5700`,
@@ -303,6 +320,35 @@ const sensorTest = () => {
                 ],
               },
               {
+                name: 'user CAN replace OWN resources',
+                steps: [
+                  {
+                    verb: 'get',
+                    auth: profiles.user,
+                    url: () => `${apiUrl}${sensors[3].id}/resources`,
+                    expect: 200,
+                  },
+                  step0Response => ({
+                    verb: 'put',
+                    auth: profiles.user,
+                    url: () => `${apiUrl}${sensors[3].id}/resources`,
+                    body: () => ({
+                      resources: {
+                        ...step0Response.body,
+                        '5700': 30,
+                      },
+                    }),
+                    expect: resp => {
+                      expect(resp.status).to.be.equal(200);
+                      expect(resp.body).to.deep.equal({
+                        ...step0Response.body,
+                        '5700': 30,
+                      });
+                    },
+                  }),
+                ],
+              },
+              {
                 name: 'admin CAN replace ALL',
                 steps: [
                   {
@@ -345,6 +391,15 @@ const sensorTest = () => {
                 expect: resp => {
                   expect(resp.status).to.be.equal(200);
                   expect(resp.body.count).to.be.equal(1);
+                },
+              },
+              {
+                name: 'user CAN delete OWN resources',
+                verb: 'delete',
+                auth: profiles.user,
+                url: () => `${apiUrl}${sensors[2].id}/resources`,
+                expect: resp => {
+                  expect(resp.status).to.be.equal(200);
                 },
               },
               {
@@ -492,6 +547,8 @@ const sensorTest = () => {
         1000,
       );
     });
+
+    // mqtte2e(app, testConfig, e2eTestsSuite);
 
     it('temperature sensor IS updated after publish', async function() {
       const testMaxDuration = 2000;

@@ -106,46 +106,42 @@ utils.flatten = input => {
 };
 
 utils.exportToCSV = (input, filter) => {
-  try {
-    let selection;
+  let selection;
 
-    if (filter && Object.keys(filter).length > 0) {
-      const sjf = new JSONFilter();
-      // const exportBuffer = [];
-      // sjf.addHandler(/^(.*)$/, (key, val, data) => {
-      //   const str = data[key] + '';
-      //   // console.log(val);
-      //   for (let i = 0; i < str.length; i++) {
-      //     if (data[key] !== undefined && data[key].includes(val)) {
-      //       exportBuffer.push(data);
-      //       //return data;
-      //     }
-      //   }
-      // });
+  if (filter && Object.keys(filter).length > 0) {
+    const sjf = new JSONFilter();
+    // const exportBuffer = [];
+    // sjf.addHandler(/^(.*)$/, (key, val, data) => {
+    //   const str = data[key] + '';
+    //   // console.log(val);
+    //   for (let i = 0; i < str.length; i++) {
+    //     if (data[key] !== undefined && data[key].includes(val)) {
+    //       exportBuffer.push(data);
+    //       //return data;
+    //     }
+    //   }
+    // });
 
-      const filterTemplate = {};
-      // todo : filter valid keys
-      Object.keys(filter).forEach(key => {
-        // eslint-disable-next-line security/detect-object-injection
-        filterTemplate[key] = filter[key];
-      });
+    const filterTemplate = {};
+    // todo : filter valid keys
+    Object.keys(filter).forEach(key => {
+      // eslint-disable-next-line security/detect-object-injection
+      filterTemplate[key] = filter[key];
+    });
 
-      selection = sjf
-        .filter(filterTemplate)
-        .data(input)
-        .wantArray()
-        .exec();
+    selection = sjf
+      .filter(filterTemplate)
+      .data(input)
+      .wantArray()
+      .exec();
 
-      // console.log('export selection', selection);
-    } else {
-      selection = input;
-    }
-
-    const csv = Papa.unparse(selection);
-    return csv;
-  } catch (error) {
-    throw error;
+    // console.log('export selection', selection);
+  } else {
+    selection = input;
   }
+
+  const csv = Papa.unparse(selection);
+  return csv;
 };
 
 utils.isMasterProcess = env => {

@@ -475,21 +475,21 @@ module.exports = function(Sensor) {
       return SensorResource.save(this.deviceId, this.id, resources);
     };
 
-    Sensor.prototype.__update__resources = async function(resources) {
+    Sensor.prototype.__replace__resources = async function(resources) {
       return SensorResource.save(this.deviceId, this.id, resources);
     };
 
-    Sensor.prototype.__updateById__resources = async function(resource) {
-      return SensorResource.save(this.deviceId, this.id, resource);
-    };
+    // Sensor.prototype.__replaceById__resources = async function(resource) {
+    //   return SensorResource.save(this.deviceId, this.id, resource);
+    // };
 
     Sensor.prototype.__delete__resources = async function() {
       return SensorResource.remove(this.deviceId, this.id);
     };
 
-    Sensor.prototype.__destroyById__resources = async function(id) {
-      return SensorResource.remove(this.deviceId, this.id, id);
-    };
+    // Sensor.prototype.__destroyById__resources = async function(id) {
+    //   return SensorResource.remove(this.deviceId, this.id, id);
+    // };
     /* eslint-enable camelcase */
     /* eslint-enable no-underscore-dangle */
   });

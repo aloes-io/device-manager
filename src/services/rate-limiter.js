@@ -2,7 +2,6 @@
 
 /* eslint-disable global-require */
 /* eslint-disable import/no-mutable-exports */
-// import dotenv from 'dotenv';
 import Redis from 'ioredis';
 import { RateLimiterMemory, RateLimiterRedis } from 'rate-limiter-flexible';
 import logger from '../services/logger';
@@ -130,7 +129,7 @@ rateLimiter.getAuthLimiter = async (ip, username) => {
       rateLimiter.userIpLimiter.get(usernameIPkey),
       rateLimiter.ipLimiter.get(ip),
     ]);
-    logger.publish(3, `${moduleName}`, 'authLimiter:req', {
+    logger.publish(4, `${moduleName}`, 'authLimiter:req', {
       ip,
       username,
     });
@@ -148,7 +147,7 @@ rateLimiter.getAuthLimiter = async (ip, username) => {
       limiterType = 'userIpLimiter';
       retrySecs = Math.round(resUsernameAndIP.msBeforeNext / 1000) || 1;
     }
-    logger.publish(3, `${moduleName}`, 'authLimiter:res', {
+    logger.publish(4, `${moduleName}`, 'authLimiter:res', {
       ip,
       limiter,
       limiterType,
