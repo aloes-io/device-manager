@@ -804,6 +804,77 @@ module.exports = function(Scheduler) {
     next();
   });
 
+  /**
+   * Optional error callback
+   * @callback module:Scheduler~errorCallback
+   * @param {error} ErrorObject
+   */
+
+  /**
+   * Optional result callback
+   * @callback module:Scheduler~resultCallback
+   * @param {error} ErrorObject
+   * @param {object} result
+   */
+
+  /**
+   * Get Scheduler by key
+   * Use callback or promise
+   *
+   * @method module:Scheduler.get
+   * @param {string} key
+   * @param {resultCallback} [cb] - Optional callback
+   * @promise result
+   */
+
+  /**
+   * Set Scheduler by key, with optional TTL
+   *
+   * Use callback or promise
+   *
+   * @method module:Scheduler.set
+   * @param {string} key
+   * @param {string} value
+   * @param {number} [ttl]
+   * @param {ErrorCallback} [cb] - Optional callback
+   * @promise undefined
+   */
+
+  /**
+   * Set the TTL (time to live) in ms (milliseconds) for a given key
+   *
+   * Use callback or promise
+   *
+   * @method module:Scheduler.expire
+   * @param {string} key
+   * @param {number} [ttl]
+   * @param {ErrorCallback} [cb] - Optional callback
+   * @promise undefined
+   */
+
+  /**
+   * Get all Scheduler keys
+   *
+   * Use callback or promise
+   *
+   * @method module:Scheduler.keys
+   * @param {object} [filter]
+   * @param {object} filter.match Glob string used to filter returned keys (i.e. userid.*)
+   * @param {function} [cb]
+   * @returns {string[]}
+   */
+
+  /**
+   * Iterate over all Scheduler keys
+   *
+   * Use callback or promise
+   *
+   * @method module:Scheduler.iterateKeys
+   * @param {object} [filter]
+   * @param {object} filter.match Glob string used to filter returned keys (i.e. userid.*)
+   * @returns {AsyncIterator} An Object implementing next(cb) -> Promise function that can be used to iterate all keys.
+   */
+
   Scheduler.disableRemoteMethodByName('get');
   Scheduler.disableRemoteMethodByName('set');
   Scheduler.disableRemoteMethodByName('keys');

@@ -347,11 +347,12 @@ export const compose = (device, attributes, newInstance = true) => {
   return sensor;
 };
 
-/**
- * Build simple where filter based on given attributes
- * @param {object} pattern - IotAgent detected pattern
- * @param {object} sensor - Incoming sensor instance
- */
+// /**
+//  * Build simple where filter based on given attributes
+//  * @method module:Sensor~buildWhere
+//  * @param {object} pattern - IotAgent detected pattern
+//  * @param {object} sensor - Incoming sensor instance
+//  */
 // export const buildWhere = attributes => {
 //   try {
 //     const filter = { where: {} };

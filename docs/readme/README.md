@@ -171,7 +171,7 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 ## TODOs
 
-- Add e2e tests for Client, Measurement and SensorResource models 
+- Add e2e tests for Client, Measurement models
 
 - Implement user+ip rate limit for HTTP endpoints requiring auth
 
@@ -181,13 +181,12 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 - Add user(s) in a team to easily share devices access ( via collaborators property/role ? )
 
-- Separate resources property from Sensor model to SensorResources model ( instead of sync, as currently implemented ) ?
-
 - Catch and store data related to MQTT traffic ( https://github.com/mcollina/aedes-logging#readme ; via specific sensor instance ? )
 
 - Update to loopback 4
 
 - Add redis replication config ( docker deployement )
+
   - https://stackoverflow.com/questions/45902031/docker-swarm-redis-and-sentinel-with-master-slave-replication-ip-resolution-cl
 
   - https://redis.io/topics/replication#configuring-replication-in-docker-and-nat

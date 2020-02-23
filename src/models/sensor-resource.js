@@ -15,9 +15,9 @@ const setCacheKey = (deviceId, sensorId, resourceId) => {
 
 /**
  * @module SensorResource
- * @property {String} sensor Stringified Sensor instance
  * @property {String} resource Stringified Sensor resource instance
  */
+
 module.exports = function(SensorResource) {
   /**
    * Find Sensor instance from the cache
@@ -227,6 +227,78 @@ module.exports = function(SensorResource) {
   //   });
   //   return sensor;
   // };
+
+  /**
+   * Optional error callback
+   * @callback module:SensorResource~errorCallback
+   * @param {error} ErrorObject
+   */
+
+  /**
+   * Optional result callback
+   * @callback module:SensorResource~resultCallback
+   * @param {error} ErrorObject
+   * @param {string} result
+   */
+
+  /**
+   * Get SensorResource by key
+   *
+   * Use callback or promise
+   *
+   * @method module:SensorResource.get
+   * @param {string} key
+   * @param {resultCallback} [cb] - Optional callback
+   * @promise result
+   */
+
+  /**
+   * Set SensorResource by key, with optional TTL
+   *
+   * Use callback or promise
+   *
+   * @method module:SensorResource.set
+   * @param {string} key
+   * @param {string} value
+   * @param {number} [ttl]
+   * @param {ErrorCallback} [cb] - Optional callback
+   * @promise undefined
+   */
+
+  /**
+   * Set the TTL (time to live) in ms (milliseconds) for a given key
+   *
+   * Use callback or promise
+   *
+   * @method module:SensorResource.expire
+   * @param {string} key
+   * @param {number} [ttl]
+   * @param {ErrorCallback} [cb] - Optional callback
+   * @promise undefined
+   */
+
+  /**
+   * Get all SensorResource keys
+   *
+   * Use callback or promise
+   *
+   * @method module:SensorResource.keys
+   * @param {object} [filter]
+   * @param {object} filter.match Glob string used to filter returned keys (i.e. userid.*)
+   * @param {function} [cb]
+   * @returns {string[]}
+   */
+
+  /**
+   * Iterate over all SensorResource keys
+   *
+   * Use callback or promise
+   *
+   * @method module:SensorResource.iterateKeys
+   * @param {object} [filter]
+   * @param {object} filter.match Glob string used to filter returned keys (i.e. userid.*)
+   * @returns {AsyncIterator} An Object implementing next(cb) -> Promise function that can be used to iterate all keys.
+   */
 
   SensorResource.disableRemoteMethodByName('get');
   SensorResource.disableRemoteMethodByName('set');
