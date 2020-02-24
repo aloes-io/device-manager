@@ -182,27 +182,26 @@ module.exports = function(Sensor) {
   /**
    * When HEAD method detected, update sensor instance ( not the value )
    * @method module:Sensor.handlePresentation
-   * @param {object} device - found device instance
    * @param {object} sensor - Incoming sensor instance
    * @param {object} [client] - MQTT client
    * @returns {function} Sensor.publish
    */
-  Sensor.handlePresentation = async (device, sensor, client) => {
+  Sensor.handlePresentation = async (sensor, client) => {
     logger.publish(3, `${collectionName}`, 'handlePresentation:req', {
-      deviceId: device.id,
-      deviceName: device.name,
+      deviceId: sensor.deviceId,
       sensorId: sensor.id,
       sensorName: sensor.name,
     });
     if (sensor.isNewInstance && sensor.icons) {
       sensor.method = 'HEAD';
-      await device.sensors.updateById(sensor.id, sensor);
-      await Sensor.publish(device.id.toString(), sensor, 'HEAD', client);
+      // await device.sensors.updateById(sensor.id, sensor);
+      await Sensor.replaceById(sensor.id, sensor);
+      await Sensor.publish(sensor.deviceId, sensor, 'HEAD', client);
     } else if (!sensor.isNewInstance && sensor.id) {
       sensor.method = 'HEAD';
       sensor.frameCounter = 0;
-      await device.sensors.updateById(sensor.id, sensor);
-      await Sensor.publish(device.id.toString(), sensor, 'HEAD', client);
+      await Sensor.replaceById(sensor.id, sensor);
+      await Sensor.publish(sensor.deviceId, sensor, 'HEAD', client);
     } else {
       throw utils.buildError(400, 'INVALID_SENSOR', 'No valid sensor to register');
     }
@@ -262,14 +261,13 @@ module.exports = function(Sensor) {
   /**
    * When GET method detected, find and publish instance
    * @method module:Sensor.getInstance
-   * @param {object} device - found device instance
-   * @param {object} pattern - IotAgent detected pattern
    * @param {object} sensor - Incoming sensor instance
+   * @param {object} [client] - MQTT client
    * @returns {function} Sensor.publish
    */
-  Sensor.getInstance = async (device, pattern, sensor, client) => {
+  Sensor.getInstance = async (sensor, client) => {
     logger.publish(4, `${collectionName}`, 'getInstance:req', {
-      pattern,
+      sensorId: sensor.id,
     });
     const instance = await Sensor.findById(sensor.id);
     if (!instance) throw new Error('Sensor not found');
@@ -282,7 +280,7 @@ module.exports = function(Sensor) {
     //   throw new Error('no packet payload to publish');
     // }
     //  const topic = `${params.appEui}/Sensor/HEAD`;
-    await Sensor.publish(device.id.toString(), instance, 'GET', client);
+    await Sensor.publish(sensor.deviceId, instance, 'GET', client);
     return instance;
   };
 
