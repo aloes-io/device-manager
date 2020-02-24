@@ -37,6 +37,7 @@ const broker = {
  * @param {object} client - MQTT client
  * @param {string} [username] - MQTT username
  * @param {object} [password] - MQTT password
+ * @param {function} cb - Aedes callback
  * @returns {function} cb - Aedes callback
  */
 const authenticate = (client, username, password, cb) => {
@@ -60,6 +61,7 @@ const authenticate = (client, username, password, cb) => {
  * @method module:Broker~authorizePublish
  * @param {object} client - MQTT client
  * @param {object} packet - MQTT packet
+ * @param {function} cb - Aedes callback
  * @returns {function} cb - Aedes callback
  */
 const authorizePublish = (client, packet, cb) => {
@@ -73,6 +75,7 @@ const authorizePublish = (client, packet, cb) => {
  * @method module:Broker~authorizeSubscribe
  * @param {object} client - MQTT client
  * @param {object} packet - MQTT packet
+ * @param {function} cb - Aedes callback
  * @returns {function} cb - Aedes callback
  */
 const authorizeSubscribe = (client, packet, cb) => {
@@ -114,6 +117,7 @@ const authorizeSubscribe = (client, packet, cb) => {
  * @method module:Broker~published
  * @param {object} packet - MQTT packet
  * @param {object} client - MQTT client
+ * @param {function} cb - Aedes callback
  * @returns {function} cb - Aedes callback
  */
 const published = (packet, client, cb) => {
