@@ -8,6 +8,7 @@ import { publishToDeviceApplications } from '../lib/device';
 import {
   collectionName,
   compose,
+  getResources,
   onBeforeDelete,
   onAfterSave,
   onBeforeSave,
@@ -194,7 +195,6 @@ module.exports = function(Sensor) {
     });
     if (sensor.isNewInstance && sensor.icons) {
       sensor.method = 'HEAD';
-      // await device.sensors.updateById(sensor.id, sensor);
       await Sensor.replaceById(sensor.id, sensor);
       await Sensor.publish(sensor.deviceId, sensor, 'HEAD', client);
     } else if (!sensor.isNewInstance && sensor.id) {
@@ -229,14 +229,10 @@ module.exports = function(Sensor) {
     if (sensor.isNewInstance || !sensor || !sensor.id) {
       throw utils.buildError(400, 'INVALID_SENSOR', 'Sensor not validated yet');
     }
+    const foundSensor = await Sensor.findById(sensor.id);
+    const resources = await getResources(foundSensor);
+    sensor.resources = { ...sensor.resources, ...resources };
 
-    if (!sensor.resources) {
-      /* eslint-disable no-underscore-dangle */
-      /* eslint-disable camelcase */
-      sensor.resources = await sensor.__get__resources(sensor.deviceId, sensor.id);
-      /* eslint-enable no-underscore-dangle */
-      /* eslint-enable camelcase */
-    }
     let updatedSensor = updateAloesSensors(sensor, Number(resourceKey), resourceValue);
     if (!updatedSensor || !updatedSensor.id) {
       throw utils.buildError(400, 'INVALID_SENSOR_UPDATE', 'Sensor not updated');
@@ -337,14 +333,10 @@ module.exports = function(Sensor) {
     });
 
     if (!sensor || sensor === null) {
-      try {
-        sensor = await Sensor.compose(
-          device,
-          attributes,
-        );
-      } catch (e) {
-        sensor = null;
-      }
+      sensor = await Sensor.compose(
+        device,
+        attributes,
+      );
     }
     if (sensor && sensor !== null) {
       let method = sensor.method;
@@ -461,18 +453,41 @@ module.exports = function(Sensor) {
     /* eslint-disable camelcase */
     /* eslint-disable no-underscore-dangle */
 
+    /**
+     * Get sensor resources form key/value store
+     * @method module:Sensor.prototype.__get__resources
+     * @returns {function} module:SensorResource.find
+     */
     Sensor.prototype.__get__resources = async function() {
       return SensorResource.find(this.deviceId, this.id);
     };
 
+    /**
+     * Get sensor resources form key/value store by key
+     * @method module:Sensor.prototype.__findById__resources
+     * @param {string} id Resource key
+     * @returns {function} module:SensorResource.find
+     */
     Sensor.prototype.__findById__resources = async function(id) {
       return SensorResource.find(this.deviceId, this.id, id);
     };
 
+    /**
+     * Create sensor resources into key/value store
+     * @method module:Sensor.prototype.__create__resources
+     * @param {object} resources Resources key/value object
+     * @returns {function} module:SensorResource.save
+     */
     Sensor.prototype.__create__resources = async function(resources) {
       return SensorResource.save(this.deviceId, this.id, resources);
     };
 
+    /**
+     * Replace sensor resources into key/value store
+     * @method module:Sensor.prototype.__replace__resources
+     * @param {object} resources Resources key/value object
+     * @returns {function} module:SensorResource.save
+     */
     Sensor.prototype.__replace__resources = async function(resources) {
       return SensorResource.save(this.deviceId, this.id, resources);
     };
@@ -481,6 +496,11 @@ module.exports = function(Sensor) {
     //   return SensorResource.save(this.deviceId, this.id, resource);
     // };
 
+    /**
+     * Delete sensor resources from key/value store
+     * @method module:Sensor.prototype.__delete__resources
+     * @returns {function} module:SensorResource.remove
+     */
     Sensor.prototype.__delete__resources = async function() {
       return SensorResource.remove(this.deviceId, this.id);
     };
