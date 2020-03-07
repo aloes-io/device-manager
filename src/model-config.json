@@ -68,7 +68,7 @@
   },
   "Client": {
     "dataSource": "cache",
-    "public": false
+    "public": true
   },
   "Device": {
     "dataSource": "db",

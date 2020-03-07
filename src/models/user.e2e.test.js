@@ -13,7 +13,7 @@ const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
 // todo test MQTT connection as a user
-// send contactForm, sendMailInvite
+// send contactForm, sendMailInvite, findByEmail
 // test rate limiter with x failed login attempts
 // test single user deletion
 const userTest = () => {
@@ -315,6 +315,24 @@ const userTest = () => {
                 expect: 200,
               },
               {
+                name: 'everyone CANNOT validate account creation if parameter is invalid',
+                verb: 'post',
+                url: () => `${apiUrl}verify-email`,
+                body: () => ({
+                  user: { name: 'Maurice' },
+                }),
+                expect: 400,
+              },
+              {
+                name: 'everyone CANNOT validate account creation if user is invalid',
+                verb: 'post',
+                url: () => `${apiUrl}verify-email`,
+                body: () => ({
+                  user: { ...userModels[1], id: 115 },
+                }),
+                expect: 404,
+              },
+              {
                 name: 'everyone CAN validate account creation',
                 verb: 'post',
                 url: () => `${apiUrl}verify-email`,
@@ -333,6 +351,16 @@ const userTest = () => {
                 expect: 204,
               },
               {
+                name: 'everyone CANNOT replace user old password with new',
+                verb: 'post',
+                url: () => `${apiUrl}set-new-password`,
+                body: () => ({
+                  oldPassword: profiles.user.password,
+                  newPassword: 'TRICKYPASSWORD',
+                }),
+                expect: 401,
+              },
+              {
                 name: 'user CAN replace his old password with new',
                 verb: 'post',
                 auth: profiles.user,
@@ -344,7 +372,7 @@ const userTest = () => {
                 expect: 200,
               },
               {
-                name: 'user CANNOT update his password without access token',
+                name: 'everyone CANNOT update user password without access token',
                 verb: 'post',
                 url: () => `${apiUrl}update-password-from-token`,
                 body: () => ({
@@ -353,7 +381,17 @@ const userTest = () => {
                 expect: 400,
               },
               {
-                name: 'user CAN update his password from access token',
+                name: 'everyone CANNOT update user password with invalid access token',
+                verb: 'post',
+                url: () => `${apiUrl}update-password-from-token`,
+                body: () => ({
+                  accessToken: { id: 1, userId: 4 },
+                  newPassword: 'TRICKYPASSWORD',
+                }),
+                expect: 401,
+              },
+              {
+                name: 'everyone CAN update user password with valid access token',
                 steps: [
                   {
                     verb: 'post',

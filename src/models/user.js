@@ -97,17 +97,12 @@ module.exports = function(User) {
    */
   User.updatePasswordFromToken = async (accessToken, newPassword) => {
     logger.publish(3, `${collectionName}`, 'updatePasswordFromToken:req', accessToken);
-    if (!accessToken || !accessToken.userId || !accessToken.id) {
-      throw utils.buildError(401, 'INVALID_TOKEN', 'Missing token');
-    }
     const token = await User.app.models.accessToken.findById(accessToken.id);
     if (!token || !token.userId || !token.id) {
       throw utils.buildError(401, 'INVALID_TOKEN', 'Token is invalid');
     }
     const user = await User.findById(accessToken.userId);
-    if (!user || !user.id) {
-      throw utils.buildError(404, 'INVALID_USER', 'User not found');
-    }
+
     await user.updateAttribute('password', newPassword);
     return true;
   };
@@ -127,13 +122,7 @@ module.exports = function(User) {
     logger.publish(3, `${collectionName}`, 'setNewPassword:req', '');
     const accessToken = ctx.req.accessToken;
     const token = await User.app.models.accessToken.findById(accessToken.id);
-    if (!token || !token.userId || !token.id) {
-      throw utils.buildError(401, 'INVALID_TOKEN', 'Token is invalid');
-    }
-    const user = await User.findById(accessToken.userId);
-    if (!user || !user.id) {
-      throw utils.buildError(404, 'INVALID_USER', 'User not found');
-    }
+    const user = await User.findById(token.userId);
     await User.changePassword(user.id, oldPassword, newPassword);
     //  logger.publish(3, `${collectionName}`, 'setNewPassword:res', res);
     return user;
@@ -241,19 +230,17 @@ module.exports = function(User) {
    * @returns {function} User.updateStatus
    */
   User.on('client', async message => {
-    try {
-      logger.publish(2, `${collectionName}`, 'on-client:req', Object.keys(message));
-      if (!message || message === null) throw new Error('Message empty');
-      const status = message.status;
-      const client = message.client;
-      if (!client || !client.user || status === undefined) {
-        throw new Error('Message missing properties');
-      }
-      return User.updateStatus(client, status);
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'on-client:err', error);
+    logger.publish(2, `${collectionName}`, 'on-client:req', Object.keys(message));
+    // if (!message || message === null) {
+    //   // throw new Error('Message empty');
+    //   return null;
+    // }
+    const { client, status } = message;
+    if (!client || !client.user || status === undefined) {
       return null;
+      // throw new Error('Message missing properties');
     }
+    return User.updateStatus(client, status);
   });
 
   /**

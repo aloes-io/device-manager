@@ -1,41 +1,44 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable no-restricted-syntax */
 import logger from '../services/logger';
 import utils from '../services/utils';
 
 /**
+ * Called when a remote method tries to access Client Model / instance
+ * @method module:Client~onBeforeRemote
+ * @param {object} app - Loopback App
+ * @param {object} ctx - Express context
+ * @param {object} ctx.req - Request
+ * @param {object} ctx.res - Response
+ * @returns {object} context
+ */
+export const onBeforeRemote = async (app, ctx) => {
+  if (ctx.method.name === 'find' || ctx.method.name === 'remove') {
+    // console.log('onBeforeRemote', ctx.method.name);
+    const options = ctx.args ? ctx.args.options : {};
+    const isAdmin = options.currentUser.roles.includes('admin');
+    if (!isAdmin) {
+      throw utils.buildError(401, 'UNAUTHORIZED', 'Wrong user');
+    }
+  }
+  return ctx;
+};
+
+/**
  * @module Client
- * @property {String} id Client ID
- * @property {String} [name] Client name
- * @property {String} [user] Username attribute ( once client authenthified )
- * @property {String} [type] Client type ( MQTT, ... )
+ * @property {string} id Client ID
+ * @property {string} ip Client IP
+ * @property {string} user Username attribute ( once client authenthified )
  * @property {boolean} status Client status
- * @property {String} [model] Aloes model ( Application, Device, ... )
+ * @property {string} model Aloes model ( Application, Device, ... )
+ * @property {string} [type] Client type ( MQTT, WS , ... )
+ * @property {string} [devEui] device DevEui
+ * @property {string} [appEui] application AppEui
  */
 
 module.exports = function(Client) {
   const collectionName = 'Client';
-
-  /**
-   * Iterate over each Client keys found in cache
-   * @method module:Client.cacheIterator
-   * @param {object} [filter] - Client filter
-   * @returns {string} key - Cached key
-   */
-  Client.cacheIterator = async function*(filter) {
-    const iterator = Client.iterateKeys(filter);
-    let empty = false;
-    while (!empty) {
-      // eslint-disable-next-line no-await-in-loop
-      const key = await iterator.next();
-      if (!key) {
-        empty = true;
-        return;
-      }
-      yield key;
-    }
-  };
 
   /**
    * Find clients in the cache
@@ -44,18 +47,17 @@ module.exports = function(Client) {
    * @returns {array} schedulers - Cached clients
    */
   Client.getAll = async filter => {
-    logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
     const clients = [];
-    for await (const key of Client.cacheIterator(filter)) {
-      try {
-        const client = JSON.parse(await Client.get(key));
-        clients.push(client);
-      } catch (e) {
-        // empty
-      }
+    logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
+    for await (const key of utils.cacheIterator(Client, filter)) {
+      const client = JSON.parse(await Client.get(key));
+      clients.push(client);
     }
+    logger.publish(3, `${collectionName}`, 'getAll:res', clients);
     return clients;
   };
+
+  Client.find = Client.getAll;
 
   /**
    * Delete clients stored in cache
@@ -66,14 +68,30 @@ module.exports = function(Client) {
   Client.deleteAll = async filter => {
     const clients = [];
     logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
-    for await (const key of Client.cacheIterator()) {
-      if (key && key !== null) {
-        await Client.delete(key);
-        clients.push(key);
-      }
+    for await (const key of utils.cacheIterator(Client, filter)) {
+      await Client.delete(key);
+      clients.push(key);
     }
+    logger.publish(3, `${collectionName}`, 'deleteAll:res', clients);
     return clients;
   };
+
+  Client.remove = Client.deleteAll;
+
+  /**
+   * Event reporting that a Client method is requested
+   * @event before_*
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @returns {function} Client~onBeforeRemote
+   */
+  Client.beforeRemote('**', async ctx => onBeforeRemote(Client.app, ctx));
+
+  Client.afterRemoteError('*', (ctx, next) => {
+    logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, ctx.error);
+    next();
+  });
 
   /**
    * Event reporting that application stopped
@@ -83,15 +101,10 @@ module.exports = function(Client) {
    * @event stopped
    */
   Client.on('stopped', async () => {
-    try {
-      if (!utils.isMasterProcess(process.env)) return false;
-      logger.publish(3, `${collectionName}`, 'on-stop:res', '');
-      await Client.deleteAll();
-      return true;
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'on-stop:err', error);
-      return false;
-    }
+    if (!utils.isMasterProcess(process.env)) return false;
+    logger.publish(3, `${collectionName}`, 'on-stop:res', '');
+    await Client.deleteAll();
+    return true;
   });
 
   /**
@@ -127,6 +140,17 @@ module.exports = function(Client) {
    * @param {string} key
    * @param {string} value
    * @param {number} [ttl]
+   * @param {ErrorCallback} [cb] - Optional callback
+   * @promise undefined
+   */
+
+  /**
+   * Delete Client by key
+   *
+   * Use callback or promise
+   *
+   * @method module:Client.delete
+   * @param {string} key
    * @param {ErrorCallback} [cb] - Optional callback
    * @promise undefined
    */
@@ -168,6 +192,7 @@ module.exports = function(Client) {
 
   Client.disableRemoteMethodByName('get');
   Client.disableRemoteMethodByName('set');
+  Client.disableRemoteMethodByName('delete');
   Client.disableRemoteMethodByName('keys');
   Client.disableRemoteMethodByName('iterateKeys');
   Client.disableRemoteMethodByName('ttl');
