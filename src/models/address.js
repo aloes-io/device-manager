@@ -110,6 +110,8 @@ module.exports = function(Address) {
     }
     const geocoder = NodeGeocoder(geoCodeOptions);
     const result = await geocoder.geocode(requestAddress);
+    logger.publish(4, `${collectionName}`, 'verify:res', result);
+
     const verifiedAddress = {};
     if (result && result.length < 1) {
       throw utils.buildError(404, 'ADDRESS_NOT_FOUND', "This address couldn't be verified");
@@ -136,7 +138,7 @@ module.exports = function(Address) {
       if (!verifiedAddress.countryCode && addr.countryCode) {
         verifiedAddress.countryCode = addr.countryCode;
       }
-      return verifiedAddress;
+      // return verifiedAddress;
     });
 
     if (!verifiedAddress.city || !verifiedAddress.postalCode) {
@@ -259,8 +261,7 @@ module.exports = function(Address) {
     // console.log('WHERE FILTER', whereFilter.and);
     const addresses = await Address.find({ where: whereFilter });
     if (!addresses || addresses === null) {
-      const error = utils.buildError(404, 'ADDRESSES_NOT_FOUND', 'No match found from filter');
-      throw error;
+      throw utils.buildError(404, 'ADDRESSES_NOT_FOUND', 'No match found from filter');
     }
     // console.log('ADRESSES', addresses);
     if (filter.limit && typeof filter.limit === 'number' && addresses.length > filter.limit) {

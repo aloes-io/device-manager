@@ -257,6 +257,10 @@
       "lcov",
       "text"
     ],
+    "exclude": [
+      "**/*.spec.js",
+      "**/boot/02-migrate-props.js"
+    ],
     "report-dir": "./test",
     "check-coverage": true,
     "functions": 60,

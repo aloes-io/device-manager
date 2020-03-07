@@ -27,7 +27,7 @@ module.exports = function(Measurement) {
     if (
       !this.type ||
       !isLength(this.type.toString(), { min: 1, max: 4 }) ||
-      !omaObjects.some(object => object.value === this.type)
+      !omaObjects.some(object => object.value.toString() === this.type)
     ) {
       err();
     }
@@ -37,7 +37,7 @@ module.exports = function(Measurement) {
     if (
       this.resource === undefined ||
       !isLength(this.resource.toString(), { min: 1, max: 4 }) ||
-      !omaResources.some(resource => resource.value === this.resource)
+      !omaResources.some(resource => resource.value.toString() === this.resource)
     ) {
       err();
     }
@@ -211,11 +211,7 @@ module.exports = function(Measurement) {
      */
     const findMeasurements = async filter => {
       try {
-        if (!Model.app || !Model.app.datasources.points) {
-          throw new Error('Invalid point datasource');
-        }
         const influxConnector = Model.app.datasources.points.connector;
-
         let retentionPolicies = []; // '0s' || '2h';
         if (filter.where) {
           // console.log('FIND MEASUREMENTS BEFORE', filter.where);
@@ -375,9 +371,6 @@ module.exports = function(Measurement) {
 
     const updateMeasurement = async (attributes, instance) => {
       try {
-        if (!Model.app || !Model.app.datasources.points) {
-          throw new Error('Invalid point datasource');
-        }
         const influxConnector = Model.app.datasources.points.connector;
         const query = influxConnector.updatePoint(collectionName, attributes, instance);
         logger.publish(4, `${collectionName}`, 'updateMeasurement:res', { query });
@@ -453,9 +446,6 @@ module.exports = function(Measurement) {
 
     const deleteMeasurement = async filter => {
       try {
-        if (!Model.app || !Model.app.datasources.points) {
-          throw new Error('Invalid point datasource');
-        }
         let query = `DELETE FROM "${collectionName}" `;
         const influxConnector = Model.app.datasources.points.connector;
         const subQuery = await influxConnector.buildWhere(filter, collectionName);
@@ -464,7 +454,7 @@ module.exports = function(Measurement) {
         await influxConnector.client.query(query);
         // const instance = await findMeasurements(filter);
         // await Measurement.publish(device, instance, 'DELETE');
-        return null;
+        return true;
       } catch (error) {
         logger.publish(2, `${collectionName}`, 'deleteMeasurement:err', error);
         return null;

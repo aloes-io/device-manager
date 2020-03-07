@@ -24,7 +24,7 @@
       "required": true
     },
     "timestamp": {
-      "type": "date",
+      "type": "number",
       "schema": "timestamp",
       "required": false
     },

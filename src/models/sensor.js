@@ -188,7 +188,7 @@ module.exports = function(Sensor) {
    * @returns {function} Sensor.publish
    */
   Sensor.handlePresentation = async (sensor, client) => {
-    logger.publish(3, `${collectionName}`, 'handlePresentation:req', {
+    logger.publish(4, `${collectionName}`, 'handlePresentation:req', {
       deviceId: sensor.deviceId,
       sensorId: sensor.id,
       sensorName: sensor.name,
@@ -233,7 +233,7 @@ module.exports = function(Sensor) {
     const resources = await getResources(foundSensor);
     sensor.resources = { ...sensor.resources, ...resources };
 
-    let updatedSensor = updateAloesSensors(sensor, Number(resourceKey), resourceValue);
+    const updatedSensor = updateAloesSensors(sensor, Number(resourceKey), resourceValue);
     if (!updatedSensor || !updatedSensor.id) {
       throw utils.buildError(400, 'INVALID_SENSOR_UPDATE', 'Sensor not updated');
     }
@@ -244,13 +244,10 @@ module.exports = function(Sensor) {
     updatedSensor.frameCounter += 1;
     // updatedSensor.value = null; free sensor space ?
     // updatedSensor.lastSignal = new Date().getTime();
-    const result = await persistingResource(Sensor.app, updatedSensor, client);
-    if (result && result.sensor) {
-      updatedSensor = result.sensor;
-    }
     updatedSensor.method = 'PUT';
     await Sensor.replaceById(sensor.id, updatedSensor);
     await Sensor.publish(sensor.deviceId.toString(), updatedSensor, 'PUT', client);
+    await persistingResource(Sensor.app, updatedSensor, client);
     return updatedSensor;
   };
 
@@ -288,7 +285,7 @@ module.exports = function(Sensor) {
    * @returns {object} sensor
    */
   Sensor.execute = async (sensor, method, client) => {
-    logger.publish(3, `${collectionName}`, 'execute:req', method);
+    logger.publish(4, `${collectionName}`, 'execute:req', method);
     // also replace sensor when they share same nativeSensorId and nativeNodeId but type has changed ?
     switch (method.toUpperCase()) {
       case 'HEAD':
@@ -303,14 +300,14 @@ module.exports = function(Sensor) {
       case 'PUT':
         await Sensor.createOrUpdate(sensor, sensor.resource, sensor.value, client);
         break;
-      case 'STREAM':
-        //  await Sensor.publish(device.id, sensor, 'STREAM', client);
-        break;
+      // case 'STREAM':
+      //     await Sensor.publish(device.id, sensor, 'STREAM', client);
+      //   break;
       case 'DELETE':
         await Sensor.deleteById(sensor.id);
         break;
-      case 'ERROR':
-        break;
+      // case 'ERROR':
+      //   break;
       default:
         throw new Error('Unsupported method');
     }

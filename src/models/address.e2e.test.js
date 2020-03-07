@@ -92,7 +92,7 @@ const addressTest = () => {
           this.timeout(3000);
           Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
             .then(() => done())
-            .catch(e => done(e));
+            .catch(done);
         },
         tests: {
           '[TEST] Verifying "Create" access': {

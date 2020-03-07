@@ -312,7 +312,7 @@ const authentificationRequest = async data => {
  */
 export const onAuthenticate = async (broker, client, username, password) => {
   try {
-    logger.publish(3, 'broker', 'onAuthenticate:req', {
+    logger.publish(4, 'broker', 'onAuthenticate:req', {
       client: client.id || null,
       username,
     });

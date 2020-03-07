@@ -219,7 +219,7 @@ const setInstancePayload = payload => {
  * @returns {function} module:MQTTClient~updateModelsStatus
  */
 const onStatus = (app, topic, payload) => {
-  logger.publish(3, 'mqtt-client', 'onStatus:req', { topic });
+  logger.publish(4, 'mqtt-client', 'onStatus:req', { topic });
   payload = setBrokerPayload(payload);
   const { client, status } = payload;
   if (client) {

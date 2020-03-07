@@ -123,7 +123,7 @@ const schedulerTest = () => {
                 }),
                 expect: resp => {
                   expect(resp.status).to.be.equal(200);
-                  expect(resp.body.sensor.resources['5523']).to.be.equal('started');
+                  expect(resp.body.sensorId).to.be.equal(sensors[3].id);
                 },
               },
               {
@@ -150,7 +150,7 @@ const schedulerTest = () => {
                 }),
                 expect: resp => {
                   expect(resp.status).to.be.equal(200);
-                  expect(resp.body.sensor.resources['5523']).to.be.equal('stopped');
+                  expect(resp.body.sensorId).to.be.equal(sensors[3].id);
                 },
               },
               {
@@ -178,7 +178,7 @@ const schedulerTest = () => {
                 }),
                 expect: resp => {
                   expect(resp.status).to.be.equal(200);
-                  expect(resp.body.sensor.resources['5523']).to.be.equal('started');
+                  expect(resp.body.sensorId).to.be.equal(sensors[3].id);
                 },
               },
             ],

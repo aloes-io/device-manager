@@ -25,7 +25,7 @@ const sensorTest = () => {
   const sensorsCount = 8;
   const DeviceModel = app.models.Device;
   const SensorModel = app.models.Sensor;
-  // const SensorResourceModel = app.models.SensorResource;
+  const SensorResourceModel = app.models.SensorResource;
   let users, devices, sensors, userIds, packets;
 
   async function beforeTests() {
@@ -59,6 +59,7 @@ const sensorTest = () => {
       );
       sensors = sensorModels.map(model => model.toJSON());
 
+      // TODO test more sensor types
       const temperaturePacket = {
         topic: `${devices[1].devEui}-out/1/3303/0/1/5700`,
         payload: '35',
@@ -550,6 +551,7 @@ const sensorTest = () => {
 
     // mqtte2e(app, testConfig, e2eTestsSuite);
 
+    // TODO test more sensor resources for each type
     it('temperature sensor IS updated after publish', async function() {
       const testMaxDuration = 2000;
       this.timeout(testMaxDuration);
@@ -566,8 +568,13 @@ const sensorTest = () => {
 
       await timeout(async () => {
         const sensor = await SensorModel.findById(sensors[index].id);
-        client.end();
         expect(sensor.value).to.be.equal(Number(packets[index].payload));
+        const resources = await SensorResourceModel.find(
+          sensors[index].deviceId,
+          sensors[index].id,
+        );
+        expect(resources[sensor.resource]).to.be.equal(Number(packets[index].payload));
+        client.end();
       }, 150);
     });
 
@@ -587,8 +594,13 @@ const sensorTest = () => {
 
       await timeout(async () => {
         const sensor = await SensorModel.findById(sensors[index].id);
-        client.end();
         expect(sensor.value).to.be.equal(Number(packets[index].payload));
+        const resources = await SensorResourceModel.find(
+          sensors[index].deviceId,
+          sensors[index].id,
+        );
+        expect(resources[sensor.resource]).to.be.equal(Number(packets[index].payload));
+        client.end();
       }, 150);
     });
 
@@ -608,8 +620,13 @@ const sensorTest = () => {
 
       await timeout(async () => {
         const sensor = await SensorModel.findById(sensors[index].id);
-        client.end();
         expect(sensor.value).to.be.equal(packets[index].payload);
+        const resources = await SensorResourceModel.find(
+          sensors[index].deviceId,
+          sensors[index].id,
+        );
+        expect(resources[sensor.resource]).to.be.equal(packets[index].payload);
+        client.end();
       }, 150);
     });
 
@@ -629,8 +646,13 @@ const sensorTest = () => {
 
       await timeout(async () => {
         const sensor = await SensorModel.findById(sensors[index].id);
-        client.end();
         expect(sensor.value.toString()).to.be.equal(packets[index].payload);
+        const resources = await SensorResourceModel.find(
+          sensors[index].deviceId,
+          sensors[index].id,
+        );
+        expect(resources[sensor.resource].toString()).to.be.equal(packets[index].payload);
+        client.end();
       }, 150);
     });
   });

@@ -31,10 +31,7 @@ export const onBeforeRemote = async (app, ctx) => {
     }
   } else if (ctx.method.name === 'onTickHook' || ctx.method.name === 'onTimeout') {
     const body = ctx.args.body ? ctx.args.body : null;
-    if (!body || typeof body !== 'object') {
-      throw utils.buildError(403, 'FAILED REQUEST', 'Missing properties');
-    }
-    if (!body.secret || body.secret !== process.env.ALOES_KEY) {
+    if (!body || !body.secret || body.secret !== process.env.ALOES_KEY) {
       throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
     }
   }
@@ -88,7 +85,7 @@ export const startInternalTimer = async (Scheduler, sensor, client, scheduler) =
     };
     await Scheduler.set(`sensor-${sensor.id}`, JSON.stringify(scheduler));
     await Scheduler.publish(sensor.deviceId, scheduler, 'POST', client);
-    return lastTime;
+    return scheduler;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'startInternalTimer:err', error);
     return null;
@@ -130,7 +127,7 @@ const startExternalTimer = async (Scheduler, sensor, client, scheduler) => {
       await Scheduler.set(`sensor-${sensor.id}`, JSON.stringify(scheduler));
       await Scheduler.publish(sensor.deviceId, scheduler, 'POST', client);
     }
-    return lastTime;
+    return scheduler;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'startExternalTimer:err', error);
     return null;
@@ -152,9 +149,9 @@ export const startTimer = async (Scheduler, sensor, resources, client, mode = 0)
     scheduler.interval = resources['5538'] * 1000;
   }
   if (process.env.EXTERNAL_TIMER && process.env.TIMER_SERVER_URL) {
-    await startExternalTimer(Scheduler, sensor, client, scheduler);
+    scheduler = await startExternalTimer(Scheduler, sensor, client, scheduler);
   } else {
-    await startInternalTimer(Scheduler, sensor, client, scheduler);
+    scheduler = await startInternalTimer(Scheduler, sensor, client, scheduler);
   }
 
   if (mode === 1) {
@@ -182,7 +179,7 @@ const stopExternalTimer = async (Scheduler, sensor, client, scheduler) => {
     await deleteTimer(Scheduler.app, scheduler.timerId);
     await Scheduler.delete(`sensor-${sensor.id}`);
     await Scheduler.publish(sensor.deviceId, scheduler, 'DELETE', client);
-    return scheduler.lastTime;
+    return scheduler;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'stopExternalTimer:err', error);
     return null;
@@ -194,18 +191,17 @@ const stopInternalTimer = async (Scheduler, sensor, client, scheduler) => {
     const timer = timers[`${sensor.id}`];
     if (!timer && !scheduler) throw new Error('Missing timer');
     logger.publish(4, `${collectionName}`, 'stopInternalTimer:req', scheduler);
-    let lastTime;
+    // let lastTime;
     if (timer) {
-      lastTime = timer.stop();
+      // lastTime = timer.stop();
+      timer.stop();
       delete timers[`${sensor.id}`];
     }
-    if (scheduler) {
-      lastTime = scheduler.lastTime;
-      await Scheduler.delete(`sensor-${sensor.id}`);
-      await Scheduler.publish(sensor.deviceId, scheduler, 'DELETE', client);
-      // if sensor.resources['5525'] > 0 setTimeout to update 5543
-    }
-    return lastTime;
+    // lastTime = scheduler.lastTime;
+    await Scheduler.delete(`sensor-${sensor.id}`);
+    await Scheduler.publish(sensor.deviceId, scheduler, 'DELETE', client);
+    // if sensor.resources['5525'] > 0 setTimeout to update 5543
+    return scheduler;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'stopInternalTimer:err', error);
     return null;
@@ -214,11 +210,13 @@ const stopInternalTimer = async (Scheduler, sensor, client, scheduler) => {
 
 const stopTimer = async (Scheduler, sensor, resources, client, mode = 0) => {
   logger.publish(4, `${collectionName}`, 'stopTimer:req', { sensorId: sensor.id, mode });
-  const scheduler = JSON.parse(await Scheduler.get(`sensor-${sensor.id}`));
+  let scheduler = JSON.parse(await Scheduler.get(`sensor-${sensor.id}`));
+  // if (!scheduler || !scheduler.timerId) throw new Error('Missing timer');
+
   if (process.env.EXTERNAL_TIMER && process.env.TIMER_SERVER_URL) {
-    await stopExternalTimer(Scheduler, sensor, client, scheduler);
+    scheduler = await stopExternalTimer(Scheduler, sensor, client, scheduler);
   } else {
-    await stopInternalTimer(Scheduler, sensor, client, scheduler);
+    scheduler = await stopInternalTimer(Scheduler, sensor, client, scheduler);
   }
 
   if (mode === 1) {

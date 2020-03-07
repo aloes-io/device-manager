@@ -107,7 +107,7 @@ const updateProps = async (app, instance) => {
  */
 export const onAfterSave = async ctx => {
   if (ctx.hookState.updateData) {
-    logger.publish(3, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
+    logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
     const updatedProps = Object.keys(ctx.hookState.updateData);
     if (updatedProps.some(prop => prop === 'status')) {
       // if (!ctx.instance) console.log('AFTER APP SAVE', ctx.where);
@@ -115,7 +115,7 @@ export const onAfterSave = async ctx => {
       if (ctx.instance && ctx.instance.id) await ctx.Model.publish(ctx.instance, 'HEAD');
     }
   } else if (ctx.instance && ctx.Model) {
-    logger.publish(3, `${collectionName}`, 'afterSave:req', ctx.instance);
+    logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
     if (ctx.isNewInstance) {
       await createProps(ctx.Model.app, ctx.instance);
     } else {

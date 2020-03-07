@@ -366,14 +366,14 @@ const updateProps = async (app, instance) => {
  */
 export const onAfterSave = async ctx => {
   if (ctx.hookState.updateData) {
-    logger.publish(3, `${collectionName}`, 'onAfterPartialSave:req', ctx.hookState.updateData);
+    logger.publish(4, `${collectionName}`, 'onAfterPartialSave:req', ctx.hookState.updateData);
     const updatedProps = Object.keys(ctx.hookState.updateData);
     if (updatedProps.some(prop => prop === 'status')) {
       // todo : if (ctx.where) update all ctx.where
       if (ctx.instance && ctx.instance.id) await ctx.Model.publish(ctx.instance, 'HEAD');
     }
   } else if (ctx.instance && ctx.Model.app) {
-    logger.publish(3, `${collectionName}`, 'onAfterSave:req', ctx.instance);
+    logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.instance);
     if (ctx.isNewInstance) {
       await createProps(ctx.Model.app, ctx.instance);
     } else {
@@ -415,7 +415,7 @@ const deleteProps = async (app, instance) => {
  * @returns {object} ctx
  */
 export const onBeforeDelete = async ctx => {
-  logger.publish(3, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
+  logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
   if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
     const device = await ctx.Model.findById(ctx.where.id);
     await deleteProps(ctx.Model.app, device);
@@ -563,7 +563,7 @@ export const parseMessage = async (app, packet, pattern, client) => {
     }
   }
   const attributes = iotAgent.encode(packet, pattern);
-  logger.publish(4, `${collectionName}`, 'parseMessage:attributes', attributes);
+  logger.publish(5, `${collectionName}`, 'parseMessage:attributes', attributes);
 
   if (attributes.devEui && attributes.nativeSensorId && (attributes.type || attributes.resource)) {
     logger.publish(4, `${collectionName}`, 'parseMessage:redirect to Sensor', {
@@ -643,8 +643,7 @@ const updateESP = async (ctx, deviceId, version) => {
     !checkHeader(headers, 'x-esp8266-sdk-version') ||
     !checkHeader(headers, 'x-esp8266-mode')
   ) {
-    const error = utils.buildError(403, 'INVALID_OTA_HEADER', 'invalid ESP8266 header');
-    throw error;
+    throw utils.buildError(403, 'INVALID_OTA_HEADER', 'invalid ESP8266 header');
   }
   //
   const devEui = headers['x-esp8266-sta-mac'].split(':').join('');

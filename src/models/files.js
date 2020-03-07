@@ -101,21 +101,21 @@ const removeContainer = (app, ownerId) =>
  */
 const onBeforeSave = async ctx => {
   if (ctx.data) {
-    logger.publish(5, `${collectionName}`, 'onBeforeSave:req', ctx.data);
+    logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.data);
     if (ctx.data.name) {
       // UPDATE FILE IN CONTAINER TOO
       // prevent name from being updated
     }
     ctx.hookState.updateData = ctx.data;
   } else if (ctx.instance) {
-    logger.publish(5, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
+    logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
     // UPDATE FILE IN CONTAINER TOO
     // prevent name from being updated
   }
   const data = ctx.data || ctx.instance || ctx.currentInstance;
   // const authorizedRoles =
   //   ctx.options && ctx.options.authorizedRoles ? ctx.options.authorizedRoles : {};
-  logger.publish(4, `${collectionName}`, 'onBeforeSave:res', { data });
+  logger.publish(3, `${collectionName}`, 'onBeforeSave:res', { data });
   return ctx;
 };
 
@@ -192,7 +192,7 @@ module.exports = function(Files) {
   Files.disableRemoteMethodByName('createChangeStream');
 
   const updateFileMeta = async (fileMeta, newFileMeta, ownerId) => {
-    logger.publish(3, `${collectionName}`, 'updateFileMeta:req', { ownerId, ...newFileMeta });
+    logger.publish(4, `${collectionName}`, 'updateFileMeta:req', { ownerId, ...newFileMeta });
     if (fileMeta && fileMeta.id) {
       await fileMeta.updateAttributes({ ...newFileMeta });
     } else {
@@ -213,7 +213,7 @@ module.exports = function(Files) {
    * @returns {object} file
    */
   Files.upload = async (ctx, ownerId, name) => {
-    logger.publish(3, `${collectionName}`, 'upload:req', { ownerId, name });
+    logger.publish(4, `${collectionName}`, 'upload:req', { ownerId, name });
 
     const options = {};
     //  ctx.res.set("Access-Control-Allow-Origin", "*")
@@ -287,7 +287,7 @@ module.exports = function(Files) {
    * @returns {object} fileMeta
    */
   Files.uploadBuffer = async (buffer, ownerId, name) => {
-    logger.publish(3, `${collectionName}`, 'uploadBuffer:req', { ownerId, name });
+    logger.publish(4, `${collectionName}`, 'uploadBuffer:req', { ownerId, name });
     if (!name || name === null || !isLength(name, { min: 4, max: 65 })) {
       throw new Error('Invalid file name');
     }
@@ -326,7 +326,7 @@ module.exports = function(Files) {
   Files.download = async (ctx, ownerId, name) => {
     // let auth = false;
     ctx.res.set('Access-Control-Allow-Origin', '*');
-    logger.publish(3, `${collectionName}`, 'download:req', { ownerId, name });
+    logger.publish(4, `${collectionName}`, 'download:req', { ownerId, name });
     const readStream = Files.app.models.container.downloadStream(ownerId, name);
     if (readStream && readStream !== null) {
       const endStream = new Promise((resolve, reject) => {
@@ -384,7 +384,7 @@ module.exports = function(Files) {
     const resource = sensor.resources[resourceId];
     // const resource = await sensor.resources.findById(resourceId);
     const resourceType = typeof resource;
-    logger.publish(3, `${collectionName}`, 'compose:req', {
+    logger.publish(4, `${collectionName}`, 'compose:req', {
       resourceType,
       resourceId,
     });
@@ -400,7 +400,7 @@ module.exports = function(Files) {
     } else if (Buffer.isBuffer(resource)) {
       buffer = resource;
     }
-    // logger.publish(3, `${collectionName}`, 'compose:res', buffer);
+    logger.publish(3, `${collectionName}`, 'compose:res', buffer);
     return buffer;
   };
 

@@ -379,7 +379,7 @@ module.exports = function(Device) {
         }
       }
     } catch (error) {
-      logger.publish(4, `${collectionName}`, 'search:res', 'no address found');
+      logger.publish(2, `${collectionName}`, 'search:err', error);
     }
     if (filter.limit && typeof filter.limit === 'number' && result.length > filter.limit) {
       result.splice(filter.limit, result.length - 1);
