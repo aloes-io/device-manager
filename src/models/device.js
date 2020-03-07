@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import iotAgent from 'iot-agent';
 import isAlphanumeric from 'validator/lib/isAlphanumeric';

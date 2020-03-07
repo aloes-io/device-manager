@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable import/no-extraneous-dependencies */
 import { expect } from 'chai';
@@ -13,6 +13,9 @@ const afterTestDelay = 3000;
 const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
+// todo test createOrUpdate unauthorized access
+// test createOrUpdate pause / restart event
+// test createOrUpdate mode === 1 || 2 || 3 (should trigger error)
 const schedulerTest = () => {
   const deviceFactory = testHelper.factories.device;
   const sensorFactory = testHelper.factories.sensor;

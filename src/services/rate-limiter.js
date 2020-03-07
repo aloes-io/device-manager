@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable global-require */
 /* eslint-disable import/no-mutable-exports */
@@ -9,6 +9,7 @@ import envVariablesKeys from '../initial-data/variables-keys.json';
 
 require('dotenv').config();
 
+// todo use loopback datasource files
 /**
  * @module rateLimiter
  */
@@ -120,10 +121,12 @@ rateLimiter.getAuthLimiter = async (ip, username) => {
   let limiter = null;
   let limiterType = null;
   try {
-    if (!rateLimiter.ipLimiter || !rateLimiter.userIpLimiter) {
-      throw new Error('Rate limiter not ready');
+    // if (!rateLimiter.ipLimiter || !rateLimiter.userIpLimiter) {
+    //   throw new Error('Rate limiter not ready');
+    // }
+    if (!username || !ip) {
+      throw new Error('MISSING_IP_OR_USERNAME');
     }
-    if (!username || !ip) throw new Error('INVALID_INPUTS');
     usernameIPkey = getUsernameIPkey(username, ip);
     const [resUsernameAndIP, resSlowByIP] = await Promise.all([
       rateLimiter.userIpLimiter.get(usernameIPkey),
@@ -163,35 +166,24 @@ rateLimiter.getAuthLimiter = async (ip, username) => {
 // Consume 1 point from limiters on wrong attempt and block if limits are reached
 // Count failed attempts by Username + IP only for registered users
 rateLimiter.setAuthLimiter = async (ip, username) => {
-  try {
-    const promises = [rateLimiter.ipLimiter.consume(ip)];
-    if (username) {
-      const usernameIPkey = getUsernameIPkey(username, ip);
-      promises.push(rateLimiter.userIpLimiter.consume(usernameIPkey));
-    }
-    return Promise.all(promises);
-  } catch (error) {
-    // if (!(error instanceof Error)) {
-    //   error.limit =
-    // }
-    throw error;
+  const promises = [rateLimiter.ipLimiter.consume(ip)];
+  if (username) {
+    const usernameIPkey = getUsernameIPkey(username, ip);
+    promises.push(rateLimiter.userIpLimiter.consume(usernameIPkey));
   }
+  return Promise.all(promises);
 };
 
 // Reset on successful authorisation
 rateLimiter.cleanAuthLimiter = async (ip, username) => {
-  try {
-    // clean IPLimiter too ?
-    if (username) {
-      // if (limiterType === 'userIpLimit' && limiter.consumedPoints > 0) {
-      const usernameIPkey = getUsernameIPkey(username, ip);
-      await rateLimiter.userIpLimiter.delete(usernameIPkey);
-      // }
-    }
-    return true;
-  } catch (error) {
-    return false;
+  // clean IPLimiter too ?
+  if (username) {
+    // if (limiterType === 'userIpLimit' && limiter.consumedPoints > 0) {
+    const usernameIPkey = getUsernameIPkey(username, ip);
+    await rateLimiter.userIpLimiter.delete(usernameIPkey);
+    // }
   }
+  return true;
 };
 
 export default rateLimiter;

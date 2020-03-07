@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable no-param-reassign */
 import jugglerUtils from 'loopback-datasource-juggler/lib/utils';

@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable import/no-extraneous-dependencies */
 /* eslint-disable security/detect-object-injection  */
@@ -15,6 +15,10 @@ const delayBeforeTesting = 7000;
 const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
+// todo test invalid sensor properties : type, resource, transportProtocol, messageProtocol
+// test buffer upload with type 3349 - 5910
+// test single / batch update with resources property
+// test batch delete
 const sensorTest = () => {
   const deviceFactory = testHelper.factories.device;
   const sensorFactory = testHelper.factories.sensor;
@@ -591,6 +595,7 @@ const sensorTest = () => {
 
       await clientEvent(client, 'connect');
       client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
+      // also publish !packets[index].payload
 
       await timeout(async () => {
         const sensor = await SensorModel.findById(sensors[index].id);

@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import aedes from 'aedes';
 import nodeCleanup from 'node-cleanup';
@@ -79,7 +79,9 @@ const authorizePublish = (client, packet, cb) => {
  * @returns {function} cb - Aedes callback
  */
 const authorizeSubscribe = (client, packet, cb) => {
-  if (onAuthorizeSubscribe(client, packet)) return cb(null, packet);
+  if (onAuthorizeSubscribe(client, packet)) {
+    return cb(null, packet);
+  }
   return cb(new Error('authorizeSubscribe error'));
 };
 
@@ -132,18 +134,17 @@ const published = (packet, client, cb) => {
  * @returns {function} broker.instance.publish
  */
 broker.publish = packet => {
-  if (typeof packet.payload === 'boolean') {
-    packet.payload = packet.payload.toString();
-  } else if (typeof packet.payload === 'number') {
-    packet.payload = packet.payload.toString();
-  } else if (typeof packet.payload === 'string') {
-    packet.payload = Buffer.from(packet.payload);
-  } else if (typeof packet.payload === 'object') {
+  // if (typeof packet.payload === 'boolean') {
+  //   packet.payload = packet.payload.toString();
+  // } else if (typeof packet.payload === 'number') {
+  //   packet.payload = packet.payload.toString();
+  // } else if (typeof packet.payload === 'string') {
+  //   packet.payload = Buffer.from(packet.payload);
+  // } else
+  if (typeof packet.payload === 'object' && !Buffer.isBuffer(packet.payload)) {
     // console.log('publish buffer ?', !Buffer.isBuffer(packet.payload));
-    if (!Buffer.isBuffer(packet.payload)) {
-      //  packet.payload = JSON.stringify(packet.payload);
-      packet.payload = Buffer.from(packet.payload);
-    }
+    //  packet.payload = JSON.stringify(packet.payload);
+    packet.payload = Buffer.from(packet.payload);
   }
   // logger.publish(2, 'broker', 'publish:res', { topic:
   // `${pubsubVersion}/${packet.topic}` });
@@ -157,90 +158,78 @@ broker.publish = packet => {
  * @returns {boolean} status
  */
 broker.start = () => {
-  try {
-    if (process.env.MQTTS_BROKER_URL) {
-      logger.publish(2, 'broker', 'start', `${process.env.MQTTS_BROKER_URL}`);
-    } else {
-      logger.publish(2, 'broker', 'start', `${process.env.MQTT_BROKER_URL}`);
-    }
+  logger.publish(
+    2,
+    'broker',
+    'start',
+    `${process.env.MQTTS_BROKER_URL || process.env.MQTT_BROKER_URL}`,
+  );
 
-    /**
-     * On client connected to Aedes broker
-     * @event client
-     * @param {object} client - MQTT client
-     * @returns {function} Broker~delayedUpdateClientStatus
-     */
-    broker.instance.on('client', async client => {
-      try {
-        logger.publish(3, 'broker', 'onClientConnect', client.id);
-        // await delayedUpdateClientStatus(client, true);
-        await updateClientStatus(broker, client, true);
-      } catch (error) {
-        logger.publish(2, 'broker', 'onClientConnect:err', error);
-      }
-    });
+  /**
+   * On client connected to Aedes broker
+   * @event client
+   * @param {object} client - MQTT client
+   * @returns {function} Broker~delayedUpdateClientStatus
+   */
+  broker.instance.on('client', async client => {
+    logger.publish(3, 'broker', 'onClientConnect', client.id);
+    // await delayedUpdateClientStatus(client, true);
+    await updateClientStatus(broker, client, true);
+  });
 
-    /**
-     * On client disconnected from Aedes broker
-     * @event clientDisconnect
-     * @param {object} client - MQTT client
-     * @returns {function} Broker~delayedUpdateClientStatus
-     */
-    broker.instance.on('clientDisconnect', async client => {
-      try {
-        logger.publish(3, 'broker', 'onClientDisconnect', client.id);
-        // await delayedUpdateClientStatus(client, false);
-        await updateClientStatus(broker, client, false);
-      } catch (error) {
-        logger.publish(2, 'broker', 'onClientDisconnect:err', error);
-      }
-    });
+  /**
+   * On client disconnected from Aedes broker
+   * @event clientDisconnect
+   * @param {object} client - MQTT client
+   * @returns {function} Broker~delayedUpdateClientStatus
+   */
+  broker.instance.on('clientDisconnect', async client => {
+    logger.publish(3, 'broker', 'onClientDisconnect', client.id);
+    // await delayedUpdateClientStatus(client, false);
+    await updateClientStatus(broker, client, false);
+  });
 
-    /**
-     * When client keep alive timeout
-     * @event keepaliveTimeout
-     * @param {object} client - MQTT client
-     */
-    broker.instance.on('keepaliveTimeout', client => {
-      logger.publish(3, 'broker', 'onKeepaliveTimeout', client.id);
-    });
+  /**
+   * When client keep alive timeout
+   * @event keepaliveTimeout
+   * @param {object} client - MQTT client
+   */
+  broker.instance.on('keepaliveTimeout', client => {
+    logger.publish(3, 'broker', 'onKeepaliveTimeout', client.id);
+  });
 
-    /**
-     * When client action creates an error
-     * @event clientError
-     * @param {object} client - MQTT client
-     * @param {object} err - MQTT Error
-     */
-    broker.instance.on('clientError', (client, err) => {
-      logger.publish(3, 'broker', 'onClientError', { clientId: client.id, error: err.message });
-    });
+  /**
+   * When client action creates an error
+   * @event clientError
+   * @param {object} client - MQTT client
+   * @param {object} err - MQTT Error
+   */
+  broker.instance.on('clientError', (client, err) => {
+    logger.publish(3, 'broker', 'onClientError', { clientId: client.id, error: err.message });
+  });
 
-    /**
-     * When client contains no Id
-     * @event clientError
-     * @param {object} client - MQTT client
-     * @param {object} err - MQTT Error
-     */
-    broker.instance.on('connectionError', (client, err) => {
-      logger.publish(3, 'broker', 'onConnectionError', { clientId: client.id, error: err.message });
-      // client.close();
-    });
+  /**
+   * When client contains no Id
+   * @event clientError
+   * @param {object} client - MQTT client
+   * @param {object} err - MQTT Error
+   */
+  broker.instance.on('connectionError', (client, err) => {
+    logger.publish(3, 'broker', 'onConnectionError', { clientId: client.id, error: err.message });
+    // client.close();
+  });
 
-    /**
-     * When a packet with qos=1|2 is delivered successfully
-     * @event ack
-     * @param {object} packet - MQTT original packet
-     * @param {object} client - MQTT client
-     */
-    // broker.instance.on("ack", (packet, client) => {
-    //   console.log("Delivered", packet, client.id);
-    // });
+  /**
+   * When a packet with qos=1|2 is delivered successfully
+   * @event ack
+   * @param {object} packet - MQTT original packet
+   * @param {object} client - MQTT client
+   */
+  // broker.instance.on("ack", (packet, client) => {
+  //   console.log("Delivered", packet, client.id);
+  // });
 
-    return true;
-  } catch (error) {
-    logger.publish(2, 'broker', 'start:err', error);
-    return false;
-  }
+  return true;
 };
 
 /**
@@ -249,25 +238,22 @@ broker.start = () => {
  * @returns {boolean}
  */
 broker.stop = async () => {
-  try {
-    // const aloesTopicPrefix = `aloes-${process.env.ALOES_ID}`;
-    // const packet = {
-    //   topic: `${aloesTopicPrefix}/stop`,
-    //   payload: Buffer.from(JSON.stringify({ status: false })),
-    //   retain: false,
-    //   qos: 0,
-    // };
-    // broker.publish(packet);
-    logger.publish(2, 'broker', 'stopping', {
-      url: `${process.env.MQTT_BROKER_URL}`,
-      brokers: broker.instance && broker.instance.brokers,
-    });
-    if (broker.instance) await broker.instance.close();
-    return true;
-  } catch (error) {
-    logger.publish(2, 'broker', 'stop:err', error);
-    return false;
+  // const aloesTopicPrefix = `aloes-${process.env.ALOES_ID}`;
+  // const packet = {
+  //   topic: `${aloesTopicPrefix}/stop`,
+  //   payload: Buffer.from(JSON.stringify({ status: false })),
+  //   retain: false,
+  //   qos: 0,
+  // };
+  // broker.publish(packet);
+  logger.publish(2, 'broker', 'stopping', {
+    url: `${process.env.MQTT_BROKER_URL}`,
+    brokers: broker.instance && broker.instance.brokers,
+  });
+  if (broker.instance) {
+    await broker.instance.close();
   }
+  return true;
 };
 
 /**
@@ -276,78 +262,74 @@ broker.stop = async () => {
  * @returns {function} broker.start
  */
 broker.init = () => {
-  try {
-    const config = {};
+  const config = {};
 
-    envVariablesKeys.forEach(key => {
-      // eslint-disable-next-line security/detect-object-injection
-      config[key] = process.env[key];
-    });
+  envVariablesKeys.forEach(key => {
+    // eslint-disable-next-line security/detect-object-injection
+    config[key] = process.env[key];
+  });
 
-    broker.config = {
-      ...config,
-      interfaces: {
-        mqtt: { port: Number(config.MQTT_BROKER_PORT) },
-        ws: { port: Number(config.WS_BROKER_PORT) },
+  broker.config = {
+    ...config,
+    interfaces: {
+      mqtt: { port: Number(config.MQTT_BROKER_PORT) },
+      ws: { port: Number(config.WS_BROKER_PORT) },
+    },
+  };
+
+  if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
+    // eslint-disable-next-line global-require
+    const Redis = require('ioredis');
+    broker.redis = new Redis({
+      host: config.REDIS_HOST,
+      port: Number(config.REDIS_PORT),
+      db: config.REDIS_MQTT_PERSISTENCE,
+      password: config.REDIS_PASS,
+      lazyConnect: true,
+      retryStrategy(times) {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
       },
-    };
-
-    if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
-      // eslint-disable-next-line global-require
-      const Redis = require('ioredis');
-      broker.redis = new Redis({
-        host: config.REDIS_HOST,
-        port: Number(config.REDIS_PORT),
-        db: config.REDIS_MQTT_PERSISTENCE,
-        password: config.REDIS_PASS,
-        lazyConnect: true,
-        retryStrategy(times) {
-          const delay = Math.min(times * 50, 2000);
-          return delay;
-        },
-      });
-    }
-
-    const aedesConf = {
-      mq: emitter(config),
-      persistence: persistence(config),
-      concurrency: 100,
-      heartbeatInterval: 30000, // default : 60000
-      connectTimeout: 2000, // prod : 2000;
-      decodeProtocol,
-      preConnect,
-      authenticate,
-      published,
-      authorizePublish,
-      authorizeSubscribe,
-      trustProxy: true,
-      trustedProxies: [],
-    };
-
-    broker.instance = new aedes.Server(aedesConf);
-
-    const { tcpServer, wsServer } = initServers(broker.config.interfaces, broker.instance);
-
-    broker.instance.once('closed', () => {
-      tcpServer.close();
-      wsServer.close();
-      if (
-        broker.instance.brokers &&
-        Object.keys(broker.instance.brokers).length === 0 &&
-        broker.redis
-      ) {
-        broker.redis.flushdb();
-      }
-      logger.publish(2, 'broker', 'stopped', `${process.env.MQTT_BROKER_URL}`);
     });
-
-    return broker.start();
-  } catch (error) {
-    logger.publish(2, 'broker', 'init:err', error);
-    return false;
   }
+
+  const aedesConf = {
+    mq: emitter(config),
+    persistence: persistence(config),
+    concurrency: 100,
+    heartbeatInterval: 30000, // default : 60000
+    connectTimeout: 2000, // prod : 2000;
+    decodeProtocol,
+    preConnect,
+    authenticate,
+    published,
+    authorizePublish,
+    authorizeSubscribe,
+    trustProxy: true,
+    trustedProxies: [],
+  };
+
+  broker.instance = new aedes.Server(aedesConf);
+
+  const { tcpServer, wsServer } = initServers(broker.config.interfaces, broker.instance);
+
+  broker.instance.once('closed', () => {
+    tcpServer.close();
+    wsServer.close();
+    if (
+      broker.instance.brokers &&
+      Object.keys(broker.instance.brokers).length === 0 &&
+      broker.redis
+    ) {
+      broker.redis.flushdb();
+    }
+    logger.publish(2, 'broker', 'stopped', `${process.env.MQTT_BROKER_URL}`);
+  });
+
+  return broker.start();
 };
 
+// todo create init emitter and more process communication in a lib
 if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
   logger.publish(1, 'broker', 'init:single', { pid: process.pid });
   setTimeout(() => broker.init(), 1500);
@@ -357,7 +339,7 @@ if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
     // console.log('PROCESS PACKET ', packet);
     if (typeof packet.id === 'number' && packet.data && packet.data.ready) {
       // broker.init();
-      setTimeout(() => broker.init(true), 1000);
+      setTimeout(() => broker.init(), 1000);
       process.send({
         type: 'process:msg',
         data: {

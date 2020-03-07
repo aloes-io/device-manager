@@ -3,6 +3,7 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-restricted-syntax */
 import logger from '../services/logger';
+import utils from '../services/utils';
 
 const collectionName = 'SensorResource';
 
@@ -19,6 +20,38 @@ const setCacheKey = (deviceId, sensorId, resourceId) => {
  */
 
 module.exports = function(SensorResource) {
+  /**
+   * Get SensorResource instances stored in cache
+   * @method module:SensorResource.deleteAll
+   * @param {object} [filter] - Key filter
+   * @returns {object[]} resources - Cached sensorResources
+   */
+  SensorResource.getAll = async filter => {
+    const resources = [];
+    logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
+    for await (const key of utils.cacheIterator(SensorResource, filter)) {
+      const resource = JSON.parse(await SensorResource.get(key));
+      resources.push(resource);
+    }
+    return resources;
+  };
+
+  /**
+   * Delete SensorResource instance(s) stored in cache
+   * @method module:SensorResource.deleteAll
+   * @param {object} [filter] - Key filter
+   * @returns {string[]} resources - Cached SensorResource keys
+   */
+  SensorResource.deleteAll = async filter => {
+    const resources = [];
+    logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
+    for await (const key of utils.cacheIterator(SensorResource, filter)) {
+      await SensorResource.delete(key);
+      resources.push(key);
+    }
+    return resources;
+  };
+
   /**
    * Find Sensor instance from the cache
    * @method module:SensorResource.find
@@ -142,67 +175,6 @@ module.exports = function(SensorResource) {
     return true;
   };
 
-  /**
-   * Async generator sending cache key
-   * @method module:SensorResource.cacheIterator
-   * @param {object} [filter] - Key filter
-   * @property {string} filter.match - glob string
-   * @returns {string} key - Cached key
-   */
-  SensorResource.cacheIterator = async function*(filter) {
-    const iterator = SensorResource.iterateKeys(filter);
-    let empty = false;
-    while (!empty) {
-      // eslint-disable-next-line no-await-in-loop
-      const key = await iterator.next();
-      if (!key) {
-        empty = true;
-        return;
-      }
-      yield key;
-    }
-  };
-
-  /**
-   * Get SensorResource instances stored in cache
-   * @method module:SensorResource.deleteAll
-   * @param {object} [filter] - Key filter
-   * @returns {object[]} resources - Cached sensorResources
-   */
-  SensorResource.getAll = async filter => {
-    const resources = [];
-    logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
-    for await (const key of SensorResource.cacheIterator(filter)) {
-      try {
-        if (key && key !== null) {
-          const resource = JSON.parse(await SensorResource.get(key));
-          resources.push(resource);
-        }
-      } catch (e) {
-        // empty
-      }
-    }
-    return resources;
-  };
-
-  /**
-   * Delete SensorResource instance(s) stored in cache
-   * @method module:SensorResource.deleteAll
-   * @param {object} [filter] - Key filter
-   * @returns {string[]} resources - Cached SensorResource keys
-   */
-  SensorResource.deleteAll = async filter => {
-    const resources = [];
-    logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
-    for await (const key of SensorResource.cacheIterator(filter)) {
-      if (key && key !== null) {
-        await SensorResource.delete(key);
-        resources.push(key);
-      }
-    }
-    return resources;
-  };
-
   // /**
   //  * Find resources in the cache and add to sensor instance
   //  * @method module:SensorResource.includeCache
@@ -266,6 +238,17 @@ module.exports = function(SensorResource) {
    */
 
   /**
+   * Delete SensorResource by key
+   *
+   * Use callback or promise
+   *
+   * @method module:SensorResource.delete
+   * @param {string} key
+   * @param {ErrorCallback} [cb] - Optional callback
+   * @promise undefined
+   */
+
+  /**
    * Set the TTL (time to live) in ms (milliseconds) for a given key
    *
    * Use callback or promise
@@ -302,6 +285,7 @@ module.exports = function(SensorResource) {
 
   SensorResource.disableRemoteMethodByName('get');
   SensorResource.disableRemoteMethodByName('set');
+  SensorResource.disableRemoteMethodByName('delete');
   SensorResource.disableRemoteMethodByName('keys');
   SensorResource.disableRemoteMethodByName('iterateKeys');
   SensorResource.disableRemoteMethodByName('ttl');

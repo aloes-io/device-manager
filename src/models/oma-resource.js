@@ -1,3 +1,5 @@
+/* Copyright 2020 Edouard Maleix, read LICENSE */
+
 /**
  * Oma Resources References.
  * @external OmaResources

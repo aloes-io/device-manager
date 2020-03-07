@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import logger from './logger';
 
@@ -19,24 +19,19 @@ roleManager.getAppRoles = () => Object.values(appRolesById);
  * @return {array} roles
  */
 roleManager.setAppRoles = async (app, roles) => {
-  try {
-    logger.publish(4, 'loopback', 'Initialize roles:req', roles);
-    const promises = roles.map(async roleName => {
-      const obj = { name: roleName };
-      const role = await app.models.Role.findOrCreate({ where: obj }, obj);
-      return role[0];
-    });
-    const savedRoles = await Promise.all(promises);
-    // cache role name for quick mapping
-    savedRoles.forEach(role => {
-      appRolesById[role.id] = role.name;
-    });
-    logger.publish(5, 'loopback', 'Initialize roles:res', savedRoles);
-    return savedRoles;
-  } catch (error) {
-    logger.publish(2, 'loopback', 'Initialize roles:err', error);
-    return null;
-  }
+  logger.publish(4, 'loopback', 'Initialize roles:req', roles);
+  const promises = roles.map(async roleName => {
+    const obj = { name: roleName };
+    const role = await app.models.Role.findOrCreate({ where: obj }, obj);
+    return role[0];
+  });
+  const savedRoles = await Promise.all(promises);
+  // cache role name for quick mapping
+  savedRoles.forEach(role => {
+    appRolesById[role.id] = role.name;
+  });
+  logger.publish(3, 'loopback', 'Initialize roles:res', savedRoles);
+  return savedRoles;
 };
 
 /**
@@ -84,39 +79,34 @@ roleManager.getUserRoleNames = async (app, userId) => {
  * @return {Promise}
  */
 roleManager.setUserRole = async (app, userId, roleName, reset = false) => {
-  try {
-    if (reset) {
-      logger.publish(4, 'loopback', `Removing previous role ${roleName} for user `, userId);
-      const roles = await roleManager.getUserRoleNames(app, userId);
-      // console.log('Get User roles', roles);
-      // the user has same role
-      if (roles.includes(roleName)) {
-        return;
-      }
-      const appRoles = await roleManager.getAppRoles();
-      const roleToRevoke = roles.find(role => appRoles.includes(role));
-      const setRoleNoReset = async () => roleManager.setUserRole(app, userId, roleName);
-      if (!roleToRevoke) {
-        await setRoleNoReset();
-        return;
-      }
-      await roleManager.removeUserRole(app, userId, roleToRevoke);
+  if (reset) {
+    logger.publish(4, 'loopback', `Removing previous role ${roleName} for user `, userId);
+    const roles = await roleManager.getUserRoleNames(app, userId);
+    // console.log('Get User roles', roles);
+    // the user has same role
+    if (roles.includes(roleName)) {
+      return;
+    }
+    const appRoles = await roleManager.getAppRoles();
+    const roleToRevoke = roles.find(role => appRoles.includes(role));
+    const setRoleNoReset = async () => roleManager.setUserRole(app, userId, roleName);
+    if (!roleToRevoke) {
       await setRoleNoReset();
       return;
     }
+    await roleManager.removeUserRole(app, userId, roleToRevoke);
+    await setRoleNoReset();
+    return;
+  }
 
-    logger.publish(4, 'loopback', `Setting role ${roleName} for user `, userId);
-    const role = await app.models.Role.findOne({ where: { name: roleName } });
-    if (role && role !== null) {
-      await role.principals.create({
-        principalType: app.models.RoleMapping.USER,
-        principalId: userId,
-      });
-      logger.publish(3, 'loopback', `setUserRole:res`, { roleName, userId });
-    }
-  } catch (error) {
-    logger.publish(2, 'loopback', `setUserRole:err`, error);
-    throw error;
+  logger.publish(4, 'loopback', `Setting role ${roleName} for user `, userId);
+  const role = await app.models.Role.findOne({ where: { name: roleName } });
+  if (role && role !== null) {
+    await role.principals.create({
+      principalType: app.models.RoleMapping.USER,
+      principalId: userId,
+    });
+    logger.publish(3, 'loopback', `setUserRole:res`, { roleName, userId });
   }
 };
 

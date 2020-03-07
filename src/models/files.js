@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import fileType from 'file-type';
 import stream from 'stream';
@@ -161,9 +161,6 @@ const onBeforeRemote = async ctx => {
     ctx.method.name === 'download'
   ) {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.ownerId);
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!isAdmin) {

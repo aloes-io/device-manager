@@ -4,24 +4,18 @@ import logger from '../services/logger';
 import utils from '../services/utils';
 
 module.exports = async function(server) {
-  try {
-    if (!utils.isMasterProcess(process.env)) return;
-    const User = server.models.user;
-    const Files = server.models.Files;
-    const Storage = server.datasources.storage.settings.root;
+  if (!utils.isMasterProcess(process.env)) return;
+  const User = server.models.user;
+  const Files = server.models.Files;
+  const Storage = server.datasources.storage.settings.root;
 
-    const accounts = await User.find();
-    //  const applications = await Application.find();
-    if (accounts.length < 1) {
-      return;
-    }
-    await utils.mkDirByPathSync(`${Storage}`).catch(err => {
-      if (err.code === 'EEXIST') {
-        logger.publish(2, 'loopback', 'boot:initStorages:err', err.code);
-        return true;
-      }
-      return false;
-    });
+  const accounts = await User.find();
+  //  const applications = await Application.find();
+  if (accounts.length < 1) {
+    return;
+  }
+  try {
+    await utils.mkDirByPathSync(`${Storage}`);
 
     const accountsContainers = await Promise.all(
       accounts.map(async account => Files.createContainer(account.id)),

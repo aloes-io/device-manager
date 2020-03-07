@@ -487,9 +487,6 @@ export const onBeforeDelete = async ctx => {
 export const onBeforeRemote = async (app, ctx) => {
   if (ctx.method.name.indexOf('find') !== -1 || ctx.method.name.indexOf('get') !== -1) {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     const isAdmin = options.currentUser.roles.includes('admin');
     const ownerId = utils.getOwnerId(options);
     if (ctx.req.query && ctx.req.query.filter && !isAdmin) {
@@ -501,9 +498,6 @@ export const onBeforeRemote = async (app, ctx) => {
     }
   } else if (ctx.method.name === 'search' || ctx.method.name === 'geoLocate') {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!isAdmin) {
       if (!ctx.args.filter) ctx.args.filter = {};

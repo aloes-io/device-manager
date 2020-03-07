@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import flash from 'express-flash';
 import fallback from 'express-history-api-fallback';
@@ -102,10 +102,8 @@ const authenticateInstance = async (client, username, password) => {
         foundClient.appId = instance.id.toString();
         foundClient.user = username;
         foundClient.model = 'Application';
+        foundClient.appEui = instance.appEui || null;
         status = 0;
-        if (instance.appEui && instance.appEui !== null) {
-          foundClient.appEui = instance.appEui;
-        }
       }
     }
 
@@ -141,8 +139,6 @@ const bootApp = (loopbackApp, options) =>
     boot(loopbackApp, options, err => (err ? reject(err) : resolve(true)));
   });
 
-app.isStarted = () => app.bootState;
-
 /**
  * Init HTTP server with new Loopback instance
  *
@@ -152,106 +148,97 @@ app.isStarted = () => app.bootState;
  * @fires Server.started
  * @returns {boolean}
  */
-app.start = async config => {
-  try {
-    app.set('url', config.HTTP_SERVER_URL);
-    app.set('host', config.HTTP_SERVER_HOST);
-    app.set('port', Number(config.HTTP_SERVER_PORT));
-    //  app.set('cookieSecret', config.COOKIE_SECRET);
+app.start = config => {
+  app.set('url', config.HTTP_SERVER_URL);
+  app.set('host', config.HTTP_SERVER_HOST);
+  app.set('port', Number(config.HTTP_SERVER_PORT));
+  //  app.set('cookieSecret', config.COOKIE_SECRET);
 
-    if (config.MQTTS_BROKER_URL && config.MQTTS_BROKER_URL.length > 1) {
-      app.set('mqtt url', config.MQTTS_BROKER_URL);
-      app.set('mqtt port', Number(config.MQTTS_BROKER_PORT));
-    } else {
-      app.set('mqtt url', config.MQTT_BROKER_URL);
-      app.set('mqtt port', Number(config.MQTT_BROKER_PORT));
+  // if (config.MQTTS_BROKER_URL && config.MQTTS_BROKER_URL.length > 1) {
+  //   app.set('mqtt url', config.MQTTS_BROKER_URL);
+  //   app.set('mqtt port', Number(config.MQTTS_BROKER_PORT));
+  // } else {
+  //   app.set('mqtt url', config.MQTT_BROKER_URL);
+  //   app.set('mqtt port', Number(config.MQTT_BROKER_PORT));
+  // }
+  app.set('mqtt url', config.MQTTS_BROKER_URL || config.MQTT_BROKER_URL);
+  app.set('mqtt port', Number(config.MQTTS_BROKER_PORT || config.MQTT_BROKER_PORT));
+
+  app.set('view engine', 'ejs');
+  app.set('json spaces', 2); // format json responses for easier viewing
+  app.set('views', path.join(__dirname, 'views'));
+
+  // specify multiple subnets as an array
+  // app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
+  app.set('trust proxy', ip => {
+    if (config.HTTP_TRUST_PROXY && config.HTTP_TRUST_PROXY === 'true') {
+      logger.publish(2, 'loopback', 'proxy:req', { ip });
+      // if (ip === '127.0.0.1' || ip === '123.123.123.123') return true;
+      // todo : set trusted IPs
+      return true;
     }
+    return false;
+  });
 
-    app.set('view engine', 'ejs');
-    app.set('json spaces', 2); // format json responses for easier viewing
-    app.set('views', path.join(__dirname, 'views'));
+  app.use(flash());
 
-    // specify multiple subnets as an array
-    // app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
-    app.set('trust proxy', ip => {
-      if (config.HTTP_TRUST_PROXY && config.HTTP_TRUST_PROXY === 'true') {
-        logger.publish(2, 'loopback', 'proxy:req', { ip });
-        // if (ip === '127.0.0.1' || ip === '123.123.123.123') return true;
-        // todo : set trusted IPs
-        return true;
-      }
-      return false;
+  const clientPath = path.resolve(__dirname, '/../client');
+  const apiPath = config.REST_API_ROOT;
+  // const apiPath = `${config.REST_API_ROOT}${config.REST_API_VERSION}`;
+  app.use(
+    unless(
+      [apiPath, '/auth', '/link', '/explorer', '/components'],
+      fallback('index.html', { root: clientPath }),
+    ),
+  );
+
+  logger.publish(2, 'loopback', 'start', `${app.get('url')}`);
+
+  httpServer = app.listen(() => {
+    // EXTERNAL AUTH
+    //  app.get('/auth/account', ensureLoggedIn('/login'), (req, res, next) => {
+    // app.get('/auth/account', (req, res, next) => {
+    //   console.log('auth/account', req.url);
+    //   res.set('Access-Control-Allow-Origin', '*');
+    //   res.end();
+    //   // get origin
+    //   // compose user + access token res
+    //   //  console.log("user", req.user)
+    //   // how to redirect ?
+    //   //  res.redirect(`${process.env.HTTP_CLIENT_URL}`);
+    //   //  res.redirect(`${process.env.HTTP_CLIENT_URL}/account?userId=${res.id}?token=${}`);
+    //   //  res.json()
+    //   next();
+    // });
+
+    // app.get('/login', (req, res, next) => {
+    //   console.log('login', req.url);
+    //   res.redirect(`${config.HTTP_CLIENT_URL}/login`);
+    //   next();
+    // });
+
+    // app.get(`${apiPath}/auth/logout`, (req, res, next) => {
+    //   console.log('auth/logout', req.url);
+    //   req.logout();
+    //   res.set('Access-Control-Allow-Origin', '*');
+    //   res.end();
+    //   next();
+    // });
+
+    app.post(`${apiPath}/auth/mqtt`, async (req, res) => {
+      // console.log('auth/mqtt', req.url, req.body);
+      const client = req.body.client;
+      const username = req.body.username;
+      const password = req.body.password;
+      const result = await authenticateInstance(client, username, password);
+      res.set('Access-Control-Allow-Origin', '*');
+      return res.json(result);
     });
 
-    app.use(flash());
+    app.emit('started', config);
+  });
 
-    const clientPath = path.resolve(__dirname, '/../client');
-    const apiPath = config.REST_API_ROOT;
-    // const apiPath = `${config.REST_API_ROOT}${config.REST_API_VERSION}`;
-    app.use(
-      unless(
-        [apiPath, '/auth', '/link', '/explorer', '/components'],
-        fallback('index.html', { root: clientPath }),
-      ),
-    );
-
-    logger.publish(2, 'loopback', 'start', `${app.get('url')}`);
-
-    httpServer = app.listen(() => {
-      // EXTERNAL AUTH
-      //  app.get('/auth/account', ensureLoggedIn('/login'), (req, res, next) =>
-      //  {
-      app.get('/auth/account', (req, res, next) => {
-        console.log('auth/account', req.url);
-        res.set('Access-Control-Allow-Origin', '*');
-        res.end();
-        // get origin
-        // compose user + access token res
-        //  console.log("user", req.user)
-        // how to redirect ?
-        //  res.redirect(`${process.env.HTTP_CLIENT_URL}`);
-        //  res.redirect(`${process.env.HTTP_CLIENT_URL}/account?userId=${res.id}?token=${}`);
-        //  res.json()
-        next();
-      });
-
-      app.get('/login', (req, res, next) => {
-        console.log('login', req.url);
-        res.redirect(`${config.HTTP_CLIENT_URL}/login`);
-        next();
-      });
-
-      app.get(`${apiPath}/auth/logout`, (req, res, next) => {
-        console.log('auth/logout', req.url);
-        req.logout();
-        res.set('Access-Control-Allow-Origin', '*');
-        res.end();
-        next();
-      });
-
-      app.post(`${apiPath}/auth/mqtt`, async (req, res) => {
-        try {
-          // console.log('auth/mqtt', req.url, req.body);
-          const client = req.body.client;
-          const username = req.body.username;
-          const password = req.body.password;
-          const result = await authenticateInstance(client, username, password);
-          res.set('Access-Control-Allow-Origin', '*');
-          return res.json(result);
-        } catch (error) {
-          throw error;
-        }
-      });
-
-      app.emit('started', true, config);
-    });
-
-    return true;
-  } catch (error) {
-    logger.publish(2, 'loopback', 'start:err', error);
-    app.emit('started', false);
-    return null;
-  }
+  return true;
 };
 
 /**
@@ -260,21 +247,16 @@ app.start = async config => {
  * @param {object} config - Parsed env variables
  */
 app.init = async config => {
-  try {
-    logger.publish(2, 'loopback', 'init', `${config.NODE_NAME} / ${config.NODE_ENV}`);
-    await bootApp(app, {
-      appRootDir: config.appRootDir,
-      scriptExtensions: config.scriptExtensions,
-    });
-    // if (require.main === module) {
-    //   return app.start(config);
-    // }
-    // app.version = config.version;
-    return app.start(config);
-  } catch (error) {
-    logger.publish(2, 'loopback', 'init:err', error);
-    return null;
-  }
+  logger.publish(2, 'loopback', 'init', `${config.NODE_NAME} / ${config.NODE_ENV}`);
+  await bootApp(app, {
+    appRootDir: config.appRootDir,
+    scriptExtensions: config.scriptExtensions,
+  });
+  // if (require.main === module) {
+  //   return app.start(config);
+  // }
+  // app.version = config.version;
+  return app.start(config);
 };
 
 /**
@@ -288,44 +270,39 @@ app.on('start', app.init);
 /**
  * Event reporting that the application and all subservices have started.
  * @event started
- * @param {boolean} state - application state
  * @param {object} config - application config
- * @fires MQTTClient.start
+ * @fires MQTTClient.init
+ * @fires Device.started
  * @fires Scheduler.started
+ * @fires Sensor.started
  */
-app.on('started', (state, config) => {
-  app.bootState = state;
-  if (state) {
-    const baseUrl = app.get('url').replace(/\/$/, '');
-    logger.publish(4, 'loopback', 'Setup', `Browse ${process.env.NODE_NAME} API @: ${baseUrl}`);
-    if (app.get('loopback-component-explorer')) {
-      explorer(app, {
-        // basePath: '/custom-api-root',
-        uiDirs: [
-          // path.resolve(__dirname, 'public'),
-          path.resolve(__dirname, '../node_modules', 'swagger-ui'),
-        ],
-        apiInfo: {
-          title: 'Aloes API',
-          description: 'Explorer and tester for Aloes HTTP API',
-        },
-        // resourcePath: 'swagger.json',
-        // version: process.env.REST_API_VERSION,
-      });
-      const explorerPath = app.get('loopback-component-explorer').mountPath;
-      logger.publish(4, 'loopback', 'Setup', `Explore REST API @: ${baseUrl}${explorerPath}`);
-    }
-
-    MQTTClient.emit('init', app, config);
-    app.models.Scheduler.emit('started');
-    app.models.Device.emit('started');
-    app.models.Sensor.emit('started');
-    //  process.send('ready');
-  } else {
-    logger.publish(4, 'loopback', 'Setup', `Error, state invalid`);
-    //  app.emit('error');
-    //  process.send('error');
+app.on('started', config => {
+  app.bootState = true;
+  const baseUrl = app.get('url').replace(/\/$/, '');
+  logger.publish(4, 'loopback', 'Setup', `Browse ${process.env.NODE_NAME} API @: ${baseUrl}`);
+  if (app.get('loopback-component-explorer')) {
+    explorer(app, {
+      // basePath: '/custom-api-root',
+      uiDirs: [
+        // path.resolve(__dirname, 'public'),
+        path.resolve(__dirname, '../node_modules', 'swagger-ui'),
+      ],
+      apiInfo: {
+        title: 'Aloes API',
+        description: 'Explorer and tester for Aloes HTTP API',
+      },
+      // resourcePath: 'swagger.json',
+      // version: process.env.REST_API_VERSION,
+    });
+    const explorerPath = app.get('loopback-component-explorer').mountPath;
+    logger.publish(4, 'loopback', 'Setup', `Explore REST API @: ${baseUrl}${explorerPath}`);
   }
+
+  MQTTClient.emit('init', app, config);
+  app.models.Scheduler.emit('started');
+  app.models.Device.emit('started');
+  app.models.Sensor.emit('started');
+  //  process.send('ready');
 });
 
 /**
@@ -340,21 +317,18 @@ app.on('started', (state, config) => {
  * @returns {boolean}
  */
 app.stop = async signal => {
-  try {
-    logger.publish(2, 'loopback', 'stopping', signal);
-    MQTTClient.emit('stop');
-    app.models.Application.emit('stopped');
-    app.models.Device.emit('stopped');
-    app.models.Client.emit('stopped');
-    app.models.Scheduler.emit('stopped');
-    app.bootState = false;
-    if (httpServer) await httpServer.close();
-    logger.publish(2, 'loopback', 'stopped', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
-    return true;
-  } catch (error) {
-    logger.publish(2, 'loopback', 'stop:err', error);
-    return null;
+  logger.publish(2, 'loopback', 'stopping', signal);
+  MQTTClient.emit('stop');
+  app.models.Application.emit('stopped');
+  app.models.Device.emit('stopped');
+  app.models.Client.emit('stopped');
+  app.models.Scheduler.emit('stopped');
+  app.bootState = false;
+  if (httpServer) {
+    await httpServer.close();
   }
+  logger.publish(2, 'loopback', 'stopped', `${process.env.NODE_NAME}-${process.env.NODE_ENV}`);
+  return true;
 };
 
 /**

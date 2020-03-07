@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable import/no-extraneous-dependencies */
 import { expect } from 'chai';
@@ -12,6 +12,10 @@ const delayBeforeTesting = 7000;
 const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
+// todo test MQTT connection as a user
+// send contactForm, sendMailInvite
+// test rate limiter with x failed login attempts
+// test single user deletion
 const userTest = () => {
   const userFactory = testHelper.factories.user;
   const loginUrl = `${restApiPath}/Users/login`;

@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable no-restricted-syntax */
 import { publish } from 'iot-agent';
@@ -27,27 +27,8 @@ const schedulerClockId = `scheduler-clock`;
  * @property {String} [name] Scheduler name
  * @property {String} [model] Aloes model ( Application, Device, ... )
  */
-module.exports = function(Scheduler) {
-  /**
-   * Iterate over each Scheduler keys found in cache
-   * @method module:Scheduler.cacheIterator
-   * @param {object} [filter] - Scheduler filter
-   * @returns {string} key - Cached key
-   */
-  Scheduler.cacheIterator = async function*(filter) {
-    const iterator = Scheduler.iterateKeys(filter);
-    let empty = false;
-    while (!empty) {
-      // eslint-disable-next-line no-await-in-loop
-      const key = await iterator.next();
-      if (!key) {
-        empty = true;
-        return;
-      }
-      yield key;
-    }
-  };
 
+module.exports = function(Scheduler) {
   /**
    * Find schedulers in the cache and add to device instance
    * @method module:Scheduler.getAll
@@ -55,15 +36,11 @@ module.exports = function(Scheduler) {
    * @returns {array} schedulers - Cached schedulers
    */
   Scheduler.getAll = async filter => {
-    logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
     const schedulers = [];
-    for await (const key of Scheduler.cacheIterator(filter)) {
-      try {
-        const scheduler = JSON.parse(await Scheduler.get(key));
-        schedulers.push(scheduler);
-      } catch (e) {
-        // empty
-      }
+    logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
+    for await (const key of utils.cacheIterator(Scheduler, filter)) {
+      const scheduler = JSON.parse(await Scheduler.get(key));
+      schedulers.push(scheduler);
     }
     return schedulers;
   };
@@ -77,13 +54,9 @@ module.exports = function(Scheduler) {
   Scheduler.deleteAll = async filter => {
     const schedulers = [];
     logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
-    for await (const key of Scheduler.cacheIterator(filter)) {
-      try {
-        await Scheduler.delete(key);
-        schedulers.push(key);
-      } catch (e) {
-        // empty
-      }
+    for await (const key of utils.cacheIterator(Scheduler, filter)) {
+      await Scheduler.delete(key);
+      schedulers.push(key);
     }
     return schedulers;
   };
@@ -506,6 +479,17 @@ module.exports = function(Scheduler) {
    */
 
   /**
+   * Delete Scheduler by key
+   *
+   * Use callback or promise
+   *
+   * @method module:Scheduler.delete
+   * @param {string} key
+   * @param {ErrorCallback} [cb] - Optional callback
+   * @promise undefined
+   */
+
+  /**
    * Set the TTL (time to live) in ms (milliseconds) for a given key
    *
    * Use callback or promise
@@ -542,6 +526,7 @@ module.exports = function(Scheduler) {
 
   Scheduler.disableRemoteMethodByName('get');
   Scheduler.disableRemoteMethodByName('set');
+  Scheduler.disableRemoteMethodByName('delete');
   Scheduler.disableRemoteMethodByName('keys');
   Scheduler.disableRemoteMethodByName('iterateKeys');
   Scheduler.disableRemoteMethodByName('ttl');

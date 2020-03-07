@@ -1,7 +1,7 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import colors from 'colors';
-import mqttClient from './mqtt-client';
+// import mqttClient from './mqtt-client';
 
 colors.setTheme({
   USER: ['grey', 'underline'],
@@ -23,7 +23,7 @@ colors.setTheme({
 });
 
 const logger = {};
-const remoteLog = false;
+// const remoteLog = false;
 
 const formatLog = (collectionName, command, content) => {
   let fullContent;
@@ -103,12 +103,12 @@ logger.publish = (priority, collectionName, command, content) => {
     } else {
       sendFormatedLog(collectionName, command, fullContent);
     }
-    if (remoteLog && process.env.MQTT_BROKER_URL) {
-      const topic = `${collectionName}/${command}`;
-      if (mqttClient) {
-        mqttClient.publish(topic, content);
-      }
-    }
+    // if (remoteLog && process.env.MQTT_BROKER_URL) {
+    //   const topic = `${collectionName}/${command}`;
+    //   if (mqttClient) {
+    //     mqttClient.publish(topic, content);
+    //   }
+    // }
     return fullContent;
   } else if (priority > logLevel) {
     return null;

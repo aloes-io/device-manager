@@ -171,7 +171,7 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 ## TODOs
 
-- Add e2e tests for Client, Measurement models
+- Add e2e tests for Measurement models and processes interruption signal
 
 - Update MongoDB backup/retore helpers [via Nodejs ?](https://www.npmjs.com/package/mongodb-restore)
 

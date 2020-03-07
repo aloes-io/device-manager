@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable import/no-extraneous-dependencies */
 import { expect } from 'chai';
@@ -14,6 +14,13 @@ const delayBeforeTesting = 7000;
 const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
+// todo test MQTT connection as mysensors
+// test invalid device properties : type, transportProtocol, messageProtocol
+// test batch update
+// test batch delete
+// test to attach device to an application
+// test findByPattern & updateFirmware endpoints
+// test find with filter
 const deviceTest = () => {
   const deviceFactory = testHelper.factories.device;
   const clientFactory = testHelper.factories.client;

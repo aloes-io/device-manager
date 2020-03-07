@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import { appPatternDetector, publish } from 'iot-agent';
 import {
@@ -146,10 +146,11 @@ module.exports = Application => {
     if (packet.topic.split('/')[0] === '$SYS') return null;
     logger.publish(5, collectionName, 'detector:req', packet.topic);
     const filter = { where: {} };
-    if (client.appEui) {
-      filter.where.appEui = client.appEui;
-    } else if (client.appId) {
-      filter.where.appId = client.appId;
+    // if (client.appEui) {
+    //   filter.where.appEui = client.appEui;
+    // } else
+    if (client.appId) {
+      filter.where.id = client.appId;
     } else {
       throw new Error('Invalid application client');
     }
@@ -158,7 +159,7 @@ module.exports = Application => {
       throw new Error('No application found');
     }
     const pattern = appPatternDetector(packet, application);
-    logger.publish(5, collectionName, 'detector:res', pattern);
+    logger.publish(3, collectionName, 'detector:res', pattern);
     return pattern;
   };
 

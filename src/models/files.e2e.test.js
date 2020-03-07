@@ -1,3 +1,5 @@
+/* Copyright 2020 Edouard Maleix, read LICENSE */
+
 /* eslint-disable import/no-extraneous-dependencies */
 import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
@@ -325,7 +327,6 @@ function fileTest() {
 
 //   before(function(done) {
 //     this.timeout(5000);
-//     // console.log('app is started', app.isStarted());
 //     app.on('started', status => {
 //       console.log('app is started', status, app.models.files);
 //       FileModel = app.models.files;

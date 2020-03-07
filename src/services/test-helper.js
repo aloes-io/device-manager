@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable import/no-extraneous-dependencies */
 import fs from 'fs';
@@ -93,8 +93,29 @@ function applicationFactory(id, ownerId) {
   return {
     name: `Application ${id}`,
     appEui: `12345${id}`,
-    transportProtocol: 'aloeslight',
+    transportProtocol: 'lorawan',
     ownerId,
+    pattern: '+appId/+collection/+method',
+    validators: {
+      collection: [
+        {
+          field: '+collection',
+          value: 'application | device | sensor | iotagent',
+          operation: 'equals',
+          transformation: 'lowercase',
+          registered: true,
+        },
+      ],
+      method: [
+        {
+          field: '+method',
+          value: 'HEAD | GET | POST | PUT | DELETE | STREAM',
+          transformation: 'uppercase',
+          operation: 'includes',
+          registered: true,
+        },
+      ],
+    },
   };
 }
 
@@ -116,7 +137,8 @@ function clientFactory(profile, type, key) {
       .toString(16)
       .substr(2, 8)}`;
   } else if (type === 'application') {
-    clientId = `${profile.appEui}-${Math.random()
+    clientId = `${profile.id}-${Math.random()
+      // clientId = `${profile.appEui}-${Math.random()
       .toString(16)
       .substr(2, 8)}`;
   } else {

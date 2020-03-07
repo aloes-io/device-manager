@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable no-underscore-dangle */
 import ejs from 'ejs';
@@ -8,6 +8,11 @@ import path from 'path';
 import Papa from 'papaparse';
 import JSONFilter from 'simple-json-filter';
 
+/**
+ * @module utils
+ *
+ * Providing general tools
+ */
 const utils = {};
 
 const codeNames = {
@@ -18,6 +23,14 @@ const codeNames = {
   415: 'Unsupported',
 };
 
+/**
+ * Custom Error builder
+ * @method module:utils.buildError
+ * @param {number} statusCode
+ * @param {string} code - error description
+ * @param {string} message - error message
+ * @returns {Error}
+ */
 utils.buildError = (statusCode, code, message) => {
   // eslint-disable-next-line security/detect-object-injection
   const err = new Error(code || codeNames[statusCode] || message || 'An error occurred!');
@@ -26,6 +39,13 @@ utils.buildError = (statusCode, code, message) => {
   return err;
 };
 
+/**
+ * Create directory
+ * @method module:utils.mkDirByPathSync
+ * @param {string} targetDir
+ * @param {object} options
+ * @returns {string} directory path
+ */
 utils.mkDirByPathSync = async (targetDir, { isRelativeToScript = false } = {}) => {
   const sep = path.sep;
   const initDir = path.isAbsolute(targetDir) ? sep : '';
@@ -52,6 +72,12 @@ utils.mkDirByPathSync = async (targetDir, { isRelativeToScript = false } = {}) =
   }, initDir);
 };
 
+/**
+ * Promise wrapper to render EJS template in HTML
+ * @method module:utils.readFile
+ * @param {object} options
+ * @returns {promise} - HTML file and options
+ */
 utils.renderTemplate = options =>
   new Promise((resolve, reject) => {
     ejs.renderFile(options.template, options, (err, html) =>
@@ -59,28 +85,74 @@ utils.renderTemplate = options =>
     );
   });
 
+/**
+ * Promise wrapper to read a file
+ * @method module:utils.readFile
+ * @param {string} filePath
+ * @param {string} [opts] - format of the file
+ * @returns {promise}
+ */
 utils.readFile = (filePath, opts = 'utf8') =>
   new Promise((resolve, reject) => {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.readFile(filePath, opts, (err, data) => (err ? reject(err) : resolve(data)));
   });
 
+/**
+ * Promise wrapper to write a file
+ * @method module:utils.writeFile
+ * @param {string} filePath
+ * @param {object} data - file content
+ * @param {string} [opts] - format of the file
+ * @returns {promise}
+ */
 utils.writeFile = (filePath, data, opts = 'utf8') =>
   new Promise((resolve, reject) => {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.appendFile(filePath, data, opts, err => (err ? reject(err) : resolve()));
   });
 
+/**
+ * Promise wrapper to remove a file
+ * @method module:utils.removeFile
+ * @param {string} filePath
+ * @returns {promise}
+ */
 utils.removeFile = filePath =>
   new Promise((resolve, reject) => {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.unlink(filePath, err => (err && err.code !== 'ENOENT' ? reject(err) : resolve()));
   });
 
-utils.generateKey = (hmacKey, algorithm, encoding) => {
-  hmacKey = hmacKey || 'loopback';
-  algorithm = algorithm || 'sha1';
-  encoding = encoding || 'hex';
+/**
+ * Iterate over each KV Store keys found in cache
+ * @method module:utils.cacheIterator
+ * @param {object} [filter] - filter.match
+ * @returns {string} key - Storage key
+ */
+utils.cacheIterator = async function*(Model, filter) {
+  const iterator = Model.iterateKeys(filter);
+  let empty = false;
+  while (!empty) {
+    // eslint-disable-next-line no-await-in-loop
+    const key = await iterator.next();
+    if (!key) {
+      empty = true;
+      break;
+    }
+    yield key;
+  }
+};
+
+/**
+ * Key generator for authentification
+ * @method module:utils.generateKey
+ * @param {string} [hmacKey]
+ * @param {string} [algorithm]
+ * @param {string} [encoding]
+ * @returns {string} key - Encoded key
+ */
+utils.generateKey = (hmacKey = 'loopback', algorithm = 'sha1', encoding = 'hex') => {
   const hmac = crypto.createHmac(algorithm, hmacKey);
   const buf = crypto.randomBytes(32);
   hmac.update(buf);
@@ -88,6 +160,12 @@ utils.generateKey = (hmacKey, algorithm, encoding) => {
   return key;
 };
 
+/**
+ * Array flattener, to transform multi dimensional arrays
+ * @method module:utils.flatten
+ * @param {array} input
+ * @returns {array}
+ */
 utils.flatten = input => {
   const stack = [...input];
   const res = [];
@@ -105,6 +183,13 @@ utils.flatten = input => {
   return res.reverse();
 };
 
+/**
+ * Convert an object as a CSV table
+ * @method module:utils.exportToCSV
+ * @param {object | array} input
+ * @param {object} [filter]
+ * @returns {object}
+ */
 utils.exportToCSV = (input, filter) => {
   let selection;
 
@@ -144,11 +229,13 @@ utils.exportToCSV = (input, filter) => {
   return csv;
 };
 
+/**
+ * Check if a process is configured to be master
+ * @method module:utils.isMasterProcess
+ * @param {object} env - environment variables
+ * @returns {boolean}
+ */
 utils.isMasterProcess = env => {
-  // if (process.env.CLUSTER_MODE) {
-  //   if (process.env.PROCESS_ID !== '0') return null;
-  //   if (process.env.INSTANCES_PREFIX && process.env.INSTANCES_PREFIX !== '1') return null;
-  // }
   if (
     env.CLUSTER_MODE &&
     (env.PROCESS_ID !== '0' || (env.INSTANCES_PREFIX && env.INSTANCES_PREFIX !== '1'))
@@ -158,6 +245,12 @@ utils.isMasterProcess = env => {
   return true;
 };
 
+/**
+ * Extract ownerId from HTTP user options
+ * @method module:utils.getOwnerId
+ * @param {object} options
+ * @returns {string | null}
+ */
 utils.getOwnerId = options => {
   if (options.currentUser && options.currentUser.type) {
     if (options.currentUser.type === 'User') {

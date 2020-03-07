@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable import/no-extraneous-dependencies */
 import { expect } from 'chai';
@@ -13,6 +13,9 @@ const delayBeforeTesting = 7000;
 const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
+// todo test MQTT connection as lorawan application
+// with sensor/device/application model update (create device attached to the app and sensors)
+// test find with filter
 const applicationTest = () => {
   const applicationFactory = testHelper.factories.application;
   const clientFactory = testHelper.factories.client;
@@ -49,8 +52,8 @@ const applicationTest = () => {
         },
       };
       const applicationPacket = {
-        topic: `${applications[1].appEui}-out/0/3300/0/1/5700`,
-        payload: '0',
+        topic: `${applications[1].id}/Application/PUT`,
+        payload: JSON.stringify({ ...applications[1], name: 'new app name' }),
       };
       packets = [userPacket, applicationPacket];
 

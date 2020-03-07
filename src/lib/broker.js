@@ -433,11 +433,15 @@ export const onAuthorizePublish = (client, packet) => {
     // todo : limit access to device out prefix if any - /
     // endsWith(device.outPrefix)
     auth = true;
-  } else if (client.appId && topicIdentifier.startsWith(client.appId)) {
-    auth = true;
-  } else if (client.appEui && topicIdentifier.startsWith(client.appEui)) {
+  } else if (
+    client.appId &&
+    (topicIdentifier.startsWith(client.appId) || topicIdentifier.startsWith(client.appEui))
+  ) {
     auth = true;
   }
+  // else if (client.appEui && topicIdentifier.startsWith(client.appEui)) {
+  //   auth = true;
+  // }
 
   logger.publish(4, 'broker', 'onAuthorizePublish:res', { topic, auth });
   return auth;
@@ -478,9 +482,10 @@ export const onAuthorizeSubscribe = (client, packet) => {
     auth = true;
   } else if (client.appId && topicIdentifier.startsWith(client.appId)) {
     auth = true;
-  } else if (client.appEui && topicIdentifier.startsWith(client.appEui)) {
-    auth = true;
   }
+  // else if (client.appEui && topicIdentifier.startsWith(client.appEui)) {
+  //   auth = true;
+  // }
   logger.publish(4, 'broker', 'onAuthorizeSubscribe:res', { topic, auth });
   return auth;
 };

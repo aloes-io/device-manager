@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import NodeGeocoder from 'node-geocoder';
 import isAlphanumeric from 'validator/lib/isAlphanumeric';
@@ -50,9 +50,6 @@ const onBeforeRemote = async ctx => {
     // console.log('authorizedRoles & data', options, data);
   } else if (ctx.method.name === 'search' || ctx.method.name === 'geoLocate') {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Invalid user request');
-    }
     // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.filter);
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!isAdmin) {

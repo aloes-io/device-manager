@@ -20,9 +20,6 @@ const timers = {};
 export const onBeforeRemote = async (app, ctx) => {
   if (ctx.method.name === 'createOrUpdate') {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     const isAdmin = options.currentUser.roles.includes('admin');
     const ownerId = utils.getOwnerId(options);
     const clientId = ctx.args.client && ctx.args.client.id ? ctx.args.client.id.toString() : null;

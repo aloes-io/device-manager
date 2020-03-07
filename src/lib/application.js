@@ -1,3 +1,5 @@
+/* Copyright 2020 Edouard Maleix, read LICENSE */
+
 import logger from '../services/logger';
 import utils from '../services/utils';
 
@@ -69,17 +71,12 @@ const createKeys = async application => {
  * @returns {function} Application.publish
  */
 const createProps = async (app, instance) => {
-  try {
-    instance = await createKeys(instance);
-    // if (!application.apiKey) {
-    //   await instance.destroy()
-    //   throw new Error('Application failed to be created');
-    // }
-    return app.models.Application.publish(instance, 'POST');
-  } catch (error) {
-    logger.publish(2, `${collectionName}`, 'createProps:err', error);
-    throw error;
-  }
+  instance = await createKeys(instance);
+  // if (!application.apiKey) {
+  //   await instance.destroy()
+  //   throw new Error('Application failed to be created');
+  // }
+  return app.models.Application.publish(instance, 'POST');
 };
 
 /**
@@ -186,9 +183,6 @@ export const onBeforeRemote = async ctx => {
     // ctx.method.name.indexOf('get') !== -1
   ) {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     const ownerId = utils.getOwnerId(options);
     const isAdmin = options.currentUser.roles.includes('admin');
     if (ctx.req.query && ctx.req.query.filter && !isAdmin) {
@@ -203,15 +197,9 @@ export const onBeforeRemote = async ctx => {
     }
   } else if (ctx.method.name === 'refreshToken') {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     ctx.args.ownerId = utils.getOwnerId(options);
   } else if (ctx.method.name === 'onPublish' || ctx.method.name === 'updateStatus') {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!ctx.args.client) ctx.args.client = {};
     if (!isAdmin) {
@@ -222,9 +210,6 @@ export const onBeforeRemote = async ctx => {
     }
   } else if (ctx.method.name === 'getState' || ctx.method.name === 'getFullState') {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!isAdmin && options.currentUser.appEui) {
       if (options.currentUser.id.toString() !== ctx.args.appId.toString()) {
@@ -267,8 +252,7 @@ export const parseMessage = async (app, packet, pattern, client) => {
 
   // console.log('parseMessage attributes:', attributes);
   if (!attributes) {
-    const error = utils.buildError(400, 'DECODING_ERROR', 'No attributes retrieved from Iot Agent');
-    throw error;
+    throw utils.buildError(400, 'DECODING_ERROR', 'No attributes retrieved from Iot Agent');
   }
 
   switch (pattern.params.collection.toLowerCase()) {
@@ -281,6 +265,7 @@ export const parseMessage = async (app, packet, pattern, client) => {
         });
       }
       if (!foundInstance || foundInstance === null) return null;
+      // todo switch method and apply it to application instance
       break;
     case 'device':
       foundInstance = await Device.findByPattern(pattern, attributes);

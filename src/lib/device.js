@@ -1,3 +1,5 @@
+/* Copyright 2020 Edouard Maleix, read LICENSE */
+
 import crypto from 'crypto';
 import iotAgent from 'iot-agent';
 import isMACAddress from 'validator/lib/isMACAddress';
@@ -447,9 +449,6 @@ export const onBeforeRemote = async (app, ctx) => {
     // ctx.method.name.indexOf('get') !== -1
   ) {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     const isAdmin = options.currentUser.roles.includes('admin');
     const ownerId = utils.getOwnerId(options);
     if (ctx.req.query && ctx.req.query.filter && !isAdmin) {
@@ -470,9 +469,6 @@ export const onBeforeRemote = async (app, ctx) => {
     // }
   } else if (ctx.method.name === 'search' || ctx.method.name === 'geoLocate') {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!isAdmin) {
       if (!ctx.args.filter) ctx.args.filter = {};
@@ -482,9 +478,6 @@ export const onBeforeRemote = async (app, ctx) => {
     }
   } else if (ctx.method.name === 'findByPattern') {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     const isAdmin = options.currentUser.roles.includes('admin');
     const ownerId = utils.getOwnerId(options);
     if (!isAdmin) {
@@ -493,15 +486,9 @@ export const onBeforeRemote = async (app, ctx) => {
     }
   } else if (ctx.method.name === 'refreshToken') {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     ctx.args.ownerId = utils.getOwnerId(options);
   } else if (ctx.method.name === 'onPublish' || ctx.method.name === 'updateStatus') {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!ctx.args.client) ctx.args.client = {};
     if (!isAdmin) {
@@ -512,9 +499,6 @@ export const onBeforeRemote = async (app, ctx) => {
     }
   } else if (ctx.method.name === 'getState' || ctx.method.name === 'getFullState') {
     const options = ctx.args ? ctx.args.options : {};
-    if (!options || !options.currentUser) {
-      throw utils.buildError(401, 'UNAUTHORIZED', 'Requires authentification');
-    }
     // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.deviceId);
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!isAdmin && options.currentUser.devEui) {
@@ -547,8 +531,7 @@ export const onBeforeRemote = async (app, ctx) => {
  */
 export const parseMessage = async (app, packet, pattern, client) => {
   if (!pattern || !pattern.params || !packet || !packet.topic) {
-    const error = utils.buildError(403, 'INVALID_ARGS', 'Missing pattern and / or packet');
-    throw error;
+    throw utils.buildError(403, 'INVALID_ARGS', 'Missing pattern and / or packet');
   }
   const Device = app.models.Device;
   if (pattern.name.toLowerCase() === 'aloesclient') {
@@ -570,16 +553,7 @@ export const parseMessage = async (app, packet, pattern, client) => {
       nativeSensorId: attributes.nativeSensorId,
       nativeNodeId: attributes.nativeNodeId,
     });
-    let device;
-    try {
-      device = await Device.findByPattern(pattern, attributes);
-    } catch (e) {
-      device = null;
-    }
-    if (!device || device === null) {
-      const error = utils.buildError(404, 'DEVICE_NOT_FOUND', 'Device not retrieved from packet');
-      throw error;
-    }
+    const device = await Device.findByPattern(pattern, attributes);
 
     app.models.Sensor.emit('publish', {
       device,
@@ -596,36 +570,28 @@ export const parseMessage = async (app, packet, pattern, client) => {
       devEui: attributes.devEui,
     });
     let device;
-    if (attributes.id) {
-      try {
-        device = await Device.findById(attributes.id);
-      } catch (e) {
-        device = null;
-      }
-    } else {
-      try {
-        device = await Device.findByPattern(pattern, attributes);
-      } catch (e) {
-        device = null;
-      }
-    }
-    if (!device || device === null) {
-      const error = utils.buildError(404, 'DEVICE_NOT_FOUND', 'Device not retrieved from packet');
-      throw error;
-    }
+    // try {
+    // } catch (e) {
+    //   device = null;
+    // }
+    device = attributes.id
+      ? await Device.findById(attributes.id)
+      : await Device.findByPattern(pattern, attributes);
+
     device = JSON.parse(JSON.stringify(device));
     device = { ...device, ...attributes };
     Device.emit('publish', { device, pattern, client });
     return device;
   }
 
-  const error = utils.buildError(400, 'DECODING_ERROR', 'No attributes retrieved from Iot Agent');
-  throw error;
+  throw utils.buildError(400, 'DECODING_ERROR', 'No attributes retrieved from Iot Agent');
 };
 
 const checkHeader = (headers, key, value = false) => {
   // eslint-disable-next-line security/detect-object-injection
-  if (!headers || !headers[key] || (value && headers[key] !== value)) return false;
+  if (!headers || !headers[key] || (value && headers[key] !== value)) {
+    return false;
+  }
   return true;
 };
 

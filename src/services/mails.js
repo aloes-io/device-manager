@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import app from './server';
 import utils from './utils';
@@ -81,8 +81,7 @@ mails.send = async options => {
     });
     if (result && result.accepted && result.accepted.length < 1) {
       // send the mail a second time ?
-      const error = utils.buildError(404, 'INVALID_EMAIL', 'email was rejected');
-      throw error;
+      throw utils.buildError(404, 'INVALID_EMAIL', 'email was rejected');
     }
     result = { message: 'email sent' };
     return result;
