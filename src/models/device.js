@@ -475,10 +475,10 @@ module.exports = function(Device) {
    * @returns {function} device.updateAttributes
    */
   Device.updateStatus = async (client, status) => {
-    if (!client || !client.id || !client.devEui) {
-      throw new Error('Invalid client');
-    }
-    logger.publish(5, collectionName, 'updateStatus:req', status);
+    // if (!client || !client.id || !client.devEui) {
+    //   throw new Error('Invalid client');
+    // }
+    logger.publish(4, collectionName, 'updateStatus:req', status);
     const device = await Device.findById(client.user);
     if (device && device.devEui && device.devEui === client.devEui) {
       const Client = Device.app.models.Client;
@@ -751,17 +751,14 @@ module.exports = function(Device) {
    * @returns {function} Device.updateStatus
    */
   Device.on('client', async message => {
-    try {
-      logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
-      if (!message || message === null) throw new Error('Message empty');
-      const { client, status } = message;
-      if (!client || !client.user || status === undefined) {
-        throw new Error('Message missing properties');
-      }
-      await Device.updateStatus(client, status);
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'on-client:err', error);
+    logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
+    // if (!message || message === null) throw new Error('Message empty');
+    const { client, status } = message;
+    if (!client || !client.user || status === undefined) {
+      // throw new Error('Message missing properties');
+      return;
     }
+    await Device.updateStatus(client, status);
   });
 
   /**

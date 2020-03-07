@@ -45,7 +45,7 @@ module.exports = function(User) {
   User.findByEmail = async email => {
     logger.publish(4, `${collectionName}`, 'findByEmail:req', email);
     if (!isEmail(email)) {
-      throw utils.buildError(400, 'INVALID_INPUT', 'Email is not valid');
+      throw utils.buildError(400, 'INVALID_EMAIL', 'Email is not valid');
     }
     const user = await User.findOne({
       where: { email },
@@ -116,9 +116,6 @@ module.exports = function(User) {
    * @returns {object} user
    */
   User.setNewPassword = async (ctx, oldPassword, newPassword) => {
-    if (!ctx.req.accessToken) {
-      throw utils.buildError(401, 'INVALID_TOKEN', 'Missing token');
-    }
     logger.publish(3, `${collectionName}`, 'setNewPassword:req', '');
     const accessToken = ctx.req.accessToken;
     const token = await User.app.models.accessToken.findById(accessToken.id);
@@ -139,13 +136,19 @@ module.exports = function(User) {
     if (!form || !form.email || !form.subject || !form.content) {
       throw utils.buildError(400, 'INVALID_ARGS', 'Form is invalid');
     }
+    if (!isEmail(form.email)) {
+      throw utils.buildError(400, 'INVALID_EMAIL', 'Email is not valid');
+    }
     User.app.emit('sendContactForm', form);
     return true;
   };
 
-  User.sendInvite = async (ctx, options) => {
+  User.sendInvite = async options => {
     if (!options || !options.email || !options.profile) {
       throw utils.buildError(400, 'INVALID_ARGS', 'Options are invalid');
+    }
+    if (!isEmail(options.email)) {
+      throw utils.buildError(400, 'INVALID_EMAIL', 'Email is not valid');
     }
     User.app.emit('sendMailInvite', options);
     return true;
@@ -158,15 +161,15 @@ module.exports = function(User) {
    * @returns {function}
    */
   User.updateStatus = async (client, status) => {
-    if (!client || !client.id || !client.user) {
-      throw new Error('Invalid client');
-    }
+    // if (!client || !client.id || !client.user) {
+    //   throw new Error('Invalid client');
+    // }
     logger.publish(5, collectionName, 'updateStatus:req', status);
     const user = await User.findById(client.user);
     if (user && user.id) {
       const Client = User.app.models.Client;
       const ttl = 1 * 60 * 60 * 1000;
-      // client.status = status;
+      client.status = status;
       if (status) {
         await Client.set(client.id, JSON.stringify(client), ttl);
       } else {
@@ -230,7 +233,7 @@ module.exports = function(User) {
    * @returns {function} User.updateStatus
    */
   User.on('client', async message => {
-    logger.publish(2, `${collectionName}`, 'on-client:req', Object.keys(message));
+    logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
     // if (!message || message === null) {
     //   // throw new Error('Message empty');
     //   return null;

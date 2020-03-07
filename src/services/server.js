@@ -39,6 +39,7 @@ const authenticateInstance = async (client, username, password) => {
   if (!client || !client.id) return { client: null, status: 1 };
   // todo : find a way to verify in auth request, against which model
   // authenticate
+
   try {
     const savedClient = JSON.parse(await Client.get(client.id));
     if (!savedClient || !savedClient.model) {
@@ -49,6 +50,10 @@ const authenticateInstance = async (client, username, password) => {
   } catch (e) {
     foundClient = client;
   }
+  logger.publish(4, 'loopback', 'authenticateInstance:req', {
+    client: foundClient,
+    username,
+  });
 
   try {
     let token, authentification, foundUsername;
@@ -111,7 +116,7 @@ const authenticateInstance = async (client, username, password) => {
       foundClient.user = foundUsername;
       status = 4;
     } else if (status === undefined) {
-      status = 2;
+      status = 4;
     }
     logger.publish(3, 'loopback', 'authenticateInstance:res', { status, client: foundClient });
     return { client: foundClient, status };

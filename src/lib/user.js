@@ -141,10 +141,11 @@ const onBeforeLogin = async ctx => {
 
   try {
     const token = await ctx.method.ctor.login(ctx.args.credentials, 'user');
-    logger.publish(4, `${collectionName}`, 'beforeLogin:res', token);
+    logger.publish(3, `${collectionName}`, 'beforeLogin:res', token);
     await rateLimiter.cleanAuthLimiter(ipAddr, username);
     return token;
   } catch (error) {
+    // logger.publish(2, `${collectionName}`, 'beforeLogin:err', error);
     if (error.code === 'LOGIN_FAILED_EMAIL_NOT_VERIFIED' || error.code === 'TOO_MANY_REQUESTS') {
       throw error;
     }
@@ -218,11 +219,9 @@ const deleteProps = async (app, user) => {
       console.log(`[${collectionName.toUpperCase()}] deleteProps:e`, e);
     }
 
-    logger.publish(4, `${collectionName}`, 'deleteProps:res', user);
-    // return user;
+    logger.publish(3, `${collectionName}`, 'deleteProps:res', user);
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
-    // throw error;
   }
 };
 
@@ -242,7 +241,7 @@ export const onBeforeDelete = async ctx => {
     const users = await ctx.Model.find(filter);
     await Promise.all(users.map(async user => deleteProps(ctx.Model.app, user)));
   }
-  logger.publish(4, `${collectionName}`, 'onBeforeDelete:res', 'done');
+  // logger.publish(3, `${collectionName}`, 'onBeforeDelete:res', 'done');
   return ctx;
 };
 

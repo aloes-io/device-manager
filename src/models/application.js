@@ -171,9 +171,9 @@ module.exports = Application => {
    * @returns {function} application.updateAttributes
    */
   Application.updateStatus = async (client, status) => {
-    if (!client || !client.id || !client.appId) {
-      throw new Error('Invalid client');
-    }
+    // if (!client || !client.id || !client.appId) {
+    //   throw new Error('Invalid client');
+    // }
     logger.publish(4, collectionName, 'updateStatus:req', status);
     const Client = Application.app.models.Client;
     const application = await Application.findById(client.user);
@@ -238,10 +238,9 @@ module.exports = Application => {
    */
   Application.authenticate = async (appId, key) => {
     const application = await Application.findById(appId);
-    if (!application || !application.id) {
-      const error = utils.buildError(404, 'APPLICATION_NOTFOUND', 'Wrong application');
-      throw error;
-    }
+    // if (!application || !application.id) {
+    //   throw utils.buildError(404, 'APPLICATION_NOTFOUND', 'Wrong application');
+    // }
 
     let result = null;
     const keyNames = [
@@ -262,8 +261,7 @@ module.exports = Application => {
       }
     });
     if (!result || !result.application || !result.keyType) {
-      const error = utils.buildError(403, 'UNAUTHORIZED', 'Wrong key used');
-      throw error;
+      throw utils.buildError(403, 'UNAUTHORIZED', 'Wrong key used');
     }
     return result;
   };
@@ -306,17 +304,14 @@ module.exports = Application => {
    * @returns {function} Application.updateStatus
    */
   Application.on('client', async message => {
-    try {
-      logger.publish(3, `${collectionName}`, 'on-client:req', Object.keys(message));
-      if (!message || message === null) throw new Error('Message empty');
-      const { client, status } = message;
-      if (!client || !client.user) {
-        throw new Error('Message missing properties');
-      }
-      await Application.updateStatus(client, status);
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'on-client:err', error);
+    logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
+    // if (!message || message === null) throw new Error('Message empty');
+    const { client, status } = message;
+    if (!client || !client.user) {
+      return;
+      // throw new Error('Message missing properties');
     }
+    await Application.updateStatus(client, status);
   });
 
   /**

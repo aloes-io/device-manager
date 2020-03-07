@@ -3,7 +3,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
-import testHelper from '../services/test-helper';
+import testHelper from '../lib/test-helper';
 
 require('../services/broker');
 

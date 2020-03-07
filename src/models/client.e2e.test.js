@@ -9,7 +9,7 @@ import chaiDeepMatch from 'chai-deep-match';
 import lbe2e from 'lb-declarative-e2e-test';
 import mqtt from 'async-mqtt';
 import app from '../index';
-import testHelper from '../services/test-helper';
+import testHelper from '../lib/test-helper';
 
 require('../services/broker');
 

@@ -6,7 +6,7 @@ import FormData from 'form-data';
 import path from 'path';
 import { promisify } from 'util';
 import { omaObjects, omaViews } from 'oma-json';
-import roleManager from './role-manager';
+import roleManager from '../services/role-manager';
 import deviceTypes from '../initial-data/device-types.json';
 
 let lastAddressId = 0;
@@ -270,11 +270,8 @@ function buildMethods(profile) {
           // emailVerified: true,
         })
         .then(user => {
-          // restricted the admin creation in app:
-          // admin role cannot be set without a valid admin session
           if (profile.roleName === 'admin') {
-            // need to manually set the role here
-            return roleManager.setUserRole(app, user.id, 'admin', true).then(() => user); // force the return of the user
+            return roleManager.setUserRole(app, user.id, 'admin', true).then(() => user);
           }
           return user;
         }),

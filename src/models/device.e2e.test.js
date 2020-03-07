@@ -6,7 +6,7 @@ import iotAgent from 'iot-agent';
 import lbe2e from 'lb-declarative-e2e-test';
 import mqtt from 'mqtt';
 import app from '../index';
-import testHelper, { clientEvent, timeout } from '../services/test-helper';
+import testHelper, { clientEvent, timeout } from '../lib/test-helper';
 
 require('../services/broker');
 
@@ -78,643 +78,629 @@ const deviceTest = () => {
   async function afterTests() {
     return Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()]);
   }
+  describe(`${collectionName}`, () => {
+    before(async () => {
+      return beforeTests();
+    });
 
-  describe(`${collectionName} HTTP`, function() {
-    this.timeout(5000);
-    this.slow(500);
+    after(async () => {
+      return afterTests();
+    });
+    describe(`${collectionName} HTTP`, function() {
+      this.timeout(5000);
+      this.slow(500);
 
-    const profiles = {
-      admin: {
-        email: testHelper.access.admin.profile.email,
-        password: testHelper.access.admin.profile.password,
-      },
-      user: {
-        email: testHelper.access.user.profile.email,
-        password: testHelper.access.user.profile.password,
-      },
-    };
+      const profiles = {
+        admin: {
+          email: testHelper.access.admin.profile.email,
+          password: testHelper.access.admin.profile.password,
+        },
+        user: {
+          email: testHelper.access.user.profile.email,
+          password: testHelper.access.user.profile.password,
+        },
+      };
 
-    const e2eTestsSuite = {
-      [`[TEST] ${collectionName} E2E Tests`]: {
-        before: beforeTests,
-        after: afterTests,
-        tests: {
-          '[TEST] Verifying "Create" access': {
-            tests: [
-              {
-                name: 'everyone CANNOT create',
-                verb: 'post',
-                url: apiUrl,
-                body: deviceFactory(6),
-                expect: 401,
-              },
-              {
-                name: 'user CAN create',
-                verb: 'post',
-                auth: profiles.user,
-                url: apiUrl,
-                body: deviceFactory(7),
-                expect: 200,
-              },
-              {
-                name: 'admin CAN create',
-                verb: 'post',
-                auth: profiles.admin,
-                url: apiUrl,
-                body: deviceFactory(8),
-                expect: 200,
-              },
-            ],
-          },
-          '[TEST] Verifying "Read" access': {
-            tests: [
-              {
-                name: 'everyone CANNOT read ONE',
-                verb: 'get',
-                url: () => `${apiUrl}${devices[0].id}`,
-                expect: 401,
-              },
-              {
-                name: 'everyone CANNOT read ALL',
-                verb: 'get',
-                url: apiUrl,
-                expect: 401,
-              },
-              {
-                name: 'everyone CAN read OWN',
-                verb: 'get',
-                auth: profiles.user,
-                url: () => `${apiUrl}${devices[2].id}`,
-                expect: 200,
-              },
-              {
-                name: 'everyone CAN read OWN with sensors',
-                verb: 'get',
-                auth: profiles.user,
-                url: () => `${apiUrl}${devices[2].id}?filter[include]=sensors`,
-                expect: 200,
-              },
-              {
-                name: 'admin CAN read ALL',
-                verb: 'get',
-                auth: profiles.admin,
-                url: () => apiUrl,
-                expect: 200,
-              },
-            ],
-          },
-          '[TEST] Verifying "Update" access': {
-            tests: [
-              {
-                name: 'everyone CANNOT update',
-                verb: 'patch',
-                url: () => apiUrl + devices[0].id,
-                body: () => ({ name: `${devices[0].name} - updated` }),
-                expect: 401,
-              },
-              {
-                name: 'user CANNOT update ALL',
-                verb: 'patch',
-                auth: profiles.user,
-                url: () => `${apiUrl}${devices[0].id}`,
-                body: () => ({ name: `${devices[0].name} - updated` }),
-                expect: 401,
-              },
-              {
-                name: 'user CAN update OWN',
-                verb: 'patch',
-                auth: profiles.user,
-                url: () => `${apiUrl}${devices[2].id}`,
-                body: () => ({ name: `${devices[2].name} - updated` }),
-                expect: resp => {
-                  expect(resp.status).to.be.equal(200);
-                  expect(resp.body.name).to.be.equal(`${devices[2].name} - updated`);
+      const e2eTestsSuite = {
+        [`[TEST] ${collectionName} E2E Tests`]: {
+          tests: {
+            '[TEST] Verifying "Create" access': {
+              tests: [
+                {
+                  name: 'everyone CANNOT create',
+                  verb: 'post',
+                  url: apiUrl,
+                  body: deviceFactory(6),
+                  expect: 401,
                 },
-              },
-              {
-                name: 'admin CAN update ALL',
-                verb: 'patch',
-                auth: profiles.admin,
-                url: () => `${apiUrl}${devices[2].id}`,
-                body: () => ({ name: `${devices[2].name} - updated` }),
-                expect: resp => {
-                  expect(resp.status).to.be.equal(200);
-                  expect(resp.body.name).to.be.equal(`${devices[2].name} - updated`);
+                {
+                  name: 'user CAN create',
+                  verb: 'post',
+                  auth: profiles.user,
+                  url: apiUrl,
+                  body: deviceFactory(7),
+                  expect: 200,
                 },
-              },
-            ],
-          },
-          '[TEST] Verifying "Replace" access': {
-            tests: [
-              {
-                name: 'everyone CANNOT replace',
-                verb: 'put',
-                url: () => apiUrl + devices[0].id,
-                body: () => ({
-                  ...devices[0],
-                  name: `${devices[0].name} - replaced`,
-                }),
-                expect: 401,
-              },
-              {
-                name: 'user CANNOT replace ALL',
-                verb: 'put',
-                auth: profiles.user,
-                url: () => `${apiUrl}${devices[0].id}`,
-                body: () => ({
-                  ...devices[0],
-                  name: `${devices[0].name} - replaced`,
-                }),
-                expect: 401,
-              },
-              {
-                name: 'user CAN replace OWN',
-                verb: 'put',
-                auth: profiles.user,
-                url: () => `${apiUrl}${devices[2].id}`,
-                body: () => ({
-                  ...devices[2],
-                  name: `${devices[2].name} - replaced`,
-                }),
-                expect: resp => {
-                  expect(resp.status).to.be.equal(200);
-                  expect(resp.body.name).to.be.equal(`${devices[2].name} - replaced`);
+                {
+                  name: 'admin CAN create',
+                  verb: 'post',
+                  auth: profiles.admin,
+                  url: apiUrl,
+                  body: deviceFactory(8),
+                  expect: 200,
                 },
-              },
-              {
-                name: 'admin CAN replace ALL',
-                verb: 'put',
-                auth: profiles.admin,
-                url: () => `${apiUrl}${devices[2].id}`,
-                body: () => ({
-                  ...devices[2],
-                  name: `${devices[2].name} - replaced`,
-                }),
-                expect: resp => {
-                  expect(resp.status).to.be.equal(200);
-                  expect(resp.body.name).to.be.equal(`${devices[2].name} - replaced`);
+              ],
+            },
+            '[TEST] Verifying "Read" access': {
+              tests: [
+                {
+                  name: 'everyone CANNOT read ONE',
+                  verb: 'get',
+                  url: () => `${apiUrl}${devices[0].id}`,
+                  expect: 401,
                 },
-              },
-            ],
-          },
-          '[TEST] Verifying "Delete" access': {
-            tests: [
-              {
-                name: 'everyone CANNOT delete ALL',
-                verb: 'delete',
-                url: () => `${apiUrl}${devices[0].id}`,
-                expect: 401,
-              },
-              {
-                name: 'user CAN delete OWN',
-                verb: 'delete',
-                auth: profiles.user,
-                url: () => `${apiUrl}${devices[2].id}`,
-                expect: resp => {
-                  expect(resp.status).to.be.equal(200);
-                  expect(resp.body.count).to.be.equal(1);
+                {
+                  name: 'everyone CANNOT read ALL',
+                  verb: 'get',
+                  url: apiUrl,
+                  expect: 401,
                 },
-              },
-              {
-                name: 'admin CAN delete ALL',
-                verb: 'delete',
-                auth: profiles.admin,
-                url: () => `${apiUrl}${devices[3].id}`,
-                expect: resp => {
-                  expect(resp.status).to.be.equal(200);
-                  expect(resp.body.count).to.be.equal(1);
+                {
+                  name: 'everyone CAN read OWN',
+                  verb: 'get',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}${devices[2].id}`,
+                  expect: 200,
                 },
-              },
-            ],
-          },
-          '[TEST] Verifying "Search" access': {
-            tests: [
-              {
-                name: 'user CAN search devices by address',
-                steps: [
-                  {
-                    verb: 'post',
-                    auth: profiles.user,
-                    url: '/api/Addresses/verify',
-                    body: {
-                      address: {
-                        city: 'Nantes',
-                        postalCode: '44000',
-                        street: '92 rue paul bellamy',
-                      },
-                    },
-                    expect: 200,
+                {
+                  name: 'everyone CAN read OWN with sensors',
+                  verb: 'get',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}${devices[2].id}?filter[include]=sensors`,
+                  expect: 200,
+                },
+                {
+                  name: 'admin CAN read ALL',
+                  verb: 'get',
+                  auth: profiles.admin,
+                  url: () => apiUrl,
+                  expect: 200,
+                },
+              ],
+            },
+            '[TEST] Verifying "Update" access': {
+              tests: [
+                {
+                  name: 'everyone CANNOT update',
+                  verb: 'patch',
+                  url: () => apiUrl + devices[0].id,
+                  body: () => ({ name: `${devices[0].name} - updated` }),
+                  expect: 401,
+                },
+                {
+                  name: 'user CANNOT update ALL',
+                  verb: 'patch',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}${devices[0].id}`,
+                  body: () => ({ name: `${devices[0].name} - updated` }),
+                  expect: 401,
+                },
+                {
+                  name: 'user CAN update OWN',
+                  verb: 'patch',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}${devices[2].id}`,
+                  body: () => ({ name: `${devices[2].name} - updated` }),
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(200);
+                    expect(resp.body.name).to.be.equal(`${devices[2].name} - updated`);
                   },
-                  step0Response => ({
-                    verb: 'put',
-                    auth: profiles.user,
-                    url: () => `${apiUrl}${devices[4].id}/address`,
-                    body: () => ({
-                      ...step0Response.body,
-                      public: true,
-                    }),
-                    expect: 200,
-                  }),
-                  step1Response => ({
-                    verb: 'post',
-                    auth: profiles.user,
-                    url: () => `${apiUrl}search`,
-                    body: () => ({
-                      filter: { text: step1Response.body.city },
-                    }),
-                    expect: resp => {
-                      expect(resp.status).to.be.equal(200);
-                    },
-                  }),
-                ],
-              },
-              {
-                name: 'user CAN search devices by coordinates',
-                steps: [
-                  {
-                    verb: 'post',
-                    auth: profiles.admin,
-                    url: '/api/Addresses/verify',
-                    body: {
-                      address: {
-                        city: 'Nantes',
-                        postalCode: '44000',
-                        street: '95 rue paul bellamy',
-                      },
-                    },
-                    expect: 200,
+                },
+                {
+                  name: 'admin CAN update ALL',
+                  verb: 'patch',
+                  auth: profiles.admin,
+                  url: () => `${apiUrl}${devices[2].id}`,
+                  body: () => ({ name: `${devices[2].name} - updated` }),
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(200);
+                    expect(resp.body.name).to.be.equal(`${devices[2].name} - updated`);
                   },
-                  step0Response => ({
-                    verb: 'put',
-                    auth: profiles.admin,
-                    url: () => `${apiUrl}${devices[1].id}/address`,
-                    body: () => ({
-                      ...step0Response.body,
-                      public: true,
-                    }),
-                    expect: 200,
+                },
+              ],
+            },
+            '[TEST] Verifying "Replace" access': {
+              tests: [
+                {
+                  name: 'everyone CANNOT replace',
+                  verb: 'put',
+                  url: () => apiUrl + devices[0].id,
+                  body: () => ({
+                    ...devices[0],
+                    name: `${devices[0].name} - replaced`,
                   }),
-                  step1Response => ({
-                    verb: 'post',
-                    auth: profiles.admin,
-                    url: () => `${apiUrl}geo-locate`,
-                    body: () => ({
-                      filter: {
-                        location: step1Response.body.coordinates,
-                        maxDistance: 50,
-                        unit: 'km',
+                  expect: 401,
+                },
+                {
+                  name: 'user CANNOT replace ALL',
+                  verb: 'put',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}${devices[0].id}`,
+                  body: () => ({
+                    ...devices[0],
+                    name: `${devices[0].name} - replaced`,
+                  }),
+                  expect: 401,
+                },
+                {
+                  name: 'user CAN replace OWN',
+                  verb: 'put',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}${devices[2].id}`,
+                  body: () => ({
+                    ...devices[2],
+                    name: `${devices[2].name} - replaced`,
+                  }),
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(200);
+                    expect(resp.body.name).to.be.equal(`${devices[2].name} - replaced`);
+                  },
+                },
+                {
+                  name: 'admin CAN replace ALL',
+                  verb: 'put',
+                  auth: profiles.admin,
+                  url: () => `${apiUrl}${devices[2].id}`,
+                  body: () => ({
+                    ...devices[2],
+                    name: `${devices[2].name} - replaced`,
+                  }),
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(200);
+                    expect(resp.body.name).to.be.equal(`${devices[2].name} - replaced`);
+                  },
+                },
+              ],
+            },
+            '[TEST] Verifying "Delete" access': {
+              tests: [
+                {
+                  name: 'everyone CANNOT delete ALL',
+                  verb: 'delete',
+                  url: () => `${apiUrl}${devices[0].id}`,
+                  expect: 401,
+                },
+                {
+                  name: 'user CAN delete OWN',
+                  verb: 'delete',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}${devices[2].id}`,
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(200);
+                    expect(resp.body.count).to.be.equal(1);
+                  },
+                },
+                {
+                  name: 'admin CAN delete ALL',
+                  verb: 'delete',
+                  auth: profiles.admin,
+                  url: () => `${apiUrl}${devices[3].id}`,
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(200);
+                    expect(resp.body.count).to.be.equal(1);
+                  },
+                },
+              ],
+            },
+            '[TEST] Verifying "Search" access': {
+              tests: [
+                {
+                  name: 'user CAN search devices by address',
+                  steps: [
+                    {
+                      verb: 'post',
+                      auth: profiles.user,
+                      url: '/api/Addresses/verify',
+                      body: {
+                        address: {
+                          city: 'Nantes',
+                          postalCode: '44000',
+                          street: '92 rue paul bellamy',
+                        },
+                      },
+                      expect: 200,
+                    },
+                    step0Response => ({
+                      verb: 'put',
+                      auth: profiles.user,
+                      url: () => `${apiUrl}${devices[4].id}/address`,
+                      body: () => ({
+                        ...step0Response.body,
+                        public: true,
+                      }),
+                      expect: 200,
+                    }),
+                    step1Response => ({
+                      verb: 'post',
+                      auth: profiles.user,
+                      url: () => `${apiUrl}search`,
+                      body: () => ({
+                        filter: { text: step1Response.body.city },
+                      }),
+                      expect: resp => {
+                        expect(resp.status).to.be.equal(200);
                       },
                     }),
-                    expect: 200,
-                  }),
-                ],
-              },
-            ],
-          },
-          '[TEST] Verifying "Export" access': {
-            tests: [
-              {
-                name: 'user CAN export to CSV',
-                auth: profiles.user,
-                verb: 'post',
-                url: () => `${apiUrl}export`,
-                body: () => ({
-                  devices,
-                  filter: {},
-                }),
-                expect: resp => {
-                  expect(resp.status).to.be.equal(200);
+                  ],
                 },
-              },
-              {
-                name: 'user CAN export to CSV',
-                auth: profiles.user,
-                verb: 'post',
-                url: () => `${apiUrl}export`,
-                body: () => ({
-                  devices,
-                  filter: { ownerId: devices[0].ownerId, name: devices[0].name },
-                }),
-                expect: 200,
-              },
-            ],
-          },
-          '[TEST] Verifying "Publish" access': {
-            tests: [
-              {
-                name: 'everyone CANNOT publish',
-                verb: 'post',
-                url: () => `${apiUrl}on-publish`,
-                body: () => ({
-                  packet: { ...packets[0] },
-                  pattern: { ...patterns[0] },
-                  client: {
-                    id: users[1].id,
-                    user: users[1].id,
-                  },
-                }),
-                expect: 401,
-              },
-              {
-                name: 'User CAN publish',
-                verb: 'post',
-                auth: profiles.user,
-                url: () => `${apiUrl}on-publish`,
-                body: () => ({
-                  packet: packets[0],
-                  pattern: patterns[0],
-                  client: {
-                    id: users[1].id,
-                    user: users[1].id,
-                  },
-                }),
-                expect: 200,
-              },
-              {
-                name: "user CAN update its device's status",
-                verb: 'post',
-                auth: profiles.user,
-                url: () => `${apiUrl}update-status`,
-                body: () => ({
-                  client: {
-                    id: devices[0].devEui,
-                    devEui: devices[0].devEui,
-                    user: devices[0].id,
-                  },
-                  status: true,
-                }),
-                expect: 200,
-              },
-              {
-                name: 'device CAN update its status',
-                steps: [
-                  {
-                    verb: 'post',
-                    url: () => `${apiUrl}authenticate`,
-                    body: () => ({
-                      deviceId: devices[0].id.toString(),
-                      apiKey: devices[0].apiKey,
-                    }),
-                    expect: 200,
-                  },
-                  () => ({
-                    verb: 'post',
-                    headers: {
-                      'accept-encoding': 'gzip, deflate',
-                      'user-agent': 'node-superagent/3.8.3',
-                      deveui: devices[0].devEui,
-                      apikey: devices[0].apiKey,
-                    },
-                    url: () => `${apiUrl}update-status`,
-                    body: () => ({
-                      client: {
-                        id: devices[0].devEui,
-                        devEui: devices[0].devEui,
-                        user: devices[0].id,
+                {
+                  name: 'user CAN search devices by coordinates',
+                  steps: [
+                    {
+                      verb: 'post',
+                      auth: profiles.admin,
+                      url: '/api/Addresses/verify',
+                      body: {
+                        address: {
+                          city: 'Nantes',
+                          postalCode: '44000',
+                          street: '95 rue paul bellamy',
+                        },
                       },
-                      status: true,
-                    }),
-                    expect: 200,
-                  }),
-                ],
-              },
-              {
-                name: 'device CAN read its state',
-                steps: [
-                  {
-                    verb: 'post',
-                    url: () => `${apiUrl}authenticate`,
-                    body: () => ({
-                      deviceId: devices[0].id.toString(),
-                      apiKey: devices[0].apiKey,
-                    }),
-                    expect: 200,
-                  },
-                  () => ({
-                    verb: 'get',
-                    headers: {
-                      'accept-encoding': 'gzip, deflate',
-                      'user-agent': 'node-superagent/3.8.3',
-                      deveui: devices[0].devEui,
-                      apikey: devices[0].apiKey,
+                      expect: 200,
                     },
-                    url: () => `${apiUrl}get-state/${devices[0].id}`,
-                    expect: 200,
-                  }),
-                ],
-              },
-              {
-                name: 'device CAN read its full state (with sensors and address)',
-                steps: [
-                  {
-                    verb: 'post',
-                    url: () => `${apiUrl}authenticate`,
-                    body: () => ({
-                      deviceId: devices[0].id.toString(),
-                      apiKey: devices[0].apiKey,
+                    step0Response => ({
+                      verb: 'put',
+                      auth: profiles.admin,
+                      url: () => `${apiUrl}${devices[1].id}/address`,
+                      body: () => ({
+                        ...step0Response.body,
+                        public: true,
+                      }),
+                      expect: 200,
                     }),
-                    expect: 200,
-                  },
-                  () => ({
-                    verb: 'get',
-                    headers: {
-                      'accept-encoding': 'gzip, deflate',
-                      'user-agent': 'node-superagent/3.8.3',
-                      deveui: devices[0].devEui,
-                      apikey: devices[0].apiKey,
-                    },
-                    url: () => `${apiUrl}get-full-state/${devices[0].id}`,
-                    expect: 200,
+                    step1Response => ({
+                      verb: 'post',
+                      auth: profiles.admin,
+                      url: () => `${apiUrl}geo-locate`,
+                      body: () => ({
+                        filter: {
+                          location: step1Response.body.coordinates,
+                          maxDistance: 50,
+                          unit: 'km',
+                        },
+                      }),
+                      expect: 200,
+                    }),
+                  ],
+                },
+              ],
+            },
+            '[TEST] Verifying "Export" access': {
+              tests: [
+                {
+                  name: 'user CAN export to CSV',
+                  auth: profiles.user,
+                  verb: 'post',
+                  url: () => `${apiUrl}export`,
+                  body: () => ({
+                    devices,
+                    filter: {},
                   }),
-                ],
-              },
-            ],
-          },
-          '[TEST] Verifying "Authentification" access': {
-            tests: [
-              {
-                name: 'everyone CAN authenticate',
-                verb: 'post',
-                url: () => `${apiUrl}authenticate`,
-                body: () => ({
-                  deviceId: devices[0].id.toString(),
-                  apiKey: devices[0].apiKey,
-                }),
-                expect: 200,
-              },
-              {
-                name: 'everyone CANNOT refresh API Key',
-                verb: 'post',
-                url: () => `${apiUrl}refresh-token/${devices[0].id}`,
-                expect: 401,
-              },
-              {
-                name: "user CANNOT refresh another OWNER devices's API Key",
-                verb: 'post',
-                auth: profiles.user,
-                url: () => `${apiUrl}refresh-token/${devices[0].id}`,
-                expect: 401,
-              },
-              {
-                name: 'user CAN refresh API Key',
-                verb: 'post',
-                auth: profiles.user,
-                url: () => `${apiUrl}refresh-token/${devices[4].id}`,
-                expect: 200,
-              },
-            ],
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(200);
+                  },
+                },
+                {
+                  name: 'user CAN export to CSV',
+                  auth: profiles.user,
+                  verb: 'post',
+                  url: () => `${apiUrl}export`,
+                  body: () => ({
+                    devices,
+                    filter: { ownerId: devices[0].ownerId, name: devices[0].name },
+                  }),
+                  expect: 200,
+                },
+              ],
+            },
+            '[TEST] Verifying "Publish" access': {
+              tests: [
+                {
+                  name: 'everyone CANNOT publish',
+                  verb: 'post',
+                  url: () => `${apiUrl}on-publish`,
+                  body: () => ({
+                    packet: { ...packets[0] },
+                    pattern: { ...patterns[0] },
+                    client: {
+                      id: users[1].id,
+                      user: users[1].id,
+                    },
+                  }),
+                  expect: 401,
+                },
+                {
+                  name: 'User CAN publish',
+                  verb: 'post',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}on-publish`,
+                  body: () => ({
+                    packet: packets[0],
+                    pattern: patterns[0],
+                    client: {
+                      id: users[1].id,
+                      user: users[1].id,
+                    },
+                  }),
+                  expect: 200,
+                },
+                {
+                  name: "user CAN update its device's status",
+                  verb: 'post',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}update-status`,
+                  body: () => ({
+                    client: {
+                      id: devices[0].devEui,
+                      devEui: devices[0].devEui,
+                      user: devices[0].id,
+                    },
+                    status: true,
+                  }),
+                  expect: 200,
+                },
+                {
+                  name: 'device CAN update its status',
+                  steps: [
+                    {
+                      verb: 'post',
+                      url: () => `${apiUrl}authenticate`,
+                      body: () => ({
+                        deviceId: devices[0].id.toString(),
+                        apiKey: devices[0].apiKey,
+                      }),
+                      expect: 200,
+                    },
+                    () => ({
+                      verb: 'post',
+                      headers: {
+                        'accept-encoding': 'gzip, deflate',
+                        'user-agent': 'node-superagent/3.8.3',
+                        deveui: devices[0].devEui,
+                        apikey: devices[0].apiKey,
+                      },
+                      url: () => `${apiUrl}update-status`,
+                      body: () => ({
+                        client: {
+                          id: devices[0].devEui,
+                          devEui: devices[0].devEui,
+                          user: devices[0].id,
+                        },
+                        status: true,
+                      }),
+                      expect: 200,
+                    }),
+                  ],
+                },
+                {
+                  name: 'device CAN read its state',
+                  steps: [
+                    {
+                      verb: 'post',
+                      url: () => `${apiUrl}authenticate`,
+                      body: () => ({
+                        deviceId: devices[0].id.toString(),
+                        apiKey: devices[0].apiKey,
+                      }),
+                      expect: 200,
+                    },
+                    () => ({
+                      verb: 'get',
+                      headers: {
+                        'accept-encoding': 'gzip, deflate',
+                        'user-agent': 'node-superagent/3.8.3',
+                        deveui: devices[0].devEui,
+                        apikey: devices[0].apiKey,
+                      },
+                      url: () => `${apiUrl}get-state/${devices[0].id}`,
+                      expect: 200,
+                    }),
+                  ],
+                },
+                {
+                  name: 'device CAN read its full state (with sensors and address)',
+                  steps: [
+                    {
+                      verb: 'post',
+                      url: () => `${apiUrl}authenticate`,
+                      body: () => ({
+                        deviceId: devices[0].id.toString(),
+                        apiKey: devices[0].apiKey,
+                      }),
+                      expect: 200,
+                    },
+                    () => ({
+                      verb: 'get',
+                      headers: {
+                        'accept-encoding': 'gzip, deflate',
+                        'user-agent': 'node-superagent/3.8.3',
+                        deveui: devices[0].devEui,
+                        apikey: devices[0].apiKey,
+                      },
+                      url: () => `${apiUrl}get-full-state/${devices[0].id}`,
+                      expect: 200,
+                    }),
+                  ],
+                },
+              ],
+            },
+            '[TEST] Verifying "Authentification" access': {
+              tests: [
+                {
+                  name: 'everyone CAN authenticate',
+                  verb: 'post',
+                  url: () => `${apiUrl}authenticate`,
+                  body: () => ({
+                    deviceId: devices[0].id.toString(),
+                    apiKey: devices[0].apiKey,
+                  }),
+                  expect: 200,
+                },
+                {
+                  name: 'everyone CANNOT refresh API Key',
+                  verb: 'post',
+                  url: () => `${apiUrl}refresh-token/${devices[0].id}`,
+                  expect: 401,
+                },
+                {
+                  name: "user CANNOT refresh another OWNER devices's API Key",
+                  verb: 'post',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}refresh-token/${devices[0].id}`,
+                  expect: 401,
+                },
+                {
+                  name: 'user CAN refresh API Key',
+                  verb: 'post',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}refresh-token/${devices[4].id}`,
+                  expect: 200,
+                },
+              ],
+            },
           },
         },
-      },
-    };
+      };
 
-    const testConfig = {
-      auth: { url: loginUrl },
-    };
+      const testConfig = {
+        auth: { url: loginUrl },
+      };
 
-    lbe2e(app, testConfig, e2eTestsSuite);
-  });
-
-  describe(`${collectionName} MQTT`, function() {
-    this.timeout(delayBeforeTesting);
-
-    before(done => {
-      setTimeout(
-        () =>
-          beforeTests()
-            .then(() => done())
-            .catch(done),
-        2000,
-      );
+      lbe2e(app, testConfig, e2eTestsSuite);
     });
 
-    after(done => {
-      setTimeout(
-        () =>
-          afterTests()
-            .then(() => done())
-            .catch(done),
-        1000,
-      );
-    });
+    describe(`${collectionName} MQTT`, function() {
+      this.timeout(delayBeforeTesting);
 
-    it('everyone CANNOT connect to backend', function(done) {
-      const testMaxDuration = 2000;
-      this.timeout(testMaxDuration);
-      this.slow(testMaxDuration / 2);
+      it('everyone CANNOT connect to backend', function(done) {
+        const testMaxDuration = 2000;
+        this.timeout(testMaxDuration);
+        this.slow(testMaxDuration / 2);
 
-      const client = mqtt.connect(app.get('mqtt url'));
-      client.once('error', e => {
-        expect(e.code).to.be.equal(4);
-        done();
-        client.end();
-      });
-      client.once('connect', () => {
-        done(new Error('Should not connect'));
-        client.end();
-      });
-      // setTimeout(() => done(new Error('Test timeout')), testMaxDuration - 100);
-    });
-
-    it('device CANNOT connect with wrong credentials', function(done) {
-      const testMaxDuration = 2000;
-      this.timeout(testMaxDuration);
-      this.slow(testMaxDuration / 2);
-      const client = mqtt.connect(
-        app.get('mqtt url'),
-        clientFactory(devices[1], 'device', devices[0].apiKey),
-      );
-      client.once('error', e => {
-        expect(e.code).to.be.equal(4);
-        done();
-        client.end();
-      });
-      client.once('connect', () => {
-        done(new Error('Should not connect'));
-        client.end();
-      });
-    });
-
-    it('device CAN connect and its status is updated accordingly', async function() {
-      const testMaxDuration = 2500;
-      this.timeout(testMaxDuration);
-      this.slow(testMaxDuration / 2);
-      const client = mqtt.connect(
-        app.get('mqtt url'),
-        clientFactory(devices[1], 'device', devices[1].apiKey),
-      );
-
-      const packet = await clientEvent(client, 'connect');
-      expect(packet.returnCode).to.be.equal(0);
-      await timeout(async () => {
-        const device = await DeviceModel.findById(devices[1].id);
-        expect(device.status).to.be.equal(true);
-        client.end();
-      }, 150);
-
-      return timeout(async () => {
-        const device = await DeviceModel.findById(devices[1].id);
-        expect(device.status).to.be.equal(false);
-      }, 150);
-    });
-
-    it('device CANNOT publish to ANY route', function(done) {
-      const testMaxDuration = 3000;
-      this.timeout(testMaxDuration);
-      this.slow(testMaxDuration / 2);
-      const client = mqtt.connect(
-        app.get('mqtt url'),
-        clientFactory(devices[0], 'device', devices[0].apiKey),
-      );
-
-      client.once('error', e => {
-        console.log('client error:', e);
+        const client = mqtt.connect(app.get('mqtt url'));
+        client.once('error', e => {
+          expect(e.code).to.be.equal(4);
+          done();
+          client.end();
+        });
+        client.once('connect', () => {
+          done(new Error('Should not connect'));
+          client.end();
+        });
+        // setTimeout(() => done(new Error('Test timeout')), testMaxDuration - 100);
       });
 
-      client.once('offline', () => {
-        client.end();
-        done();
+      it('device CANNOT connect with wrong credentials', function(done) {
+        const testMaxDuration = 2000;
+        this.timeout(testMaxDuration);
+        this.slow(testMaxDuration / 2);
+        const client = mqtt.connect(
+          app.get('mqtt url'),
+          clientFactory(devices[1], 'device', devices[0].apiKey),
+        );
+        client.once('error', e => {
+          expect(e.code).to.be.equal(4);
+          done();
+          client.end();
+        });
+        client.once('connect', () => {
+          done(new Error('Should not connect'));
+          client.end();
+        });
       });
 
-      client.once('connect', () => {
-        client.publish('FAKETOPIC', packets[1].payload, { qos: 1 });
-        setTimeout(() => {
-          if (client.connected) {
-            client.end();
-            done();
-          }
-        }, 1000);
+      it('device CAN connect and its status is updated accordingly', async function() {
+        const testMaxDuration = 2500;
+        this.timeout(testMaxDuration);
+        this.slow(testMaxDuration / 2);
+        const client = mqtt.connect(
+          app.get('mqtt url'),
+          clientFactory(devices[1], 'device', devices[1].apiKey),
+        );
+
+        const packet = await clientEvent(client, 'connect');
+        expect(packet.returnCode).to.be.equal(0);
+        await timeout(async () => {
+          const device = await DeviceModel.findById(devices[1].id);
+          expect(device.status).to.be.equal(true);
+          client.end();
+        }, 150);
+
+        return timeout(async () => {
+          const device = await DeviceModel.findById(devices[1].id);
+          expect(device.status).to.be.equal(false);
+        }, 150);
       });
 
-      // done(new Error('Should have ended with an error event'));
-    });
+      it('device CANNOT publish to ANY route', function(done) {
+        const testMaxDuration = 3000;
+        this.timeout(testMaxDuration);
+        this.slow(testMaxDuration / 2);
+        const client = mqtt.connect(
+          app.get('mqtt url'),
+          clientFactory(devices[0], 'device', devices[0].apiKey),
+        );
 
-    it('device CAN publish to OWN route', function(done) {
-      const testMaxDuration = 3000;
-      this.timeout(testMaxDuration);
-      this.slow(testMaxDuration / 2);
-      const client = mqtt.connect(
-        app.get('mqtt url'),
-        clientFactory(devices[1], 'device', devices[1].apiKey),
-      );
+        client.once('error', e => {
+          console.log('client error:', e);
+        });
 
-      client.once('error', e => {
-        done(e);
+        client.once('offline', () => {
+          client.end();
+          done();
+        });
+
+        client.once('connect', () => {
+          client.publish('FAKETOPIC', packets[1].payload, { qos: 1 });
+          setTimeout(() => {
+            if (client.connected) {
+              client.end();
+              done();
+            }
+          }, 1000);
+        });
+
+        // done(new Error('Should have ended with an error event'));
       });
 
-      client.once('offline', () => {
-        client.end();
-        done(new Error('Should not been offlined'));
-      });
+      it('device CAN publish to OWN route', function(done) {
+        const testMaxDuration = 3000;
+        this.timeout(testMaxDuration);
+        this.slow(testMaxDuration / 2);
+        const client = mqtt.connect(
+          app.get('mqtt url'),
+          clientFactory(devices[1], 'device', devices[1].apiKey),
+        );
 
-      client.once('connect', () => {
-        client.publish(packets[1].topic, packets[1].payload, { qos: 1 });
-        setTimeout(() => {
-          if (client.connected) {
-            client.end();
-            done();
-          }
-        }, 1000);
+        client.once('error', e => {
+          done(e);
+        });
+
+        client.once('offline', () => {
+          client.end();
+          done(new Error('Should not been offlined'));
+        });
+
+        client.once('connect', () => {
+          client.publish(packets[1].topic, packets[1].payload, { qos: 1 });
+          setTimeout(() => {
+            if (client.connected) {
+              client.end();
+              done();
+            }
+          }, 1000);
+        });
       });
     });
   });

@@ -45,7 +45,7 @@ const config = {
   },
   inviteOptions: {
     ...baseConf,
-    subject: `You are nvited on ${process.env.NODE_NAME}`,
+    subject: `You are invited to join ${process.env.NODE_NAME}`,
     template: inviteTemplate,
   },
 };
@@ -188,7 +188,7 @@ mails.sendMailInvite = async options => {
       to: options.email,
       guestName: options.email,
       url: `${process.env.HTTP_CLIENT_URL}`,
-      text: `${options.profile.firstName} ${options.profile.lastName} invited you on ${
+      text: `${options.profile.firstName} ${options.profile.lastName} invited you to join ${
         process.env.NODE_NAME
       }`,
     };
