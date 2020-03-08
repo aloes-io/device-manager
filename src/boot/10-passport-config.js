@@ -21,9 +21,9 @@ module.exports = function passportConfig(app) {
 
     const configuredProviders = Object.keys(providers).map(provider => {
       const c = providers[provider];
-      // if (!c.clientId) {
-      //   return null;
-      // }
+      if (c.provider !== 'local' && !c.clientID) {
+        return null;
+      }
       c.session = c.session !== false;
       passportConfigurator.configureProvider(provider, c);
       return c;

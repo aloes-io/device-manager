@@ -79,7 +79,7 @@ const deviceTest = () => {
       return afterTests();
     });
     describe(`${collectionName} HTTP`, function() {
-      this.timeout(5000);
+      this.timeout(7000);
       this.slow(500);
 
       const profiles = {
