@@ -29,11 +29,6 @@ const userTest = () => {
 
   async function beforeTests() {
     try {
-      // users = await Promise.all([
-      //   testHelper.access.admin.create(app),
-      //   testHelper.access.user.create(app),
-      // ]);
-
       userModels = Array(2)
         .fill('')
         .map(() => userFactory(undefined, 'user'));
@@ -56,7 +51,10 @@ const userTest = () => {
   }
 
   async function afterTests() {
-    return Promise.all([UserModel.destroyAll(), app.stop()]).then(() => broker.stop());
+    // return Promise.all([UserModel.destroyAll(), broker.stop()]).then(() => app.stop());
+    return Promise.all([UserModel.destroyAll(), app.stop(), broker.stop()]).then(() =>
+      process.exit(0),
+    );
   }
 
   describe(`${collectionName}`, () => {
@@ -65,7 +63,8 @@ const userTest = () => {
     });
 
     after(async () => {
-      return afterTests();
+      return timeout(async () => afterTests(), 250);
+      // return afterTests();
     });
 
     describe(`${collectionName} HTTP`, () => {
@@ -79,8 +78,6 @@ const userTest = () => {
         user: {
           email: testHelper.access.user.profile.email,
           password: testHelper.access.user.profile.password,
-          // email: users[0].email,
-          // password: users[0].password,
         },
       };
 
@@ -606,7 +603,7 @@ const userTest = () => {
           app.get('mqtt url'),
           clientFactory(users[3], 'user', 'wrong token'),
         );
-        
+
         client.once('error', e => {
           expect(e.code).to.be.equal(4);
           client.end(true);
@@ -640,7 +637,12 @@ const userTest = () => {
 
         return timeout(async () => {
           const userClients = await ClientModel.getAll({ filter: { match: client.clientId } });
-          expect(userClients.length).to.be.equal(0);
+          expect(
+            userClients.some(
+              userClient =>
+                userClient.model === 'User' && userClient.username === users[3].id.toString(),
+            ).length,
+          ).to.be.equal(undefined);
         }, 250);
       });
     });

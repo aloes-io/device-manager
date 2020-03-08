@@ -90,14 +90,14 @@ module.exports = function(Sensor) {
    */
   Sensor.publish = async (deviceId, sensor, method, client) => {
     if (!deviceId) {
-      throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device id');
+      throw utils.buildError(400, 'INVALID_DEVICE', 'Invalid device id');
     }
     if (!sensor || !sensor.id || !sensor.ownerId) {
-      throw utils.buildError(403, 'INVALID_SENSOR', 'Invalid sensor instance');
+      throw utils.buildError(400, 'INVALID_SENSOR', 'Invalid sensor instance');
     }
     const device = await Sensor.app.models.Device.findById(deviceId);
     if (!device) {
-      throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
+      throw utils.buildError(400, 'INVALID_DEVICE', 'Invalid device instance');
     }
     let publishMethod = method || sensor.method;
     if (sensor.isNewInstance && !publishMethod) {
@@ -357,7 +357,7 @@ module.exports = function(Sensor) {
       !isLength(filter.text, { min: 2, max: 30 }) ||
       !isAlphanumeric(filter.text)
     ) {
-      throw new Error('Invalid search content');
+      throw utils.buildError(400, 'INVALID_INPUT', 'Invalid search content');
     }
     /* eslint-disable security/detect-non-literal-regexp */
     // use OMA object description as lexic
@@ -435,10 +435,12 @@ module.exports = function(Sensor) {
    */
   Sensor.on('publish', async message => {
     try {
-      if (!message || message === null) throw new Error('Message empty');
+      // if (!message || message === null) throw new Error('Message empty');
       const { attributes, client, device, sensor } = message;
       //  const pattern = message.pattern;
-      if (!device || (!attributes && !sensor)) throw new Error('Message missing properties');
+      if (!device || (!attributes && !sensor)) {
+        throw new Error('Message missing properties');
+      }
       await Sensor.onPublish(device, attributes, sensor, client);
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-publish:err', error);

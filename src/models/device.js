@@ -86,7 +86,7 @@ module.exports = function(Device) {
    */
   Device.publish = async (device, method, client) => {
     if (!device || !device.id || !device.ownerId) {
-      throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
+      throw utils.buildError(400, 'INVALID_DEVICE', 'Invalid device instance');
     }
     const packet = await iotAgent.publish({
       userId: device.ownerId,
@@ -119,7 +119,7 @@ module.exports = function(Device) {
       });
       return device;
     }
-    throw utils.buildError(403, 'INVALID_PACKET', 'Invalid MQTT Packet encoding');
+    throw utils.buildError(400, 'INVALID_PACKET', 'Invalid MQTT Packet encoding');
   };
 
   /**
@@ -166,7 +166,7 @@ module.exports = function(Device) {
       await device.updateAttributes(attributes);
       return device;
     }
-    throw utils.buildError(404, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
+    throw utils.buildError(403, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
   };
 
   /**
@@ -182,8 +182,7 @@ module.exports = function(Device) {
       name: device.name,
     });
     if (!device || device === null) {
-      const error = utils.buildError(403, 'INVALID_DEVICE', 'Invalid device input');
-      throw error;
+      throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device input');
     }
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     if (device.id && (await Device.exists(device.id))) {
@@ -211,7 +210,7 @@ module.exports = function(Device) {
       !isLength(transportProtocol, { min: 4, max: 15 }) ||
       !isAlphanumeric(transportProtocol)
     ) {
-      throw utils.buildError(404, 'INVALID_INPUT', 'protocol name is invalid');
+      throw utils.buildError(400, 'INVALID_INPUT', 'protocol name is invalid');
     }
     const transportProtocolFilter = {
       // eslint-disable-next-line security/detect-non-literal-regexp
@@ -272,7 +271,7 @@ module.exports = function(Device) {
 
     const device = await Device.findOne(deviceFilter);
     if (!device || device === null || !device.id) {
-      throw utils.buildError(404, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
+      throw utils.buildError(403, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
     }
     // find equivalent sensor in cache
     logger.publish(4, `${collectionName}`, 'findByPattern:res', {
@@ -295,8 +294,7 @@ module.exports = function(Device) {
       !isLength(filter.text, { min: 2, max: 30 }) ||
       !isAlphanumeric(filter.text)
     ) {
-      const error = utils.buildError(400, 'INVALID_INPUT', 'Search filter is not valid');
-      throw error;
+      throw utils.buildError(400, 'INVALID_INPUT', 'Search filter is not valid');
     }
 
     filter.ownerType = 'Device';
@@ -319,28 +317,28 @@ module.exports = function(Device) {
     /* eslint-enable security/detect-non-literal-regexp */
 
     // if (filter.status !== undefined)
-    let result = await Device.find({
-      where: whereFilter,
-      include: 'address',
-      fields: {
-        id: true,
-        devEui: true,
-        apiKey: true,
-        clientKey: false,
-        frameCounter: true,
-        name: true,
-        fullAddress: true,
-        status: true,
-        icons: true,
-      },
-    });
+    let result =
+      (await Device.find({
+        where: whereFilter,
+        include: 'address',
+        fields: {
+          id: true,
+          devEui: true,
+          apiKey: true,
+          clientKey: false,
+          frameCounter: true,
+          name: true,
+          fullAddress: true,
+          status: true,
+          icons: true,
+        },
+      })) || [];
 
-    if (!result || result === null) {
-      result = [];
-    }
+    // if (!result || result === null) {
+    //   result = [];
+    // }
     try {
       const address = await Device.app.models.Address.verify(filter.text);
-      // console.log('address', address);
       if (address) {
         address.ownerType = filter.ownerType;
         // address.public = filter.public;

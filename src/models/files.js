@@ -300,8 +300,8 @@ module.exports = function(Files) {
    */
   Files.uploadBuffer = async (buffer, ownerId, name) => {
     logger.publish(4, `${collectionName}`, 'uploadBuffer:req', { ownerId, name });
-    if (!name || name === null || !isLength(name, { min: 4, max: 65 })) {
-      throw new Error('Invalid file name');
+    if (!name || name === null || !isLength(name, { min: 3, max: 65 })) {
+      throw utils.buildError(400, 'INVALID_PARAM', 'Invalid file name');
     }
     let fileMeta = await Files.findOne({
       where: {
@@ -312,7 +312,9 @@ module.exports = function(Files) {
     // console.log('buffer file upload', typeof buffer, Buffer.isBuffer(buffer), buffer);
     const fileStat = await uploadBufferToContainer(Files.app, buffer, ownerId, name);
     logger.publish(4, `${collectionName}`, 'uploadBuffer:res1', { fileStat });
-    if (!fileStat || !fileStat.type) throw new Error('Failure while uploading stream');
+    if (!fileStat || !fileStat.type) {
+      throw utils.buildError(422, 'UPLOAD_ERROR', 'Failure while uploading strea');
+    }
     fileMeta = await updateFileMeta(
       fileMeta,
       {

@@ -9,7 +9,7 @@ import testHelper from '../lib/test-helper';
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
-const afterTestDelay = 3000;
+// const afterTestDelay = 3000;
 const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
@@ -68,13 +68,17 @@ const schedulerTest = () => {
     }
   }
 
-  function afterTests(done) {
-    setTimeout(() => {
-      Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
-        .then(() => done())
-        .catch(done);
-    }, afterTestDelay);
+  async function afterTests() {
+    return Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()]);
   }
+
+  // function afterTests(done) {
+  //   setTimeout(() => {
+  //     Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
+  //       .then(() => done())
+  //       .catch(done);
+  //   }, afterTestDelay);
+  // }
 
   describe(`${collectionName} HTTP`, () => {
     const profiles = {
@@ -94,10 +98,11 @@ const schedulerTest = () => {
         // make a serie with process.env.EXTERNAL_TIMER && process.env.TIMER_SERVER_URL
         // and another without
         before: beforeTests,
-        after(done) {
-          this.timeout(delayBeforeTesting);
-          afterTests(done);
-        },
+        after: afterTests,
+        // after(done) {
+        //   this.timeout(delayBeforeTesting);
+        //   afterTests(done);
+        // },
         tests: {
           '[TEST] Verifying "CreateOrUpdate" access': {
             tests: [

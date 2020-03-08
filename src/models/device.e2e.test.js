@@ -67,14 +67,6 @@ const deviceTest = () => {
     }
   }
 
-  // function afterTests(done) {
-  //   setTimeout(() => {
-  //     Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
-  //       .then(() => done())
-  //       .catch(e => done(e));
-  //   }, afterTestDelay);
-  // }
-
   async function afterTests() {
     return Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()]);
   }
@@ -294,6 +286,41 @@ const deviceTest = () => {
             },
             '[TEST] Verifying "Search" access': {
               tests: [
+                {
+                  name: 'everyone CANNOT search devices',
+                  verb: 'post',
+                  url: () => `${apiUrl}search`,
+                  body: () => ({
+                    filter: { text: 0 },
+                  }),
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(401);
+                  },
+                },
+                {
+                  name: 'user CANNOT search devices with invalid input',
+                  verb: 'post',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}search`,
+                  body: () => ({
+                    filter: { text: 0 },
+                  }),
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(400);
+                  },
+                },
+                {
+                  name: 'user CAN search devices by type with limit',
+                  verb: 'post',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}search`,
+                  body: () => ({
+                    filter: { text: 'aloes', limit: 2 },
+                  }),
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(200);
+                  },
+                },
                 {
                   name: 'user CAN search devices by address',
                   steps: [
@@ -707,6 +734,32 @@ const deviceTest = () => {
           //   }
           // }, 100);
         });
+      });
+
+      it('device CAN present new sensor', async function() {
+        const testMaxDuration = 2000;
+        this.timeout(testMaxDuration);
+        this.slow(testMaxDuration / 2);
+
+        const client = mqtt.connect(
+          app.get('mqtt url'),
+          clientFactory(devices[1], 'device', devices[1].apiKey),
+        );
+
+        const packet = {
+          topic: `${devices[1].devEui}-out/0/3340/0/1/5850`,
+          payload: 'true',
+        };
+
+        await clientEvent(client, 'connect');
+        client.publish(packet.topic, packet.payload, { qos: 1 });
+
+        await timeout(async () => {
+          const device = await DeviceModel.findById(devices[1].id);
+          const sensors = await device.sensors.find();
+          expect(sensors.some(sensor => sensor.type === 3340)).to.be.equal(true);
+          client.end(true);
+        }, 150);
       });
     });
   });
