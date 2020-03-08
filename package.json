@@ -13,7 +13,7 @@
     "docs:services": "./node_modules/.bin/jsdoc2md ./src/services/* ./src/lib/services/* > ./docs/services/README.md",
     "docs:md": " npm run docs:models ; npm run docs:services ; npm run docs:lib",
     "docs:dev": "npm run docs:md ; cp ./README.md ./docs/readme/. ; ./node_modules/.bin/vuepress dev docs",
-    "docs:build": "npm run docs:md ; cp ./README.md ./docs/readme/. ; ./node_modules/.bin/vuepress build docs",
+    "docs:build": "npm run docs:md ; cp ./README.md ./docs/readme/. ; NODE_ENV=production ./node_modules/.bin/vuepress build docs",
     "docs:serve": "light-server -s public -p 7000 --servePrefix /device-manager/",
     "clean": "rm -rf dist && mkdir dist",
     "build": "npm run clean ; npx babel src --out-dir dist --copy-files",
