@@ -3,20 +3,18 @@
 ## Utils
 
 * [Utils](#module_Utils)
-    * _static_
-        * [.buildError(statusCode, code, message)](#module_Utils.buildError) ⇒ <code>Error</code>
-        * [.mkDirByPathSync(targetDir, options)](#module_Utils.mkDirByPathSync) ⇒ <code>Promise.&lt;string&gt;</code>
-        * [.readFile(options)](#module_Utils.readFile) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [.readFile(filePath, [opts])](#module_Utils.readFile) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [.writeFile(filePath, data, [opts])](#module_Utils.writeFile) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [.removeFile(filePath)](#module_Utils.removeFile) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [.generateKey([hmacKey], [algorithm], [encoding])](#module_Utils.generateKey) ⇒ <code>string</code>
-        * [.flatten(input)](#module_Utils.flatten) ⇒ <code>array</code>
-        * [.exportToCSV(input, [filter])](#module_Utils.exportToCSV) ⇒ <code>object</code>
-        * [.isMasterProcess(env)](#module_Utils.isMasterProcess) ⇒ <code>boolean</code>
-        * [.getOwnerId(options)](#module_Utils.getOwnerId) ⇒ <code>string</code> \| <code>null</code>
-    * _inner_
-        * [~CacheIterator(Model, [filter])](#module_Utils..CacheIterator)
+    * [.buildError(statusCode, code, message)](#module_Utils.buildError) ⇒ <code>Error</code>
+    * [.mkDirByPathSync(targetDir, options)](#module_Utils.mkDirByPathSync) ⇒ <code>Promise.&lt;string&gt;</code>
+    * [.readFile(options)](#module_Utils.readFile) ⇒ <code>Promise.&lt;object&gt;</code>
+    * [.readFile(filePath, [opts])](#module_Utils.readFile) ⇒ <code>Promise.&lt;object&gt;</code>
+    * [.writeFile(filePath, data, [opts])](#module_Utils.writeFile) ⇒ <code>Promise.&lt;object&gt;</code>
+    * [.removeFile(filePath)](#module_Utils.removeFile) ⇒ <code>Promise.&lt;object&gt;</code>
+    * [.cacheIterator(Model, [filter])](#module_Utils.cacheIterator) ⇒ <code>Promise.&lt;string&gt;</code>
+    * [.generateKey([hmacKey], [algorithm], [encoding])](#module_Utils.generateKey) ⇒ <code>string</code>
+    * [.flatten(input)](#module_Utils.flatten) ⇒ <code>array</code>
+    * [.exportToCSV(input, [filter])](#module_Utils.exportToCSV) ⇒ <code>object</code>
+    * [.isMasterProcess(env)](#module_Utils.isMasterProcess) ⇒ <code>boolean</code>
+    * [.getOwnerId(options)](#module_Utils.getOwnerId) ⇒ <code>string</code> \| <code>null</code>
 
 <a name="module_Utils.buildError"></a>
 
@@ -92,6 +90,19 @@ Promise wrapper to remove a file
 | --- | --- |
 | filePath | <code>string</code> | 
 
+<a name="module_Utils.cacheIterator"></a>
+
+### Utils.cacheIterator(Model, [filter]) ⇒ <code>Promise.&lt;string&gt;</code>
+Iterate over each KV Store keys found in cache
+
+**Kind**: static method of [<code>Utils</code>](#module_Utils)  
+**Returns**: <code>Promise.&lt;string&gt;</code> - Storage key  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| Model | <code>object</code> | Loopback Model |
+| [filter] | <code>object</code> | filter.match |
+
 <a name="module_Utils.generateKey"></a>
 
 ### Utils.generateKey([hmacKey], [algorithm], [encoding]) ⇒ <code>string</code>
@@ -150,16 +161,4 @@ Extract ownerId from HTTP user options
 | Param | Type |
 | --- | --- |
 | options | <code>object</code> | 
-
-<a name="module_Utils..CacheIterator"></a>
-
-### Utils~CacheIterator(Model, [filter])
-Iterate over each KV Store keys found in cache
-
-**Kind**: inner method of [<code>Utils</code>](#module_Utils)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| Model | <code>object</code> | Loopback Model |
-| [filter] | <code>object</code> | filter.match |
 
