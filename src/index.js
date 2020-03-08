@@ -1,7 +1,7 @@
 /*  
 Aloes device-manager is an IoT ecosystem providing standardize properties to sensors and devices.
 
-Copyright 2019 Edouard Maleix
+Copyright 2020 Edouard Maleix
 
 Aloes device-manager is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published by
@@ -29,7 +29,7 @@ require('dotenv').config();
 
 /**
  * Initialize application and services
- * @param {string} [processId] - process id
+ * @param {string} processId - process id
  * @fires Server.start
  */
 const boot = processId => {
@@ -73,6 +73,7 @@ nodeCleanup((exitCode, signal) => {
 });
 
 // todo : log license notice
+// todo create init emitter and more process communication in a lib
 if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
   logger.publish(1, 'loopback', 'init:single', { pid: process.pid });
   boot(0);

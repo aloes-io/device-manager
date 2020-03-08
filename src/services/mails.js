@@ -1,7 +1,7 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import app from './server';
-import utils from './utils';
+import utils from '../lib/utils';
 import logger from './logger';
 
 const emailFrom = process.env.CONTACT_EMAIL;
@@ -45,7 +45,7 @@ const config = {
   },
   inviteOptions: {
     ...baseConf,
-    subject: `You are nvited on ${process.env.NODE_NAME}`,
+    subject: `You are invited to join ${process.env.NODE_NAME}`,
     template: inviteTemplate,
   },
 };
@@ -58,7 +58,7 @@ const mails = {};
 /**
  * Promise wrapper to send email using Email datasource
  * @method module:Mails~sendMail
- * @returns {promise}
+ * @returns {Promise<object>}
  */
 const sendMail = updatedOptions =>
   new Promise((resolve, reject) => {
@@ -69,7 +69,7 @@ const sendMail = updatedOptions =>
  * Generate HTML template and send email
  * @method module:Mails.send
  * @param {object} options - Mail options
- * @returns {object} result - Mail result
+ * @returns {Promise<object>} result - Mail result
  */
 mails.send = async options => {
   try {
@@ -81,8 +81,7 @@ mails.send = async options => {
     });
     if (result && result.accepted && result.accepted.length < 1) {
       // send the mail a second time ?
-      const error = utils.buildError(404, 'INVALID_EMAIL', 'email was rejected');
-      throw error;
+      throw utils.buildError(404, 'INVALID_EMAIL', 'email was rejected');
     }
     result = { message: 'email sent' };
     return result;
@@ -95,7 +94,7 @@ mails.send = async options => {
 /**
  * Promise wrapper to send verification email after user registration
  * @method module:Mails~verifyUser
- * @returns {promise}
+ * @returns {Promise<object>}
  */
 const verifyUser = (user, options) =>
   new Promise((resolve, reject) => {
@@ -106,7 +105,7 @@ const verifyUser = (user, options) =>
  * Sending a verification email to confirm account creation
  * @method module:Mails.verifyEmail
  * @param {object} user - Account created
- * @returns {object} result - Mail result
+ * @returns {Promise<object>} result - Mail result
  */
 mails.verifyEmail = async user => {
   try {
@@ -182,6 +181,11 @@ mails.sendContactForm = async options => {
   }
 };
 
+/**
+ * Sending a mail invitation to new user
+ * @method module:Mails.sendMailInvite
+ * @param {object} options - Mail options
+ */
 mails.sendMailInvite = async options => {
   try {
     const newOptions = {
@@ -189,7 +193,7 @@ mails.sendMailInvite = async options => {
       to: options.email,
       guestName: options.email,
       url: `${process.env.HTTP_CLIENT_URL}`,
-      text: `${options.profile.firstName} ${options.profile.lastName} invited you on ${
+      text: `${options.profile.firstName} ${options.profile.lastName} invited you to join ${
         process.env.NODE_NAME
       }`,
     };

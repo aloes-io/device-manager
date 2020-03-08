@@ -346,13 +346,6 @@
       "description": ["Invite a new user to join Aloes"],
       "accepts": [
         {
-          "arg": "ctx",
-          "type": "object",
-          "http": {
-            "source": "context"
-          }
-        },
-        {
           "arg": "options",
           "type": "object"
         }
@@ -363,7 +356,7 @@
       },
       "http": {
         "verb": "post",
-        "path": "/invite-studio"
+        "path": "/send-invite"
       }
     }
   }

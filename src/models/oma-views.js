@@ -1,3 +1,5 @@
+/* Copyright 2020 Edouard Maleix, read LICENSE */
+
 /**
  * @module OmaViews
  * @property {String} id OmaObject ID

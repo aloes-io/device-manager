@@ -12,41 +12,36 @@ const createTunnel = async options =>
   });
 
 const initTunnel = async () => {
-  try {
-    const result = dotenv.config();
-    if (result.error) {
-      throw result.error;
-    }
-
-    if (result.parsed.TUNNEL_HOST) {
-      const host = result.parsed.TUNNEL_SECURE
-        ? `https://${result.parsed.TUNNEL_HOST}`
-        : `http://${result.parsed.TUNNEL_HOST}`;
-      const options = {
-        port: Number(result.parsed.HTTP_SERVER_PORT),
-        host,
-        subdomain: `${result.parsed.NODE_NAME}-${result.parsed.NODE_ENV}`,
-      };
-      console.log('Start tunnel', options);
-
-      tunnel.instance = await createTunnel(options);
-      console.log('Tunnel started', tunnel.instance.url);
-
-      tunnel.instance.on('close', () => {
-        console.log('Tunnel closed', tunnel.instance.url);
-      });
-
-      tunnel.instance.on('error', err => {
-        console.log('Tunnel err', err);
-      });
-
-      return tunnel;
-    }
-    return null;
-  } catch (error) {
-    console.log('Tunnel init:err', error);
-    throw error;
+  const result = dotenv.config();
+  if (result.error) {
+    throw result.error;
   }
+
+  if (result.parsed.TUNNEL_HOST) {
+    const host = result.parsed.TUNNEL_SECURE
+      ? `https://${result.parsed.TUNNEL_HOST}`
+      : `http://${result.parsed.TUNNEL_HOST}`;
+    const options = {
+      port: Number(result.parsed.HTTP_SERVER_PORT),
+      host,
+      subdomain: `${result.parsed.NODE_NAME}-${result.parsed.NODE_ENV}`,
+    };
+    console.log('Start tunnel', options);
+
+    tunnel.instance = await createTunnel(options);
+    console.log('Tunnel started', tunnel.instance.url);
+
+    tunnel.instance.on('close', () => {
+      console.log('Tunnel closed', tunnel.instance.url);
+    });
+
+    tunnel.instance.on('error', err => {
+      console.log('Tunnel err', err);
+    });
+
+    return tunnel;
+  }
+  return null;
 };
 
 setTimeout(() => initTunnel(), 2500);

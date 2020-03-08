@@ -8,9 +8,10 @@
   },
   "scripts": {
     "lint": "npx eslint --ext js .",
-    "docs:services": "./node_modules/.bin/jsdoc2md ./src/services/* > ./docs/services/README.md",
-    "docs:models": "./node_modules/.bin/jsdoc2md ./src/models/* > ./docs/api/README.md",
-    "docs:md": "npm run docs:services ; npm run docs:models",
+    "docs:lib": "./node_modules/.bin/jsdoc2md ./src/lib/* > ./docs/lib/README.md",
+    "docs:models": "./node_modules/.bin/jsdoc2md ./src/models/* ./src/lib/models/* > ./docs/api/README.md",
+    "docs:services": "./node_modules/.bin/jsdoc2md ./src/services/* ./src/lib/services/* > ./docs/services/README.md",
+    "docs:md": " npm run docs:models ; npm run docs:services ; npm run docs:lib",
     "docs:dev": "npm run docs:md ; cp ./README.md ./docs/readme/. ; ./node_modules/.bin/vuepress dev docs",
     "docs:build": "npm run docs:md ; cp ./README.md ./docs/readme/. ; ./node_modules/.bin/vuepress build docs",
     "docs:serve": "light-server -s public -p 7000 --servePrefix /device-manager/",
@@ -22,6 +23,7 @@
     "build:test:docker": "docker-compose -f docker-compose-test.yml --compatibility build",
     "test:address": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/address.e2e.test.js",
     "test:application": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/application.e2e.test.js",
+    "test:client": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/client.e2e.test.js",
     "test:device": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/device.e2e.test.js",
     "test:files": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/files.e2e.test.js",
     "test:sensor": "npm run build:test ; ./node_modules/.bin/mocha ./src/**/sensor.e2e.test.js",
@@ -138,6 +140,7 @@
     "babel-eslint": "^8.2.6",
     "babel-plugin-istanbul": "^5.2.0",
     "chai": "^4.2.0",
+    "chai-deep-match": "^1.2.1",
     "connect-history-api-fallback": "^1.5.0",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^11.3.0",
@@ -147,7 +150,7 @@
     "eslint-plugin-import": "^2.9.0",
     "eslint-plugin-prettier": "^2.6.2",
     "eslint-plugin-security": "^1.4.0",
-    "eslint-plugin-vue": "^4.0.0",
+    "eslint-plugin-vue": "^6.2.1",
     "fastparallel": "^2.3.0",
     "form-data": "^2.5.1",
     "identity-obj-proxy": "^3.0.0",
@@ -257,10 +260,15 @@
       "lcov",
       "text"
     ],
+    "exclude": [
+      "**/*.e2e.test.js",
+      "**/*.spec.js",
+      "**/boot/02-migrate-props.js"
+    ],
     "report-dir": "./test",
     "check-coverage": true,
-    "functions": 60,
-    "lines": 50
+    "functions": 70,
+    "lines": 70
   },
   "repository": {
     "type": "git",

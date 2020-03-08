@@ -174,7 +174,18 @@
         "replaceById",
         "destroyById",
         "deleteById",
-        "delete"
+        "delete",
+        "__get__measurements",
+        "__findById__measurements",
+        "__create__measurements",
+        "__destroyById__measurements",
+        "__get__resources",
+        "__findById__resources",
+        "__create__resources",
+        "__replace__resources",
+        "__replaceById__resources",
+        "__delete__resources",
+        "__destroyById__resources"
       ]
     },
     {
@@ -190,7 +201,8 @@
         "export",
         "onPublish",
         "findById",
-        "__get__measurements"
+        "__get__measurements",
+        "__get__resources"
       ]
     },
     {
@@ -209,12 +221,20 @@
         "upsert",
         "exists",
         "findById",
+        "onPublish",
         "count",
         "delete",
         "__get__measurements",
-        "__create__measurements",
         "__findById__measurements",
-        "__destroyById__measurements"
+        "__create__measurements",
+        "__destroyById__measurements",
+        "__get__resources",
+        "__findById__resources",
+        "__create__resources",
+        "__replace__resources",
+        "__replaceById__resources",
+        "__delete__resources",
+        "__destroyById__resources"
       ]
     }
   ],
@@ -277,9 +297,7 @@
       }
     },
     "handlePresentations": {
-      "description": [
-        "When HEAD method detected after parsing MQTT packet, save in cache and publish via MQTT"
-      ],
+      "description": ["When HEAD method detected after parsing MQTT packet publish via MQTT"],
       "accepts": [
         {
           "arg": "device",
@@ -304,7 +322,7 @@
     },
     "createOrUpdate": {
       "description": [
-        "When POST || PUT method detected after parsing MQTT packet, save in cache and publish via MQTT"
+        "When POST || PUT method detected after parsing MQTT packet, save and publish via MQTT"
       ],
       "accepts": [
         {
@@ -396,27 +414,80 @@
         "path": "/export"
       }
     },
-    "__get__measurements": {
+    "prototype.__get__resources": {
+      "description": "Get the sensor resources",
+      "returns": {
+        "root": true,
+        "type": "object"
+      },
+      "http": {
+        "verb": "get",
+        "path": "/resources"
+      }
+    },
+    "prototype.__findById__resources": {
+      "description": "Get the sensor resource",
       "accepts": [
         {
-          "arg": "sensorId",
+          "arg": "fk",
           "type": "string",
           "required": true
-        },
+        }
+      ],
+      "returns": {
+        "root": true,
+        "type": "object"
+      },
+      "http": {
+        "verb": "get",
+        "path": "/resources/:fk"
+      }
+    },
+    "prototype.__create__resources": {
+      "description": "Create the sensor resource(s)",
+      "accepts": [
         {
-          "arg": "filter",
+          "arg": "resources",
           "type": "object",
           "required": true
         }
       ],
       "returns": {
         "root": true,
-        "arg": "result",
         "type": "object"
       },
       "http": {
         "verb": "post",
-        "path": "/:sensorId/measurements"
+        "path": "/resources"
+      }
+    },
+    "prototype.__replace__resources": {
+      "description": "Replace the sensor resources",
+      "accepts": [
+        {
+          "arg": "resources",
+          "type": "object",
+          "required": true
+        }
+      ],
+      "returns": {
+        "root": true,
+        "type": "object"
+      },
+      "http": {
+        "verb": "put",
+        "path": "/resources"
+      }
+    },
+    "prototype.__delete__resources": {
+      "description": "Delete the sensor resources",
+      "returns": {
+        "root": true,
+        "type": "boolean"
+      },
+      "http": {
+        "verb": "delete",
+        "path": "/resources"
       }
     }
   }

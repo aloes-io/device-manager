@@ -8,7 +8,7 @@ const liner = new stream.Transform({ objectMode: true });
 // source.pipe(liner)
 // liner.on('readable', () => {
 //      var line = ""
-//      while (null !== (line = utils.liner.read())) {
+//      while (null !== (line = liner.read())) {
 //           // do something with line
 //      }
 // })

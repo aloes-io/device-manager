@@ -1,18 +1,21 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable import/no-extraneous-dependencies */
 import { expect } from 'chai';
 import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
-import testHelper from '../services/test-helper';
+import testHelper from '../lib/test-helper';
 
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
-const afterTestDelay = 3000;
+// const afterTestDelay = 3000;
 const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
+// todo test createOrUpdate unauthorized access
+// test createOrUpdate pause / restart event
+// test createOrUpdate mode === 1 || 2 || 3 (should trigger error)
 const schedulerTest = () => {
   const deviceFactory = testHelper.factories.device;
   const sensorFactory = testHelper.factories.sensor;
@@ -65,17 +68,17 @@ const schedulerTest = () => {
     }
   }
 
-  function afterTests(done) {
-    setTimeout(() => {
-      Promise.all([
-        SensorModel.destroyAll(),
-        DeviceModel.destroyAll(),
-        app.models.user.destroyAll(),
-      ])
-        .then(() => done())
-        .catch(done);
-    }, afterTestDelay);
+  async function afterTests() {
+    return Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()]);
   }
+
+  // function afterTests(done) {
+  //   setTimeout(() => {
+  //     Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
+  //       .then(() => done())
+  //       .catch(done);
+  //   }, afterTestDelay);
+  // }
 
   describe(`${collectionName} HTTP`, () => {
     const profiles = {
@@ -95,10 +98,11 @@ const schedulerTest = () => {
         // make a serie with process.env.EXTERNAL_TIMER && process.env.TIMER_SERVER_URL
         // and another without
         before: beforeTests,
-        after(done) {
-          this.timeout(delayBeforeTesting);
-          afterTests(done);
-        },
+        after: afterTests,
+        // after(done) {
+        //   this.timeout(delayBeforeTesting);
+        //   afterTests(done);
+        // },
         tests: {
           '[TEST] Verifying "CreateOrUpdate" access': {
             tests: [
@@ -108,7 +112,6 @@ const schedulerTest = () => {
                 auth: profiles.user,
                 url: () => `${apiUrl}create-or-update`,
                 body: () => ({
-                  device: { ...devices[1] },
                   sensor: {
                     ...sensors[3],
                     resources: {
@@ -128,7 +131,7 @@ const schedulerTest = () => {
                 }),
                 expect: resp => {
                   expect(resp.status).to.be.equal(200);
-                  expect(resp.body.sensor.resources['5523']).to.be.equal('started');
+                  expect(resp.body.sensorId).to.be.equal(sensors[3].id);
                 },
               },
               {
@@ -137,7 +140,6 @@ const schedulerTest = () => {
                 auth: profiles.user,
                 url: () => `${apiUrl}create-or-update`,
                 body: () => ({
-                  device: { ...devices[1] },
                   sensor: {
                     ...sensors[3],
                     resources: {
@@ -156,7 +158,7 @@ const schedulerTest = () => {
                 }),
                 expect: resp => {
                   expect(resp.status).to.be.equal(200);
-                  expect(resp.body.sensor.resources['5523']).to.be.equal('stopped');
+                  expect(resp.body.sensorId).to.be.equal(sensors[3].id);
                 },
               },
               {
@@ -165,7 +167,6 @@ const schedulerTest = () => {
                 auth: profiles.user,
                 url: () => `${apiUrl}create-or-update`,
                 body: () => ({
-                  device: { ...devices[1] },
                   sensor: {
                     ...sensors[3],
                     resources: {
@@ -185,7 +186,7 @@ const schedulerTest = () => {
                 }),
                 expect: resp => {
                   expect(resp.status).to.be.equal(200);
-                  expect(resp.body.sensor.resources['5523']).to.be.equal('started');
+                  expect(resp.body.sensorId).to.be.equal(sensors[3].id);
                 },
               },
             ],

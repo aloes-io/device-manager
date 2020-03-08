@@ -77,11 +77,6 @@
       "description": ["Endpoint to parse scheduler events from a sensor"],
       "accepts": [
         {
-          "arg": "device",
-          "type": "object",
-          "required": true
-        },
-        {
           "arg": "sensor",
           "type": "object",
           "required": true

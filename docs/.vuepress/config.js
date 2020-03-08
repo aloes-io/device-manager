@@ -7,8 +7,13 @@ module.exports = {
     repo: 'https://framagit.org/aloes/device-manager',
     repoLabel: 'Git',
     docsDir: 'docs',
-    nav: [{text: 'Readme', link: '/readme/'}, {text: 'API', link: '/api/'}],
-    sidebar: [['/readme/', 'Readme'], ['/api/', 'API'], ['/services/', 'Services']],
+    nav: [{ text: 'Readme', link: '/readme/' }, { text: 'API', link: '/api/' }],
+    sidebar: [
+      ['/readme/', 'Readme'],
+      ['/api/', 'API'],
+      ['/lib/', 'Libraries'],
+      ['/services/', 'Services'],
+    ],
     serviceWorker: {
       updatePopup: true, // Boolean | Object, default to undefined.
       // If set to true, the default text config will be:

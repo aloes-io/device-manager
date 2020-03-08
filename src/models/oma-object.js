@@ -1,3 +1,5 @@
+/* Copyright 2020 Edouard Maleix, read LICENSE */
+
 /**
  * Oma Object References.
  * @external OmaObjects

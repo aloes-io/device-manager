@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable import/no-extraneous-dependencies */
 import fs from 'fs';
@@ -6,7 +6,7 @@ import FormData from 'form-data';
 import path from 'path';
 import { promisify } from 'util';
 import { omaObjects, omaViews } from 'oma-json';
-import roleManager from './role-manager';
+import roleManager from '../services/role-manager';
 import deviceTypes from '../initial-data/device-types.json';
 
 let lastAddressId = 0;
@@ -93,8 +93,29 @@ function applicationFactory(id, ownerId) {
   return {
     name: `Application ${id}`,
     appEui: `12345${id}`,
-    transportProtocol: 'aloeslight',
+    transportProtocol: 'lorawan',
     ownerId,
+    pattern: '+appId/+collection/+method',
+    validators: {
+      collection: [
+        {
+          field: '+collection',
+          value: 'application | device | sensor | iotagent',
+          operation: 'equals',
+          transformation: 'lowercase',
+          registered: true,
+        },
+      ],
+      method: [
+        {
+          field: '+method',
+          value: 'HEAD | GET | POST | PUT | DELETE | STREAM',
+          transformation: 'uppercase',
+          operation: 'includes',
+          registered: true,
+        },
+      ],
+    },
   };
 }
 
@@ -116,7 +137,8 @@ function clientFactory(profile, type, key) {
       .toString(16)
       .substr(2, 8)}`;
   } else if (type === 'application') {
-    clientId = `${profile.appEui}-${Math.random()
+    clientId = `${profile.id}-${Math.random()
+      // clientId = `${profile.appEui}-${Math.random()
       .toString(16)
       .substr(2, 8)}`;
   } else {
@@ -133,7 +155,7 @@ function clientFactory(profile, type, key) {
     clientId,
     username: profile.id.toString(),
     password: key.toString(),
-    will: { topic: `${clientId}/status`, payload: 'KO?', retain: false, qos: 0 },
+    // will: { topic: `${clientId}/status`, payload: 'KO?', retain: false, qos: 0 },
   };
 }
 
@@ -248,11 +270,8 @@ function buildMethods(profile) {
           // emailVerified: true,
         })
         .then(user => {
-          // restricted the admin creation in app:
-          // admin role cannot be set without a valid admin session
           if (profile.roleName === 'admin') {
-            // need to manually set the role here
-            return roleManager.setUserRole(app, user.id, 'admin', true).then(() => user); // force the return of the user
+            return roleManager.setUserRole(app, user.id, 'admin', true).then(() => user);
           }
           return user;
         }),

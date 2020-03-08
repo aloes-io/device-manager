@@ -44,6 +44,53 @@
   },
   "validations": [],
   "relations": {},
-  "acls": [],
-  "methods": {}
+  "acls": [
+    {
+      "accessType": "*",
+      "principalType": "ROLE",
+      "principalId": "$authenticated",
+      "permission": "ALLOW",
+      "property": ["find, remove"]
+    }
+  ],
+  "methods": {
+    "find": {
+      "description": ["Endpoint to find all connected clients with optional match filter"],
+      "accepts": [
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": false
+        }
+      ],
+      "returns": {
+        "root": true,
+        "arg": "result",
+        "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/find"
+      }
+    },
+    "remove": {
+      "description": ["Endpoint to delete all connected clients with optional match filter"],
+      "accepts": [
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": false
+        }
+      ],
+      "returns": {
+        "root": true,
+        "arg": "result",
+        "type": "object"
+      },
+      "http": {
+        "verb": "post",
+        "path": "/remove"
+      }
+    }
+  }
 }

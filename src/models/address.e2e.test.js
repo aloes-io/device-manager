@@ -1,11 +1,11 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable import/no-extraneous-dependencies */
 /* eslint-disable security/detect-non-literal-regexp */
 import { expect } from 'chai';
 import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
-import testHelper from '../services/test-helper';
+import testHelper from '../lib/test-helper';
 
 require('../services/broker');
 
@@ -92,7 +92,7 @@ const addressTest = () => {
           this.timeout(3000);
           Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
             .then(() => done())
-            .catch(e => done(e));
+            .catch(done);
         },
         tests: {
           '[TEST] Verifying "Create" access': {

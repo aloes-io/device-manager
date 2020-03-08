@@ -60,11 +60,11 @@ function getDestinationPath(baseDirectory) {
 // Copy files recursive
 async function copyEverything(src, dest) {
   // Get files to copy from source directory
-  const filesToCopy = await fs.readdirSync(src, {
+  const filesToCopy = fs.readdirSync(src, {
     withFileTypes: true,
   });
   // Make recursive directories
-  await fs.mkdir(
+  fs.mkdir(
     dest,
     {
       recursive: true,
@@ -74,7 +74,7 @@ async function copyEverything(src, dest) {
     },
   );
 
-  const filesCopy = await Object.key(filesToCopy).map(async key => {
+  const filesCopy = Object.key(filesToCopy).map(async key => {
     const file = filesToCopy[key];
     const srcPath = path.join(src, file.name);
     const destPath = path.join(dest, file.name);
@@ -86,7 +86,7 @@ async function copyEverything(src, dest) {
       }
     } else {
       try {
-        await fs.copyFileSync(srcPath, destPath);
+        fs.copyFileSync(srcPath, destPath);
       } catch (err) {
         console.log(`${Red}Cannot finish the backup ${err}${Reset}`);
       }
