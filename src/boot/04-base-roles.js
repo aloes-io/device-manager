@@ -3,7 +3,7 @@
 import initialRolesList from '../initial-data/base-roles.json';
 import logger from '../services/logger';
 import roleManager from '../services/role-manager';
-// import utils from '../services/utils';
+// import utils from '../lib/utils';
 
 module.exports = async function createBaseRoles(app) {
   // if (!utils.isMasterProcess(process.env)) return null;

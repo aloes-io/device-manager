@@ -2,7 +2,7 @@
 
 /* eslint-disable security/detect-non-literal-fs-filename */
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 import deviceTypes from '../initial-data/device-types.json';
 
 const sortByType = instances =>

@@ -3,15 +3,26 @@
 import crypto from 'crypto';
 import iotAgent from 'iot-agent';
 import isMACAddress from 'validator/lib/isMACAddress';
-import logger from '../services/logger';
-import utils from '../services/utils';
-import deviceTypes from '../initial-data/device-types.json';
-import protocols from '../initial-data/protocols.json';
+import logger from '../../services/logger';
+import deviceTypes from '../../initial-data/device-types.json';
+import protocols from '../../initial-data/protocols.json';
+import utils from '../utils';
 
 export const collectionName = 'Device';
 
 const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
 
+/**
+ * Error callback
+ * @callback module:Device~errorCallback
+ * @param {error} ErrorObject
+ */
+
+/**
+ * Validate device transportProtocol before saving instance
+ * @method module:Device~transportProtocolValidator
+ * @param {ErrorCallback} err
+ */
 export function transportProtocolValidator(err) {
   if (
     !this.transportProtocol ||
@@ -21,6 +32,11 @@ export function transportProtocolValidator(err) {
   }
 }
 
+/**
+ * Validate device messageProtocol before saving instance
+ * @method module:Device~messageProtocolValidator
+ * @param {ErrorCallback} err
+ */
 export function messageProtocolValidator(err) {
   if (
     !this.messageProtocol ||
@@ -30,6 +46,11 @@ export function messageProtocolValidator(err) {
   }
 }
 
+/**
+ * Validate device type before saving instance
+ * @method module:Device~typeValidator
+ * @param {ErrorCallback} err
+ */
 export function typeValidator(err) {
   // eslint-disable-next-line security/detect-object-injection
   if (!this.type || !deviceTypes[this.type]) {
@@ -60,7 +81,7 @@ const setDeviceIcons = device => {
  * Keys creation helper - update device attributes
  * @method module:Device~createKeys
  * @param {object} device - Device instance
- * @returns {object} device
+ * @returns {Promise<object>} device
  */
 const createKeys = async device => {
   logger.publish(5, `${collectionName}`, 'createKeys:req', device.name);
@@ -159,7 +180,17 @@ const setDeviceQRCode = device => {
   return device;
 };
 
-export const publishToDeviceApplications = async (app, device, packet) => {
+/**
+ * Check if a Device instance is attached to any Application instance
+ *
+ * Publish message to each of these Application instance
+ * @method module:Device~publishToDeviceApplications
+ * @param {object} app - Loopback app
+ * @param {object} device - Device instance
+ * @param {object} packet - MQTT packet to send
+ * @fires Server.publish
+ */
+export const publishToDeviceApplications = (app, device, packet) => {
   if (device.appIds && device.appIds.length > 0) {
     device.appIds.map(appId => {
       const parts = packet.topic.split('/');
@@ -244,9 +275,10 @@ export const publishToDeviceApplications = async (app, device, packet) => {
 
 /**
  * Validate instance before creation
+ * @async
  * @method module:Device~onBeforeSave
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 export const onBeforeSave = async ctx => {
   if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
@@ -292,7 +324,7 @@ export const onBeforeSave = async ctx => {
  * @method module:Device~createProps
  * @param {object} app - Loopback app
  * @param {object} instance - Device instance
- * @returns {function} Device.publish
+ * @returns {Promise<function>} Device.publish
  */
 const createProps = async (app, instance) => {
   await instance.address.create({
@@ -319,7 +351,7 @@ const createProps = async (app, instance) => {
  * @method module:Device~updateProps
  * @param {object} app - Loopback app
  * @param {object} instance - Device instance
- * @returns {function} Device.publish
+ * @returns {Promise<function>} Device.publish
  */
 const updateProps = async (app, instance) => {
   // instance = await createKeys(instance);
@@ -364,7 +396,7 @@ const updateProps = async (app, instance) => {
  * Create relations on instance creation
  * @method module:Device~onAfterSave
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 export const onAfterSave = async ctx => {
   if (ctx.hookState.updateData) {
@@ -390,7 +422,7 @@ export const onAfterSave = async ctx => {
  * @method module:Device~deleteProps
  * @param {object} app - Loopback app
  * @param {object} instance
- * @returns {function} Device.publish
+ * @returns {Promise<function>} Device.publish
  */
 const deleteProps = async (app, instance) => {
   try {
@@ -414,7 +446,7 @@ const deleteProps = async (app, instance) => {
  * Delete relations on instance(s) deletetion
  * @method module:Device~onBeforeDelete
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 export const onBeforeDelete = async ctx => {
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
@@ -438,7 +470,7 @@ export const onBeforeDelete = async ctx => {
  * @param {object} ctx - Express context
  * @param {object} ctx.req - Request
  * @param {object} ctx.res - Response
- * @returns {object} context
+ * @returns {Promise<object>} context
  */
 export const onBeforeRemote = async (app, ctx) => {
   if (
@@ -527,7 +559,7 @@ export const onBeforeRemote = async (app, ctx) => {
  * @param {object} client - MQTT client
  * @fires Device.publish
  * @fires Sensor.publish
- * @returns {object} device
+ * @returns {Promise<object>} device
  */
 export const parseMessage = async (app, packet, pattern, client) => {
   if (!pattern || !pattern.params || !packet || !packet.topic) {

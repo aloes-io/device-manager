@@ -1,5 +1,5 @@
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 export default function autoUpdate(app) {
   if (utils.isMasterProcess(process.env)) {

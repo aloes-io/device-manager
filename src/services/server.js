@@ -36,7 +36,9 @@ const unless = (paths, middleware) => (req, res, next) => {
 const authenticateInstance = async (client, username, password) => {
   const Client = app.models.Client;
   let status, foundClient;
-  if (!client || !client.id) return { client: null, status: 1 };
+  if (!client || !client.id) {
+    return { client: null, status: 1 };
+  }
   // todo : find a way to verify in auth request, against which model
   // authenticate
 
@@ -65,7 +67,7 @@ const authenticateInstance = async (client, username, password) => {
     }
     if (token && token.userId && token.userId.toString() === username) {
       status = 0;
-      foundClient.ownerId = token.userId.toString();
+      foundClient.ownerId = username;
       foundClient.user = username;
       foundClient.model = 'User';
     } else {

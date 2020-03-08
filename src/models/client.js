@@ -2,7 +2,7 @@
 
 /* eslint-disable no-restricted-syntax */
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 /**
  * Called when a remote method tries to access Client Model / instance
@@ -11,7 +11,7 @@ import utils from '../services/utils';
  * @param {object} ctx - Express context
  * @param {object} ctx.req - Request
  * @param {object} ctx.res - Response
- * @returns {object} context
+ * @returns {Promise<object>} context
  */
 export const onBeforeRemote = async (app, ctx) => {
   if (ctx.method.name === 'find' || ctx.method.name === 'remove') {
@@ -44,7 +44,7 @@ module.exports = function(Client) {
    * Find clients in the cache
    * @method module:Client.getAll
    * @param {object} [filter] - Client filter
-   * @returns {array} schedulers - Cached clients
+   * @returns {Promise<array>} schedulers - Cached clients
    */
   Client.getAll = async filter => {
     const clients = [];
@@ -63,7 +63,7 @@ module.exports = function(Client) {
    * Delete clients stored in cache
    * @method module:Client.deleteAll
    * @param {object} [filter] - Client filter
-   * @returns {array} clients - Cached clients keys
+   * @returns {Promise<array>} clients - Cached clients keys
    */
   Client.deleteAll = async filter => {
     const clients = [];
@@ -84,7 +84,7 @@ module.exports = function(Client) {
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @returns {function} Client~onBeforeRemote
+   * @returns {Promise<function>} Client~onBeforeRemote
    */
   Client.beforeRemote('**', async ctx => onBeforeRemote(Client.app, ctx));
 
@@ -140,7 +140,7 @@ module.exports = function(Client) {
    * @param {string} key
    * @param {string} value
    * @param {number} [ttl]
-   * @param {ErrorCallback} [cb] - Optional callback
+   * @param {errorCallback} [cb] - Optional callback
    * @promise undefined
    */
 
@@ -151,7 +151,7 @@ module.exports = function(Client) {
    *
    * @method module:Client.delete
    * @param {string} key
-   * @param {ErrorCallback} [cb] - Optional callback
+   * @param {errorCallback} [cb] - Optional callback
    * @promise undefined
    */
 
@@ -163,7 +163,7 @@ module.exports = function(Client) {
    * @method module:Client.expire
    * @param {string} key
    * @param {number} [ttl]
-   * @param {ErrorCallback} [cb] - Optional callback
+   * @param {errorCallback} [cb] - Optional callback
    * @promise undefined
    */
 

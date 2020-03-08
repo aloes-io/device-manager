@@ -106,15 +106,15 @@ const userIpLimiter = () => {
 rateLimiter.userIpLimiter = userIpLimiter();
 
 /**
- * Rate limit user access by Ip and/or username
+ * Check if Rate limits exist by Ip and/or username
  *
  * optionnally use a clientId to limit reconnections
  *
- * @method module:rateLimiter.authLimiter
+ * @method module:rateLimiter.getAuthLimiter
  * @param {string} ip
  * @param {string} username
  * @param {string} [clientId]
- * @returns {object} retrySecs, userIpLimit, ipLimit, usernameIPkey
+ * @returns {Promise<object>} retrySecs, userIpLimit, ipLimit, usernameIPkey
  */
 rateLimiter.getAuthLimiter = async (ip, username) => {
   let usernameIPkey = null;
@@ -163,8 +163,16 @@ rateLimiter.getAuthLimiter = async (ip, username) => {
   }
 };
 
-// Consume 1 point from limiters on wrong attempt and block if limits are reached
-// Count failed attempts by Username + IP only for registered users
+/**
+ * Consume 1 point from limiters on wrong attempt and block if limits are reached
+ *
+ * Count failed attempts by Username + IP only for registered users
+ *
+ * @method module:rateLimiter.setAuthLimiter
+ * @param {string} ip
+ * @param {string} username
+ * @returns {Promise<object>}
+ */
 rateLimiter.setAuthLimiter = async (ip, username) => {
   const promises = [rateLimiter.ipLimiter.consume(ip)];
   if (username) {
@@ -174,7 +182,14 @@ rateLimiter.setAuthLimiter = async (ip, username) => {
   return Promise.all(promises);
 };
 
-// Reset on successful authorisation
+/**
+ * Reset exisiting limiters for user/ip on successful authorisation
+ *
+ * @method module:rateLimiter.cleanAuthLimiter
+ * @param {string} ip
+ * @param {string} username
+ * @returns {Promise<boolean>}
+ */
 rateLimiter.cleanAuthLimiter = async (ip, username) => {
   // clean IPLimiter too ?
   if (username) {

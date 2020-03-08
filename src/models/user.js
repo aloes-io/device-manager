@@ -8,10 +8,10 @@ import {
   onAfterSave,
   onBeforeDelete,
   onBeforeRemote,
-} from '../lib/user';
+} from '../lib/models/user';
 import mails from '../services/mails';
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 /**
  * @module User
@@ -38,9 +38,10 @@ module.exports = function(User) {
 
   /**
    * Find a user by its email address and send a confirmation link
+   * @async
    * @method module:User.findByEmail
    * @param {string} email - User email address
-   * @returns {object} mail result
+   * @returns {Promise<object>} mail result
    */
   User.findByEmail = async email => {
     logger.publish(4, `${collectionName}`, 'findByEmail:req', email);
@@ -64,9 +65,10 @@ module.exports = function(User) {
 
   /**
    * Send a confirmation link to confirm signup
+   * @async
    * @method module:User.verifyEmail
    * @param {object} user - User instance
-   * @returns {object} mail result
+   * @returns {Promise<object>} mail result
    */
   User.verifyEmail = async user => {
     logger.publish(4, `${collectionName}`, 'verifyEmail:req', user);
@@ -90,10 +92,11 @@ module.exports = function(User) {
 
   /**
    * Updating user password using an authorization token
+   * @async
    * @method module:User.updatePasswordFromToken
    * @param {object} accessToken - User instance
    * @param {string} newPassword - User new password
-   * @returns {boolean} result
+   * @returns {Promise<boolean>} result
    */
   User.updatePasswordFromToken = async (accessToken, newPassword) => {
     logger.publish(3, `${collectionName}`, 'updatePasswordFromToken:req', accessToken);
@@ -109,11 +112,12 @@ module.exports = function(User) {
 
   /**
    * Updating user password
+   * @async
    * @method module:User.setNewPassword
    * @param {object} ctx - Loopback context
    * @param {string} oldPassword
    * @param {string} newPassword
-   * @returns {object} user
+   * @returns {Promise<object>} user
    */
   User.setNewPassword = async (ctx, oldPassword, newPassword) => {
     logger.publish(3, `${collectionName}`, 'setNewPassword:req', '');
@@ -127,9 +131,11 @@ module.exports = function(User) {
 
   /**
    * Sending a request to admin
+   * @async
    * @method module:User.sendContactForm
    * @param {object} form - Client form options
    * @fires User.sendContactForm
+   * @returns {Promise<boolean>}
    */
   User.sendContactForm = async form => {
     logger.publish(4, `${collectionName}`, 'sendContactForm:req', form);
@@ -143,6 +149,14 @@ module.exports = function(User) {
     return true;
   };
 
+  /**
+   * Sending a mail invitation to a new user
+   * @async
+   * @method module:User.sendInvite
+   * @param {object} options
+   * @fires User.sendMailInvite
+   * @returns {Promise<boolean>}
+   */
   User.sendInvite = async options => {
     if (!options || !options.email || !options.profile) {
       throw utils.buildError(400, 'INVALID_ARGS', 'Options are invalid');
@@ -155,31 +169,29 @@ module.exports = function(User) {
   };
   /**
    * Update client (as the user) status from MQTT connection status
+   * @async
    * @method module:User.updateStatus
    * @param {object} client - MQTT parsed client
    * @param {boolean} status - MQTT connection status
-   * @returns {function}
+   * @returns {Promise<object>} client
    */
   User.updateStatus = async (client, status) => {
     // if (!client || !client.id || !client.user) {
     //   throw new Error('Invalid client');
     // }
-    logger.publish(5, collectionName, 'updateStatus:req', status);
-    const user = await User.findById(client.user);
-    if (user && user.id) {
-      const Client = User.app.models.Client;
-      const ttl = 1 * 60 * 60 * 1000;
-      client.status = status;
-      if (status) {
-        await Client.set(client.id, JSON.stringify(client), ttl);
-      } else {
-        await Client.delete(client.id);
-      }
-      logger.publish(4, collectionName, 'updateStatus:res', { client, status });
-      return client;
+    logger.publish(4, collectionName, 'updateStatus:req', status);
+    // const user = await User.findById(client.user);
+    const Client = User.app.models.Client;
+    const ttl = 1 * 60 * 60 * 1000;
+    client.status = status;
+    // client.model = 'User';
+    if (status) {
+      await Client.set(client.id, JSON.stringify(client), ttl);
+    } else {
+      await Client.delete(client.id);
     }
-    // user not found
-    return null;
+    logger.publish(3, collectionName, 'updateStatus:res', { client, status });
+    return client;
   };
 
   /**
@@ -196,7 +208,7 @@ module.exports = function(User) {
    * Event reporting to trigger mails.verifyEmail
    * @event verifyEmail
    * @param {object} user - User instance
-   * @returns {function} Mails.verifyEmail
+   * @returns {Promise<function>} Mails.verifyEmail
    */
   User.on('verifyEmail', mails.verifyEmail);
 
@@ -204,7 +216,7 @@ module.exports = function(User) {
    * Event reporting to trigger mails.send
    * @event sendContactForm
    * @param {object} options - Form properties
-   * @returns {function} Mails.sendContactForm
+   * @returns {Promise<function>} Mails.sendContactForm
    */
   User.on('sendContactForm', mails.sendContactForm);
 
@@ -212,7 +224,7 @@ module.exports = function(User) {
    * Event reporting to trigger mails.send
    * @event sendMailInvite
    * @param {object} options - Form properties
-   * @returns {function} Mails.sendMailInvite
+   * @returns {Promise<function>} Mails.sendMailInvite
    */
   User.on('sendMailInvite', mails.sendMailInvite);
 
@@ -220,7 +232,7 @@ module.exports = function(User) {
    * Event reporting to send password reset link when requested
    * @event resetPasswordRequest
    * @param {object} options - Mail options
-   * @returns {function} Mails.sendResetPasswordMail
+   * @returns {Promise<function>} Mails.sendResetPasswordMail
    */
   User.on('resetPasswordRequest', mails.sendResetPasswordMail);
 
@@ -230,7 +242,7 @@ module.exports = function(User) {
    * @param {object} message - Parsed MQTT message.
    * @property {object} message.client - MQTT client
    * @property {boolean} message.status - MQTT client status.
-   * @returns {function} User.updateStatus
+   * @returns {Promise<function>} User.updateStatus
    */
   User.on('client', async message => {
     logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
@@ -253,7 +265,7 @@ module.exports = function(User) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} user - User new instance
-   * @returns {function} User~onBeforeSave
+   * @returns {Promise<function>} User~onBeforeSave
    */
   User.observe('before save', onBeforeSave);
 
@@ -264,7 +276,7 @@ module.exports = function(User) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} user - User new instance
-   * @returns {function} User~onAfterSave
+   * @returns {Promise<function>} User~onAfterSave
    */
   User.observe('after save', onAfterSave);
 
@@ -275,7 +287,7 @@ module.exports = function(User) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - User instance id
-   * @returns {function} User~onBeforeDelete
+   * @returns {Promise<function>} User~onBeforeDelete
    */
   User.observe('before delete', onBeforeDelete);
 
@@ -283,7 +295,7 @@ module.exports = function(User) {
    * Event reporting that a remote user method has been requested
    * @event before_*
    * @param {object} ctx - Express context.
-   * @returns {function} User~onBeforeRemote
+   * @returns {Promise<function>} User~onBeforeRemote
    */
   User.beforeRemote('**', onBeforeRemote);
 
@@ -297,44 +309,50 @@ module.exports = function(User) {
 
   /**
    * Find users
+   * @async
    * @method module:User.find
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Returns users length
+   * @async
    * @method module:User.count
    * @param {object} where
-   * @returns {number}
+   * @returns {Promise<number>}
    */
 
   /**
    * Find user by id
+   * @async
    * @method module:User.findById
    * @param {any} id
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Create user
+   * @async
    * @method module:User.create
    * @param {object} user
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Update user by id
+   * @async
    * @method module:User.updateById
    * @param {any} id
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Delete user by id
+   * @async
    * @method module:User.deleteById
    * @param {any} id
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   User.disableRemoteMethodByName('count');

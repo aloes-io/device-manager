@@ -1,7 +1,7 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
-import logger from '../services/logger';
-import utils from '../services/utils';
+import logger from '../../services/logger';
+import utils from '../utils';
 
 export const collectionName = 'Application';
 
@@ -11,7 +11,7 @@ const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'err
  * Validate instance before creation
  * @method module:Application~onBeforeSave
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 export const onBeforeSave = async ctx => {
   if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
@@ -44,7 +44,7 @@ export const onBeforeSave = async ctx => {
  * Keys creation helper - update application attributes
  * @method module:Application~createKeys
  * @param {object} application - Application instance
- * @returns {object} application
+ * @returns {Promise<object>} application
  */
 const createKeys = async application => {
   const attributes = {};
@@ -68,7 +68,7 @@ const createKeys = async application => {
  * @method module:Application~createProps
  * @param {object} app - Loopback app
  * @param {object} instance - Application instance
- * @returns {function} Application.publish
+ * @returns {Promise<function>} Application.publish
  */
 const createProps = async (app, instance) => {
   instance = await createKeys(instance);
@@ -84,7 +84,7 @@ const createProps = async (app, instance) => {
  * @method module:Application~updateProps
  * @param {object} app - Loopback app
  * @param {object} instance - Application instance
- * @returns {function} Application.publish
+ * @returns {Promise<function>} Application.publish
  */
 const updateProps = async (app, instance) => {
   try {
@@ -100,7 +100,7 @@ const updateProps = async (app, instance) => {
  * Create relations on instance creation
  * @method module:Application~onAfterSave
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 export const onAfterSave = async ctx => {
   if (ctx.hookState.updateData) {
@@ -127,7 +127,7 @@ export const onAfterSave = async ctx => {
  * @method module:Application~deleteProps
  * @param {object} app - Loopback app
  * @param {object} instance
- * @returns {function} Application.publish
+ * @returns {Promise<function>} Application.publish
  */
 const deleteProps = async (app, instance) => {
   try {
@@ -148,7 +148,7 @@ const deleteProps = async (app, instance) => {
  * Delete relations on instance(s) deletetion
  * @method module:Application~onBeforeDelete
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 export const onBeforeDelete = async ctx => {
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
@@ -172,7 +172,7 @@ export const onBeforeDelete = async ctx => {
  * @param {object} ctx - Express context
  * @param {object} ctx.req - Request
  * @param {object} ctx.res - Response
- * @returns {object} context
+ * @returns {Promise<object>} ctx
  */
 export const onBeforeRemote = async ctx => {
   if (
@@ -230,6 +230,7 @@ export const onBeforeRemote = async ctx => {
  *
  * Adding device and sensor context to raw incoming data
  *
+ * @async
  * @method module:Application~parseMessage
  * @param {object} app - Loopback app
  * @param {object} packet - MQTT packet
@@ -237,7 +238,6 @@ export const onBeforeRemote = async ctx => {
  * @param {object} client - MQTT client
  * @fires Device.publish
  * @fires Sensor.publish
- * @returns {object} device
  */
 export const parseMessage = async (app, packet, pattern, client) => {
   const Application = app.models.Application;

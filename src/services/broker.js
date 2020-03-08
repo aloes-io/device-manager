@@ -11,9 +11,8 @@ import {
   onAuthorizeSubscribe,
   onPublished,
   persistence,
-  preConnect,
   updateClientStatus,
-} from '../lib/broker';
+} from '../lib/services/broker';
 import envVariablesKeys from '../initial-data/variables-keys.json';
 import logger from './logger';
 import { version } from '../../package.json';
@@ -31,14 +30,47 @@ const broker = {
 };
 
 /**
+ * Error callback
+ * @callback module:Broker~aedesCallback
+ * @param {error} ErrorObject
+ * @param {result}
+ */
+
+/**
+ * Aedes preConnect hook
+ *
+ * Check client connection details
+ *
+ * @method module:Broker~preConnect
+ * @param {object} client - MQTT client
+ * @param {aedesCallback} cb
+ * @returns {cb}
+ */
+export const preConnect = (client, cb) => {
+  logger.publish(3, 'broker', 'preConnect:res', {
+    connDetails: client.connDetails,
+  });
+  if (client.connDetails && client.connDetails.ipAddress) {
+    client.ip = client.connDetails.ipAddress;
+    client.type = client.connDetails.isWebsocket ? 'WS' : 'MQTT';
+    return cb(null, true);
+    // return rateLimiter.ipLimiter
+    //   .get(client.ip)
+    //   .then(res => cb(null, !res || res.consumedPoints < 100))
+    //   .err(e => cb(e, null));
+  }
+  return cb(null, false);
+};
+
+/**
  * Aedes authentification hook
  *
  * @method module:Broker~authenticate
  * @param {object} client - MQTT client
  * @param {string} [username] - MQTT username
  * @param {object} [password] - MQTT password
- * @param {function} cb - Aedes callback
- * @returns {function} cb - Aedes callback
+ * @param {aedesCallback} cb
+ * @returns {aedesCallback}
  */
 const authenticate = (client, username, password, cb) => {
   onAuthenticate(broker, client, username, password)
@@ -61,8 +93,8 @@ const authenticate = (client, username, password, cb) => {
  * @method module:Broker~authorizePublish
  * @param {object} client - MQTT client
  * @param {object} packet - MQTT packet
- * @param {function} cb - Aedes callback
- * @returns {function} cb - Aedes callback
+ * @param {aedesCallback} cb
+ * @returns {aedesCallback}
  */
 const authorizePublish = (client, packet, cb) => {
   if (onAuthorizePublish(client, packet)) return cb(null);
@@ -75,8 +107,8 @@ const authorizePublish = (client, packet, cb) => {
  * @method module:Broker~authorizeSubscribe
  * @param {object} client - MQTT client
  * @param {object} packet - MQTT packet
- * @param {function} cb - Aedes callback
- * @returns {function} cb - Aedes callback
+ * @param {aedesCallback} cb
+ * @returns {aedesCallback}
  */
 const authorizeSubscribe = (client, packet, cb) => {
   if (onAuthorizeSubscribe(client, packet)) {
@@ -119,11 +151,11 @@ const authorizeSubscribe = (client, packet, cb) => {
  * @method module:Broker~published
  * @param {object} packet - MQTT packet
  * @param {object} client - MQTT client
- * @param {function} cb - Aedes callback
- * @returns {function} cb - Aedes callback
+ * @param {aedesCallback} cb
+ * @returns {aedesCallback}
  */
 const published = (packet, client, cb) => {
-  onPublished(broker, packet, client)
+  return onPublished(broker, packet, client)
     .then(() => cb())
     .catch(() => cb());
 };
@@ -169,24 +201,22 @@ broker.start = () => {
    * On client connected to Aedes broker
    * @event client
    * @param {object} client - MQTT client
-   * @returns {function} Broker~delayedUpdateClientStatus
+   * @returns {Promise<function>} Broker~updateClientStatus
    */
   broker.instance.on('client', async client => {
     logger.publish(3, 'broker', 'onClientConnect', client.id);
-    // await delayedUpdateClientStatus(client, true);
-    await updateClientStatus(broker, client, true);
+    return updateClientStatus(broker, client, true);
   });
 
   /**
    * On client disconnected from Aedes broker
    * @event clientDisconnect
    * @param {object} client - MQTT client
-   * @returns {function} Broker~delayedUpdateClientStatus
+   * @returns {Promise<function>} Broker~updateClientStatus
    */
   broker.instance.on('clientDisconnect', async client => {
     logger.publish(3, 'broker', 'onClientDisconnect', client.id);
-    // await delayedUpdateClientStatus(client, false);
-    await updateClientStatus(broker, client, false);
+    return updateClientStatus(broker, client, false);
   });
 
   /**
@@ -235,7 +265,7 @@ broker.start = () => {
 /**
  * Stop broker and update models status
  * @method module:Broker.stop
- * @returns {boolean}
+ * @returns {Promise<boolean>}
  */
 broker.stop = async () => {
   // const aloesTopicPrefix = `aloes-${process.env.ALOES_ID}`;

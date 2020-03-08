@@ -2,7 +2,7 @@
 
 import { omaObjects, omaResources, omaViews, version } from 'oma-json';
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 export default async function createOmaApi(server) {
   if (!utils.isMasterProcess(process.env)) return;

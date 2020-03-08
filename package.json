@@ -8,9 +8,10 @@
   },
   "scripts": {
     "lint": "npx eslint --ext js .",
-    "docs:services": "./node_modules/.bin/jsdoc2md ./src/services/* ./src/lib/* > ./docs/services/README.md",
-    "docs:models": "./node_modules/.bin/jsdoc2md ./src/models/* ./src/lib/* > ./docs/api/README.md",
-    "docs:md": "npm run docs:services ; npm run docs:models",
+    "docs:lib": "./node_modules/.bin/jsdoc2md ./src/lib/* > ./docs/lib/README.md",
+    "docs:models": "./node_modules/.bin/jsdoc2md ./src/models/* ./src/lib/models/* > ./docs/api/README.md",
+    "docs:services": "./node_modules/.bin/jsdoc2md ./src/services/* ./src/lib/services/* > ./docs/services/README.md",
+    "docs:md": " npm run docs:models ; npm run docs:services ; npm run docs:lib",
     "docs:dev": "npm run docs:md ; cp ./README.md ./docs/readme/. ; ./node_modules/.bin/vuepress dev docs",
     "docs:build": "npm run docs:md ; cp ./README.md ./docs/readme/. ; ./node_modules/.bin/vuepress build docs",
     "docs:serve": "light-server -s public -p 7000 --servePrefix /device-manager/",

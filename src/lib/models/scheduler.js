@@ -1,8 +1,8 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
-import logger from '../services/logger';
-import utils from '../services/utils';
-import DeltaTimer from '../services/delta-timer';
+import logger from '../../services/logger';
+import DeltaTimer from '../../services/delta-timer';
+import utils from '../utils';
 
 export const collectionName = 'Scheduler';
 // store timers in memory when using internal timer
@@ -15,7 +15,7 @@ const timers = {};
  * @param {object} ctx - Express context
  * @param {object} ctx.req - Request
  * @param {object} ctx.res - Response
- * @returns {object} context
+ * @returns {Promise<object>} context
  */
 export const onBeforeRemote = async (app, ctx) => {
   if (ctx.method.name === 'createOrUpdate') {
@@ -131,6 +131,19 @@ const startExternalTimer = async (Scheduler, sensor, client, scheduler) => {
   }
 };
 
+/**
+ * Start a timer instance based on sensor resources ( startInternalTimer | startExternalTimer )
+ *
+ * Update Sensor resources
+ *
+ * @method module:Scheduler~startTimer
+ * @param {object} Scheduler - Scheduler Model
+ * @param {object} sensor - Sensor instance
+ * @param {object} resources -  Sensor instance resources
+ * @param {object} client - MQTT client
+ * @param {number} mode - Timer mode
+ * @returns {Promise<object>} scheduler
+ */
 export const startTimer = async (Scheduler, sensor, resources, client, mode = 0) => {
   let scheduler = JSON.parse(await Scheduler.get(`sensor-${sensor.id}`));
   if (!scheduler || scheduler === null) {
@@ -205,6 +218,19 @@ const stopInternalTimer = async (Scheduler, sensor, client, scheduler) => {
   }
 };
 
+/**
+ * Stop a timer instance based on sensor resources ( stopInternalTimer | stopExternalTimer )
+ *
+ * Update Sensor resources
+ *
+ * @method module:Scheduler~stopTimer
+ * @param {object} Scheduler - Scheduler Model
+ * @param {object} sensor - Sensor instance
+ * @param {object} resources -  Sensor instance resources
+ * @param {object} client - MQTT client
+ * @param {number} mode - Timer mode
+ * @returns {Promise<object>} scheduler
+ */
 const stopTimer = async (Scheduler, sensor, resources, client, mode = 0) => {
   logger.publish(4, `${collectionName}`, 'stopTimer:req', { sensorId: sensor.id, mode });
   let scheduler = JSON.parse(await Scheduler.get(`sensor-${sensor.id}`));
@@ -235,6 +261,17 @@ const stopTimer = async (Scheduler, sensor, resources, client, mode = 0) => {
   return scheduler;
 };
 
+/**
+ * Parse a timer event and dispatch to the proper function
+ *
+ * ( startTimer | stopTimer )
+ *
+ * @method module:Scheduler~parseTimerEvent
+ * @param {object} Scheduler - Scheduler Model
+ * @param {object} sensor - Sensor instance
+ * @param {object} client - MQTT client
+ * @returns {Promise<object>} scheduler
+ */
 export const parseTimerEvent = async (Scheduler, sensor, client) => {
   let scheduler;
   logger.publish(4, `${collectionName}`, 'parseTimerEvent:req', sensor.resources['5523']);
@@ -261,6 +298,17 @@ export const parseTimerEvent = async (Scheduler, sensor, client) => {
   return scheduler;
 };
 
+/**
+ * Parse a timer state and dispatch to the proper function
+ *
+ * ( startTimer | stopTimer )
+ *
+ * @method module:Scheduler~parseTimerEvent
+ * @param {object} Scheduler - Scheduler Model
+ * @param {object} sensor - Sensor instance
+ * @param {object} client - MQTT client
+ * @returns {Promise<object>} scheduler
+ */
 export const parseTimerState = async (Scheduler, sensor, client) => {
   let scheduler;
   logger.publish(4, `${collectionName}`, 'parseTimerState:req', sensor.resources['5850']);
@@ -278,6 +326,16 @@ export const parseTimerState = async (Scheduler, sensor, client) => {
   return scheduler;
 };
 
+/**
+ * Method called by a timer instance at timeout
+ *
+ * ( startTimer | stopTimer )
+ *
+ * @method module:Scheduler~onTimeout
+ * @param {object} Scheduler - Scheduler Model
+ * @param {object} sensorId - Sensor instance id
+ * @returns {Promise<function>} Sensor.createOrUpdate
+ */
 export const onTimeout = async (Scheduler, sensorId) => {
   const Sensor = Scheduler.app.models.Sensor;
   const SensorResource = Scheduler.app.models.SensorResource;
@@ -321,6 +379,16 @@ export const onTimeout = async (Scheduler, sensorId) => {
   await Sensor.createOrUpdate(sensor, 5543, 1);
 };
 
+/**
+ * Method called by a timer instance at timeout
+ *
+ * Update active Scheduler and related Sensor instances
+ *
+ * @async
+ * @method module:Scheduler~syncRunningTimers
+ * @param {object} Scheduler - Scheduler Model
+ * @param {object} delay - Sensor instance id
+ */
 export const syncRunningTimers = async (Scheduler, delay) => {
   const schedulers = await Scheduler.getAll({ match: 'sensor-*' });
   const Sensor = Scheduler.app.models.Sensor;

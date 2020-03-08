@@ -3,7 +3,7 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-restricted-syntax */
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 const collectionName = 'SensorResource';
 

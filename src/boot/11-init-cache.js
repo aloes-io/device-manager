@@ -1,7 +1,7 @@
 /* Copyright 2019 Edouard Maleix, read LICENSE */
 
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 module.exports = async function initCache(app) {
   if (utils.isMasterProcess(process.env)) {

@@ -5,9 +5,9 @@ import jugglerUtils from 'loopback-datasource-juggler/lib/utils';
 import { publish } from 'iot-agent';
 import { omaObjects, omaResources } from 'oma-json';
 import isLength from 'validator/lib/isLength';
-import { publishToDeviceApplications } from '../lib/device';
+import { publishToDeviceApplications } from '../lib/models/device';
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 const collectionName = 'Measurement';
 
@@ -155,7 +155,7 @@ module.exports = function(Measurement) {
      * @method module:Measurement~buildQuery
      * @param {object} filter - Where filter
      * @param {object} [rp] - retention policy
-     * @returns {string}
+     * @returns {Promise<string>}
      */
     const buildQuery = (filter, rp) =>
       new Promise((resolve, reject) => {
@@ -207,7 +207,7 @@ module.exports = function(Measurement) {
      * Find Measurement instances with optional filter
      * @method module:Measurement~findMeasurements
      * @param {object} [filter] - Where filter
-     * @returns {object[]}
+     * @returns {Promise<object[] | null>}
      */
     const findMeasurements = async filter => {
       try {
@@ -285,9 +285,9 @@ module.exports = function(Measurement) {
     /**
      * Find measurement by id
      * @method module:Measurement.findById
-     * @param {any} id
+     * @param {string} id
      * @param {object} options - Request options
-     * @returns {object}
+     * @returns {Promise<object | null>}
      */
     Model.findById = (id, options, cb) => {
       try {
@@ -323,7 +323,7 @@ module.exports = function(Measurement) {
      * @method module:Measurement.find
      * @param {object} filter
      * @param {object} options - Request options
-     * @returns {object[]}
+     * @returns {Promise<object[] | null>}
      */
     Model.find = (filter, options, cb) => {
       try {
@@ -388,7 +388,7 @@ module.exports = function(Measurement) {
      * @method module:Measurement.updateById
      * @param {any} id
      * @param {object} filter
-     * @returns {object}
+     * @returns {Promise<object>}
      */
     Model.replaceById = async (id, data, options) => {
       logger.publish(4, `${collectionName}`, 'replaceById:req', { id });
@@ -416,7 +416,7 @@ module.exports = function(Measurement) {
      * @method module:Measurement.destroyAll
      * @param {object} filter - Where filter
      * @param {object} data - Update data
-     * @returns {object[]}
+     * @returns {Promise<object[]>}
      */
     Model.updateAll = async (filter, data, options) => {
       logger.publish(4, `${collectionName}`, 'updateAll:req', { filter });
@@ -474,7 +474,7 @@ module.exports = function(Measurement) {
      * @method module:Measuremenr.deleteById
      * @param {any} id
      * @param {object} options
-     * @returns {object}
+     * @returns {Promise<object>}
      */
     Model.deleteById = async (id, options) => {
       logger.publish(4, `${collectionName}`, 'deleteById:req', { id });
@@ -498,7 +498,7 @@ module.exports = function(Measurement) {
      * Delete many Measurement instances
      * @method module:Measurement.destroyAll
      * @param {object} filter - Where filter
-     * @returns {object}
+     * @returns {Promise<object>}
      */
     Model.destroyAll = async filter => {
       if (!filter || filter === null) {
@@ -539,16 +539,8 @@ module.exports = function(Measurement) {
    * Create measurement
    * @method module:Measurement.create
    * @param {object} sensor
-   * @returns {object}
+   * @returns {Promise<object>}
    */
-
-  // Measurement.afterRemote('**', (ctx, res, next) => {
-  //   //  console.log('after remote', ctx.args);
-  //   if (ctx.method.name.indexOf('find') !== -1) {
-  //     console.log('after find measurements', res);
-  //   }
-  //   next();
-  // });
 
   Measurement.afterRemoteError('*', async ctx => {
     logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, ctx.error);

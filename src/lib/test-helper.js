@@ -155,7 +155,7 @@ function clientFactory(profile, type, key) {
     clientId,
     username: profile.id.toString(),
     password: key.toString(),
-    will: { topic: `${clientId}/status`, payload: 'KO?', retain: false, qos: 0 },
+    // will: { topic: `${clientId}/status`, payload: 'KO?', retain: false, qos: 0 },
   };
 }
 

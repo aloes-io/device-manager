@@ -589,12 +589,12 @@ const userTest = () => {
         const client = mqtt.connect(app.get('mqtt url'));
         client.once('error', e => {
           expect(e.code).to.be.equal(4);
+          client.end(true);
           done();
-          client.end();
         });
         client.once('connect', () => {
+          client.end(true);
           done(new Error('Should not connect'));
-          client.end();
         });
       });
 
@@ -606,14 +606,16 @@ const userTest = () => {
           app.get('mqtt url'),
           clientFactory(users[3], 'user', 'wrong token'),
         );
+        
         client.once('error', e => {
           expect(e.code).to.be.equal(4);
+          client.end(true);
           done();
-          client.end();
         });
+
         client.once('connect', () => {
+          client.end(true);
           done(new Error('Should not connect'));
-          client.end();
         });
       });
 
@@ -633,7 +635,7 @@ const userTest = () => {
         await timeout(async () => {
           const userClients = await ClientModel.getAll({ filter: { match: client.clientId } });
           expect(userClients[0].status).to.be.equal(true);
-          client.end();
+          client.end(true);
         }, 250);
 
         return timeout(async () => {

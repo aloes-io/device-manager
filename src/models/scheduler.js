@@ -3,7 +3,7 @@
 /* eslint-disable no-restricted-syntax */
 import { publish } from 'iot-agent';
 // import debounce from 'lodash.debounce';
-import { publishToDeviceApplications } from '../lib/device';
+import { publishToDeviceApplications } from '../lib/models/device';
 import {
   collectionName,
   createTimer,
@@ -13,10 +13,10 @@ import {
   parseTimerEvent,
   parseTimerState,
   syncRunningTimers,
-} from '../lib/scheduler';
+} from '../lib/models/scheduler';
 import logger from '../services/logger';
 import DeltaTimer from '../services/delta-timer';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 const clockInterval = 5000;
 const schedulerClockId = `scheduler-clock`;
@@ -31,9 +31,10 @@ const schedulerClockId = `scheduler-clock`;
 module.exports = function(Scheduler) {
   /**
    * Find schedulers in the cache and add to device instance
+   * @async
    * @method module:Scheduler.getAll
    * @param {object} [filter] - Scheduler filter
-   * @returns {array} schedulers - Cached schedulers
+   * @returns {Promise<array>} schedulers - Cached schedulers
    */
   Scheduler.getAll = async filter => {
     const schedulers = [];
@@ -47,9 +48,10 @@ module.exports = function(Scheduler) {
 
   /**
    * Delete schedulers stored in cache
+   * @async
    * @method module:Scheduler.deleteAll
    * @param {object} [filter] - Scheduler filter
-   * @returns {array} schedulers - Cached schedulers keys
+   * @returns {Promise<array>} schedulers - Cached schedulers keys
    */
   Scheduler.deleteAll = async filter => {
     const schedulers = [];
@@ -63,53 +65,51 @@ module.exports = function(Scheduler) {
 
   /**
    * Format packet and send it via MQTT broker
+   * @async
    * @method module:Scheduler.publish
    * @param {object} device - found Device instance
    * @param {object} measurement - Scheduler instance
    * @param {string} [method] - MQTT method
    * @param {object} [client] - MQTT client target
    * @fires Server.publish
+   * @returns {Promise<object | null>} scheduler
    */
   Scheduler.publish = async (deviceId, scheduler, method) => {
-    try {
-      if (!deviceId) {
-        throw utils.buildError(403, 'MISSING_DEVICE_ID', 'No device in arguments');
-      }
-      const device = await Scheduler.app.models.Device.findById(deviceId);
-      if (!device) {
-        throw utils.buildError(403, 'MISSING_DEVICE', 'No device found');
-      }
-      const packet = await publish({
-        userId: device.ownerId,
-        collection: collectionName,
-        //  modelId: scheduler.id,
-        data: scheduler,
-        method: method || 'POST',
-        pattern: 'aloesclient',
+    if (!deviceId) {
+      throw utils.buildError(403, 'MISSING_DEVICE_ID', 'No device in arguments');
+    }
+    const device = await Scheduler.app.models.Device.findById(deviceId);
+    if (!device) {
+      throw utils.buildError(403, 'MISSING_DEVICE', 'No device found');
+    }
+    const packet = await publish({
+      userId: device.ownerId,
+      collection: collectionName,
+      //  modelId: scheduler.id,
+      data: scheduler,
+      method: method || 'POST',
+      pattern: 'aloesclient',
+    });
+
+    // console.log('PUBLISH SCHEDULER PACKET ', packet.payload);
+    if (packet && packet.topic && packet.payload) {
+      logger.publish(4, `${collectionName}`, 'publish:res', {
+        topic: packet.topic,
       });
 
-      // console.log('PUBLISH SCHEDULER PACKET ', packet.payload);
-      if (packet && packet.topic && packet.payload) {
-        logger.publish(4, `${collectionName}`, 'publish:res', {
-          topic: packet.topic,
-        });
-
-        publishToDeviceApplications(Scheduler.app, device, packet);
-        Scheduler.app.emit('publish', packet.topic, packet.payload, false, 0);
-        return scheduler;
-      }
-      throw new Error('Invalid MQTT Packet encoding');
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'publish:err', error);
-      throw error;
+      publishToDeviceApplications(Scheduler.app, device, packet);
+      Scheduler.app.emit('publish', packet.topic, packet.payload, false, 0);
+      return scheduler;
     }
+    throw new Error('Invalid MQTT Packet encoding');
   };
 
   /**
    * Scheduler timeout callback / webhook ( sensor timer )
+   * @async
    * @method module:Scheduler.onTimeout
    * @param {object} body - Timer callback body
-   * @returns {boolean} status
+   * @returns {Promise<boolean>} status
    */
   Scheduler.onTimeout = async body => {
     const { sensorId } = body;
@@ -121,10 +121,11 @@ module.exports = function(Scheduler) {
 
   /**
    * Create or update scheduler stored in cache
+   * @async
    * @method module:Scheduler.createOrUpdate
    * @param {object} sensor - found Sensor instance
    * @param {object} [client] - MQTT client
-   * @returns {object} result - Updated scheduler and sensor
+   * @returns {Promise<object>} scheduler - Updated scheduler
    */
   Scheduler.createOrUpdate = async (sensor, client) => {
     let scheduler = {};
@@ -178,6 +179,7 @@ module.exports = function(Scheduler) {
    *
    * Update every sensor having an active scheduler
    *
+   * @async
    * @method module:Scheduler.onTick
    * @param {object} data - Timer event data
    * @fires Scheduler.publish
@@ -201,10 +203,11 @@ module.exports = function(Scheduler) {
    *
    * validate webhook content before dispatch
    *
+   * @async
    * @method module:Scheduler~onTickHook
    * @param {object} body - Timer callback data
    * @fires Scheduler.tick
-   * @returns {boolean}
+   * @returns {Promise<boolean>}
    */
   const onTickHook = async body => {
     try {
@@ -351,8 +354,7 @@ module.exports = function(Scheduler) {
    * else a DeltaTimer instance will be created and stored in memory
    * @method module:Scheduler.setClock
    * @param {number} interval - Timeout interval
-   * @returns {functions} setExternalClock
-   * @returns {functions} setInternalClock
+   * @returns {Promise<functions>} setExternalClock | setInternalClock
    */
   Scheduler.setClock = async interval => {
     try {

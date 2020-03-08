@@ -9,9 +9,7 @@ import Papa from 'papaparse';
 import JSONFilter from 'simple-json-filter';
 
 /**
- * @module utils
- *
- * Providing general tools
+ * @module Utils
  */
 const utils = {};
 
@@ -25,7 +23,7 @@ const codeNames = {
 
 /**
  * Custom Error builder
- * @method module:utils.buildError
+ * @method module:Utils.buildError
  * @param {number} statusCode
  * @param {string} code - error description
  * @param {string} message - error message
@@ -41,10 +39,10 @@ utils.buildError = (statusCode, code, message) => {
 
 /**
  * Create directory
- * @method module:utils.mkDirByPathSync
+ * @method module:Utils.mkDirByPathSync
  * @param {string} targetDir
  * @param {object} options
- * @returns {string} directory path
+ * @returns {Promise<string>} directory path
  */
 utils.mkDirByPathSync = async (targetDir, { isRelativeToScript = false } = {}) => {
   const sep = path.sep;
@@ -74,9 +72,9 @@ utils.mkDirByPathSync = async (targetDir, { isRelativeToScript = false } = {}) =
 
 /**
  * Promise wrapper to render EJS template in HTML
- * @method module:utils.readFile
+ * @method module:Utils.readFile
  * @param {object} options
- * @returns {promise} - HTML file and options
+ * @returns {Promise<object>} - HTML file and options
  */
 utils.renderTemplate = options =>
   new Promise((resolve, reject) => {
@@ -87,10 +85,10 @@ utils.renderTemplate = options =>
 
 /**
  * Promise wrapper to read a file
- * @method module:utils.readFile
+ * @method module:Utils.readFile
  * @param {string} filePath
  * @param {string} [opts] - format of the file
- * @returns {promise}
+ * @returns {Promise<object>}
  */
 utils.readFile = (filePath, opts = 'utf8') =>
   new Promise((resolve, reject) => {
@@ -100,11 +98,11 @@ utils.readFile = (filePath, opts = 'utf8') =>
 
 /**
  * Promise wrapper to write a file
- * @method module:utils.writeFile
+ * @method module:Utils.writeFile
  * @param {string} filePath
  * @param {object} data - file content
  * @param {string} [opts] - format of the file
- * @returns {promise}
+ * @returns {Promise<object>}
  */
 utils.writeFile = (filePath, data, opts = 'utf8') =>
   new Promise((resolve, reject) => {
@@ -114,9 +112,9 @@ utils.writeFile = (filePath, data, opts = 'utf8') =>
 
 /**
  * Promise wrapper to remove a file
- * @method module:utils.removeFile
+ * @method module:Utils.removeFile
  * @param {string} filePath
- * @returns {promise}
+ * @returns {Promise<object>}
  */
 utils.removeFile = filePath =>
   new Promise((resolve, reject) => {
@@ -126,9 +124,13 @@ utils.removeFile = filePath =>
 
 /**
  * Iterate over each KV Store keys found in cache
- * @method module:utils.cacheIterator
+ * @generator
+ * @async
+ * @method module:Utils.cacheIterator
+ * @param {object} Model - Loopback Model
  * @param {object} [filter] - filter.match
- * @returns {string} key - Storage key
+ * @yields {Promise<string>}  Storage key
+ * @returns {Promise<string>}  Storage key
  */
 utils.cacheIterator = async function*(Model, filter) {
   const iterator = Model.iterateKeys(filter);
@@ -146,7 +148,7 @@ utils.cacheIterator = async function*(Model, filter) {
 
 /**
  * Key generator for authentification
- * @method module:utils.generateKey
+ * @method module:Utils.generateKey
  * @param {string} [hmacKey]
  * @param {string} [algorithm]
  * @param {string} [encoding]
@@ -162,7 +164,7 @@ utils.generateKey = (hmacKey = 'loopback', algorithm = 'sha1', encoding = 'hex')
 
 /**
  * Array flattener, to transform multi dimensional arrays
- * @method module:utils.flatten
+ * @method module:Utils.flatten
  * @param {array} input
  * @returns {array}
  */
@@ -185,7 +187,7 @@ utils.flatten = input => {
 
 /**
  * Convert an object as a CSV table
- * @method module:utils.exportToCSV
+ * @method module:Utils.exportToCSV
  * @param {object | array} input
  * @param {object} [filter]
  * @returns {object}
@@ -231,7 +233,7 @@ utils.exportToCSV = (input, filter) => {
 
 /**
  * Check if a process is configured to be master
- * @method module:utils.isMasterProcess
+ * @method module:Utils.isMasterProcess
  * @param {object} env - environment variables
  * @returns {boolean}
  */
@@ -247,7 +249,7 @@ utils.isMasterProcess = env => {
 
 /**
  * Extract ownerId from HTTP user options
- * @method module:utils.getOwnerId
+ * @method module:Utils.getOwnerId
  * @param {object} options
  * @returns {string | null}
  */

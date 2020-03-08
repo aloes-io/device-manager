@@ -395,16 +395,6 @@ const sensorTest = () => {
                   expect: 401,
                 },
                 {
-                  name: 'user CAN delete OWN',
-                  verb: 'delete',
-                  auth: profiles.user,
-                  url: () => `${apiUrl}${sensors[3].id}`,
-                  expect: resp => {
-                    expect(resp.status).to.be.equal(200);
-                    expect(resp.body.count).to.be.equal(1);
-                  },
-                },
-                {
                   name: 'user CAN delete OWN resources',
                   verb: 'delete',
                   auth: profiles.user,
@@ -414,10 +404,21 @@ const sensorTest = () => {
                   },
                 },
                 {
+                  name: 'user CAN delete OWN',
+                  verb: 'delete',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}${sensors[2].id}`,
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(200);
+                    expect(resp.body.count).to.be.equal(1);
+                  },
+                },
+
+                {
                   name: 'admin CAN delete ALL',
                   verb: 'delete',
                   auth: profiles.admin,
-                  url: () => `${apiUrl}${sensors[4].id}`,
+                  url: () => `${apiUrl}${sensors[1].id}`,
                   expect: resp => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body.count).to.be.equal(1);
@@ -563,7 +564,7 @@ const sensorTest = () => {
             sensors[index].id,
           );
           expect(resources[sensor.resource]).to.be.equal(Number(packets[index].payload));
-          client.end();
+          client.end(true);
         }, 150);
       });
 
@@ -590,7 +591,7 @@ const sensorTest = () => {
             sensors[index].id,
           );
           expect(resources[sensor.resource]).to.be.equal(Number(packets[index].payload));
-          client.end();
+          client.end(true);
         }, 150);
       });
 
@@ -616,7 +617,7 @@ const sensorTest = () => {
             sensors[index].id,
           );
           expect(resources[sensor.resource]).to.be.equal(packets[index].payload);
-          client.end();
+          client.end(true);
         }, 150);
       });
 
@@ -642,7 +643,7 @@ const sensorTest = () => {
             sensors[index].id,
           );
           expect(resources[sensor.resource].toString()).to.be.equal(packets[index].payload);
-          client.end();
+          client.end(true);
         }, 150);
       });
     });

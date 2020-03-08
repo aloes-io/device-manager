@@ -4,7 +4,7 @@ import NodeGeocoder from 'node-geocoder';
 import isAlphanumeric from 'validator/lib/isAlphanumeric';
 import isLength from 'validator/lib/isLength';
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 const collectionName = 'Address';
 
@@ -19,7 +19,7 @@ const geoCodeOptions = {
  * Validate input address; get coordinates and update address instance
  * @method module:Address~onAfterSave
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 const onAfterSave = async ctx => {
   logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.instance);
@@ -40,6 +40,12 @@ const onAfterSave = async ctx => {
   throw utils.buildError(403, 'INVALID_ACCESS', 'no address owner found');
 };
 
+/**
+ * Hook executed before every remote methods
+ * @method module:Address~onBeforeRemote
+ * @param {object} ctx - Loopback context
+ * @returns {Promise<object>} ctx
+ */
 const onBeforeRemote = async ctx => {
   if (ctx.method.name.indexOf('create') !== -1) {
     const options = ctx.args ? ctx.args.options : {};
@@ -85,9 +91,10 @@ module.exports = function(Address) {
 
   /**
    * Validate input address; get coordinates and update address instance
+   * @async
    * @method module:Address.verifyAddress
    * @param {any} address - Instance address
-   * @returns {object} address
+   * @returns {Promise<object>} address
    */
   Address.verify = async address => {
     logger.publish(4, `${collectionName}`, 'verify:req', address);
@@ -158,9 +165,10 @@ module.exports = function(Address) {
 
   /**
    * Search address by keyword
+   * @async
    * @method module:Address.search
    * @param {object} filter - Requested filter
-   * @returns {array} addresses
+   * @returns {Promise<array>} addresses
    */
   Address.search = async filter => {
     logger.publish(4, `${collectionName}`, 'search:req', filter);
@@ -223,9 +231,10 @@ module.exports = function(Address) {
 
   /**
    * Search addresses by location ( GPS coordinates )
+   * @async
    * @method module:Address.geoLocate
    * @param {object} filter - Requested filter
-   * @returns {array} addresses
+   * @returns {Promise<array>} addresses
    */
   Address.geoLocate = async filter => {
     logger.publish(4, `${collectionName}`, 'geoLocate:req', filter);
@@ -275,7 +284,7 @@ module.exports = function(Address) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} user - User new instance
-   * @returns {function} onAfterSave
+   * @returns {Promise<function>} onAfterSave
    */
   Address.observe('after save', onAfterSave);
 
@@ -285,7 +294,7 @@ module.exports = function(Address) {
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @returns {function} onBeforeRemote
+   * @returns {Promise<function>} onBeforeRemote
    */
   Address.beforeRemote('**', onBeforeRemote);
 

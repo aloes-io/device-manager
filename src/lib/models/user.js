@@ -1,12 +1,20 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
-import logger from '../services/logger';
-import utils from '../services/utils';
-import rateLimiter from '../services/rate-limiter';
-import roleManager from '../services/role-manager';
+import logger from '../../services/logger';
+import rateLimiter from '../../services/rate-limiter';
+import roleManager from '../../services/role-manager';
+import utils from '../utils';
 
 export const collectionName = 'User';
 
+/**
+ * Create dependencies after a new user has been created
+ * @async
+ * @method module:User~createProps
+ * @param {object} app - Loopback app
+ * @param {object} user - New user instance
+ * @returns {Promise<object>} user
+ */
 const createProps = async (app, user) => {
   try {
     logger.publish(4, `${collectionName}`, 'createProps:req', user);
@@ -43,9 +51,10 @@ const createProps = async (app, user) => {
 
 /**
  * Validate instance before creation
+ * @async
  * @method module:User~onBeforeSave
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 export const onBeforeSave = async ctx => {
   let roleName;
@@ -75,9 +84,10 @@ export const onBeforeSave = async ctx => {
 
 /**
  * Create relations on instance creation
+ * @async
  * @method module:User~onAfterSave
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 export const onAfterSave = async ctx => {
   logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.instance);
@@ -112,8 +122,9 @@ export const onAfterSave = async ctx => {
  * Incrementing counter on failure and resetting it on success
  *
  * @method module:User~onBeforeLogin
+ * @async
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 const onBeforeLogin = async ctx => {
   logger.publish(4, `${collectionName}`, 'beforeLogin:req', {
@@ -189,10 +200,11 @@ const onBeforeLogin = async ctx => {
 
 /**
  * Delete relations on instance(s) deletion
+ * @async
  * @method module:User~deleteProps
  * @param {object} app - Loopback app
  * @param {object} user - user to delete
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 const deleteProps = async (app, user) => {
   try {
@@ -227,9 +239,10 @@ const deleteProps = async (app, user) => {
 
 /**
  * Delete registered user
+ * @async
  * @method module:User~onBeforeDelete
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 export const onBeforeDelete = async ctx => {
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
@@ -245,6 +258,13 @@ export const onBeforeDelete = async ctx => {
   return ctx;
 };
 
+/**
+ * Hook executed before every remote methods
+ * @async
+ * @method module:User~onBeforeRemote
+ * @param {object} ctx - Loopback context
+ * @returns {Promise<object>} ctx
+ */
 export const onBeforeRemote = async ctx => {
   if (
     ctx.method.name.indexOf('upsert') !== -1 ||
@@ -258,23 +278,17 @@ export const onBeforeRemote = async ctx => {
     const authorizedRoles = options && options.authorizedRoles ? options.authorizedRoles : {};
     const roleName = data.roleName || 'user';
     const isAdmin = options && options.currentUser && options.currentUser.roles.includes('admin');
-    // console.log('authorizedRoles, isAdmin & data', isAdmin, options, data);
     const nonAdminChangingRoleToAdmin = roleName === 'admin' && !isAdmin;
     const nonOwnerChangingPassword =
       !ctx.isNewInstance && authorizedRoles.owner !== true && data.password !== undefined;
-
-    if (nonAdminChangingRoleToAdmin) {
-      throw utils.buildError(403, 'NO_ADMIN', 'Unauthorized to update this user');
-    }
-    if (nonOwnerChangingPassword) {
-      throw utils.buildError(403, 'NO_OWNER', 'Unauthorized to update this user');
+    if (nonAdminChangingRoleToAdmin || nonOwnerChangingPassword) {
+      throw utils.buildError(403, 'INVALID_ROLE', 'Unauthorized to update this user');
     }
   } else if (ctx.method.name.indexOf('create') !== -1) {
     const options = ctx.args ? ctx.args.options : {};
     const data = ctx.args.data;
     const roleName = data.roleName || 'user';
     const isAdmin = options && options.currentUser && options.currentUser.roles.includes('admin');
-    // console.log('authorizedRoles, isAdmin & data', isAdmin, options, data);
     if (roleName === 'admin' && !isAdmin) {
       throw utils.buildError(403, 'NO_ADMIN', 'Unauthorized to create this user');
     }

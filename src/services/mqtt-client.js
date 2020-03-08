@@ -15,8 +15,6 @@ let mqttClient;
 const MQTTClient = new EventEmitter();
 MQTTClient.failureCount = 0;
 MQTTClient.maxFailureCount = 10;
-// MQTTClient.id = '';
-// MQTTClient.processId = 0;
 
 const baseOptions = {
   keepalive: 60,
@@ -66,13 +64,24 @@ const onUserStatus = (app, client, status) => {
  */
 const updateModelsStatus = (app, client, status) => {
   logger.publish(4, 'mqtt-client', 'updateModelsStatus:req', { status, client });
-  if (client && client.user) {
-    if (client.devEui) {
-      onDeviceStatus(app, client, status);
-    } else if (client.appId) {
-      onApplicationStatus(app, client, status);
-    } else if (client.ownerId) {
-      onUserStatus(app, client, status);
+  if (client && client.user && client.model) {
+    switch (client.model.toLowerCase()) {
+      case 'application':
+        onApplicationStatus(app, client, status);
+        break;
+      case 'device':
+        onDeviceStatus(app, client, status);
+        break;
+      case 'user':
+        onUserStatus(app, client, status);
+        break;
+      default:
+        logger.publish(
+          2,
+          'mqtt-client',
+          'updateModelsStatus:req',
+          `Invalid client mode ${client.model}`,
+        );
     }
   }
 };
@@ -83,13 +92,13 @@ const updateModelsStatus = (app, client, status) => {
  * @param {object} app - Loopback app
  * @param {object} packet - MQTT packet
  * @param {object} client - MQTT client
- * @returns {object} pattern
+ * @returns {Promise<object | null>} pattern
  */
 const findPattern = async (app, packet, client) => {
   let pattern = null;
   logger.publish(5, 'mqtt-client', 'findPattern:req', client);
-  if (client && client.id) {
-    if (client.appId && client.appId !== null) {
+  if (client && client.id && client.model) {
+    if (client.model.toLowerCase() === 'application') {
       pattern = await app.models.Application.detector(packet, client);
     } else {
       pattern = await app.models.Device.detector(packet, client);
@@ -225,6 +234,7 @@ const onModelPublish = (app, serviceName, pattern, packet, client) => {
  * @param {object} payload - MQTT payload
  * @fires Application.publish
  * @fires Device.publish
+ * @returns {Promise<object>} packet
  */
 const onReceive = async (app, topic, payload) => {
   try {
@@ -256,8 +266,7 @@ const onReceive = async (app, topic, payload) => {
  * @param {object} app - Loopback app
  * @param {object} topic - MQTT topic
  * @param {object} payload - MQTT payload
- * @returns {functions} MQTTClient~onStatus
- * @returns {functions} MQTTClient~onReceive
+ * @returns {Promise<function | null>} MQTTClient~onStatus | MQTTClient~onReceive
  */
 const onMessage = async (app, topic, payload) => {
   const topicParts = topic.split('/');
@@ -290,7 +299,7 @@ const startClient = async () => {
 /**
  * Event reporting that MQTTClient has to start.
  * @event module:MQTTClient.start
- * @returns {function} MQTTClient~startClient
+ * @returns {Promise<function>} MQTTClient~startClient
  */
 MQTTClient.on('start', startClient);
 
@@ -299,7 +308,7 @@ MQTTClient.on('start', startClient);
  * @method module:MQTTClient~initClient
  * @param {object} app - Loopback app
  * @param {object} config - Environment variables
- * @returns {boolean} status
+ * @returns {Promise<boolean>} status
  */
 const initClient = async (app, config) => {
   try {
@@ -372,7 +381,7 @@ const initClient = async (app, config) => {
  * @event module:MQTTClient.init
  * @param {object} app - Loopback app
  * @param {object} config - Formatted config.
- * @returns {function} MQTTClient~initClient
+ * @returns {Promise<function>} MQTTClient~initClient
  */
 MQTTClient.on('init', initClient);
 
@@ -381,7 +390,7 @@ MQTTClient.on('init', initClient);
  * @method module:MQTTClient.publish
  * @param {string} topic - Packet topic
  * @param {any} payload - Packet payload
- * @returns {boolean} status
+ * @returns {Promise<boolean>} status
  */
 MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
   // if (typeof payload === 'boolean') {
@@ -403,7 +412,7 @@ MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
 /**
  * Stop MQTT client and unsubscribe
  * @method module:MQTTClient~stopClient
- * @returns {boolean} status
+ * @returns {Promise<boolean>} status
  */
 const stopClient = async () => {
   try {
@@ -424,7 +433,7 @@ const stopClient = async () => {
 /**
  * Event reporting that MQTTClient has to stop.
  * @event module:MQTTClient.stop
- * @returns {function} MQTTClient~stopClient
+ * @returns {Promise<function>} MQTTClient~stopClient
  */
 MQTTClient.on('stop', stopClient);
 

@@ -15,9 +15,9 @@ import {
   messageProtocolValidator,
   transportProtocolValidator,
   typeValidator,
-} from '../lib/device';
+} from '../lib/models/device';
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 import DeltaTimer from '../services/delta-timer';
 
 /**
@@ -76,59 +76,57 @@ module.exports = function(Device) {
 
   /**
    * Format packet and send it via MQTT broker
+   * @async
    * @method module:Device.publish
    * @param {object} device - Device instance
    * @param {string} method - MQTT method
    * @param {object} [client] - MQTT client target
    * @fires Server.publish
+   * @returns {Promise<object | null>} device
    */
   Device.publish = async (device, method, client) => {
-    try {
-      if (!device || !device.id || !device.ownerId) {
-        throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
-      }
-      const packet = await iotAgent.publish({
-        userId: device.ownerId,
-        collection: collectionName,
-        data: device,
-        modelId: device.id,
-        method: method || device.method,
-        pattern: 'aloesClient',
-      });
-      if (packet && packet.topic && packet.payload) {
-        if (client && client.id && client.devEui) {
-          // todo : publish to client
-          return null;
-        }
-        // if (client && (client.ownerId || client.appId)) {
-        // }
-        if (device.status) {
-          // const nativePacket = { topic: `${device.devEui}-in/1/255/255/255`, payload: '1' };
-          // if (nativePacket.payload && nativePacket.payload !== null) {
-          //   await Device.app.publish(nativePacket.topic, nativePacket.payload, false, 0);
-          // }
-          //  console.log('nativePacket', nativePacket.topic);
-        }
-        publishToDeviceApplications(Device.app, device, packet);
-
-        // await Device.app.publish(packet.topic, packet.payload, true, 1);
-        Device.app.emit('publish', packet.topic, packet.payload, false, 0);
-        logger.publish(4, `${collectionName}`, 'publish:res', {
-          topic: packet.topic,
-        });
-        return device;
-      }
-      throw utils.buildError(403, 'INVALID_PACKET', 'Invalid MQTT Packet encoding');
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'publish:err', error);
-      throw error;
+    if (!device || !device.id || !device.ownerId) {
+      throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
     }
+    const packet = await iotAgent.publish({
+      userId: device.ownerId,
+      collection: collectionName,
+      data: device,
+      modelId: device.id,
+      method: method || device.method,
+      pattern: 'aloesClient',
+    });
+    if (packet && packet.topic && packet.payload) {
+      if (client && client.id && client.devEui) {
+        // todo : publish to client
+        return null;
+      }
+      // if (client && (client.ownerId || client.appId)) {
+      // }
+      if (device.status) {
+        // const nativePacket = { topic: `${device.devEui}-in/1/255/255/255`, payload: '1' };
+        // if (nativePacket.payload && nativePacket.payload !== null) {
+        //   await Device.app.publish(nativePacket.topic, nativePacket.payload, false, 0);
+        // }
+        //  console.log('nativePacket', nativePacket.topic);
+      }
+      publishToDeviceApplications(Device.app, device, packet);
+
+      // await Device.app.publish(packet.topic, packet.payload, true, 1);
+      Device.app.emit('publish', packet.topic, packet.payload, false, 0);
+      logger.publish(4, `${collectionName}`, 'publish:res', {
+        topic: packet.topic,
+      });
+      return device;
+    }
+    throw utils.buildError(403, 'INVALID_PACKET', 'Invalid MQTT Packet encoding');
   };
 
   /**
    * Reset keys for this device instance
+   * @async
    * @method module:Device.prototype.resetKeys
-   * @returns {object} this
+   * @returns {Promise<object>} device
    */
   Device.prototype.resetKeys = async function() {
     const attributes = {
@@ -148,7 +146,7 @@ module.exports = function(Device) {
    * @method module:Device.refreshToken
    * @param {object} deviceId - Device instance id
    * @param {object} ownerId - Device owner id
-   * @returns {object} device
+   * @returns {Promise<object>} device
    */
   Device.refreshToken = async (deviceId, ownerId) => {
     logger.publish(4, `${collectionName}`, 'refreshToken:req', { deviceId, ownerId });
@@ -176,7 +174,7 @@ module.exports = function(Device) {
    * @method module:Sensor.createOrUpdate
    * @param {object} device - detected Device instance
    * @param {object} [client] - MQTT client
-   * @returns {object} device
+   * @returns {Promise<object>} device
    */
   Device.createOrUpdate = async device => {
     logger.publish(4, `${collectionName}`, 'createOrUpdate:req', {
@@ -203,7 +201,7 @@ module.exports = function(Device) {
    * @method module:Device.findByPattern
    * @param {object} pattern - IotAgent parsed pattern
    * @param {object} attributes - IotAgent parsed message
-   * @returns {object} device
+   * @returns {Promise<object>} device
    */
   Device.findByPattern = async (pattern, attributes) => {
     const params = pattern.params;
@@ -288,7 +286,7 @@ module.exports = function(Device) {
    * Search device by keywords ( name, address, type  )
    * @method module:Device.search
    * @param {object} filter - Requested filter
-   * @returns {array} devices
+   * @returns {Promise<array>} devices
    */
   Device.search = async filter => {
     logger.publish(4, `${collectionName}`, 'search:req', filter);
@@ -392,7 +390,7 @@ module.exports = function(Device) {
    * Search devices by location ( GPS coordinates )
    * @method module:Device.geoLocate
    * @param {object} filter - Requested filter
-   * @returns {array} devices
+   * @returns {Promise<array>} devices
    */
   Device.geoLocate = async filter => {
     logger.publish(4, `${collectionName}`, 'geoLocate:req', filter);
@@ -432,6 +430,7 @@ module.exports = function(Device) {
    * @method module:Device.export
    * @param {array} devices
    * @param {string} [format]
+   * @returns {Promise<object>}
    */
   Device.export = async (devices, filter, format = 'csv') => {
     if (!devices || devices.length < 1) return null;
@@ -451,7 +450,7 @@ module.exports = function(Device) {
    * @method module:Device~detector
    * @param {object} packet - MQTT packet
    * @param {object} client - MQTT client
-   * @returns {object} pattern
+   * @returns {Promise<object>} pattern
    */
   Device.detector = async (packet, client) => {
     try {
@@ -472,7 +471,7 @@ module.exports = function(Device) {
    * @method module:Device.updateStatus
    * @param {object} client - MQTT client
    * @param {boolean} status - MQTT connection status
-   * @returns {function} device.updateAttributes
+   * @returns {Promise<function>} device.updateAttributes
    */
   Device.updateStatus = async (client, status) => {
     // if (!client || !client.id || !client.devEui) {
@@ -480,46 +479,47 @@ module.exports = function(Device) {
     // }
     logger.publish(4, collectionName, 'updateStatus:req', status);
     const device = await Device.findById(client.user);
-    if (device && device.devEui && device.devEui === client.devEui) {
-      const Client = Device.app.models.Client;
-      let ttl;
-      let frameCounter = device.frameCounter;
-      const clients = device.clients;
-      const index = clients.indexOf(client.id);
-      client.status = status;
+    if (!device) {
+      return null;
+    }
+    const Client = Device.app.models.Client;
+    // let ttl;
+    let frameCounter = device.frameCounter;
+    const clients = device.clients || [];
+    const index = clients.indexOf(client.id);
+    client.status = status;
 
-      if (status) {
-        if (index === -1) {
-          clients.push(client.id);
-        }
-        ttl = 7 * 24 * 60 * 60 * 1000;
-        if (clients.length === 1) {
-          frameCounter = 1;
-        }
-        await Client.set(client.id, JSON.stringify(client), ttl);
-      } else {
-        ttl = 1 * 24 * 60 * 60 * 1000;
-        if (index > -1) {
-          clients.splice(index, 1);
-        }
-        if (clients.length > 0) {
-          status = true;
-        } else {
-          frameCounter = 0;
-        }
-        await Client.delete(client.id);
+    if (status) {
+      if (index === -1) {
+        clients.push(client.id);
       }
-      logger.publish(4, collectionName, 'updateStatus:res', client);
-      await device.updateAttributes({
+      const ttl = 7 * 24 * 60 * 60 * 1000;
+      if (clients.length === 1) {
+        frameCounter = 1;
+      }
+      await Client.set(client.id, JSON.stringify(client), ttl);
+    } else {
+      // ttl = 1 * 24 * 60 * 60 * 1000;
+      if (index > -1) {
+        clients.splice(index, 1);
+      }
+      if (clients.length > 0) {
+        status = true;
+      } else {
+        frameCounter = 0;
+      }
+      await Client.delete(client.id);
+    }
+    logger.publish(3, collectionName, 'updateStatus:res', client);
+    return device
+      .updateAttributes({
         frameCounter,
         status,
         lastSignal: Date.now(),
         clients,
-      });
-      return client;
-    }
-    // device not found
-    return null;
+      })
+      .catch(e => e);
+    // return client;
   };
 
   /**
@@ -528,13 +528,12 @@ module.exports = function(Device) {
    * @param {object} packet - MQTT bridge packet
    * @param {object} pattern - Pattern detected by Iot-Agent
    * @param {object} client - MQTT client
-   * @returns {function} Device~parseMessage
+   * @returns {Promise<function>} Device~parseMessage
    */
   Device.onPublish = async (packet, pattern, client) => {
     logger.publish(4, `${collectionName}`, 'onPublish:req', pattern);
     if (!pattern || !pattern.params || !pattern.name || !client || !packet || !packet.topic) {
-      const error = utils.buildError(403, 'INVALID_ARGS', 'Missing argument');
-      throw error;
+      throw utils.buildError(403, 'INVALID_ARGS', 'Missing argument');
     }
     // limit access base on client props ?
     // logger.publish(4, `${collectionName}`, 'onPublish:res', pattern);
@@ -546,7 +545,7 @@ module.exports = function(Device) {
    * @param {object} device - found Device instance
    * @param {string} method - MQTT API method
    * @param {object} [client] - MQTT client target
-   * @returns {object} device
+   * @returns {Promise<object>} device
    */
   Device.execute = async (device, method, client) => {
     logger.publish(4, collectionName, 'execute:req', method);
@@ -595,7 +594,7 @@ module.exports = function(Device) {
    * @method module:Device.authenticate
    * @param {any} deviceId
    * @param {string} key
-   * @returns {object} matched The matching device and key; one of:
+   * @returns {Promise<object>} matched The matching device and key; one of:
    * - clientKey
    * - apiKey
    * - javaScriptKey
@@ -639,7 +638,7 @@ module.exports = function(Device) {
    * Endpoint for device requesting their own state ( small memory )
    * @method module:Device.getState
    * @param {string} deviceId - Device instance id
-   * @returns {object}
+   * @returns {Promise<object>} device
    */
   Device.getState = async deviceId => {
     logger.publish(4, `${collectionName}`, 'getState:req', { deviceId });
@@ -666,7 +665,7 @@ module.exports = function(Device) {
    * Endpoint for device requesting their own state, including relations
    * @method module:Device.getFullState
    * @param {string} deviceId - Device instance id
-   * @returns {object} device
+   * @returns {Promise<object>} device
    */
   Device.getFullState = async deviceId => {
     logger.publish(4, `${collectionName}`, 'getFullState:req', { deviceId });
@@ -701,7 +700,7 @@ module.exports = function(Device) {
    * @param {object} ctx - Loopback context
    * @param {string} deviceId - Device instance id
    * @param {string} [version] - Firmware version requested
-   * @returns {function} Device~updateFirmware
+   * @returns {Promise<function>} Device~updateFirmware
    */
   Device.getOTAUpdate = async (ctx, deviceId, version) => updateFirmware(ctx, deviceId, version);
 
@@ -720,7 +719,7 @@ module.exports = function(Device) {
    * a DeltaTimer instance will be created and stored in memory
    * @method module:Device.setClock
    * @param {number} interval - Timeout interval
-   * @returns {object} Device.timer
+   * @returns {Promise<object>} Device.timer
    */
   Device.setClock = async interval => {
     try {
@@ -748,7 +747,7 @@ module.exports = function(Device) {
    * @param {object} message - Parsed MQTT message.
    * @property {object} message.client - MQTT client
    * @property {boolean} message.status - MQTT client status.
-   * @returns {function} Device.updateStatus
+   * @returns {Promise<function>} Device.updateStatus
    */
   Device.on('client', async message => {
     logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
@@ -769,8 +768,7 @@ module.exports = function(Device) {
    * @property {object} message.pattern - Pattern detected by Iot-Agent
    * @property {object} message.device - Found Device instance
    * @property {object}[message.client] - MQTT client
-   * @returns {functions} Device.execute
-   * @returns {functions} Device.onPublish
+   * @returns {Promise<functions>} Device.onPublish | Device.execute
    */
   Device.on('publish', async message => {
     try {
@@ -796,18 +794,12 @@ module.exports = function(Device) {
    * Trigger Device stopping routine
    *
    * @event stopped
-   * @returns {functions} Device.syncCache
    */
   Device.on('stopped', async () => {
-    try {
-      if (utils.isMasterProcess(process.env)) {
-        logger.publish(3, `${collectionName}`, 'on-stop:res', '');
-        Device.delClock();
-        // await Device.updateAll({ status: true }, { status: false, clients: [] });
-        // await Device.syncCache('UP');
-      }
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'on-stop:err', error);
+    if (utils.isMasterProcess(process.env)) {
+      logger.publish(3, `${collectionName}`, 'on-stop:res', '');
+      Device.delClock();
+      // await Device.updateAll({ status: true }, { status: false, clients: [] });
     }
   });
 
@@ -818,7 +810,7 @@ module.exports = function(Device) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Device instance
-   * @returns {function} Device~onBeforeSave
+   * @returns {Promise<function>} Device~onBeforeSave
    */
   Device.observe('before save', onBeforeSave);
 
@@ -829,7 +821,7 @@ module.exports = function(Device) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Device instance
-   * @returns {function} Device~onAfterSave
+   * @returns {Promise<function>} Device~onAfterSave
    */
   Device.observe('after save', onAfterSave);
 
@@ -840,17 +832,17 @@ module.exports = function(Device) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - Device instance
-   * @returns {function} Device~onBeforeDelete
+   * @returns {Promise<function>} Device~onBeforeDelete
    */
   Device.observe('before delete', onBeforeDelete);
 
   /**
-   * Event reporting that a device instance / collection is requested
+   * Event reporting that a Device instance / collection is requested
    * @event before_*
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @returns {function} Device~onBeforeRemote
+   * @returns {Promise<function>} Device~onBeforeRemote
    */
   Device.beforeRemote('**', async ctx => onBeforeRemote(Device.app, ctx));
 

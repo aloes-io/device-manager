@@ -171,7 +171,13 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 ## TODOs
 
-- Add e2e tests for Client, Measurement models
+- Add e2e tests for Measurement models and processes interruption signal
+
+- Update MongoDB backup/retore helpers [via Nodejs ?](https://www.npmjs.com/package/mongodb-restore)
+
+- Finish restore helper for InfluxDB [via Node ?](https://gist.github.com/robertsLando/bf5f691772ccf00e2a144e4f1ea4ee3a)
+
+- Create Redis backup/retore helpers [via Node?](https://github.com/atlassian/redis-dump-restore)
 
 - Implement user+ip rate limit for HTTP endpoints requiring auth
 

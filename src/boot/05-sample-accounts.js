@@ -3,7 +3,7 @@
 import initialUsersList from '../initial-data/base-accounts.json';
 import logger from '../services/logger';
 import roleManager from '../services/role-manager';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 module.exports = async function createSampleAccounts(app) {
   if (!utils.isMasterProcess(process.env)) return;

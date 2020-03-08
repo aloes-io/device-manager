@@ -4,10 +4,9 @@
 /* eslint-disable global-require */
 import { protocolDecoder } from 'aedes-protocol-decoder';
 import axios from 'axios';
-// import throttle from 'lodash.throttle';
 import ws from 'websocket-stream';
-import logger from '../services/logger';
-import rateLimiter from '../services/rate-limiter';
+import logger from '../../services/logger';
+import rateLimiter from '../../services/rate-limiter';
 
 /**
  * Aedes persistence layer
@@ -73,6 +72,13 @@ export const emitter = config => {
   });
 };
 
+/**
+ * Initialize servers that will be attached to Broker instance
+ * @method module:Broker~initServers
+ * @param {object} brokerInterfaces
+ * @param {object} brokerInstance
+ * @returns {object} tcpServer, wsServer
+ */
 export const initServers = (brokerInterfaces, brokerInstance) => {
   const tcpServer = require('net')
     .createServer(brokerInstance.handle)
@@ -123,39 +129,6 @@ export const decodeProtocol = (client, buff) => {
     proto,
   });
   return proto;
-};
-
-/**
- * Aedes preConnect hook
- *
- * Check client credentials and update client properties
- *
- * @method module:Broker~preConnect
- * @param {object} client - MQTT client
- * @param {string} [username] - MQTT username
- * @param {object} [password] - MQTT password
- * @returns {number} status - CONNACK code
- * - 0 - Accepted
- * - 1 - Unacceptable protocol version
- * - 2 - Identifier rejected
- * - 3 - Server unavailable
- * - 4 - Bad user name or password
- * - 5 - Not authorized
- */
-export const preConnect = (client, cb) => {
-  logger.publish(3, 'broker', 'preConnect:res', {
-    connDetails: client.connDetails,
-  });
-  if (client.connDetails && client.connDetails.ipAddress) {
-    client.ip = client.connDetails.ipAddress;
-    client.type = client.connDetails.isWebsocket ? 'WS' : 'MQTT';
-    return cb(null, true);
-    // return rateLimiter.ipLimiter
-    //   .get(client.ip)
-    //   .then(res => cb(null, !res || res.consumedPoints < 100))
-    //   .err(e => cb(e, null));
-  }
-  return cb(null, false);
 };
 
 /**
@@ -217,7 +190,7 @@ export const getClients = (broker, id) => {
  * @method module:Broker~getClientsByTopic
  * @param {object} broker - MQTT broker
  * @param {string} topic - Topic pattern
- * @returns {promise}
+ * @returns {Promise<array>}
  */
 export const getClientsByTopic = (broker, topic) =>
   new Promise((resolve, reject) => {
@@ -275,7 +248,7 @@ export const pickRandomClient = (broker, clientIds) => {
  * HTTP request to Aloes to validate credentials
  * @method module:Broker~authentificationRequest
  * @param {object} data - Client instance and credentials
- * @returns {promise}
+ * @returns {Promise<object>}
  */
 const authentificationRequest = async data => {
   const baseUrl = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}`;
@@ -294,6 +267,15 @@ const authentificationRequest = async data => {
   return null;
 };
 
+// const brokerResponseCodes = {
+//   '0': 'Accepted',
+//   '1': 'Unacceptable protocol version',
+//   '2': 'Identifier rejected',
+//   '3': 'Server unavailable',
+//   '4': 'Bad user name or password',
+//   '5': 'Not authorized',
+// };
+
 /**
  * Check client credentials and update client properties
  *
@@ -302,7 +284,7 @@ const authentificationRequest = async data => {
  * @param {object} client - MQTT client
  * @param {string} [username] - MQTT username
  * @param {object} [password] - MQTT password
- * @returns {number} status - CONNACK code
+ * @returns {Promise<number>} status - CONNACK code
  * - 0 - Accepted
  * - 1 - Unacceptable protocol version
  * - 2 - Identifier rejected
@@ -322,7 +304,9 @@ export const onAuthenticate = async (broker, client, username, password) => {
     let status, foundClient;
     foundClient = getClientProps(client);
     // if (!foundClient || !foundClient.id) return 5;
-    if (!foundClient || !foundClient.id || !foundClient.ip) return 2;
+    if (!foundClient || !foundClient.id || !foundClient.ip) {
+      return 2;
+    }
 
     const trustProxy = broker.instance.trustProxy;
     const { limiter, limiterType, retrySecs } = await rateLimiter.getAuthLimiter(
@@ -364,7 +348,9 @@ export const onAuthenticate = async (broker, client, username, password) => {
     }
 
     // if (!foundClient || !foundClient.id) return 5;
-    if (!foundClient || !foundClient.id || !foundClient.ip) return 2;
+    // if (!foundClient || !foundClient.id || !foundClient.ip) {
+    //   return 2;
+    // }
     if (status === undefined) status = 2;
     if (status === 0) {
       Object.keys(foundClient).forEach(key => {
@@ -399,7 +385,9 @@ export const onAuthenticate = async (broker, client, username, password) => {
     return status;
   } catch (error) {
     logger.publish(2, 'broker', 'onAuthenticate:err', error);
-    if (error.code === 'ECONNREFUSED') return 3;
+    if (error.code === 'ECONNREFUSED') {
+      return 3;
+    }
     throw error;
   }
 };
@@ -412,15 +400,15 @@ export const onAuthenticate = async (broker, client, username, password) => {
  * @returns {boolean}
  */
 export const onAuthorizePublish = (client, packet) => {
+  let auth = false;
   const topic = packet.topic;
-  if (!topic) return false;
+  // if (!topic) return auth;
+  if (!client.user) return auth;
   const topicParts = topic.split('/');
   const topicIdentifier = topicParts[0];
   logger.publish(5, 'broker', 'onAuthorizePublish:req', {
     topic: topicParts,
   });
-  let auth = false;
-  if (!client.user) return auth;
   if (topicIdentifier.startsWith(client.user)) {
     auth = true;
   } else if (
@@ -439,9 +427,6 @@ export const onAuthorizePublish = (client, packet) => {
   ) {
     auth = true;
   }
-  // else if (client.appEui && topicIdentifier.startsWith(client.appEui)) {
-  //   auth = true;
-  // }
 
   logger.publish(4, 'broker', 'onAuthorizePublish:res', { topic, auth });
   return auth;
@@ -455,9 +440,9 @@ export const onAuthorizePublish = (client, packet) => {
  * @returns {boolean}
  */
 export const onAuthorizeSubscribe = (client, packet) => {
-  const topic = packet.topic;
-  if (!topic) return false;
   let auth = false;
+  const topic = packet.topic;
+  // if (!topic) return auth;
   if (!client.user) return auth;
   const topicParts = topic.split('/');
   const topicIdentifier = topicParts[0];
@@ -480,16 +465,29 @@ export const onAuthorizeSubscribe = (client, packet) => {
   } else if (client.devEui && topicIdentifier.startsWith(client.devEui)) {
     // todo : limit access to device in prefix if any
     auth = true;
-  } else if (client.appId && topicIdentifier.startsWith(client.appId)) {
+  } else if (
+    client.appId &&
+    (topicIdentifier.startsWith(client.appId) || topicIdentifier.startsWith(client.appEui))
+  ) {
     auth = true;
   }
-  // else if (client.appEui && topicIdentifier.startsWith(client.appEui)) {
-  //   auth = true;
-  // }
+
   logger.publish(4, 'broker', 'onAuthorizeSubscribe:res', { topic, auth });
   return auth;
 };
 
+const getAloesClient = async broker => {
+  const aloesId = process.env.ALOES_ID;
+  const aloesClientsIds = await getClientsByTopic(broker, `aloes-${aloesId}/sync`);
+  if (!aloesClientsIds || aloesClientsIds === null) {
+    throw new Error('No Aloes app client subscribed');
+  }
+  const aloesClient = pickRandomClient(broker, aloesClientsIds);
+  if (!aloesClient || !aloesClient.id) {
+    throw new Error('No Aloes app client connected');
+  }
+  return aloesClient;
+};
 /**
  * Update client's status
  *
@@ -499,28 +497,21 @@ export const onAuthorizeSubscribe = (client, packet) => {
  * @param {object} broker - MQTT broker
  * @param {object} client - MQTT client
  * @param {boolean} status - Client status
- * @returns {object} client
+ * @returns {Promise<object>} client
  */
 export const updateClientStatus = async (broker, client, status) => {
   try {
-    if (client && client.user) {
-      const aloesClientsIds = await getClientsByTopic(broker, `aloes-${process.env.ALOES_ID}/sync`);
-      if (!aloesClientsIds || aloesClientsIds === null) {
-        throw new Error('No Aloes app client subscribed');
-      }
+    if (client && client.user && !client.aloesId) {
+      const aloesClient = await getAloesClient(broker);
       const foundClient = getClientProps(client);
       logger.publish(4, 'broker', 'updateClientStatus:req', { status, client: foundClient });
-      if (!client.aloesId) {
-        const aloesClient = pickRandomClient(broker, aloesClientsIds);
-        if (!aloesClient || !aloesClient.id) throw new Error('No Aloes app client connected');
-        const packet = {
-          topic: `${getAloesClientTopic(aloesClient.id)}/status`,
-          payload: Buffer.from(JSON.stringify({ status, client: foundClient })),
-          retain: false,
-          qos: 1,
-        };
-        broker.publish(packet);
-      }
+      const packet = {
+        topic: `${getAloesClientTopic(aloesClient.id)}/status`,
+        payload: Buffer.from(JSON.stringify({ status, client: foundClient })),
+        retain: false,
+        qos: 1,
+      };
+      broker.publish(packet);
     }
     return client;
   } catch (error) {
@@ -529,13 +520,12 @@ export const updateClientStatus = async (broker, client, status) => {
   }
 };
 
-// const delayedUpdateClientStatus = throttle(updateClientStatus, 50);
-
 /**
  * Parse message coming from aloes MQTT clients
  * @method module:Broker~onPublished
  * @param {object} broker - MQTT broker
  * @param {object} packet - MQTT packet
+ * @returns {object} packet
  */
 const onInternalPublished = (broker, packet) => {
   const topicParts = packet.topic.split('/');
@@ -545,9 +535,10 @@ const onInternalPublished = (broker, packet) => {
     // packet.retain = false;
     // console.log('broker, reformatted packet to instance', packet);
     broker.publish(packet);
-  } else if (topicParts[1] === 'sync') {
-    console.log('ONSYNC', packet.payload);
   }
+  // else if (topicParts[1] === 'sync') {
+  //   console.log('ONSYNC', packet.payload);
+  // }
 };
 
 /**
@@ -556,36 +547,27 @@ const onInternalPublished = (broker, packet) => {
  * @param {object} broker - MQTT broker
  * @param {object} packet - MQTT packet
  * @param {object} client - MQTT client
+ * @returns {Promise<object>} packet
  */
 const onExternalPublished = async (broker, packet, client) => {
-  try {
-    const aloesId = process.env.ALOES_ID;
-    const aloesClientsIds = await getClientsByTopic(broker, `aloes-${aloesId}/sync`);
-    if (!aloesClientsIds || aloesClientsIds === null) {
-      throw new Error('No Aloes client connected');
-    }
-    const aloesClient = pickRandomClient(broker, aloesClientsIds);
-    if (!aloesClient || !aloesClient.id) throw new Error('No Aloes client connected');
-    const foundClient = getClientProps(client);
-    packet.topic = `${getAloesClientTopic(aloesClient.id)}/rx/${packet.topic}`;
+  const aloesClient = await getAloesClient(broker);
+  const foundClient = getClientProps(client);
+  packet.topic = `${getAloesClientTopic(aloesClient.id)}/rx/${packet.topic}`;
 
-    // check packet payload type to preformat before stringify
-    if (client.devEui) {
-      // packet.payload = packet.payload.toString('binary');
-    } else if (client.ownerId) {
-      packet.payload = JSON.parse(packet.payload.toString());
-    } else if (client.appId) {
-      // console.log('EXTERNAL APPLICATION PACKET ', packet.payload.toString());
-      // packet.payload = JSON.parse(packet.payload.toString());
-    }
-    packet.payload = Buffer.from(JSON.stringify({ payload: packet.payload, client: foundClient }));
-    broker.publish(packet);
-  } catch (error) {
-    logger.publish(2, 'broker', 'onExternalPublished:err', error);
+  // check packet payload type to preformat before stringify
+  if (client.ownerId) {
+    packet.payload = JSON.parse(packet.payload.toString());
   }
+  // else if (client.devEui) {
+  //   // packet.payload = packet.payload.toString('binary');
+  // } else if (client.appId) {
+  //   // console.log('EXTERNAL APPLICATION PACKET ', packet.payload.toString());
+  //   // packet.payload = JSON.parse(packet.payload.toString());
+  // }
+  packet.payload = Buffer.from(JSON.stringify({ payload: packet.payload, client: foundClient }));
+  broker.publish(packet);
+  return packet;
 };
-
-// const delayedOnExternalPublished = throttle(onExternalPublished, 5);
 
 /**
  * Parse message sent to Aedes broker
@@ -593,14 +575,15 @@ const onExternalPublished = async (broker, packet, client) => {
  * @param {object} broker - MQTT broker
  * @param {object} packet - MQTT packet
  * @param {object} client - MQTT client
+ * @returns {Promise<function | null>} Broker~onInternalPublished | Broker~onExternalPublished
  */
 export const onPublished = async (broker, packet, client) => {
-  if (!client || !client.id) return null;
-  logger.publish(4, 'broker', 'onPublished:req', { topic: packet.topic });
-  if (client.aloesId) return onInternalPublished(broker, packet, client);
-  if (client.user && !client.aloesId) {
-    return onExternalPublished(broker, packet, client);
-    // return delayedOnExternalPublished(packet, client);
+  if (!client || !client.id || !client.user) {
+    return null;
   }
-  throw new Error('Invalid MQTT client');
+  logger.publish(4, 'broker', 'onPublished:req', { topic: packet.topic });
+  if (client.aloesId) {
+    return onInternalPublished(broker, packet, client);
+  }
+  return onExternalPublished(broker, packet, client);
 };

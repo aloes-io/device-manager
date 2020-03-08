@@ -5,7 +5,7 @@ import stream from 'stream';
 import isAlphanumeric from 'validator/lib/isAlphanumeric';
 import isLength from 'validator/lib/isLength';
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 const collectionName = 'Files';
 const CONTAINERS_URL = `${process.env.REST_API_ROOT}/${collectionName}/`;
@@ -97,7 +97,7 @@ const removeContainer = (app, ownerId) =>
  * Validate instance before creation
  * @method module:Files~onBeforeSave
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 const onBeforeSave = async ctx => {
   if (ctx.data) {
@@ -119,6 +119,13 @@ const onBeforeSave = async ctx => {
   return ctx;
 };
 
+/**
+ * Remove File instance dependencies
+ * @method module:File~deleteProps
+ * @param {object} app - Loopback app
+ * @param {object} fileMeta
+ * @returns {Promise<object>} fileMeta
+ */
 const deleteProps = async (app, fileMeta) => {
   if (!fileMeta || !fileMeta.id || !fileMeta.ownerId) {
     throw utils.buildError(403, 'INVALID_FILE', 'Invalid file instance');
@@ -139,7 +146,7 @@ const deleteProps = async (app, fileMeta) => {
  * Delete relations on instance(s) deletetion
  * @method module:Files~onBeforeDelete
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 const onBeforeDelete = async ctx => {
   if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
@@ -154,6 +161,14 @@ const onBeforeDelete = async ctx => {
   return ctx;
 };
 
+/**
+ * Called when a remote method tries to access File Model / instance
+ * @method module:File~onBeforeRemote
+ * @param {object} ctx - Express context
+ * @param {object} ctx.req - Request
+ * @param {object} ctx.res - Response
+ * @returns {Promise<object>} context
+ */
 const onBeforeRemote = async ctx => {
   if (
     ctx.method.name === 'upload' ||
@@ -207,7 +222,7 @@ module.exports = function(Files) {
    * @param {object} ctx - Loopback context
    * @param {string} ownerId - Container owner and path
    * @param {string} [name] - File name
-   * @returns {object} file
+   * @returns {Promise<object>} file
    */
   Files.upload = async (ctx, ownerId, name) => {
     logger.publish(4, `${collectionName}`, 'upload:req', { ownerId, name });
@@ -281,7 +296,7 @@ module.exports = function(Files) {
    * @param {buffer} buffer - Containing file data
    * @param {string} ownerId - Container owner and path
    * @param {string} name - File name
-   * @returns {object} fileMeta
+   * @returns {Promise<object>} fileMeta
    */
   Files.uploadBuffer = async (buffer, ownerId, name) => {
     logger.publish(4, `${collectionName}`, 'uploadBuffer:req', { ownerId, name });
@@ -316,9 +331,10 @@ module.exports = function(Files) {
   /**
    * Request to download file in ownerId container
    * @method module:Files.download
+   * @param {object} ctx - Loopback context
    * @param {string} ownerId - Container owner and path
    * @param {string} name - File name
-   * @returns {object} fileMeta
+   * @returns {Promise<object>} fileMeta
    */
   Files.download = async (ctx, ownerId, name) => {
     // let auth = false;
@@ -349,19 +365,65 @@ module.exports = function(Files) {
     throw utils.buildError(404, 'NOT_FOUND', 'no file found');
   };
 
+  /**
+   * Create a new file container
+   * @method module:Files.createContainer
+   * @param {string} userId
+   * @returns {Promise<function>} createContainer
+   */
   Files.createContainer = async userId => createContainer(Files.app, { name: userId.toString() });
 
+  /**
+   * Get a list of file containers info
+   * @method module:Files.getContainers
+   * @param {string} userId
+   * @returns {Promise<function>} getContainers
+   */
   Files.getContainers = async userId => getContainers(Files.app, userId);
 
+  /**
+   * Get a file container info
+   * @method module:Files.getContainer
+   * @param {string} userId
+   * @param {string} name
+   * @returns {Promise<function>} getContainer
+   */
   Files.getContainer = async (userId, name) => getContainer(Files.app, userId, name);
 
+  /**
+   * Remove a file container
+   * @method module:Files.removeContainer
+   * @param {string} userId
+   * @param {string} name
+   * @returns {Promise<function>} removeContainer
+   */
+  Files.removeContainer = async userId => removeContainer(Files.app, userId);
+
+  /**
+   * Get files info from a container
+   * @method module:Files.getFilesFromContainer
+   * @param {string} userId
+   * @returns {Promise<function>} getFilesFromContainer
+   */
   Files.getFilesFromContainer = async userId => getFilesFromContainer(Files.app, userId);
 
+  /**
+   * Get a file info from a container
+   * @method module:Files.getFileFromContainer
+   * @param {string} userId
+   * @param {string} name
+   * @returns {Promise<function>} getFileFromContainer
+   */
   Files.getFileFromContainer = async (userId, name) =>
     getFileFromContainer(Files.app, userId, name);
 
-  Files.removeContainer = async userId => removeContainer(Files.app, userId);
-
+  /**
+   * Remove a file info from a container
+   * @method module:Files.removeFileFromContainer
+   * @param {string} userId
+   * @param {string} name
+   * @returns {Promise<function>} removeFileFromContainer
+   */
   Files.removeFileFromContainer = async (userId, name) =>
     removeFileFromContainer(Files.app, userId, name);
 
@@ -369,7 +431,7 @@ module.exports = function(Files) {
    * On sensor update, if an OMA resource is of float or integer type
    * @method modules:Files.compose
    * @param {object} sensor - updated Sensor instance
-   * @returns {object} buffer
+   * @returns {Promise<object>} buffer
    */
   Files.compose = sensor => {
     if (!sensor || !sensor.id || !sensor.deviceId || !sensor.resource || !sensor.type) {
@@ -408,7 +470,7 @@ module.exports = function(Files) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} user - Files new instance
-   * @returns {function} Files~onBeforeSave
+   * @returns {Promise<function>} Files~onBeforeSave
    */
   Files.observe('before save', onBeforeSave);
 
@@ -419,7 +481,7 @@ module.exports = function(Files) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - File meta instance
-   * @returns {function} Files~onBeforeDelete
+   * @returns {Promise<function>} Files~onBeforeDelete
    */
   Files.observe('before delete', onBeforeDelete);
 
@@ -429,7 +491,7 @@ module.exports = function(Files) {
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @returns {function} Files~onBeforeRemote
+   * @returns {Promise<function>} Files~onBeforeRemote
    */
   Files.beforeRemote('**', onBeforeRemote);
 

@@ -2,9 +2,9 @@
 
 import { omaObjects, omaResources } from 'oma-json';
 import isLength from 'validator/lib/isLength';
-import logger from '../services/logger';
-import utils from '../services/utils';
-import protocols from '../initial-data/protocols.json';
+import logger from '../../services/logger';
+import protocols from '../../initial-data/protocols.json';
+import utils from '../utils';
 
 export const collectionName = 'Sensor';
 // const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'error'];
@@ -18,6 +18,17 @@ const savedMethods = {
   scheduler: 50,
 };
 
+/**
+ * Error callback
+ * @callback module:Sensor~errorCallback
+ * @param {error} ErrorObject
+ */
+
+/**
+ * Validate sensor type before saving instance
+ * @method module:Sensor~typeValidator
+ * @param {ErrorCallback} err
+ */
 export function typeValidator(err) {
   if (
     !this.type ||
@@ -28,6 +39,11 @@ export function typeValidator(err) {
   }
 }
 
+/**
+ * Validate sensor resource before saving instance
+ * @method module:Sensor~resourceValidator
+ * @param {ErrorCallback} err
+ */
 export function resourceValidator(err) {
   // todo : check if this.resource is in omaObjects[this.type].resources
   if (
@@ -40,6 +56,11 @@ export function resourceValidator(err) {
   }
 }
 
+/**
+ * Validate sensor transportProtocol before saving instance
+ * @method module:Sensor~transportProtocolValidator
+ * @param {ErrorCallback} err
+ */
 export function transportProtocolValidator(err) {
   if (
     !this.transportProtocol ||
@@ -49,6 +70,11 @@ export function transportProtocolValidator(err) {
   }
 }
 
+/**
+ * Validate sensor messageProtocol before saving instance
+ * @method module:Sensor~messageProtocolValidator
+ * @param {ErrorCallback} err
+ */
 export function messageProtocolValidator(err) {
   if (
     !this.messageProtocol ||
@@ -58,6 +84,14 @@ export function messageProtocolValidator(err) {
   }
 }
 
+/**
+ * Compose a sensor instance from a device and retrieved attributes
+ * @method module:Sensor~compose
+ * @param {object} device - Device instance
+ * @param {object} attributes - Sensor attributes
+ * @param {object} isNewInstance - Flag to indicate that the sensor is a new instance
+ * @returns {object} sensor
+ */
 export const compose = (device, attributes, isNewInstance = true) => {
   let sensor;
   // todo improve composition with attributes validation based on schema types using yup lib ?
@@ -105,7 +139,7 @@ export const compose = (device, attributes, isNewInstance = true) => {
       //   sensor[key] = attributes[key];
       // }
       // eslint-disable-next-line security/detect-object-injection
-      sensor[key] = attributes[key];
+      sensor[key] = attributes[key] || sensor[key];
     });
     sensor.isNewInstance = isNewInstance;
     sensor.devEui = device.devEui;
@@ -309,6 +343,14 @@ export const getPersistingMethod = (sensorType, resource, type) => {
   return saveMethod;
 };
 
+/**
+ * Save a sensor resource as a file
+ * @async
+ * @method module:Sensor~saveFile
+ * @param {object} app - Loopback app
+ * @param {object} sensor - Sensor instance
+ * @returns {Promise<object>} fileMeta
+ */
 const saveFile = async (app, sensor) => {
   const Files = app.models.Files;
   const buffer = await Files.compose(sensor);
@@ -321,6 +363,15 @@ const saveFile = async (app, sensor) => {
   return fileMeta;
 };
 
+/**
+ * Save a sensor resource as a measurement
+ * @async
+ * @method module:Sensor~saveMeasurement
+ * @param {object} app - Loopback app
+ * @param {object} sensor - Sensor instance
+ * @param {object} client - MQTT client
+ * @returns {Promise<object | null>} point
+ */
 const saveMeasurement = async (app, sensor, client) => {
   const Measurement = app.models.Measurement;
   const measurement = await Measurement.compose(sensor);
@@ -334,9 +385,19 @@ const saveMeasurement = async (app, sensor, client) => {
   return null;
 };
 
+/**
+ * Save a sensor resource as a timer
+ * @async
+ * @method module:Sensor~saveScheduler
+ * @param {object} app - Loopback app
+ * @param {object} sensor - Sensor instance
+ * @param {object} client - MQTT client
+ * @returns {Promise<object>} scheduler
+ */
 const saveScheduler = async (app, sensor, client) => {
   const Scheduler = app.models.Scheduler;
-  return Scheduler.createOrUpdate(sensor, client);
+  const scheduler = await Scheduler.createOrUpdate(sensor, client);
+  return scheduler;
 };
 
 const saveSensorRelations = {
@@ -358,7 +419,7 @@ const saveSensorRelations = {
  * @param {object} app - Loopback app
  * @param {object} sensor - Sensor instance
  * @param {object} [client] - MQTT client
- * @returns {object} result - saved value
+ * @returns {Promise<object>} result - saved value
  */
 export const persistingResource = async (app, sensor, client) => {
   logger.publish(5, `${collectionName}`, 'persistingResource:req', {
@@ -385,7 +446,7 @@ export const persistingResource = async (app, sensor, client) => {
  * Validate instance before creation
  * @method module:Sensor~onBeforeSave
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 export const onBeforeSave = async ctx => {
   // if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
@@ -423,7 +484,7 @@ export const onBeforeSave = async ctx => {
  * Create relations on instance creation
  * @method module:Sensor~onAfterSave
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 export const onAfterSave = async ctx => {
   logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.hookState);
@@ -439,7 +500,7 @@ export const onAfterSave = async ctx => {
  * @method module:Sensor~deleteProps
  * @param {object} app - Loopback app
  * @param {object} instance
- * @returns {function} Sensor.publish
+ * @returns {Promise<function>} Sensor.publish
  */
 const deleteProps = async (app, sensor) => {
   try {
@@ -458,7 +519,7 @@ const deleteProps = async (app, sensor) => {
  * Delete relations on instance(s) deletetion
  * @method module:Sensor~onBeforeDelete
  * @param {object} ctx - Loopback context
- * @returns {object} ctx
+ * @returns {Promise<object>} ctx
  */
 export const onBeforeDelete = async ctx => {
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
@@ -482,7 +543,7 @@ export const onBeforeDelete = async ctx => {
  * @param {object} ctx - Express context
  * @param {object} ctx.req - Request
  * @param {object} ctx.res - Response
- * @returns {object} context
+ * @returns {Promise<object>} context
  */
 export const onBeforeRemote = async (app, ctx) => {
   if (ctx.method.name.indexOf('find') !== -1 || ctx.method.name.indexOf('get') !== -1) {

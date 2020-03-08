@@ -4,7 +4,7 @@
 import loopbackPassport from 'loopback-component-passport';
 import providers from '../providers';
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 module.exports = function passportConfig(app) {
   if (utils.isMasterProcess(process.env)) {

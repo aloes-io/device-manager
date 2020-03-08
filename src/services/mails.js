@@ -1,7 +1,7 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import app from './server';
-import utils from './utils';
+import utils from '../lib/utils';
 import logger from './logger';
 
 const emailFrom = process.env.CONTACT_EMAIL;
@@ -58,7 +58,7 @@ const mails = {};
 /**
  * Promise wrapper to send email using Email datasource
  * @method module:Mails~sendMail
- * @returns {promise}
+ * @returns {Promise<object>}
  */
 const sendMail = updatedOptions =>
   new Promise((resolve, reject) => {
@@ -69,7 +69,7 @@ const sendMail = updatedOptions =>
  * Generate HTML template and send email
  * @method module:Mails.send
  * @param {object} options - Mail options
- * @returns {object} result - Mail result
+ * @returns {Promise<object>} result - Mail result
  */
 mails.send = async options => {
   try {
@@ -94,7 +94,7 @@ mails.send = async options => {
 /**
  * Promise wrapper to send verification email after user registration
  * @method module:Mails~verifyUser
- * @returns {promise}
+ * @returns {Promise<object>}
  */
 const verifyUser = (user, options) =>
   new Promise((resolve, reject) => {
@@ -105,7 +105,7 @@ const verifyUser = (user, options) =>
  * Sending a verification email to confirm account creation
  * @method module:Mails.verifyEmail
  * @param {object} user - Account created
- * @returns {object} result - Mail result
+ * @returns {Promise<object>} result - Mail result
  */
 mails.verifyEmail = async user => {
   try {
@@ -181,6 +181,11 @@ mails.sendContactForm = async options => {
   }
 };
 
+/**
+ * Sending a mail invitation to new user
+ * @method module:Mails.sendMailInvite
+ * @param {object} options - Mail options
+ */
 mails.sendMailInvite = async options => {
   try {
     const newOptions = {

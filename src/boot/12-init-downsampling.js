@@ -2,7 +2,7 @@
 
 /* eslint-disable security/detect-object-injection */
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 module.exports = async function initializeDownSampling(app) {
   try {

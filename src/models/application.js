@@ -8,9 +8,9 @@ import {
   onBeforeSave,
   onBeforeRemote,
   parseMessage,
-} from '../lib/application';
+} from '../lib/models/application';
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 /**
  * @module Application
@@ -30,48 +30,48 @@ module.exports = Application => {
 
   /**
    * Format packet and send it via MQTT broker
+   * @async
    * @method module:Application.publish
    * @param {object} application - Application instance
+   * @param {string} method - Publish method
    * @param {object} [client] - MQTT client target
    * @fires Server.publish
+   * @returns {Promise<object | null>} application
    */
   Application.publish = async (application, method, client) => {
-    try {
-      if (!application || !application.ownerId) throw new Error('Wrong application instance');
-      const packet = publish({
-        userId: application.ownerId,
-        collection: collectionName,
-        data: application,
-        modelId: application.id,
-        method: method || application.method,
-        pattern: 'aloesClient',
-      });
-      if (packet && packet.topic && packet.payload) {
-        logger.publish(4, `${collectionName}`, 'publish:res', {
-          topic: packet.topic,
-        });
-        if (client && client.id) {
-          // publish to client
-          return null;
-        }
-        if (application.status) {
-          const topic = `${application.id}/${collectionName}/${method}`;
-          Application.app.emit('publish', topic, packet.payload, false, 1);
-        }
-        Application.app.emit('publish', packet.topic, packet.payload, false, 1);
-        return application;
-      }
-      throw new Error('Invalid MQTT Packet encoding');
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'publish:err', error);
-      throw error;
+    if (!application || !application.ownerId) {
+      throw new Error('Wrong application instance');
     }
+    const packet = publish({
+      userId: application.ownerId,
+      collection: collectionName,
+      data: application,
+      modelId: application.id,
+      method: method || application.method,
+      pattern: 'aloesClient',
+    });
+    if (packet && packet.topic && packet.payload) {
+      logger.publish(4, `${collectionName}`, 'publish:res', {
+        topic: packet.topic,
+      });
+      if (client && client.id) {
+        // publish to client
+        return null;
+      }
+      if (application.status) {
+        const topic = `${application.id}/${collectionName}/${method}`;
+        Application.app.emit('publish', topic, packet.payload, false, 1);
+      }
+      Application.app.emit('publish', packet.topic, packet.payload, false, 1);
+      return application;
+    }
+    throw new Error('Invalid MQTT Packet encoding');
   };
 
   /**
    * Reset keys for this application instance
    * @method module:Application.prototype.resetKeys
-   * @returns {object} this
+   * @returns {Promise<object>} this
    */
   Application.prototype.resetKeys = async function() {
     const attributes = {
@@ -91,7 +91,7 @@ module.exports = Application => {
    * @method module:Application.refreshToken
    * @param {string} appId - Application instance id
    * @param {string} ownerId - Application owner id
-   * @returns {function} application.updateAttributes
+   * @returns {Promise<function>} application.updateAttributes
    */
   Application.refreshToken = async (appId, ownerId) => {
     logger.publish(4, `${collectionName}`, 'refreshToken:req', appId);
@@ -123,7 +123,7 @@ module.exports = Application => {
    * @param {object} packet - MQTT bridge packet
    * @param {object} client - MQTT client
    * @param {object} pattern - Pattern detected by Iot-Agent
-   * @returns {functions} Application~parseApplicationMessage
+   * @returns {Promise<function>} Application~parseMessage
    */
   Application.onPublish = async (packet, client, pattern) => {
     logger.publish(4, `${collectionName}`, 'onPublish:req', pattern);
@@ -139,7 +139,7 @@ module.exports = Application => {
    * @method module:Application~detector
    * @param {object} packet - MQTT packet
    * @param {object} client - MQTT client
-   * @returns {object} pattern
+   * @returns {Promise<object | null>} pattern
    */
   Application.detector = async (packet, client) => {
     // const pattern = {name: 'empty', params: null};
@@ -168,7 +168,7 @@ module.exports = Application => {
    * @method module:Application.updateStatus
    * @param {object} client - MQTT client
    * @param {boolean} status - MQTT conection status
-   * @returns {function} application.updateAttributes
+   * @returns {Promise<function>} application.updateAttributes
    */
   Application.updateStatus = async (client, status) => {
     // if (!client || !client.id || !client.appId) {
@@ -177,49 +177,48 @@ module.exports = Application => {
     logger.publish(4, collectionName, 'updateStatus:req', status);
     const Client = Application.app.models.Client;
     const application = await Application.findById(client.user);
-    if (application && application.id && application.id.toString() === client.appId.toString()) {
-      let frameCounter = application.frameCounter;
-      let ttl;
-      client.status = status;
-
-      const clients = application.clients;
-      const index = clients.indexOf(client.id);
-      if (status) {
-        if (index === -1) {
-          clients.push(client.id);
-        }
-        ttl = 7 * 24 * 60 * 60 * 1000;
-        if (clients.length === 1) {
-          frameCounter = 1;
-        }
-        await Client.set(client.id, JSON.stringify(client), ttl);
-      } else {
-        ttl = 1 * 24 * 60 * 60 * 1000;
-        if (index > -1) {
-          clients.splice(index, 1);
-        }
-        if (clients.length > 1) {
-          status = true;
-        } else {
-          frameCounter = 0;
-          const Device = Application.app.models.Device;
-          const devices = await Device.find({
-            where: { and: [{ appIds: { inq: [client.appId] } }, { status: true }] },
-          });
-
-          await Promise.all(
-            devices.map(async device => device.updateAttributes({ frameCounter, status })),
-          );
-        }
-        await Client.delete(client.id);
-      }
-
-      logger.publish(4, collectionName, 'updateStatus:res', client);
-      await application.updateAttributes({ frameCounter, status, clients });
-      return client;
+    if (!application) {
+      return null;
     }
-    // throw new Error('No application found');
-    return null;
+    let frameCounter = application.frameCounter;
+    // let ttl;
+    client.status = status;
+    const clients = application.clients || [];
+    const index = clients.indexOf(client.id);
+    if (status) {
+      if (index === -1) {
+        clients.push(client.id);
+      }
+      const ttl = 7 * 24 * 60 * 60 * 1000;
+      if (clients.length === 1) {
+        frameCounter = 1;
+      }
+      await Client.set(client.id, JSON.stringify(client), ttl);
+    } else {
+      // ttl = 1 * 24 * 60 * 60 * 1000;
+      if (index > -1) {
+        clients.splice(index, 1);
+      }
+      if (clients.length > 1) {
+        status = true;
+      } else {
+        frameCounter = 0;
+        const Device = Application.app.models.Device;
+        const devices = await Device.find({
+          where: { and: [{ appIds: { inq: [client.appId] } }, { status: true }] },
+        });
+        await Promise.all(
+          devices.map(async device =>
+            device.updateAttributes({ frameCounter, status }).catch(e => e),
+          ),
+        );
+      }
+      await Client.delete(client.id);
+    }
+
+    logger.publish(4, collectionName, 'updateStatus:res', client);
+    return application.updateAttributes({ frameCounter, status, clients }).catch(e => e);
+    // return client;
   };
 
   /**
@@ -228,7 +227,7 @@ module.exports = Application => {
    * @method module:Application.authenticate
    * @param {any} applicationId
    * @param {string} key
-   * @returns {object} matched The matching application and key; one of:
+   * @returns {Promise<object>} matched The matching application and key; one of:
    * - clientKey
    * - apiKey
    * - javaScriptKey
@@ -270,7 +269,7 @@ module.exports = Application => {
    * Endpoint to get resources attached to an application
    * @method module:Application.getState
    * @param {string} applicationId
-   * @returns {object} application
+   * @returns {Promise<object>} application
    */
   Application.getState = async appId => {
     if (!appId) throw new Error('missing application.id');
@@ -301,7 +300,7 @@ module.exports = Application => {
    * @param {object} message - Parsed MQTT message.
    * @property {object} message.client - MQTT client
    * @property {boolean} message.status - MQTT client status.
-   * @returns {function} Application.updateStatus
+   * @returns {Promise<function>} Application.updateStatus
    */
   Application.on('client', async message => {
     logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
@@ -321,11 +320,11 @@ module.exports = Application => {
    * @property {object} message.packet - MQTT packet.
    * @property {object} message.pattern - Pattern detected
    * @property {object} message.client - MQTT client
-   * @returns {function} Application.onPublish
+   * @returns {Promise<function>} Application.onPublish
    */
   Application.on('publish', async message => {
     try {
-      if (!message || message === null) throw new Error('Message empty');
+      // if (!message || message === null) throw new Error('Message empty');
       const { client, packet, pattern } = message;
       logger.publish(4, collectionName, 'on:publish:req', pattern.name);
       if (!packet || !pattern) throw new Error('Message missing properties');
@@ -360,7 +359,7 @@ module.exports = Application => {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Application instance
-   * @returns {function} Application~onBeforeSave
+   * @returns {Promise<function>} Application~onBeforeSave
    */
   Application.observe('before save', onBeforeSave);
 
@@ -371,7 +370,7 @@ module.exports = Application => {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Application instance
-   * @returns {function} Application~onAfterSave
+   * @returns {Promise<function>} Application~onAfterSave
    */
   Application.observe('after save', onAfterSave);
 
@@ -382,10 +381,18 @@ module.exports = Application => {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - Application instance
-   * @returns {function} Application~onBeforeDelete
+   * @returns {Promise<function>} Application~onBeforeDelete
    */
   Application.observe('before delete', onBeforeDelete);
 
+  /**
+   * Event reporting that an Application instance / collection is requested
+   * @event before_*
+   * @param {object} ctx - Express context.
+   * @param {object} ctx.req - Request
+   * @param {object} ctx.res - Response
+   * @returns {Promise<function>} Application~onBeforeRemote
+   */
   Application.beforeRemote('**', onBeforeRemote);
 
   Application.afterRemoteError('*', (ctx, next) => {
@@ -398,14 +405,14 @@ module.exports = Application => {
    * Find applications
    * @method module:Application.find
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Returns applications length
    * @method module:Application.count
    * @param {object} where
-   * @returns {number}
+   * @returns {Promise<number>}
    */
 
   /**
@@ -413,14 +420,14 @@ module.exports = Application => {
    * @method module:Application.findById
    * @param {any} id
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Create application
    * @method module:Application.create
    * @param {object} application
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
@@ -428,7 +435,7 @@ module.exports = Application => {
    * @method module:Application.updateById
    * @param {any} id
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
@@ -436,7 +443,7 @@ module.exports = Application => {
    * @method module:Application.deleteById
    * @param {any} id
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   Application.disableRemoteMethodByName('count');

@@ -4,7 +4,7 @@ import { updateAloesSensors } from 'aloes-handlers';
 import iotAgent from 'iot-agent';
 import isAlphanumeric from 'validator/lib/isAlphanumeric';
 import isLength from 'validator/lib/isLength';
-import { publishToDeviceApplications } from '../lib/device';
+import { publishToDeviceApplications } from '../lib/models/device';
 import {
   collectionName,
   compose,
@@ -18,9 +18,9 @@ import {
   resourceValidator,
   transportProtocolValidator,
   typeValidator,
-} from '../lib/sensor';
+} from '../lib/models/sensor';
 import logger from '../services/logger';
-import utils from '../services/utils';
+import utils from '../lib/utils';
 
 /**
  * @module Sensor
@@ -79,82 +79,80 @@ module.exports = function(Sensor) {
 
   /**
    * Format packet and send it via MQTT broker
+   * @async
    * @method module:Sensor.publish
    * @param {object} device - found Device instance
    * @param {object} sensor - Sensor instance
    * @param {string} [method] - MQTT API method
    * @param {object} [client] - MQTT client target
    * @fires Server.publish
+   * @returns {Promise<object | null>} sensor
    */
   Sensor.publish = async (deviceId, sensor, method, client) => {
-    try {
-      if (!deviceId) {
-        throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device id');
-      }
-      if (!sensor || !sensor.id || !sensor.ownerId) {
-        throw utils.buildError(403, 'INVALID_SENSOR', 'Invalid sensor instance');
-      }
-      const device = await Sensor.app.models.Device.findById(deviceId);
-      if (!device) {
-        throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
-      }
-      let publishMethod = method || sensor.method;
-      if (sensor.isNewInstance && !publishMethod) {
-        publishMethod = 'POST';
-      } else if (!publishMethod) {
-        publishMethod = 'PUT';
-      }
-      const packet = iotAgent.publish({
-        userId: sensor.ownerId,
-        collection: collectionName,
-        modelId: sensor.id,
-        data: sensor,
-        method: publishMethod,
-        pattern: 'aloesclient',
-      });
-      if (packet && packet.topic && packet.payload) {
-        logger.publish(4, `${collectionName}`, 'publish:res', {
-          topic: packet.topic,
-        });
-        // if (client && client.id) {
-        //   // publish to client
-        //   return null;
-        // }
-        // if (client && (client.ownerId || client.appId)) {
-        if (client && client.ownerId) {
-          const pattern = iotAgent.patternDetector(packet);
-          let nativePacket = { topic: packet.topic, payload: JSON.stringify(sensor) };
-          nativePacket = iotAgent.decode(nativePacket, pattern.params);
-          if (
-            nativePacket.payload &&
-            nativePacket.payload !== null &&
-            nativePacket.topic.search(sensor.inPrefix) !== -1
-          ) {
-            logger.publish(4, `${collectionName}`, 'publish:res', {
-              nativeTopic: nativePacket.topic,
-            });
-            Sensor.app.emit('publish', nativePacket.topic, nativePacket.payload, false, 0);
-          }
-        }
-
-        publishToDeviceApplications(Sensor.app, device, packet);
-        // console.log('payload', typeof packet.payload);
-        Sensor.app.emit('publish', packet.topic, packet.payload, false, 0);
-        return sensor;
-      }
-      throw new Error('Invalid MQTT Packet encoding');
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'publish:err', error);
-      throw error;
+    if (!deviceId) {
+      throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device id');
     }
+    if (!sensor || !sensor.id || !sensor.ownerId) {
+      throw utils.buildError(403, 'INVALID_SENSOR', 'Invalid sensor instance');
+    }
+    const device = await Sensor.app.models.Device.findById(deviceId);
+    if (!device) {
+      throw utils.buildError(403, 'INVALID_DEVICE', 'Invalid device instance');
+    }
+    let publishMethod = method || sensor.method;
+    if (sensor.isNewInstance && !publishMethod) {
+      publishMethod = 'POST';
+    } else if (!publishMethod) {
+      publishMethod = 'PUT';
+    }
+    const packet = iotAgent.publish({
+      userId: sensor.ownerId,
+      collection: collectionName,
+      modelId: sensor.id,
+      data: sensor,
+      method: publishMethod,
+      pattern: 'aloesclient',
+    });
+    if (packet && packet.topic && packet.payload) {
+      logger.publish(4, `${collectionName}`, 'publish:res', {
+        topic: packet.topic,
+      });
+      // if (client && client.id) {
+      //   // publish to client
+      //   return null;
+      // }
+      // if (client && (client.ownerId || client.appId)) {
+      if (client && client.ownerId) {
+        const pattern = iotAgent.patternDetector(packet);
+        let nativePacket = { topic: packet.topic, payload: JSON.stringify(sensor) };
+        nativePacket = iotAgent.decode(nativePacket, pattern.params);
+        if (
+          nativePacket.payload &&
+          nativePacket.payload !== null &&
+          nativePacket.topic.search(sensor.inPrefix) !== -1
+        ) {
+          logger.publish(4, `${collectionName}`, 'publish:res', {
+            nativeTopic: nativePacket.topic,
+          });
+          Sensor.app.emit('publish', nativePacket.topic, nativePacket.payload, false, 0);
+        }
+      }
+
+      publishToDeviceApplications(Sensor.app, device, packet);
+      // console.log('payload', typeof packet.payload);
+      Sensor.app.emit('publish', packet.topic, packet.payload, false, 0);
+      return sensor;
+    }
+    throw new Error('Invalid MQTT Packet encoding');
   };
 
   /**
    * When device found,validate sensor instance produced by IoTAgent
+   * @async
    * @method module:Sensor.compose
    * @param {object} device - found device instance
    * @param {object} attributes - IotAgent parsed message
-   * @returns {object} sensor
+   * @returns {Promise<object>} sensor
    */
   Sensor.compose = async (device, attributes) => {
     let sensor = {};
@@ -182,10 +180,11 @@ module.exports = function(Sensor) {
 
   /**
    * When HEAD method detected, update sensor instance ( not the value )
+   * @async
    * @method module:Sensor.handlePresentation
    * @param {object} sensor - Incoming sensor instance
    * @param {object} [client] - MQTT client
-   * @returns {function} Sensor.publish
+   * @returns {Promise<function>} Sensor.publish
    */
   Sensor.handlePresentation = async (sensor, client) => {
     logger.publish(4, `${collectionName}`, 'handlePresentation:req', {
@@ -214,7 +213,7 @@ module.exports = function(Sensor) {
    * @param {number} resourceKey - Sensor resource name ( OMA )
    * @param {object} resourceValue - Sensor resource value to save
    * @param {object} [client] - MQTT client
-   * @returns {object} sensor
+   * @returns {Promise<object>} sensor
    */
   Sensor.createOrUpdate = async (sensor, resourceKey, resourceValue, client) => {
     logger.publish(4, `${collectionName}`, 'createOrUpdate:req', {
@@ -256,7 +255,7 @@ module.exports = function(Sensor) {
    * @method module:Sensor.getInstance
    * @param {object} sensor - Incoming sensor instance
    * @param {object} [client] - MQTT client
-   * @returns {function} Sensor.publish
+   * @returns {Promise<object>} sensor
    */
   Sensor.getInstance = async (sensor, client) => {
     logger.publish(4, `${collectionName}`, 'getInstance:req', {
@@ -282,7 +281,7 @@ module.exports = function(Sensor) {
    * @param {object} sensor - Parsed external app message
    * @param {string} method - method from MQTT topic
    * @param {object} [client] - MQTT client
-   * @returns {object} sensor
+   * @returns {Promise<object>} sensor
    */
   Sensor.execute = async (sensor, method, client) => {
     logger.publish(4, `${collectionName}`, 'execute:req', method);
@@ -321,7 +320,7 @@ module.exports = function(Sensor) {
    * @param {object} attributes - Sensor attributes detected by Iot-Agent
    * @param {object} [sensor] - Found Sensor instance
    * @param {object} client - MQTT client
-   * @returns {function} Sensor.execute
+   * @returns {Promise<function>} Sensor.execute
    */
   Sensor.onPublish = async (device, attributes, sensor, client) => {
     logger.publish(4, `${collectionName}`, 'onPublish:req', {
@@ -349,7 +348,7 @@ module.exports = function(Sensor) {
    * Search sensor by keywords ( name, type, )
    * @method module:Sensor.search
    * @param {object} filter - Requested filter
-   * @returns {array} sensors
+   * @returns {Promise<array>} sensors
    */
   Sensor.search = async filter => {
     logger.publish(4, `${collectionName}`, 'search:req', filter);
@@ -407,6 +406,7 @@ module.exports = function(Sensor) {
    * @method module:Sensor.export
    * @param {array} sensors
    * @param {string} [format]
+   * @returns {Promise<string>}
    */
   Sensor.export = async (sensors, filter, format = 'csv') => {
     if (!sensors || sensors.length < 1) return null;
@@ -453,7 +453,7 @@ module.exports = function(Sensor) {
     /**
      * Get sensor resources form key/value store
      * @method module:Sensor.prototype.__get__resources
-     * @returns {function} module:SensorResource.find
+     * @returns {Promise<function>} module:SensorResource.find
      */
     Sensor.prototype.__get__resources = async function() {
       return SensorResource.find(this.deviceId, this.id);
@@ -463,7 +463,7 @@ module.exports = function(Sensor) {
      * Get sensor resources form key/value store by key
      * @method module:Sensor.prototype.__findById__resources
      * @param {string} id Resource key
-     * @returns {function} module:SensorResource.find
+     * @returns {Promise<function>} module:SensorResource.find
      */
     Sensor.prototype.__findById__resources = async function(id) {
       return SensorResource.find(this.deviceId, this.id, id);
@@ -473,7 +473,7 @@ module.exports = function(Sensor) {
      * Create sensor resources into key/value store
      * @method module:Sensor.prototype.__create__resources
      * @param {object} resources Resources key/value object
-     * @returns {function} module:SensorResource.save
+     * @returns {Promise<function>} module:SensorResource.save
      */
     Sensor.prototype.__create__resources = async function(resources) {
       return SensorResource.save(this.deviceId, this.id, resources);
@@ -483,7 +483,7 @@ module.exports = function(Sensor) {
      * Replace sensor resources into key/value store
      * @method module:Sensor.prototype.__replace__resources
      * @param {object} resources Resources key/value object
-     * @returns {function} module:SensorResource.save
+     * @returns {Promise<function>} module:SensorResource.save
      */
     Sensor.prototype.__replace__resources = async function(resources) {
       return SensorResource.save(this.deviceId, this.id, resources);
@@ -496,7 +496,7 @@ module.exports = function(Sensor) {
     /**
      * Delete sensor resources from key/value store
      * @method module:Sensor.prototype.__delete__resources
-     * @returns {function} module:SensorResource.remove
+     * @returns {Promise<function>} module:SensorResource.remove
      */
     Sensor.prototype.__delete__resources = async function() {
       return SensorResource.remove(this.deviceId, this.id);
@@ -516,7 +516,7 @@ module.exports = function(Sensor) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Sensor instance
-   * @returns {function} Sensor~onBeforeSave
+   * @returns {Promise<function>} Sensor~onBeforeSave
    */
   Sensor.observe('before save', onBeforeSave);
 
@@ -527,7 +527,7 @@ module.exports = function(Sensor) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.instance - Sensor instance
-   * @returns {function} Sensor~onAfterSave
+   * @returns {Promise<function>} Sensor~onAfterSave
    */
   Sensor.observe('after save', onAfterSave);
 
@@ -538,7 +538,7 @@ module.exports = function(Sensor) {
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
    * @param {object} ctx.where.id - Sensor id
-   * @returns {function} Sensor~onBeforeDelete
+   * @returns {Promise<function>} Sensor~onBeforeDelete
    */
   Sensor.observe('before delete', onBeforeDelete);
 
@@ -548,7 +548,7 @@ module.exports = function(Sensor) {
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @returns {function} Sensor~onBeforeRemote
+   * @returns {Promise<function>} Sensor~onBeforeRemote
    */
   Sensor.beforeRemote('**', async ctx => onBeforeRemote(Sensor.app, ctx));
 
@@ -559,47 +559,53 @@ module.exports = function(Sensor) {
 
   /**
    * Find sensors
+   * @async
    * @method module:Sensor.find
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Returns sensors length
+   * @async
    * @method module:Sensor.count
    * @param {object} where
-   * @returns {number}
+   * @returns {Promise<number>}
    */
 
   /**
    * Find sensor by id
+   * @async
    * @method module:Sensor.findById
    * @param {any} id
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Create sensor
+   * @async
    * @method module:Sensor.create
    * @param {object} sensor
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Update sensor by id
+   * @async
    * @method module:Sensor.updateById
    * @param {any} id
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Delete sensor by id
+   * @async
    * @method module:Sensor.deleteById
    * @param {any} id
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   Sensor.disableRemoteMethodByName('upsertWithWhere');

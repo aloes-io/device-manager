@@ -427,12 +427,13 @@ const applicationTest = () => {
         const client = mqtt.connect(app.get('mqtt url'));
         client.once('error', e => {
           expect(e.code).to.be.equal(4);
+          client.end(true);
           done();
-          client.end();
         });
+
         client.once('connect', () => {
+          client.end(true);
           done(new Error('Should not connect'));
-          client.end();
         });
         // setTimeout(() => done(new Error('Test timeout')), testMaxDuration - 100);
       });
@@ -447,12 +448,12 @@ const applicationTest = () => {
         );
         client.once('error', e => {
           expect(e.code).to.be.equal(4);
+          client.end(true);
           done();
-          client.end();
         });
         client.once('connect', () => {
+          client.end(true);
           done(new Error('Should not connect'));
-          client.end();
         });
       });
 
@@ -470,7 +471,7 @@ const applicationTest = () => {
         await timeout(async () => {
           const application = await ApplicationModel.findById(applications[1].id);
           expect(application.status).to.be.equal(true);
-          client.end();
+          client.end(true);
         }, 150);
 
         return timeout(async () => {
@@ -493,18 +494,20 @@ const applicationTest = () => {
         });
 
         client.once('offline', () => {
-          client.end();
+          client.end(true);
           done();
         });
 
         client.once('connect', () => {
           client.publish('FAKETOPIC', packets[1].payload, { qos: 1 });
-          setTimeout(() => {
-            if (client.connected) {
-              client.end();
-              done();
-            }
-          }, 1000);
+          client.end(true);
+          done();
+          // setTimeout(() => {
+          //   if (client.connected) {
+          //     client.end(true);
+          //     done();
+          //   }
+          // }, 1000);
         });
 
         // done(new Error('Should have ended with an error event'));
@@ -522,18 +525,20 @@ const applicationTest = () => {
           done(e);
         });
         client.once('offline', () => {
-          client.end();
+          // client.end(true);
           done(new Error('Should not been offlined'));
         });
 
         client.once('connect', () => {
           client.publish(packets[1].topic, packets[1].payload, { qos: 1 });
-          setTimeout(() => {
-            if (client.connected) {
-              client.end();
-              done();
-            }
-          }, 1000);
+          client.end(true);
+          done();
+          // setTimeout(() => {
+          //   if (client.connected) {
+          //     client.end();
+          //     done();
+          //   }
+          // }, 150);
         });
       });
     });
