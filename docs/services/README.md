@@ -43,9 +43,9 @@
         * [~onAuthorizePublish(client, packet)](#module_Broker..onAuthorizePublish) ⇒ <code>boolean</code>
         * [~onAuthorizeSubscribe(client, packet)](#module_Broker..onAuthorizeSubscribe) ⇒ <code>boolean</code>
         * [~updateClientStatus(broker, client, status)](#module_Broker..updateClientStatus) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [~onPublished(broker, packet)](#module_Broker..onPublished)
-        * [~onPublished(broker, packet, client)](#module_Broker..onPublished)
-        * [~onPublished(broker, packet, client)](#module_Broker..onPublished) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [~onPublished(broker, packet)](#module_Broker..onPublished) ⇒ <code>object</code>
+        * [~onPublished(broker, packet, client)](#module_Broker..onPublished) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~onPublished(broker, packet, client)](#module_Broker..onPublished) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
         * ["client" (client)](#event_client) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["clientDisconnect" (client)](#event_clientDisconnect) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["keepaliveTimeout" (client)](#event_keepaliveTimeout)
@@ -313,10 +313,11 @@ Triggered after clientConnect and clientDisconnect events
 
 <a name="module_Broker..onPublished"></a>
 
-### Broker~onPublished(broker, packet)
+### Broker~onPublished(broker, packet) ⇒ <code>object</code>
 Parse message coming from aloes MQTT clients
 
 **Kind**: inner method of [<code>Broker</code>](#module_Broker)  
+**Returns**: <code>object</code> - packet  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -325,10 +326,11 @@ Parse message coming from aloes MQTT clients
 
 <a name="module_Broker..onPublished"></a>
 
-### Broker~onPublished(broker, packet, client)
+### Broker~onPublished(broker, packet, client) ⇒ <code>Promise.&lt;object&gt;</code>
 Parse message coming from external MQTT clients
 
 **Kind**: inner method of [<code>Broker</code>](#module_Broker)  
+**Returns**: <code>Promise.&lt;object&gt;</code> - packet  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -338,11 +340,11 @@ Parse message coming from external MQTT clients
 
 <a name="module_Broker..onPublished"></a>
 
-### Broker~onPublished(broker, packet, client) ⇒ <code>Promise.&lt;function()&gt;</code>
+### Broker~onPublished(broker, packet, client) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
 Parse message sent to Aedes broker
 
 **Kind**: inner method of [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - Broker~onInternalPublished | Broker~onExternalPublished  
+**Returns**: <code>Promise.&lt;(function()\|null)&gt;</code> - Broker~onInternalPublished | Broker~onExternalPublished  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -356,7 +358,7 @@ Parse message sent to Aedes broker
 On client connected to Aedes broker
 
 **Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - Broker~delayedUpdateClientStatus  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - Broker~updateClientStatus  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -368,7 +370,7 @@ On client connected to Aedes broker
 On client disconnected from Aedes broker
 
 **Kind**: event emitted by [<code>Broker</code>](#module_Broker)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - Broker~delayedUpdateClientStatus  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - Broker~updateClientStatus  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -532,8 +534,8 @@ Promise wrapper to send verification email after user registration
         * [~findPattern(app, packet, client)](#module_MQTTClient..findPattern) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
         * [~redirectMessage(packet, client, pattern)](#module_MQTTClient..redirectMessage) ⇒ <code>string</code>
         * [~onStatus(app, topic, payload)](#module_MQTTClient..onStatus) ⇒ <code>function</code>
-        * [~onReceive(app, topic, payload)](#module_MQTTClient..onReceive)
-        * [~onMessage(app, topic, payload)](#module_MQTTClient..onMessage) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [~onReceive(app, topic, payload)](#module_MQTTClient..onReceive) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~onMessage(app, topic, payload)](#module_MQTTClient..onMessage) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
         * [~startClient()](#module_MQTTClient..startClient)
         * [~initClient(app, config)](#module_MQTTClient..initClient) ⇒ <code>Promise.&lt;boolean&gt;</code>
         * [~stopClient()](#module_MQTTClient..stopClient) ⇒ <code>Promise.&lt;boolean&gt;</code>
@@ -635,11 +637,12 @@ Called when status message has been detected
 
 <a name="module_MQTTClient..onReceive"></a>
 
-### MQTTClient~onReceive(app, topic, payload)
+### MQTTClient~onReceive(app, topic, payload) ⇒ <code>Promise.&lt;object&gt;</code>
 Called when message arrived from the broker to be redirected to the right
 Model
 
 **Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
+**Returns**: <code>Promise.&lt;object&gt;</code> - packet  
 **Emits**: <code>Application.event:publish</code>, <code>Device.event:publish</code>  
 
 | Param | Type | Description |
@@ -650,11 +653,11 @@ Model
 
 <a name="module_MQTTClient..onMessage"></a>
 
-### MQTTClient~onMessage(app, topic, payload) ⇒ <code>Promise.&lt;function()&gt;</code>
+### MQTTClient~onMessage(app, topic, payload) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
 Parse the message arriving from the broker
 
 **Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - MQTTClient~onStatus | MQTTClient~onReceive  
+**Returns**: <code>Promise.&lt;(function()\|null)&gt;</code> - MQTTClient~onStatus | MQTTClient~onReceive  
 
 | Param | Type | Description |
 | --- | --- | --- |
