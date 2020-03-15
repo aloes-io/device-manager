@@ -453,7 +453,7 @@ module.exports = function(Sensor) {
     /* eslint-disable no-underscore-dangle */
 
     /**
-     * Get sensor resources form key/value store
+     * Get sensor resources from key/value store
      * @method module:Sensor.prototype.__get__resources
      * @returns {Promise<function>} module:SensorResource.find
      */
@@ -462,7 +462,7 @@ module.exports = function(Sensor) {
     };
 
     /**
-     * Get sensor resources form key/value store by key
+     * Get sensor resources from key/value store by key
      * @method module:Sensor.prototype.__findById__resources
      * @param {string} id Resource key
      * @returns {Promise<function>} module:SensorResource.find
@@ -472,7 +472,7 @@ module.exports = function(Sensor) {
     };
 
     /**
-     * Create sensor resources into key/value store
+     * Create sensor resources from key/value store
      * @method module:Sensor.prototype.__create__resources
      * @param {object} resources Resources key/value object
      * @returns {Promise<function>} module:SensorResource.save
@@ -482,7 +482,7 @@ module.exports = function(Sensor) {
     };
 
     /**
-     * Replace sensor resources into key/value store
+     * Replace sensor resources from key/value store
      * @method module:Sensor.prototype.__replace__resources
      * @param {object} resources Resources key/value object
      * @returns {Promise<function>} module:SensorResource.save
@@ -608,6 +608,19 @@ module.exports = function(Sensor) {
    * @param {any} id
    * @param {object} filter
    * @returns {Promise<object>}
+   */
+
+  /**
+   * Get sensor measurement from timeseries store
+   * @method module:Sensor.prototype.__get__measurements
+   * @returns {Promise<function>} module:Measurement.find
+   */
+
+  /**
+   * Get sensor measurement from timeseries store by id
+   * @method module:Sensor.prototype.__findById__measurements
+   * @param {string} id Resource key
+   * @returns {Promise<function>} module:Measurement.findById
    */
 
   Sensor.disableRemoteMethodByName('upsertWithWhere');

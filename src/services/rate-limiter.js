@@ -120,13 +120,13 @@ rateLimiter.getAuthLimiter = async (ip, username) => {
   let usernameIPkey = null;
   let limiter = null;
   let limiterType = null;
+  // if (!rateLimiter.ipLimiter || !rateLimiter.userIpLimiter) {
+  //   throw new Error('Rate limiter not ready');
+  // }
+  if (!username || !ip) {
+    throw new Error('MISSING_IP_OR_USERNAME');
+  }
   try {
-    // if (!rateLimiter.ipLimiter || !rateLimiter.userIpLimiter) {
-    //   throw new Error('Rate limiter not ready');
-    // }
-    if (!username || !ip) {
-      throw new Error('MISSING_IP_OR_USERNAME');
-    }
     usernameIPkey = getUsernameIPkey(username, ip);
     const [resUsernameAndIP, resSlowByIP] = await Promise.all([
       rateLimiter.userIpLimiter.get(usernameIPkey),
@@ -179,7 +179,9 @@ rateLimiter.setAuthLimiter = async (ip, username) => {
     const usernameIPkey = getUsernameIPkey(username, ip);
     promises.push(rateLimiter.userIpLimiter.consume(usernameIPkey));
   }
-  return Promise.all(promises);
+  const res = await Promise.all(promises);
+  logger.publish(3, `${moduleName}`, 'setAuthLimiter:res', res);
+  return res;
 };
 
 /**
@@ -192,6 +194,7 @@ rateLimiter.setAuthLimiter = async (ip, username) => {
  */
 rateLimiter.cleanAuthLimiter = async (ip, username) => {
   // clean IPLimiter too ?
+  await rateLimiter.ipLimiter.delete(ip);
   if (username) {
     // if (limiterType === 'userIpLimit' && limiter.consumedPoints > 0) {
     const usernameIPkey = getUsernameIPkey(username, ip);

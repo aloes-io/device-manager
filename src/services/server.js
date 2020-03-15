@@ -1,5 +1,7 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
+import axios from 'axios';
+import { timingSafeEqual } from 'crypto';
 import flash from 'express-flash';
 import fallback from 'express-history-api-fallback';
 import loopback from 'loopback';
@@ -9,6 +11,7 @@ import path from 'path';
 //  import {ensureLoggedIn} from 'connect-ensure-login';
 import logger from './logger';
 import MQTTClient from './mqtt-client';
+import rateLimiter from './rate-limiter';
 
 /**
  * @module Server
@@ -23,6 +26,166 @@ const unless = (paths, middleware) => (req, res, next) => {
   return middleware(req, res, next);
 };
 
+const getStoredClients = async filter => {
+  try {
+    const baseUrl = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}`;
+    // const baseUrl =
+    // `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
+    const { data } = await axios.post(`${baseUrl}/Clients/find`, filter, {
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        'aloes-id': process.env.ALOES_ID,
+        'aloes-key': process.env.ALOES_KEY,
+      },
+    });
+    if (data) {
+      return data;
+    }
+    return null;
+  } catch (error) {
+    logger.publish(2, 'loopback', 'getStoredClients:err', error);
+    return null;
+  }
+};
+
+/**
+ * Authenticate with User method
+ *
+ * @method module:Server~userAuth
+ * @param {string} username - MQTT client username
+ * @param {buffer} password - MQTT client password
+ * @returns {Promise<object>}
+ */
+const userAuth = async (username, password) => {
+  let status;
+  const details = {};
+  try {
+    const { userId } = await app.models.accessToken.findById(password.toString());
+    if (userId && userId.toString() === username) {
+      details.ownerId = username;
+      details.user = username;
+      details.model = 'User';
+      status = 0;
+    } else {
+      status = 4;
+    }
+  } catch (e) {
+    status = 4;
+    // console.error('authenticateInstance:user', e);
+  }
+  const user = await app.models.user.findById(username);
+  if (user && user.id) {
+    details.foundUsername = username;
+  }
+  logger.publish(5, 'loopback', 'userAuth:res', {
+    status,
+    details,
+  });
+  return { details, status };
+};
+
+/**
+ * Authenticate with Device method
+ *
+ * @method module:Server~deviceAuth
+ * @param {string} username - MQTT client username
+ * @param {buffer} password - MQTT client password
+ * @returns {Promise<object>}
+ */
+const deviceAuth = async (username, password) => {
+  const details = {};
+  let status;
+  try {
+    const { device, keyType } = await app.models.Device.authenticate(username, password.toString());
+    if (device && keyType) {
+      details.devEui = device.devEui;
+      details.user = username;
+      details.model = 'Device';
+      status = 0;
+    } else {
+      status = 4;
+    }
+  } catch (e) {
+    status = 4;
+    if (e.statusCode === 403 && e.message === 'UNAUTHORIZED') {
+      details.foundUsername = username;
+    }
+  }
+  logger.publish(5, 'loopback', 'deviceAuth:res', {
+    status,
+    details,
+  });
+  return { details, status };
+};
+
+/**
+ * Authenticate with Application method
+ *
+ * @method module:Server~applicationAuth
+ * @param {string} username - MQTT client username
+ * @param {buffer} password - MQTT client password
+ * @returns {Promise<object>}
+ */
+const applicationAuth = async (username, password) => {
+  const details = {};
+  let status;
+  try {
+    const { application, keyType } = await app.models.Application.authenticate(
+      username,
+      password.toString(),
+    );
+    if (application && keyType) {
+      details.appId = application.id.toString();
+      details.user = username;
+      details.model = 'Application';
+      details.appEui = application.appEui || null;
+      status = 0;
+    } else {
+      status = 4;
+    }
+  } catch (e) {
+    status = 4;
+    if (e.statusCode === 403 && e.message === 'UNAUTHORIZED') {
+      details.foundUsername = username;
+    }
+  }
+  logger.publish(5, 'loopback', 'applicationAuth:res', {
+    status,
+    details,
+  });
+  return { details, status };
+};
+
+/**
+ * Iterate over each model to try authentication
+ * @generator
+ * @async
+ * @method module:Server~authenticateModels
+ * @param {string} username
+ * @param {buffer} password
+ * @param {string} [model]
+ * @yields {Promise<string>}  Client details and status
+ * @returns {Promise<string>}  Client details and status
+ */
+/* eslint-disable security/detect-object-injection */
+async function* authenticateModels(username, password) {
+  const authMethods = [userAuth, deviceAuth, applicationAuth];
+  let i = 0;
+  while (i < authMethods.length) {
+    // eslint-disable-next-line no-await-in-loop
+    const result = await authMethods[i](username, password);
+    i += 1;
+    yield result;
+  }
+}
+/* eslint-enable security/detect-object-injection */
+
+const sendAuth = (client, status) => {
+  logger.publish(3, 'loopback', 'authenticateInstance:res', { status, client });
+  return { client, status };
+};
+
 /**
  * Init HTTP server with new Loopback instance
  *
@@ -30,113 +193,110 @@ const unless = (paths, middleware) => (req, res, next) => {
  * @method module:Server~authenticateInstance
  * @param {object} client - Parsed MQTT client
  * @param {string} username - MQTT client username
- * @param {object} password - MQTT client password (buffer)
- * @returns {object}
+ * @param {buffer} password - MQTT client password
+ * @returns {Promise<object>}
  */
 const authenticateInstance = async (client, username, password) => {
-  const Client = app.models.Client;
-  let status, foundClient;
-  if (!client || !client.id) {
-    return { client: null, status: 1 };
-  }
-  // todo : find a way to verify in auth request, against which model
-  // authenticate
-
-  try {
-    const savedClient = JSON.parse(await Client.get(client.id));
-    if (!savedClient || !savedClient.model) {
-      foundClient = client;
-    } else {
-      foundClient = { ...savedClient, ...client };
-    }
-  } catch (e) {
-    foundClient = client;
-  }
   logger.publish(4, 'loopback', 'authenticateInstance:req', {
-    client: foundClient,
+    client,
     username,
   });
 
+  if (!client || !client.id) {
+    return { client: null, status: 1 };
+  }
+
+  const [savedClient] = await getStoredClients({ match: client.id });
+  if (savedClient && savedClient.model) {
+    client = { ...savedClient, ...client };
+  }
+
+  const { limiter, limiterType, retrySecs } = await rateLimiter.getAuthLimiter(client.ip, username);
+  if (retrySecs > 0) {
+    if (limiter && limiterType) {
+      client.connDetails = {
+        retryAfter: String(retrySecs),
+        // eslint-disable-next-line security/detect-object-injection
+        xRateLimit: rateLimiter.limits[limiterType],
+        xRateLimitRemaining: limiter.remainingPoints,
+        xRateLimitReset: new Date(Date.now() + limiter.msBeforeNext),
+      };
+    }
+    return { client, status: 4 };
+  }
+
+  if (
+    client.id.startsWith(`aloes-${process.env.ALOES_ID}`) &&
+    username === process.env.ALOES_ID &&
+    timingSafeEqual(Buffer.from(password), Buffer.from(process.env.ALOES_KEY))
+  ) {
+    client.user = username;
+    client.aloesId = process.env.ALOES_ID;
+    client.model = 'Aloes';
+    return sendAuth(client, 0);
+  }
+
   try {
-    let token, authentification, foundUsername;
-    // User login
+    // if client.model use a model arg ?
+    let auth = false;
+    // eslint-disable-next-line no-restricted-syntax
+    for await (const { status, details } of authenticateModels(username, Buffer.from(password))) {
+      // auth = status;
+      if (status === 0) {
+        auth = true;
+        client = { ...client, ...details };
+        break;
+      }
+    }
+
+    if (auth) {
+      await rateLimiter.cleanAuthLimiter(client.ip, client.user);
+      // remove client.connDetails rateLimit
+      return sendAuth(client, 0);
+    }
+
+    let errCode = 4;
     try {
-      token = await app.models.accessToken.findById(password.toString());
-    } catch (e) {
-      token = null;
-    }
-    if (token && token.userId && token.userId.toString() === username) {
-      status = 0;
-      foundClient.ownerId = username;
-      foundClient.user = username;
-      foundClient.model = 'User';
-    } else {
-      const user = await app.models.user.findById(username);
-      if (user && user.id) foundUsername = username;
+      await rateLimiter.setAuthLimiter(client.ip, client.user);
+    } catch (rlRejected) {
+      // logger.publish(3, 'loopback', 'authenticateInstance:err', rlRejected);
+      if (rlRejected instanceof Error) {
+        errCode = 3;
+      }
+      // else {
+      //   status = 4;
+      //   client.connDetails = {
+      //     retryAfter: String(Math.round(rlRejected.msBeforeNext / 1000)) || 1,
+      //     xRateLimit: rlRejected.consumedPoints - 1,
+      //     xRateLimitRemaining: rlRejected.remainingPoints,
+      //     xRateLimitReset: new Date(Date.now() + rlRejected.msBeforeNext),
+      //   };
+      // }
     }
 
-    // Device auth
-    if (status !== 0) {
-      try {
-        authentification = await app.models.Device.authenticate(username, password.toString());
-      } catch (e) {
-        if (e.statusCode === 403 && e.message === 'UNAUTHORIZED') {
-          foundUsername = username;
-        }
-        authentification = null;
-      }
-      if (authentification && authentification.device && authentification.keyType) {
-        const instance = authentification.device;
-        status = 0;
-        foundClient.devEui = instance.devEui;
-        foundClient.user = username;
-        foundClient.model = 'Device';
-      }
-    }
-
-    // Application auth
-    if (status !== 0) {
-      try {
-        authentification = await app.models.Application.authenticate(username, password.toString());
-      } catch (e) {
-        if (e.statusCode === 403 && e.message === 'UNAUTHORIZED') {
-          foundUsername = username;
-        }
-        authentification = null;
-      }
-      if (authentification && authentification.application && authentification.keyType) {
-        const instance = authentification.application;
-        foundClient.appId = instance.id.toString();
-        foundClient.user = username;
-        foundClient.model = 'Application';
-        foundClient.appEui = instance.appEui || null;
-        status = 0;
-      }
-    }
-
-    if (status !== 0 && foundUsername) {
-      foundClient.user = foundUsername;
-      status = 4;
-    } else if (status === undefined) {
-      status = 4;
-    }
-    logger.publish(3, 'loopback', 'authenticateInstance:res', { status, client: foundClient });
-    return { client: foundClient, status };
+    return sendAuth(client, errCode);
   } catch (error) {
-    logger.publish(2, 'loopback', 'authenticateInstance:err', error);
-    status = 2;
-    return { client: foundClient, status };
+    return sendAuth(client, 2);
   }
 };
 
 /**
  * Emit publish event
  * @method module:Server.publish
- * @returns {function} MQTTClient.publish
+ * @returns {Promise<function>} MQTTClient.publish
  */
 app.publish = async (topic, payload, retain = false, qos = 0) =>
   MQTTClient.publish(topic, payload, retain, qos);
 
+/**
+ * Event reporting that a/several sensor instance(s) will be deleted.
+ * @event publish
+ * @param {string} topic - MQTT topic
+ * @param {any} payload - MQTT payload
+ * @param {boolean} [retain]
+ * @param {number} [qos]
+ * @returns {Promise<function>} Server.publish
+ */
 app.on('publish', async (topic, payload, retain = false, qos = 0) =>
   app.publish(topic, payload, retain, qos),
 );
@@ -203,6 +363,15 @@ app.start = config => {
 
   httpServer = app.listen(() => {
     // EXTERNAL AUTH
+
+    app.post(`${apiPath}/authenticate`, async (req, res) => {
+      // console.log('auth/mqtt', req.url, req.body);
+      const { client, username, password } = req.body;
+      const result = await authenticateInstance(client, username, password);
+      res.set('Access-Control-Allow-Origin', '*');
+      return res.json(result);
+    });
+
     //  app.get('/auth/account', ensureLoggedIn('/login'), (req, res, next) => {
     // app.get('/auth/account', (req, res, next) => {
     //   console.log('auth/account', req.url);
@@ -231,16 +400,6 @@ app.start = config => {
     //   res.end();
     //   next();
     // });
-
-    app.post(`${apiPath}/auth/mqtt`, async (req, res) => {
-      // console.log('auth/mqtt', req.url, req.body);
-      const client = req.body.client;
-      const username = req.body.username;
-      const password = req.body.password;
-      const result = await authenticateInstance(client, username, password);
-      res.set('Access-Control-Allow-Origin', '*');
-      return res.json(result);
-    });
 
     app.emit('started', config);
   });

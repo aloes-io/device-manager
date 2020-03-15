@@ -182,7 +182,7 @@ export const onBeforeRemote = async ctx => {
     // count
     // ctx.method.name.indexOf('get') !== -1
   ) {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     const ownerId = utils.getOwnerId(options);
     const isAdmin = options.currentUser.roles.includes('admin');
     if (ctx.req.query && ctx.req.query.filter && !isAdmin) {
@@ -196,10 +196,10 @@ export const onBeforeRemote = async ctx => {
       ctx.req.params.ownerId = ownerId;
     }
   } else if (ctx.method.name === 'refreshToken') {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     ctx.args.ownerId = utils.getOwnerId(options);
   } else if (ctx.method.name === 'onPublish' || ctx.method.name === 'updateStatus') {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!ctx.args.client) ctx.args.client = {};
     if (!isAdmin) {
@@ -209,7 +209,7 @@ export const onBeforeRemote = async ctx => {
       }
     }
   } else if (ctx.method.name === 'getState' || ctx.method.name === 'getFullState') {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!isAdmin && options.currentUser.appEui) {
       if (options.currentUser.id.toString() !== ctx.args.appId.toString()) {

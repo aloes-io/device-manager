@@ -129,10 +129,10 @@ export const onAfterSave = async ctx => {
 const onBeforeLogin = async ctx => {
   logger.publish(4, `${collectionName}`, 'beforeLogin:req', {
     username: ctx.args && ctx.args.credentials ? ctx.args.credentials.email : null,
+    options: ctx.options,
   });
   // const options = {...ctx.args.credentials, ttl: 2 * 7 * 24 * 60 * 60}
-  const ipAddr =
-    ctx.args.options && ctx.args.options.currentUser && ctx.args.options.currentUser.ip;
+  const ipAddr = ctx.options && ctx.options.currentUser && ctx.options.currentUser.ip;
   const username = ctx.args.credentials.email;
   const { limiter, limiterType, retrySecs, usernameIPkey } = await rateLimiter.getAuthLimiter(
     ipAddr,
@@ -273,7 +273,7 @@ export const onBeforeRemote = async ctx => {
     ctx.method.name.indexOf('patchAttributes') !== -1 ||
     ctx.method.name.indexOf('updateAttributes') !== -1
   ) {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     const data = ctx.args.data;
     const authorizedRoles = options && options.authorizedRoles ? options.authorizedRoles : {};
     const roleName = data.roleName || 'user';
@@ -285,7 +285,7 @@ export const onBeforeRemote = async ctx => {
       throw utils.buildError(403, 'INVALID_ROLE', 'Unauthorized to update this user');
     }
   } else if (ctx.method.name.indexOf('create') !== -1) {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     const data = ctx.args.data;
     const roleName = data.roleName || 'user';
     const isAdmin = options && options.currentUser && options.currentUser.roles.includes('admin');

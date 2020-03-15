@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import isAlphanumeric from 'validator/lib/isAlphanumeric';
 import isLength from 'validator/lib/isLength';
@@ -6,76 +6,99 @@ import logger from '../services/logger';
 import roleManager from '../services/role-manager';
 
 module.exports = app => {
-  const setCurrentUser = async (ctx, next) => {
-    try {
-      const options = ctx.args.options || {};
-      const headers = ctx.req.headers || {};
-      const ip = ctx.req.ip || (ctx.req.connection && ctx.req.connection.remoteAddress);
-      // logger.publish(3, 'loopback', 'setCurrentUser:test', { ips: ctx.req.ips, ip: ctx.req.ip });
-      logger.publish(4, 'loopback', 'setCurrentUser:req', { ip, headers });
+  const setCurrentUserSync = (ctx, next) => {
+    const options = ctx.args.options || {};
+    const headers = ctx.req.headers || {};
+    const ip = ctx.req.ip || (ctx.req.connection && ctx.req.connection.remoteAddress);
+    // logger.publish(3, 'loopback', 'setCurrentUser:test', { ips: ctx.req.ips, ip: ctx.req.ip });
+    logger.publish(4, 'loopback', 'setCurrentUser:req', { ip, headers });
 
-      let userId;
-      if (options.accessToken && options.accessToken.userId) {
-        userId = options.accessToken.userId;
-      } else if (headers.authorization) {
-        const accessToken = await app.models.accessToken.findById(headers.authorization);
-        if (accessToken && accessToken.userId) {
-          userId = accessToken.userId;
-        }
-      }
-
-      if (userId) {
-        const promises = await Promise.all([
-          app.models.user.findById(userId),
-          roleManager.getUserRoleNames(app, userId),
-        ]);
-        if (promises[0] && promises[0].id) {
-          if (!ctx.args.options) ctx.args.options = {};
-          ctx.args.options.currentUser = {
-            id: userId.toString(),
-            ip,
-            email: promises[0].email,
-            roles: promises[1],
-            type: 'User',
-          };
-          logger.publish(4, 'loopback', `setCurrentUser:res`, {
-            method: ctx.methodString,
-            userId,
-          });
-        } else {
-          logger.publish(4, 'loopback', `setCurrentUser:res`, {
-            method: ctx.methodString,
-            userId: 'anonymous',
-          });
-        }
+    // console.log('setCurrentUserSync', ctx.req.remotingContext);
+    if (headers['aloes-id'] && headers['aloes-key']) {
+      const aloesId = headers['aloes-id'];
+      const aloesKey = headers['aloes-key'];
+      if (aloesId === process.env.ALOES_ID && aloesKey === process.env.ALOES_KEY) {
+        options.currentUser = {
+          id: aloesId,
+          ip,
+          roles: ['machine'],
+          type: 'Aloes',
+        };
+        ctx.options = { ...options };
+        // ctx.args.options = { ...options };
+        logger.publish(3, 'loopback', `setCurrentUser:res`, {
+          method: ctx.methodString,
+          options: ctx.options,
+        });
+        //  await roleManager.setUserRole(app, accounts[0].id, 'machine', true);
         return next();
       }
-
-      const deviceDevEui = headers.deveui;
-      if (
-        deviceDevEui &&
-        isLength(deviceDevEui, { min: 4, max: 64 }) &&
-        isAlphanumeric(deviceDevEui)
-      ) {
-        const deviceApiKey = headers.apikey;
-        // or device.authenticate ? with header containing 'key'
-        const device = await app.models.Device.findOne({
-          where: {
-            and: [
-              {
-                devEui: {
-                  // eslint-disable-next-line security/detect-non-literal-regexp
-                  like: new RegExp(`.*${deviceDevEui}.*`, 'i'),
-                },
+      return next(new Error('Invalid Aloes client'));
+    } else if (options.accessToken && options.accessToken.userId) {
+      return roleManager
+        .getUserRoleNames(app, options.accessToken.userId)
+        .then(roles => {
+          options.currentUser = {
+            id: options.accessToken.userId.toString(),
+            ip,
+            // email: promises[0].email,
+            roles,
+            type: 'User',
+          };
+          // ctx.args.options = { ...options };
+          ctx.options = { ...options };
+          logger.publish(3, 'loopback', `setCurrentUser:res`, {
+            method: ctx.methodString,
+            options: ctx.options,
+          });
+          return next();
+        })
+        .catch(next);
+    } else if (headers.authorization) {
+      return app.models.accessToken
+        .findById(headers.authorization)
+        .then(token => {
+          roleManager
+            .getUserRoleNames(app, token.userId)
+            .then(roles => {
+              options.currentUser = {
+                id: token.userId.toString(),
+                ip,
+                roles,
+                type: 'User',
+              };
+              // ctx.args.options = { ...options };
+              ctx.options = { ...options };
+              logger.publish(3, 'loopback', `setCurrentUser:res`, {
+                method: ctx.methodString,
+                options: ctx.options,
+              });
+              return next();
+            })
+            .catch(next);
+        })
+        .catch(next);
+    } else if (
+      headers.deveui &&
+      isLength(headers.deveui, { min: 4, max: 64 }) &&
+      isAlphanumeric(headers.deveui)
+    ) {
+      // or device.authenticate ? with header containing 'key'
+      return app.models.Device.findOne({
+        where: {
+          and: [
+            {
+              devEui: {
+                // eslint-disable-next-line security/detect-non-literal-regexp
+                like: new RegExp(`.*${headers.deveui}.*`, 'i'),
               },
-              { apiKey: deviceApiKey },
-            ],
-          },
-        });
-        // console.log('FOUND DEVICE', device);
-        if (device && device.id) {
-          if (!ctx.args.options) ctx.args.options = {};
-          ctx.args.options.currentUser = {
+            },
+            { apiKey: headers.apikey },
+          ],
+        },
+      })
+        .then(device => {
+          options.currentUser = {
             id: device.id.toString(),
             ip,
             devEui: device.devEui,
@@ -83,31 +106,37 @@ module.exports = app => {
             type: 'Device',
             ownerId: device.ownerId,
           };
-          logger.publish(4, 'loopback', 'setCurrentUser:res', {
+          ctx.options = { ...options };
+          // ctx.args.options = { ...options };
+          logger.publish(3, 'loopback', 'setCurrentUser:res', {
             method: ctx.methodString,
-            devEui: device.devEui,
-            userId: device.id,
+            options: ctx.options,
+            // devEui: device.devEui,
+            // userId: device.id,
           });
           return next();
-        }
-      }
-
-      const appId = headers.appid;
-      // const appEui = headers.appeui;
-      if (appId && isLength(appId, { min: 1, max: 32 }) && isAlphanumeric(appId)) {
-        const appApiKey = headers.apikey;
-        let auth;
-        try {
-          auth = await app.models.Application.authenticate(appId, appApiKey);
-        } catch (e) {
-          // if (e.code === 403) foundUser = appId;
-          auth = null;
-        }
-        // console.log('FOUND Application', auth);
-        if (auth && auth.application) {
-          const application = auth.application;
-          if (!ctx.args.options) ctx.args.options = {};
-          ctx.args.options.currentUser = {
+        })
+        .catch(next);
+    } else if (
+      headers.appid &&
+      isLength(headers.appid, { min: 1, max: 32 }) &&
+      isAlphanumeric(headers.appid)
+    ) {
+      return app.models.Application.findOne({
+        where: {
+          and: [
+            {
+              id: {
+                // eslint-disable-next-line security/detect-non-literal-regexp
+                like: new RegExp(`.*${headers.appid}.*`, 'i'),
+              },
+            },
+            { apiKey: headers.apikey },
+          ],
+        },
+      })
+        .then(application => {
+          options.currentUser = {
             id: application.id.toString(),
             ip,
             appId: application.id.toString(),
@@ -116,36 +145,57 @@ module.exports = app => {
             type: 'Application',
             ownerId: application.ownerId,
           };
-          logger.publish(4, 'loopback', 'setCurrentUser:res', {
+          ctx.options = { ...options };
+          // ctx.args.options = { ...options };
+          logger.publish(3, 'loopback', 'setCurrentUser:res', {
             method: ctx.methodString,
-            userId: application.id,
-            appEui: application.appEui,
+            options: ctx.options,
+            // userId: application.id,
+            // appEui: application.appEui,
           });
           return next();
-        }
-      }
-
-      if (!ctx.args.options) ctx.args.options = {};
-      ctx.args.options.currentUser = {
-        ip,
-        userId: 'anonymous',
-        roles: ['user'],
-      };
-
-      logger.publish(4, 'loopback', `setCurrentUser:res`, {
-        method: ctx.methodString,
-        ip,
-        userId: 'anonymous',
-      });
-      return next();
-    } catch (error) {
-      logger.publish(2, 'loopback', 'setCurrentUser:err', error);
-      return next(error);
+        })
+        .catch(next);
     }
+    options.currentUser = {
+      ip,
+      userId: 'anonymous',
+      roles: ['user'],
+    };
+    // ctx.args.options = { ...options };
+    ctx.options = { ...options };
+    logger.publish(3, 'loopback', `setCurrentUser:res`, {
+      method: ctx.methodString,
+      ip,
+      userId: 'anonymous',
+    });
+    return next();
   };
 
   app
     .remotes()
-    .phases.addBefore('invoke', 'set-current-user')
-    .use(setCurrentUser);
+    // .phases.addBefore('invoke', 'set-current-user')
+    .phases.addBefore('auth', 'set-current-user')
+    .use(setCurrentUserSync);
+
+  // const Role = app.models.Role;
+
+  // Role.registerResolver('collaborator', function(role, ctx, cb) {
+  //   if (ctx.modelName !== 'Device') {
+  //     return process.nextTick(() => cb(null, false));
+  //   }
+
+  //   const currentUser = ctx.options ? ctx.options.currentUser : {};
+  //   logger.publish(4, 'loopback', 'setRoleResolver:res', { isMachine });
+  //   context.model.findById(context.modelId, (err, device) => {
+  //     if (err) return cb(err);
+  //     if (!device) return cb(new Error('Device not found'));
+
+  //     if (device.userIds.includes(currentUser.userId)) {
+  //       return cb(null, true);
+  //     } else {
+  //       return cb(null, false);
+  //     }
+  //   });
+  // });
 };

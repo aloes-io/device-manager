@@ -13,6 +13,8 @@ import mails from '../services/mails';
 import logger from '../services/logger';
 import utils from '../lib/utils';
 
+// todo document user instance functions : address, application, devices, files, identites (?), sensors ?
+
 /**
  * @module User
  * @property {string} id  Database generated ID

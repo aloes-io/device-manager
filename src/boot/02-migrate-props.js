@@ -1,3 +1,5 @@
+/* Copyright 2020 Edouard Maleix, read LICENSE */
+
 import logger from '../services/logger';
 import utils from '../lib/utils';
 

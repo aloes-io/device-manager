@@ -1,6 +1,6 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
-import crypto from 'crypto';
+import { createHash } from 'crypto';
 import iotAgent from 'iot-agent';
 import isMACAddress from 'validator/lib/isMACAddress';
 import logger from '../../services/logger';
@@ -356,12 +356,14 @@ const createProps = async (app, instance) => {
 const updateProps = async (app, instance) => {
   // instance = await createKeys(instance);
   await createKeys(instance);
+  // const sensors = await instance.sensors();
   const sensors = await instance.sensors.find();
   // const sensors = await instance.sensors.get();
+  console.log(sensors);
 
   await Promise.all(
     sensors.map(async sensor => {
-      instance.sensors.updateById(sensor.id, {
+      sensor.updateById(sensor.id, {
         ...sensor,
         devEui: instance.devEui,
         transportProtocol: instance.transportProtocol,
@@ -480,7 +482,7 @@ export const onBeforeRemote = async (app, ctx) => {
     // count
     // ctx.method.name.indexOf('get') !== -1
   ) {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     const isAdmin = options.currentUser.roles.includes('admin');
     const ownerId = utils.getOwnerId(options);
     if (ctx.req.query && ctx.req.query.filter && !isAdmin) {
@@ -500,7 +502,7 @@ export const onBeforeRemote = async (app, ctx) => {
     //   ctx.result = result;
     // }
   } else if (ctx.method.name === 'search' || ctx.method.name === 'geoLocate') {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!isAdmin) {
       if (!ctx.args.filter) ctx.args.filter = {};
@@ -509,7 +511,7 @@ export const onBeforeRemote = async (app, ctx) => {
       // ctx.args.filter.public = true;
     }
   } else if (ctx.method.name === 'findByPattern') {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     const isAdmin = options.currentUser.roles.includes('admin');
     const ownerId = utils.getOwnerId(options);
     if (!isAdmin) {
@@ -517,10 +519,10 @@ export const onBeforeRemote = async (app, ctx) => {
       ctx.args.attributes.ownerId = ownerId;
     }
   } else if (ctx.method.name === 'refreshToken') {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     ctx.args.ownerId = utils.getOwnerId(options);
   } else if (ctx.method.name === 'onPublish' || ctx.method.name === 'updateStatus') {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!ctx.args.client) ctx.args.client = {};
     if (!isAdmin) {
@@ -530,17 +532,12 @@ export const onBeforeRemote = async (app, ctx) => {
       }
     }
   } else if (ctx.method.name === 'getState' || ctx.method.name === 'getFullState') {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.deviceId);
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!isAdmin && options.currentUser.devEui) {
       if (options.currentUser.id.toString() !== ctx.args.deviceId.toString()) {
-        const error = utils.buildError(
-          401,
-          'INVALID_USER',
-          'Only device itself can trigger this endpoint',
-        );
-        throw error;
+        throw utils.buildError(401, 'INVALID_USER', 'Only device itself can trigger this endpoint');
       }
     }
   }
@@ -695,7 +692,7 @@ const updateESP = async (ctx, deviceId, version) => {
     device.id.toString(),
     fileMeta.name,
   );
-  const md5sum = crypto.createHash('md5');
+  const md5sum = createHash('md5');
 
   const endStream = new Promise((resolve, reject) => {
     const bodyChunks = [];

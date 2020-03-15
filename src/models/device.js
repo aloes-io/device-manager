@@ -1,5 +1,6 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
+import { timingSafeEqual } from 'crypto';
 import iotAgent from 'iot-agent';
 import isAlphanumeric from 'validator/lib/isAlphanumeric';
 import isLength from 'validator/lib/isLength';
@@ -18,7 +19,9 @@ import {
 } from '../lib/models/device';
 import logger from '../services/logger';
 import utils from '../lib/utils';
-import DeltaTimer from '../services/delta-timer';
+// import DeltaTimer from '../services/delta-timer';
+
+// todo document device instance functions : address, userIds, appIds
 
 /**
  * @module Device
@@ -212,16 +215,20 @@ module.exports = function(Device) {
     ) {
       throw utils.buildError(400, 'INVALID_INPUT', 'protocol name is invalid');
     }
-    const transportProtocolFilter = {
-      // eslint-disable-next-line security/detect-non-literal-regexp
-      like: new RegExp(`.*${transportProtocol}.*`, 'i'),
-    };
+
     // const messageProtocol = {
     //   like: new RegExp(`.*${pattern.name}.*`, 'i'),
     // };
     const deviceFilter = {
       where: {
-        and: [{ transportProtocol: transportProtocolFilter }],
+        and: [
+          {
+            transportProtocol: {
+              // eslint-disable-next-line security/detect-non-literal-regexp
+              like: new RegExp(`.*${transportProtocol}.*`, 'i'),
+            },
+          },
+        ],
       },
       include: {
         relation: 'sensors',
@@ -251,9 +258,9 @@ module.exports = function(Device) {
     if (params.appId && params.appId !== null) {
       deviceFilter.where.and.push({ appIds: { inq: [params.appId] } });
     }
-    if (attributes.id && attributes.id !== null) {
-      //  filter.where.and.push({ id: attributes.id });
-    }
+    // if (attributes.id && attributes.id !== null) {
+    //   filter.where.and.push({ id: attributes.id });
+    // }
     if (attributes.deviceId && attributes.deviceId !== null) {
       deviceFilter.where.and.push({ id: attributes.deviceId });
     }
@@ -263,20 +270,21 @@ module.exports = function(Device) {
         devEui: { like: new RegExp(`.*${attributes.devEui}.*`, 'i') },
       });
     }
-    if (attributes.ownerId && attributes.ownerId !== null) {
-      deviceFilter.include.scope.where.and.push({
-        ownerId: attributes.ownerId,
-      });
-    }
+    // if (attributes.ownerId && attributes.ownerId !== null) {
+    //   deviceFilter.include.scope.where.and.push({
+    //     ownerId: attributes.ownerId,
+    //   });
+    // }
 
     const device = await Device.findOne(deviceFilter);
-    if (!device || device === null || !device.id) {
+    if (!device || !device.id) {
       throw utils.buildError(403, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
     }
-    // find equivalent sensor in cache
-    logger.publish(4, `${collectionName}`, 'findByPattern:res', {
+
+    logger.publish(3, `${collectionName}`, 'findByPattern:res', {
       deviceName: device.name,
       deviceId: device.id,
+      sensor: device.sensors() && device.sensors()[0],
     });
     return device;
   };
@@ -603,8 +611,7 @@ module.exports = function(Device) {
   Device.authenticate = async (deviceId, key) => {
     const device = await Device.findById(deviceId);
     if (!device || !device.id) {
-      const error = utils.buildError(404, 'DEVICE_NOTFOUND', 'Wrong device');
-      throw error;
+      throw utils.buildError(404, 'DEVICE_NOTFOUND', 'Wrong device');
     }
     let result = null;
     const keyNames = [
@@ -617,7 +624,8 @@ module.exports = function(Device) {
     ];
     keyNames.forEach(k => {
       // eslint-disable-next-line security/detect-object-injection
-      if (device[k] && device[k] === key) {
+      const isValid = timingSafeEqual(Buffer.from(device[k]), Buffer.from(key));
+      if (isValid) {
         result = {
           device,
           keyType: k,
@@ -625,8 +633,7 @@ module.exports = function(Device) {
       }
     });
     if (!result || !result.device || !result.keyType) {
-      const error = utils.buildError(403, 'UNAUTHORIZED', 'Wrong key used');
-      throw error;
+      throw utils.buildError(403, 'UNAUTHORIZED', 'Wrong key used');
     }
     logger.publish(4, `${collectionName}`, 'authenticate:res', result);
     return result;
@@ -702,14 +709,14 @@ module.exports = function(Device) {
    */
   Device.getOTAUpdate = async (ctx, deviceId, version) => updateFirmware(ctx, deviceId, version);
 
-  const onSync = async data => {
-    try {
-      logger.publish(4, `${collectionName}`, 'onSync:res', data.time);
-      await Device.syncCache('UP');
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'onSync:err', error);
-    }
-  };
+  // const onSync = async data => {
+  //   try {
+  //     logger.publish(4, `${collectionName}`, 'onSync:res', data.time);
+  //     await Device.syncCache('UP');
+  //   } catch (error) {
+  //     logger.publish(2, `${collectionName}`, 'onSync:err', error);
+  //   }
+  // };
 
   /**
    * Init clock to synchronize memories
@@ -719,25 +726,25 @@ module.exports = function(Device) {
    * @param {number} interval - Timeout interval
    * @returns {Promise<object>} Device.timer
    */
-  Device.setClock = async interval => {
-    try {
-      logger.publish(4, `${collectionName}`, 'setClock:req', interval);
-      if (utils.isMasterProcess(process.env)) {
-        if (Device.timer && Device.timer !== null) {
-          Device.timer.stop();
-        }
-        Device.timer = new DeltaTimer(onSync, {}, interval);
-        Device.start = Device.timer.start();
-        logger.publish(3, `${collectionName}`, 'setClock:res', Device.start);
-      }
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'setClock:err', error);
-    }
-  };
+  // Device.setClock = async interval => {
+  //   try {
+  //     logger.publish(4, `${collectionName}`, 'setClock:req', interval);
+  //     if (utils.isMasterProcess(process.env)) {
+  //       if (Device.timer && Device.timer !== null) {
+  //         Device.timer.stop();
+  //       }
+  //       Device.timer = new DeltaTimer(onSync, {}, interval);
+  //       Device.start = Device.timer.start();
+  //       logger.publish(3, `${collectionName}`, 'setClock:res', Device.start);
+  //     }
+  //   } catch (error) {
+  //     logger.publish(2, `${collectionName}`, 'setClock:err', error);
+  //   }
+  // };
 
-  Device.delClock = () => {
-    if (Device.timer) Device.timer.stop();
-  };
+  // Device.delClock = () => {
+  //   if (Device.timer) Device.timer.stop();
+  // };
 
   /**
    * Event reporting that an device client connection status has changed.
@@ -796,7 +803,7 @@ module.exports = function(Device) {
   Device.on('stopped', async () => {
     if (utils.isMasterProcess(process.env)) {
       logger.publish(3, `${collectionName}`, 'on-stop:res', '');
-      Device.delClock();
+      // Device.delClock();
       // await Device.updateAll({ status: true }, { status: false, clients: [] });
     }
   });
@@ -893,6 +900,19 @@ module.exports = function(Device) {
    * @param {any} id
    * @param {object} filter
    * @returns {object}
+   */
+
+  /**
+   * Get device sensors
+   * @method module:Device.prototype.__get__sensors
+   * @returns {Promise<function>} module:Sensor.find
+   */
+
+  /**
+   * Get device sensors by id
+   * @method module:Sensor.prototype.__findById__sensors
+   * @param {string} id Resource key
+   * @returns {Promise<function>} module:Sensor.findById
    */
 
   Device.disableRemoteMethodByName('upsertWithWhere');

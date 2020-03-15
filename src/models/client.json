@@ -48,7 +48,7 @@
     {
       "accessType": "*",
       "principalType": "ROLE",
-      "principalId": "$authenticated",
+      "principalId": "$everyone",
       "permission": "ALLOW",
       "property": ["find, remove"]
     }

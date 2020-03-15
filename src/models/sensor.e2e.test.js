@@ -55,13 +55,12 @@ const sensorTest = () => {
       );
       devices = deviceModels.map(model => model.toJSON());
 
-      // const sensorTypes = [3300, 3300, 3306, 3303, 3336, 3340, 3341, 3342, 3349];
       const sensorTypes = [3300, 3306, 3303, 3336, 3340, 3341, 3342, 3349];
       const sensorModels = await SensorModel.create(
         Array(sensorsCount)
           .fill('')
           .map((_, index) =>
-            index < 2
+            index < 1
               ? sensorFactory(index + 1, devices[0], userIds[0])
               : sensorFactory(index + 1, devices[1], userIds[1], sensorTypes[index]),
           ),
@@ -75,7 +74,7 @@ const sensorTest = () => {
       };
       const geolocationPacket = {
         topic: `${devices[1].devEui}-out/1/3336/0/1/5518`,
-        payload: +new Date(),
+        payload: `${+new Date()}`,
       };
       const schedulerPacket = {
         topic: `${devices[1].devEui}-out/1/3340/0/1/5521`,
@@ -95,7 +94,6 @@ const sensorTest = () => {
       };
 
       packets = [
-        // null,
         null,
         null,
         temperaturePacket,
