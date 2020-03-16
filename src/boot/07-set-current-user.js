@@ -6,6 +6,13 @@ import logger from '../services/logger';
 import roleManager from '../services/role-manager';
 
 module.exports = app => {
+  const logCurrentUser = (method, options) => {
+    logger.publish(4, 'loopback', 'setCurrentUser:res', {
+      method,
+      options,
+    });
+  };
+
   const setCurrentUserSync = (ctx, next) => {
     const options = ctx.args.options || {};
     const headers = ctx.req.headers || {};
@@ -26,10 +33,7 @@ module.exports = app => {
         };
         ctx.options = { ...options };
         // ctx.args.options = { ...options };
-        logger.publish(3, 'loopback', `setCurrentUser:res`, {
-          method: ctx.methodString,
-          options: ctx.options,
-        });
+        logCurrentUser(ctx.methodString, ctx.options);
         //  await roleManager.setUserRole(app, accounts[0].id, 'machine', true);
         return next();
       }
@@ -47,10 +51,7 @@ module.exports = app => {
           };
           // ctx.args.options = { ...options };
           ctx.options = { ...options };
-          logger.publish(3, 'loopback', `setCurrentUser:res`, {
-            method: ctx.methodString,
-            options: ctx.options,
-          });
+          logCurrentUser(ctx.methodString, ctx.options);
           return next();
         })
         .catch(next);
@@ -69,10 +70,7 @@ module.exports = app => {
               };
               // ctx.args.options = { ...options };
               ctx.options = { ...options };
-              logger.publish(3, 'loopback', `setCurrentUser:res`, {
-                method: ctx.methodString,
-                options: ctx.options,
-              });
+              logCurrentUser(ctx.methodString, ctx.options);
               return next();
             })
             .catch(next);
@@ -107,13 +105,7 @@ module.exports = app => {
             ownerId: device.ownerId,
           };
           ctx.options = { ...options };
-          // ctx.args.options = { ...options };
-          logger.publish(3, 'loopback', 'setCurrentUser:res', {
-            method: ctx.methodString,
-            options: ctx.options,
-            // devEui: device.devEui,
-            // userId: device.id,
-          });
+          logCurrentUser(ctx.methodString, ctx.options);
           return next();
         })
         .catch(next);
@@ -146,13 +138,7 @@ module.exports = app => {
             ownerId: application.ownerId,
           };
           ctx.options = { ...options };
-          // ctx.args.options = { ...options };
-          logger.publish(3, 'loopback', 'setCurrentUser:res', {
-            method: ctx.methodString,
-            options: ctx.options,
-            // userId: application.id,
-            // appEui: application.appEui,
-          });
+          logCurrentUser(ctx.methodString, ctx.options);
           return next();
         })
         .catch(next);
@@ -162,13 +148,8 @@ module.exports = app => {
       userId: 'anonymous',
       roles: ['user'],
     };
-    // ctx.args.options = { ...options };
     ctx.options = { ...options };
-    logger.publish(3, 'loopback', `setCurrentUser:res`, {
-      method: ctx.methodString,
-      ip,
-      userId: 'anonymous',
-    });
+    logCurrentUser(ctx.methodString, ctx.options);
     return next();
   };
 

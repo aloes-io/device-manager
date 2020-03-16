@@ -39,12 +39,12 @@
         * [~getClientsByTopic(broker, topic)](#module_Broker..getClientsByTopic) ⇒ <code>Promise.&lt;array&gt;</code>
         * [~pickRandomClient(broker, clientIds)](#module_Broker..pickRandomClient) ⇒ <code>object</code>
         * [~authentificationRequest(data)](#module_Broker..authentificationRequest) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [~onAuthenticate(broker, client, [username], [password])](#module_Broker..onAuthenticate) ⇒ <code>Promise.&lt;number&gt;</code>
+        * [~onAuthenticate(client, [username], [password])](#module_Broker..onAuthenticate) ⇒ <code>Promise.&lt;number&gt;</code>
         * [~onAuthorizePublish(client, packet)](#module_Broker..onAuthorizePublish) ⇒ <code>boolean</code>
         * [~onAuthorizeSubscribe(client, packet)](#module_Broker..onAuthorizeSubscribe) ⇒ <code>boolean</code>
         * [~updateClientStatus(broker, client, status)](#module_Broker..updateClientStatus) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [~onPublished(broker, packet)](#module_Broker..onPublished) ⇒ <code>object</code>
-        * [~onPublished(broker, packet, client)](#module_Broker..onPublished) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~onInternalPublished(broker, packet)](#module_Broker..onInternalPublished) ⇒ <code>object</code>
+        * [~onExternalPublished(broker, packet, client)](#module_Broker..onExternalPublished) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onPublished(broker, packet, client)](#module_Broker..onPublished) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
         * ["client" (client)](#event_client) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["clientDisconnect" (client)](#event_clientDisconnect) ⇒ <code>Promise.&lt;function()&gt;</code>
@@ -252,7 +252,7 @@ HTTP request to Aloes to validate credentials
 
 <a name="module_Broker..onAuthenticate"></a>
 
-### Broker~onAuthenticate(broker, client, [username], [password]) ⇒ <code>Promise.&lt;number&gt;</code>
+### Broker~onAuthenticate(client, [username], [password]) ⇒ <code>Promise.&lt;number&gt;</code>
 Check client credentials and update client properties
 
 **Kind**: inner method of [<code>Broker</code>](#module_Broker)  
@@ -266,7 +266,6 @@ Check client credentials and update client properties
 
 | Param | Type | Description |
 | --- | --- | --- |
-| broker | <code>object</code> | MQTT broker |
 | client | <code>object</code> | MQTT client |
 | [username] | <code>string</code> | MQTT username |
 | [password] | <code>object</code> | MQTT password |
@@ -311,9 +310,9 @@ Triggered after clientConnect and clientDisconnect events
 | client | <code>object</code> | MQTT client |
 | status | <code>boolean</code> | Client status |
 
-<a name="module_Broker..onPublished"></a>
+<a name="module_Broker..onInternalPublished"></a>
 
-### Broker~onPublished(broker, packet) ⇒ <code>object</code>
+### Broker~onInternalPublished(broker, packet) ⇒ <code>object</code>
 Parse message coming from aloes MQTT clients
 
 **Kind**: inner method of [<code>Broker</code>](#module_Broker)  
@@ -324,9 +323,9 @@ Parse message coming from aloes MQTT clients
 | broker | <code>object</code> | MQTT broker |
 | packet | <code>object</code> | MQTT packet |
 
-<a name="module_Broker..onPublished"></a>
+<a name="module_Broker..onExternalPublished"></a>
 
-### Broker~onPublished(broker, packet, client) ⇒ <code>Promise.&lt;object&gt;</code>
+### Broker~onExternalPublished(broker, packet, client) ⇒ <code>Promise.&lt;object&gt;</code>
 Parse message coming from external MQTT clients
 
 **Kind**: inner method of [<code>Broker</code>](#module_Broker)  
@@ -751,23 +750,28 @@ Reset exisiting limiters for user/ip on successful authorisation
 
 * [Server](#module_Server)
     * _static_
-        * [.publish()](#module_Server.publish) ⇒ <code>function</code>
+        * [.publish()](#module_Server.publish) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.start(config)](#module_Server.start) ⇒ <code>boolean</code>
         * [.init(config)](#module_Server.init)
         * [.stop(signal)](#module_Server.stop) ⇒ <code>boolean</code>
     * _inner_
-        * [~authenticateInstance(client, username, password)](#module_Server..authenticateInstance) ⇒ <code>object</code>
+        * [~userAuth(username, password)](#module_Server..userAuth) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~deviceAuth(username, password)](#module_Server..deviceAuth) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~applicationAuth(username, password)](#module_Server..applicationAuth) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~authenticateModels(username, password, [model])](#module_Server..authenticateModels) ⇒ <code>Promise.&lt;string&gt;</code>
+        * [~authenticateInstance(client, username, password)](#module_Server..authenticateInstance) ⇒ <code>Promise.&lt;object&gt;</code>
+        * ["publish" (topic, payload, [retain], [qos])](#event_publish) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["start" (config)](#event_start) ⇒ <code>function</code>
         * ["started" (config)](#event_started)
         * ["stop" (signal)](#event_stop) ⇒ <code>function</code>
 
 <a name="module_Server.publish"></a>
 
-### Server.publish() ⇒ <code>function</code>
+### Server.publish() ⇒ <code>Promise.&lt;function()&gt;</code>
 Emit publish event
 
 **Kind**: static method of [<code>Server</code>](#module_Server)  
-**Returns**: <code>function</code> - MQTTClient.publish  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - MQTTClient.publish  
 <a name="module_Server.start"></a>
 
 ### Server.start(config) ⇒ <code>boolean</code>
@@ -805,9 +809,59 @@ Close the app and services
 | --- | --- | --- |
 | signal | <code>string</code> | process signal |
 
+<a name="module_Server..userAuth"></a>
+
+### Server~userAuth(username, password) ⇒ <code>Promise.&lt;object&gt;</code>
+Authenticate with User method
+
+**Kind**: inner method of [<code>Server</code>](#module_Server)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| username | <code>string</code> | MQTT client username |
+| password | <code>buffer</code> | MQTT client password |
+
+<a name="module_Server..deviceAuth"></a>
+
+### Server~deviceAuth(username, password) ⇒ <code>Promise.&lt;object&gt;</code>
+Authenticate with Device method
+
+**Kind**: inner method of [<code>Server</code>](#module_Server)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| username | <code>string</code> | MQTT client username |
+| password | <code>buffer</code> | MQTT client password |
+
+<a name="module_Server..applicationAuth"></a>
+
+### Server~applicationAuth(username, password) ⇒ <code>Promise.&lt;object&gt;</code>
+Authenticate with Application method
+
+**Kind**: inner method of [<code>Server</code>](#module_Server)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| username | <code>string</code> | MQTT client username |
+| password | <code>buffer</code> | MQTT client password |
+
+<a name="module_Server..authenticateModels"></a>
+
+### Server~authenticateModels(username, password, [model]) ⇒ <code>Promise.&lt;string&gt;</code>
+Iterate over each model to try authentication
+
+**Kind**: inner method of [<code>Server</code>](#module_Server)  
+**Returns**: <code>Promise.&lt;string&gt;</code> - Client details and status  
+
+| Param | Type |
+| --- | --- |
+| username | <code>string</code> | 
+| password | <code>buffer</code> | 
+| [model] | <code>string</code> | 
+
 <a name="module_Server..authenticateInstance"></a>
 
-### Server~authenticateInstance(client, username, password) ⇒ <code>object</code>
+### Server~authenticateInstance(client, username, password) ⇒ <code>Promise.&lt;object&gt;</code>
 Init HTTP server with new Loopback instance
 
 Init external services ( MQTT broker )
@@ -818,7 +872,22 @@ Init external services ( MQTT broker )
 | --- | --- | --- |
 | client | <code>object</code> | Parsed MQTT client |
 | username | <code>string</code> | MQTT client username |
-| password | <code>object</code> | MQTT client password (buffer) |
+| password | <code>buffer</code> | MQTT client password |
+
+<a name="event_publish"></a>
+
+### "publish" (topic, payload, [retain], [qos]) ⇒ <code>Promise.&lt;function()&gt;</code>
+Event reporting that a/several sensor instance(s) will be deleted.
+
+**Kind**: event emitted by [<code>Server</code>](#module_Server)  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - Server.publish  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| topic | <code>string</code> | MQTT topic |
+| payload | <code>any</code> | MQTT payload |
+| [retain] | <code>boolean</code> |  |
+| [qos] | <code>number</code> |  |
 
 <a name="event_start"></a>
 
