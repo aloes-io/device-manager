@@ -60,19 +60,19 @@ test_async:
   script:
     - npm run build:test
     - npm run test:cover
-  only:
-    - staging
-  # artifacts:
-  #   paths:
-  #     - coverage/
+  # only:
+  # - staging
+  artifacts:
+    paths:
+      - coverage/
 
 pages:
   stage: deploy
-  # dependencies:
-  #   - test_async
+  dependencies:
+    - test_async
   script:
     - npm run docs:build
-    # - mv coverage/ public/
+    - mv coverage/ public/
   artifacts:
     paths:
       - public
