@@ -59,11 +59,12 @@ test_async:
     CI: 'true'
   script:
     - npm run test:cover
+    # - cp -r test/lcov-report coverage/
   # only:
   # - staging
   artifacts:
     paths:
-      - coverage
+      - test
 
 pages:
   stage: deploy
@@ -71,8 +72,7 @@ pages:
     - test_async
   script:
     - npm run docs:build
-    - mv coverage/ public/
-    - cp -r coverage/* public/
+    - cp -r test/* public/
 
   artifacts:
     paths:

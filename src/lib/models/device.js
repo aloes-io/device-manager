@@ -354,26 +354,23 @@ const createProps = async (app, instance) => {
  * @returns {Promise<function>} Device.publish
  */
 const updateProps = async (app, instance) => {
-  // instance = await createKeys(instance);
   await createKeys(instance);
-  // const sensors = await instance.sensors();
   const sensors = await instance.sensors.find();
-  // const sensors = await instance.sensors.get();
-  console.log(sensors);
 
-  await Promise.all(
-    sensors.map(async sensor => {
-      sensor.updateById(sensor.id, {
-        ...sensor,
-        devEui: instance.devEui,
-        transportProtocol: instance.transportProtocol,
-        transportProtocolVersion: instance.transportProtocolVersion,
-        messageProtocol: instance.messageProtocol,
-        messageProtocolVersion: instance.messageProtocolVersion,
-      });
-    }),
-  );
-
+  if (sensors) {
+    await Promise.all(
+      sensors.map(async sensor => {
+        sensor.updateAttributes({
+          ...sensor,
+          devEui: instance.devEui,
+          transportProtocol: instance.transportProtocol,
+          transportProtocolVersion: instance.transportProtocolVersion,
+          messageProtocol: instance.messageProtocol,
+          messageProtocolVersion: instance.messageProtocolVersion,
+        });
+      }),
+    );
+  }
   const defaultAddress = {
     street: '',
     streetNumber: null,
