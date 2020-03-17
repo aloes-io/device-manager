@@ -16,9 +16,10 @@ import utils from '../lib/utils';
 export const onBeforeRemote = async (app, ctx) => {
   if (ctx.method.name === 'find' || ctx.method.name === 'remove') {
     // console.log('onBeforeRemote', ctx.method.name);
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     const isAdmin = options.currentUser.roles.includes('admin');
-    if (!isAdmin) {
+    const isMachine = options.currentUser.roles.includes('machine');
+    if (!isAdmin && !isMachine) {
       throw utils.buildError(401, 'UNAUTHORIZED', 'Wrong user');
     }
   }

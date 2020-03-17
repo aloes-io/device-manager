@@ -14,59 +14,42 @@ roleManager.getAppRoles = () => Object.values(appRolesById);
 /**
  * Registers static roles names for the app
  *
- * @param  app
- * @param  {string[]} roles names
+ * @param app Loopback app
+ * @param {string[]} roles names
  * @return {array} roles
  */
 roleManager.setAppRoles = async (app, roles) => {
   logger.publish(4, 'loopback', 'Initialize roles:req', roles);
-  const promises = roles.map(async roleName => {
-    const obj = { name: roleName };
-    const role = await app.models.Role.findOrCreate({ where: obj }, obj);
-    return role[0];
-  });
-  const savedRoles = await Promise.all(promises);
+  const savedRoles = await Promise.all(
+    roles.map(async roleName => {
+      const obj = { name: roleName };
+      const role = await app.models.Role.findOrCreate({ where: obj }, obj);
+      return role[0];
+    }),
+  );
   // cache role name for quick mapping
   savedRoles.forEach(role => {
     appRolesById[role.id] = role.name;
   });
-  logger.publish(3, 'loopback', 'Initialize roles:res', savedRoles);
+  logger.publish(3, 'loopback', 'Initialize roles:res', { appRolesById });
   return savedRoles;
 };
-
-/**
- * Returns a promise which resolves with the role ids
- *
- * @param   app
- * @param   userId
- * @return  {Promise<string|number>}
- */
-roleManager.getUserRoles = (app, userId) =>
-  new Promise((resolve, reject) => {
-    app.models.Role.getRoles(
-      {
-        principalType: app.models.RoleMapping.USER,
-        principalId: userId,
-      },
-      (err, res) => (err ? reject(err) : resolve(res)),
-    );
-  });
 
 /**
  * Returns a promise which resolves with the role names
  *
  * @param   app
  * @param   userId
- * @return  {Promise<string>}
+ * @return  {Promise<string[]>}
  */
 roleManager.getUserRoleNames = async (app, userId) => {
-  try {
-    const userRolesIds = await roleManager.getUserRoles(app, userId);
-    // eslint-disable-next-line security/detect-object-injection
-    return userRolesIds.map(role => appRolesById[role] || null);
-  } catch (error) {
-    return null;
-  }
+  const userRolesIds = await app.models.Role.getRoles({
+    principalType: app.models.RoleMapping.USER,
+    principalId: userId,
+  });
+  // console.log('getUserRoleNames:res', userRolesIds);
+  // eslint-disable-next-line security/detect-object-injection
+  return userRolesIds.map(role => appRolesById[role] || null);
 };
 
 /**
@@ -74,20 +57,19 @@ roleManager.getUserRoleNames = async (app, userId) => {
  *
  * @param app
  * @param userId
- * @param {string}  roleName
- * @param {boolean} reset delete previous role
+ * @param {string} roleName
+ * @param {boolean} [reset] delete previous role
  * @return {Promise}
  */
 roleManager.setUserRole = async (app, userId, roleName, reset = false) => {
   if (reset) {
     logger.publish(4, 'loopback', `Removing previous role ${roleName} for user `, userId);
     const roles = await roleManager.getUserRoleNames(app, userId);
-    // console.log('Get User roles', roles);
     // the user has same role
     if (roles.includes(roleName)) {
       return;
     }
-    const appRoles = await roleManager.getAppRoles();
+    const appRoles = roleManager.getAppRoles();
     const roleToRevoke = roles.find(role => appRoles.includes(role));
     const setRoleNoReset = async () => roleManager.setUserRole(app, userId, roleName);
     if (!roleToRevoke) {

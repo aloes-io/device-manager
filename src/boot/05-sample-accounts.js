@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import initialUsersList from '../initial-data/base-accounts.json';
 import logger from '../services/logger';

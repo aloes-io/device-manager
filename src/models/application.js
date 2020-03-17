@@ -1,5 +1,6 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
+import { timingSafeEqual } from 'crypto';
 import { appPatternDetector, publish } from 'iot-agent';
 import {
   collectionName,
@@ -252,7 +253,8 @@ module.exports = Application => {
     ];
     keyNames.forEach(k => {
       // eslint-disable-next-line security/detect-object-injection
-      if (application[k] && application[k] === key) {
+      const isValid = timingSafeEqual(Buffer.from(application[k]), Buffer.from(key));
+      if (isValid) {
         result = {
           application,
           keyType: k,
@@ -283,8 +285,9 @@ module.exports = Application => {
       });
       if (devices && devices.length > 0) {
         devices = JSON.parse(JSON.stringify(devices));
-        const promises = devices.map(Application.app.models.SensorResource.includeCache);
-        application.devices = await Promise.all(promises);
+        // const promises = devices.map(Application.app.models.SensorResource.includeCache);
+        // application.devices = await Promise.all(promises);
+        application.devices = devices;
       } else {
         application.devices = [];
       }

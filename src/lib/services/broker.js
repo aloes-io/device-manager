@@ -6,7 +6,6 @@ import { protocolDecoder } from 'aedes-protocol-decoder';
 import axios from 'axios';
 import ws from 'websocket-stream';
 import logger from '../../services/logger';
-import rateLimiter from '../../services/rate-limiter';
 
 /**
  * Aedes persistence layer
@@ -180,8 +179,10 @@ export const getClientProps = client => {
  */
 export const getClients = (broker, id) => {
   if (!broker.instance) return null;
-  // eslint-disable-next-line security/detect-object-injection
-  if (id && typeof id === 'string') return broker.instance.clients[id];
+  if (id && typeof id === 'string') {
+    // eslint-disable-next-line security/detect-object-injection
+    return broker.instance.clients[id];
+  }
   return broker.instance.clients;
 };
 
@@ -254,7 +255,7 @@ const authentificationRequest = async data => {
   const baseUrl = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}`;
   // const baseUrl =
   // `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
-  const res = await axios.post(`${baseUrl}/auth/mqtt`, data, {
+  const res = await axios.post(`${baseUrl}/authenticate`, data, {
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
@@ -280,7 +281,6 @@ const authentificationRequest = async data => {
  * Check client credentials and update client properties
  *
  * @method module:Broker~onAuthenticate
- * @param {object} broker - MQTT broker
  * @param {object} client - MQTT client
  * @param {string} [username] - MQTT username
  * @param {object} [password] - MQTT password
@@ -292,7 +292,7 @@ const authentificationRequest = async data => {
  * - 4 - Bad user name or password
  * - 5 - Not authorized
  */
-export const onAuthenticate = async (broker, client, username, password) => {
+export const onAuthenticate = async (client, username, password) => {
   try {
     logger.publish(4, 'broker', 'onAuthenticate:req', {
       client: client.id || null,
@@ -308,79 +308,25 @@ export const onAuthenticate = async (broker, client, username, password) => {
       return 2;
     }
 
-    const trustProxy = broker.instance.trustProxy;
-    const { limiter, limiterType, retrySecs } = await rateLimiter.getAuthLimiter(
-      foundClient.ip,
+    // todo : identify client model ( user || device || application ), using
+    // client.id, username ?
+    const result = await authentificationRequest({
+      client: foundClient,
       username,
-    );
-    if (retrySecs > 0) {
-      if (limiter && limiterType) {
-        // client.connDetails['Retry-After'] = String(retrySecs);
-        // client.connDetails['X-RateLimit-Limit'] =
-        // rateLimiter.limits[limiterType];
-        // client.connDetails['X-RateLimit-Remaining'] =
-        // limiter.remainingPoints; client.connDetails['X-RateLimit-Reset'] =
-        // new Date(Date.now() + limiter.msBeforeNext);
-      }
-      return 4;
-    }
-
-    if (
-      client.id.startsWith(`aloes-${process.env.ALOES_ID}`) &&
-      username === process.env.ALOES_ID &&
-      password.toString() === process.env.ALOES_KEY
-    ) {
-      status = 0;
-      foundClient.user = username;
-      foundClient.aloesId = process.env.ALOES_ID;
-    } else {
-      // todo : identify client model ( user || device || application ), using
-      // client.id, username ?
-      const result = await authentificationRequest({
-        client: foundClient,
-        username,
-        password: password.toString(),
-      });
-      if (result && result.status !== undefined) {
-        status = result.status;
-        foundClient = { ...foundClient, ...result.client };
+      password,
+    });
+    if (result && result.status !== undefined) {
+      status = result.status;
+      foundClient = { ...foundClient, ...result.client };
+      if (status === 0) {
+        Object.keys(foundClient).forEach(key => {
+          // eslint-disable-next-line security/detect-object-injection
+          client[key] = foundClient[key];
+        });
       }
     }
 
-    // if (!foundClient || !foundClient.id) return 5;
-    // if (!foundClient || !foundClient.id || !foundClient.ip) {
-    //   return 2;
-    // }
     if (status === undefined) status = 2;
-    if (status === 0) {
-      Object.keys(foundClient).forEach(key => {
-        // eslint-disable-next-line security/detect-object-injection
-        client[key] = foundClient[key];
-      });
-      if (trustProxy) {
-        await rateLimiter.cleanAuthLimiter(foundClient.ip, foundClient.user);
-        // remove client.connDetails rateLimit
-      }
-    }
-
-    if (status !== 0 && trustProxy) {
-      try {
-        await rateLimiter.setAuthLimiter(foundClient.ip, foundClient.user);
-      } catch (rlRejected) {
-        if (rlRejected instanceof Error) {
-          status = 3;
-        } else {
-          //   client.connDetails['Retry-After'] =
-          //   String(Math.round(rlRejected.msBeforeNext / 1000)) || 1;
-          //   client.connDetails['X-RateLimit-Limit'] =
-          //   rlRejected.consumedPoints - 1;
-          //   client.connDetails['X-RateLimit-Remaining'] =
-          //   rlRejected.remainingPoints;
-          //   client.connDetails['X-RateLimit-Reset'] = new Date(Date.now() +
-          //   rlRejected.msBeforeNext);
-        }
-      }
-    }
 
     return status;
   } catch (error) {
@@ -522,7 +468,7 @@ export const updateClientStatus = async (broker, client, status) => {
 
 /**
  * Parse message coming from aloes MQTT clients
- * @method module:Broker~onPublished
+ * @method module:Broker~onInternalPublished
  * @param {object} broker - MQTT broker
  * @param {object} packet - MQTT packet
  * @returns {object} packet
@@ -543,7 +489,7 @@ const onInternalPublished = (broker, packet) => {
 
 /**
  * Parse message coming from external MQTT clients
- * @method module:Broker~onPublished
+ * @method module:Broker~onExternalPublished
  * @param {object} broker - MQTT broker
  * @param {object} packet - MQTT packet
  * @param {object} client - MQTT client
@@ -581,7 +527,7 @@ export const onPublished = async (broker, packet, client) => {
   if (!client || !client.id || !client.user) {
     return null;
   }
-  logger.publish(4, 'broker', 'onPublished:req', { topic: packet.topic });
+  logger.publish(3, 'broker', 'onPublished:req', { user: client.user, topic: packet.topic });
   if (client.aloesId) {
     return onInternalPublished(broker, packet, client);
   }

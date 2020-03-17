@@ -73,7 +73,7 @@ export const preConnect = (client, cb) => {
  * @returns {aedesCallback}
  */
 const authenticate = (client, username, password, cb) => {
-  onAuthenticate(broker, client, username, password)
+  onAuthenticate(client, username, password)
     .then(status => {
       logger.publish(3, 'broker', 'authenticate:res', { status });
       if (status !== 0) {
@@ -119,30 +119,18 @@ const authorizeSubscribe = (client, packet, cb) => {
 
 // const authorizeForward = (client, packet) => {
 //   // use this to avoid user sender to see its own message on other clients
-//   try {
-//     const topic = packet.topic;
-//     const topicParts = topic.split('/');
-//     let auth = false;
-//     console.log('authorize forward :', client);
-//     logger.publish(3, 'broker', 'authorizeForward:req', { topic, auth });
-//     // if (!client) return packet;
-//     if (client.id.startsWith(`aloes-${process.env.ALOES_ID}`)) {
-//       // switch topic parts 2 ( command ) auth response, rx, ?
-//       // if (
-//       //   topicParts[0].startsWith(process.env.ALOES_ID) &&
-//       //   client.id === 'I should not see this'
-//       // ) {
-//       //   // remove topic client prefix
-//       //   // send to device , user or external app
-//       //   packet.payload = new Buff();er('overwrite packet payload');
-//       //   return packet;
-//       // }
-//       return null;
-//     }
-//     return packet;
-//   } catch (error) {
-//     return null;
-//   }
+//   const topic = packet.topic;
+//   const topicParts = topic.split('/');
+//   logger.publish(3, 'broker', 'authorizeForward:req', {
+//     user: client && client.user,
+//     topic: topicParts,
+//   });
+//   if (!client) return packet;
+//   // if (topicParts[0].startsWith(client.user)) {
+//   //   // if (topicParts[0].startsWith(`aloes-${process.env.ALOES_ID}`)) {
+//   //   return null;
+//   // }
+//   return packet;
 // };
 
 /**
@@ -328,13 +316,14 @@ broker.init = () => {
     persistence: persistence(config),
     concurrency: 100,
     heartbeatInterval: 30000, // default : 60000
-    connectTimeout: 2000, // prod : 2000;
+    connectTimeout: 2000,
     decodeProtocol,
     preConnect,
     authenticate,
     published,
     authorizePublish,
     authorizeSubscribe,
+    // authorizeForward,
     trustProxy: true,
     trustedProxies: [],
   };

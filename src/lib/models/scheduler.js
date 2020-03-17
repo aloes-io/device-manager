@@ -19,7 +19,7 @@ const timers = {};
  */
 export const onBeforeRemote = async (app, ctx) => {
   if (ctx.method.name === 'createOrUpdate') {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     const isAdmin = options.currentUser.roles.includes('admin');
     const ownerId = utils.getOwnerId(options);
     const clientId = ctx.args.client && ctx.args.client.id ? ctx.args.client.id.toString() : null;
@@ -334,14 +334,16 @@ export const parseTimerState = async (Scheduler, sensor, client) => {
  * @method module:Scheduler~onTimeout
  * @param {object} Scheduler - Scheduler Model
  * @param {object} sensorId - Sensor instance id
- * @returns {Promise<function>} Sensor.createOrUpdate
+ * @returns {Promise<boolean>} status
  */
 export const onTimeout = async (Scheduler, sensorId) => {
   const Sensor = Scheduler.app.models.Sensor;
   const SensorResource = Scheduler.app.models.SensorResource;
 
   const sensor = await Sensor.findById(sensorId);
+  if (!sensor) return false;
   const resources = await SensorResource.find(sensor.deviceId, sensor.id);
+  if (!resources) return false;
   const mode = resources['5526'];
   logger.publish(4, `${collectionName}`, 'onTimeout:mode', resources['5526']);
 
@@ -377,6 +379,7 @@ export const onTimeout = async (Scheduler, sensorId) => {
       throw new Error('Wrong timer type');
   }
   await Sensor.createOrUpdate(sensor, 5543, 1);
+  return true;
 };
 
 /**

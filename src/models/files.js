@@ -175,7 +175,7 @@ const onBeforeRemote = async ctx => {
     ctx.method.name === 'uploadBuffer' ||
     ctx.method.name === 'download'
   ) {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.ownerId);
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!isAdmin) {

@@ -1,6 +1,5 @@
 /* Copyright 2019 Edouard Maleix, read LICENSE */
 
-/* eslint-disable no-await-in-loop */
 /* eslint-disable no-restricted-syntax */
 import logger from '../services/logger';
 import utils from '../lib/utils';
@@ -174,31 +173,6 @@ module.exports = function(SensorResource) {
     logger.publish(4, `${collectionName}`, 'expireCache:res', { key, ttl });
     return true;
   };
-
-  // /**
-  //  * Find resources in the cache and add to sensor instance
-  //  * @method module:SensorResource.includeCache
-  //  * @param {object} sensor - sensor instance
-  //  */
-  // SensorResource.includeCache = async sensor => {
-  //   const filter = {
-  //     match: `deviceId-${sensor.deviceId}-sensorId-${sensor.id}`,
-  //   };
-  //   logger.publish(5, `${collectionName}`, 'includeCache:req', { filter });
-  //   sensor.resources = {};
-  //   for await (const key of SensorResource.cacheIterator(filter)) {
-  //     try {
-  //       const resource = JSON.parse(await SensorResource.get(key));
-  //       sensor.resources[Object.keys(resource)[0]] = Object.values(resource)[0];
-  //     } catch (e) {
-  //       // empty
-  //     }
-  //   }
-  //   logger.publish(4, `${collectionName}`, 'includeCache:res', {
-  //     count: Object.keys(sensor.resources.length),
-  //   });
-  //   return sensor;
-  // };
 
   /**
    * Optional error callback

@@ -851,6 +851,7 @@ Optional result callback
 * [Device](#module_Device)
     * _instance_
         * [.resetKeys()](#module_Device+resetKeys) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.__get__sensors()](#module_Device+__get__sensors) ⇒ <code>Promise.&lt;function()&gt;</code>
     * _static_
         * [.publish(device, method, [client])](#module_Device.publish) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
         * [.refreshToken(deviceId, ownerId)](#module_Device.refreshToken) ⇒ <code>Promise.&lt;object&gt;</code>
@@ -904,6 +905,13 @@ Reset keys for this device instance
 
 **Kind**: instance method of [<code>Device</code>](#module_Device)  
 **Returns**: <code>Promise.&lt;object&gt;</code> - device  
+<a name="module_Device+__get__sensors"></a>
+
+### device.\_\_get\_\_sensors() ⇒ <code>Promise.&lt;function()&gt;</code>
+Get device sensors
+
+**Kind**: instance method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - module:Sensor.find  
 <a name="module_Device.publish"></a>
 
 ### Device.publish(device, method, [client]) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
@@ -1924,7 +1932,7 @@ Find Measurement instances with optional filter
         * [.getAll([filter])](#module_Scheduler.getAll) ⇒ <code>Promise.&lt;array&gt;</code>
         * [.deleteAll([filter])](#module_Scheduler.deleteAll) ⇒ <code>Promise.&lt;array&gt;</code>
         * [.publish(device, measurement, [method], [client])](#module_Scheduler.publish) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
-        * [.onTimeout(body)](#module_Scheduler.onTimeout) ⇒ <code>Promise.&lt;boolean&gt;</code>
+        * [.onTimeout(body)](#module_Scheduler.onTimeout) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.createOrUpdate(sensor, [client])](#module_Scheduler.createOrUpdate) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.onTick(data)](#module_Scheduler.onTick)
         * [.onTickHook(body)](#module_Scheduler.onTickHook) ⇒ <code>function</code>
@@ -1942,7 +1950,7 @@ Find Measurement instances with optional filter
         * [~stopTimer(Scheduler, sensor, resources, client, mode)](#module_Scheduler..stopTimer) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~parseTimerEvent(Scheduler, sensor, client)](#module_Scheduler..parseTimerEvent) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~parseTimerEvent(Scheduler, sensor, client)](#module_Scheduler..parseTimerEvent) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [~onTimeout(Scheduler, sensorId)](#module_Scheduler..onTimeout) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [~onTimeout(Scheduler, sensorId)](#module_Scheduler..onTimeout) ⇒ <code>Promise.&lt;boolean&gt;</code>
         * [~syncRunningTimers(Scheduler, delay)](#module_Scheduler..syncRunningTimers)
         * ["stopped"](#event_stopped) ⇒ <code>functions</code> \| <code>null</code>
         * ["stopped"](#event_stopped) ⇒ <code>functions</code> \| <code>null</code>
@@ -1993,11 +2001,11 @@ Format packet and send it via MQTT broker
 
 <a name="module_Scheduler.onTimeout"></a>
 
-### Scheduler.onTimeout(body) ⇒ <code>Promise.&lt;boolean&gt;</code>
+### Scheduler.onTimeout(body) ⇒ <code>Promise.&lt;function()&gt;</code>
 Scheduler timeout callback / webhook ( sensor timer )
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>Promise.&lt;boolean&gt;</code> - status  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - onTimeout  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2249,13 +2257,13 @@ Parse a timer state and dispatch to the proper function
 
 <a name="module_Scheduler..onTimeout"></a>
 
-### Scheduler~onTimeout(Scheduler, sensorId) ⇒ <code>Promise.&lt;function()&gt;</code>
+### Scheduler~onTimeout(Scheduler, sensorId) ⇒ <code>Promise.&lt;boolean&gt;</code>
 Method called by a timer instance at timeout
 
 ( startTimer | stopTimer )
 
 **Kind**: inner method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - Sensor.createOrUpdate  
+**Returns**: <code>Promise.&lt;boolean&gt;</code> - status  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2598,11 +2606,14 @@ Optional result callback
 
 * [Sensor](#module_Sensor)
     * _instance_
+        * [.__findById__sensors(id)](#module_Sensor+__findById__sensors) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.__get__resources()](#module_Sensor+__get__resources) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.__findById__resources(id)](#module_Sensor+__findById__resources) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.__create__resources(resources)](#module_Sensor+__create__resources) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.__replace__resources(resources)](#module_Sensor+__replace__resources) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.__delete__resources()](#module_Sensor+__delete__resources) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [.__get__measurements()](#module_Sensor+__get__measurements) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [.__findById__measurements(id)](#module_Sensor+__findById__measurements) ⇒ <code>Promise.&lt;function()&gt;</code>
     * _static_
         * [.createOrUpdate(device, [client])](#module_Sensor.createOrUpdate) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.publish(device, sensor, [method], [client])](#module_Sensor.publish) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
@@ -2642,17 +2653,29 @@ Optional result callback
         * ["before_*" (ctx)](#event_before_*) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [~errorCallback](#module_Sensor..errorCallback) : <code>function</code>
 
+<a name="module_Sensor+__findById__sensors"></a>
+
+### sensor.\_\_findById\_\_sensors(id) ⇒ <code>Promise.&lt;function()&gt;</code>
+Get device sensors by id
+
+**Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - module:Sensor.findById  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| id | <code>string</code> | Resource key |
+
 <a name="module_Sensor+__get__resources"></a>
 
 ### sensor.\_\_get\_\_resources() ⇒ <code>Promise.&lt;function()&gt;</code>
-Get sensor resources form key/value store
+Get sensor resources from key/value store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
 **Returns**: <code>Promise.&lt;function()&gt;</code> - module:SensorResource.find  
 <a name="module_Sensor+__findById__resources"></a>
 
 ### sensor.\_\_findById\_\_resources(id) ⇒ <code>Promise.&lt;function()&gt;</code>
-Get sensor resources form key/value store by key
+Get sensor resources from key/value store by key
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
 **Returns**: <code>Promise.&lt;function()&gt;</code> - module:SensorResource.find  
@@ -2664,7 +2687,7 @@ Get sensor resources form key/value store by key
 <a name="module_Sensor+__create__resources"></a>
 
 ### sensor.\_\_create\_\_resources(resources) ⇒ <code>Promise.&lt;function()&gt;</code>
-Create sensor resources into key/value store
+Create sensor resources from key/value store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
 **Returns**: <code>Promise.&lt;function()&gt;</code> - module:SensorResource.save  
@@ -2676,7 +2699,7 @@ Create sensor resources into key/value store
 <a name="module_Sensor+__replace__resources"></a>
 
 ### sensor.\_\_replace\_\_resources(resources) ⇒ <code>Promise.&lt;function()&gt;</code>
-Replace sensor resources into key/value store
+Replace sensor resources from key/value store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
 **Returns**: <code>Promise.&lt;function()&gt;</code> - module:SensorResource.save  
@@ -2692,6 +2715,25 @@ Delete sensor resources from key/value store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
 **Returns**: <code>Promise.&lt;function()&gt;</code> - module:SensorResource.remove  
+<a name="module_Sensor+__get__measurements"></a>
+
+### sensor.\_\_get\_\_measurements() ⇒ <code>Promise.&lt;function()&gt;</code>
+Get sensor measurement from timeseries store
+
+**Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - module:Measurement.find  
+<a name="module_Sensor+__findById__measurements"></a>
+
+### sensor.\_\_findById\_\_measurements(id) ⇒ <code>Promise.&lt;function()&gt;</code>
+Get sensor measurement from timeseries store by id
+
+**Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - module:Measurement.findById  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| id | <code>string</code> | Resource key |
+
 <a name="module_Sensor.createOrUpdate"></a>
 
 ### Sensor.createOrUpdate(device, [client]) ⇒ <code>Promise.&lt;object&gt;</code>

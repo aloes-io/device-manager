@@ -1,5 +1,9 @@
 # Aloes - Device Manager
 
+[![pipeline status](https://framagit.org/aloes/device-manager/badges/master/pipeline.svg)](https://framagit.org/aloes/device-manager/-/commits/master)
+
+[![coverage report](https://framagit.org/aloes/device-manager/badges/master/coverage.svg)](https://framagit.org/aloes/device-manager/-/commits/master)
+
 - Replicate devices with rich semantic properties
 - Authentification by access tokens and API keys
 - Handle devices and sensors CRUD methods triggered via HTTP and MQTT
@@ -180,8 +184,6 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 - Create Redis backup/retore helpers [via Node?](https://github.com/atlassian/redis-dump-restore)
 
 - Implement user+ip rate limit for HTTP endpoints requiring auth
-
-- Validate rate limiter via e2e tests
 
 - Finish account linking with github
 

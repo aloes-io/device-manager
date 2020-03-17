@@ -48,14 +48,14 @@ const onAfterSave = async ctx => {
  */
 const onBeforeRemote = async ctx => {
   if (ctx.method.name.indexOf('create') !== -1) {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     //  const data = ctx.args || ctx.args.data;
     if (!options.accessToken) {
       throw utils.buildError(401, 'INVALID_ACCESS', 'token is absent');
     }
     // console.log('authorizedRoles & data', options, data);
   } else if (ctx.method.name === 'search' || ctx.method.name === 'geoLocate') {
-    const options = ctx.args ? ctx.args.options : {};
+    const options = ctx.options || {};
     // console.log('before remote', ctx.method.name, options.currentUser, ctx.args.filter);
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!isAdmin) {

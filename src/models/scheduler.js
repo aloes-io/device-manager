@@ -2,7 +2,6 @@
 
 /* eslint-disable no-restricted-syntax */
 import { publish } from 'iot-agent';
-// import debounce from 'lodash.debounce';
 import { publishToDeviceApplications } from '../lib/models/device';
 import {
   collectionName,
@@ -109,14 +108,14 @@ module.exports = function(Scheduler) {
    * @async
    * @method module:Scheduler.onTimeout
    * @param {object} body - Timer callback body
-   * @returns {Promise<boolean>} status
+   * @returns {Promise<function>} onTimeout
    */
   Scheduler.onTimeout = async body => {
     const { sensorId } = body;
     if (!sensorId) throw new Error('Missing sensor Id');
     logger.publish(4, `${collectionName}`, 'onTimeout:req', body);
-    await onTimeout(Scheduler, sensorId);
-    return true;
+    return onTimeout(Scheduler, sensorId);
+    // return true;
   };
 
   /**

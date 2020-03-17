@@ -404,6 +404,7 @@ MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
   }
   // topic = `${pubsubVersion}/${getBaseTopic()}/tx/${topic}`;
   topic = `${getBaseTopic()}/tx/${topic}`;
+  if (!mqttClient) return false;
   logger.publish(3, 'mqtt-client', 'publish:topic', topic);
   await mqttClient.publish(topic, payload, { qos, retain });
   return true;
