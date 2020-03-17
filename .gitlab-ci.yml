@@ -58,13 +58,12 @@ test_async:
     NODE_ENV: 'development'
     CI: 'true'
   script:
-    - npm run build:test
     - npm run test:cover
   # only:
   # - staging
   artifacts:
     paths:
-      - coverage/
+      - coverage
 
 pages:
   stage: deploy
@@ -73,6 +72,8 @@ pages:
   script:
     - npm run docs:build
     - mv coverage/ public/
+    - cp -r coverage/* public/
+
   artifacts:
     paths:
       - public

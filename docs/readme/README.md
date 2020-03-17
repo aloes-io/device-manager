@@ -1,6 +1,8 @@
 # Aloes - Device Manager
 
-<!-- [![Coverage report](https://framagit.org/aloes/device-manager/badges/master/coverage.svg?job=coverage)](https://framagit.org/aloes/device-manager/coverage-ruby) -->
+[![pipeline status](https://framagit.org/aloes/device-manager/badges/master/pipeline.svg)](https://framagit.org/aloes/device-manager/-/commits/master)
+
+[![coverage report](https://framagit.org/aloes/device-manager/badges/master/coverage.svg)](https://framagit.org/aloes/device-manager/-/commits/master)
 
 - Replicate devices with rich semantic properties
 - Authentification by access tokens and API keys

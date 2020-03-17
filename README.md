@@ -4,13 +4,6 @@
 
 [![coverage report](https://framagit.org/aloes/device-manager/badges/master/coverage.svg)](https://framagit.org/aloes/device-manager/-/commits/master)
 
-<p align="center">
-  <img
-    src="./docs/.vuepress/public/logo.png"
-    width="250"
-  />
-</p>
-
 - Replicate devices with rich semantic properties
 - Authentification by access tokens and API keys
 - Handle devices and sensors CRUD methods triggered via HTTP and MQTT
