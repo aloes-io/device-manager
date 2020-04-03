@@ -72,7 +72,7 @@ export const preConnect = (client, cb) => {
  * @param {aedesCallback} cb
  * @returns {aedesCallback}
  */
-const authenticate = (client, username, password, cb) => {
+const authenticate = (client, username, password, cb) =>
   onAuthenticate(client, username, password)
     .then(status => {
       logger.publish(3, 'broker', 'authenticate:res', { status });
@@ -85,7 +85,6 @@ const authenticate = (client, username, password, cb) => {
       logger.publish(2, 'broker', 'authenticate:err', e);
       return cb(e, null);
     });
-};
 
 /**
  * Aedes publish authorization callback
@@ -96,10 +95,8 @@ const authenticate = (client, username, password, cb) => {
  * @param {aedesCallback} cb
  * @returns {aedesCallback}
  */
-const authorizePublish = (client, packet, cb) => {
-  if (onAuthorizePublish(client, packet)) return cb(null);
-  return cb(new Error('authorizePublish error'));
-};
+const authorizePublish = (client, packet, cb) =>
+  onAuthorizePublish(client, packet) ? cb(null) : cb(new Error('authorizePublish error'));
 
 /**
  * Aedes subscribe authorization callback
@@ -110,12 +107,10 @@ const authorizePublish = (client, packet, cb) => {
  * @param {aedesCallback} cb
  * @returns {aedesCallback}
  */
-const authorizeSubscribe = (client, packet, cb) => {
-  if (onAuthorizeSubscribe(client, packet)) {
-    return cb(null, packet);
-  }
-  return cb(new Error('authorizeSubscribe error'));
-};
+const authorizeSubscribe = (client, packet, cb) =>
+  onAuthorizeSubscribe(client, packet)
+    ? cb(null, packet)
+    : cb(new Error('authorizeSubscribe error'));
 
 // const authorizeForward = (client, packet) => {
 //   // use this to avoid user sender to see its own message on other clients
@@ -142,11 +137,10 @@ const authorizeSubscribe = (client, packet, cb) => {
  * @param {aedesCallback} cb
  * @returns {aedesCallback}
  */
-const published = (packet, client, cb) => {
-  return onPublished(broker, packet, client)
+const published = (packet, client, cb) =>
+  onPublished(broker, packet, client)
     .then(() => cb())
     .catch(() => cb());
-};
 /**
  * Convert payload before publish
  * @method module:Broker.publish

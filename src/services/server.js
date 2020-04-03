@@ -54,14 +54,14 @@ const getStoredClients = async filter => {
  *
  * @method module:Server~userAuth
  * @param {string} username - MQTT client username
- * @param {buffer} password - MQTT client password
+ * @param {string} password - MQTT client password
  * @returns {Promise<object>}
  */
 const userAuth = async (username, password) => {
   let status;
   const details = {};
   try {
-    const { userId } = await app.models.accessToken.findById(password.toString());
+    const { userId } = await app.models.accessToken.findById(password);
     if (userId && userId.toString() === username) {
       details.ownerId = username;
       details.user = username;
@@ -90,14 +90,14 @@ const userAuth = async (username, password) => {
  *
  * @method module:Server~deviceAuth
  * @param {string} username - MQTT client username
- * @param {buffer} password - MQTT client password
+ * @param {string} password - MQTT client password
  * @returns {Promise<object>}
  */
 const deviceAuth = async (username, password) => {
   const details = {};
   let status;
   try {
-    const { device, keyType } = await app.models.Device.authenticate(username, password.toString());
+    const { device, keyType } = await app.models.Device.authenticate(username, password);
     if (device && keyType) {
       details.devEui = device.devEui;
       details.user = username;
@@ -124,17 +124,14 @@ const deviceAuth = async (username, password) => {
  *
  * @method module:Server~applicationAuth
  * @param {string} username - MQTT client username
- * @param {buffer} password - MQTT client password
+ * @param {string} password - MQTT client password
  * @returns {Promise<object>}
  */
 const applicationAuth = async (username, password) => {
   const details = {};
   let status;
   try {
-    const { application, keyType } = await app.models.Application.authenticate(
-      username,
-      password.toString(),
-    );
+    const { application, keyType } = await app.models.Application.authenticate(username, password);
     if (application && keyType) {
       details.appId = application.id.toString();
       details.user = username;
@@ -163,7 +160,7 @@ const applicationAuth = async (username, password) => {
  * @async
  * @method module:Server~authenticateModels
  * @param {string} username
- * @param {buffer} password
+ * @param {string} password
  * @param {string} [model]
  * @yields {Promise<string>}  Client details and status
  * @returns {Promise<string>}  Client details and status
@@ -193,7 +190,7 @@ const sendAuth = (client, status) => {
  * @method module:Server~authenticateInstance
  * @param {object} client - Parsed MQTT client
  * @param {string} username - MQTT client username
- * @param {buffer} password - MQTT client password
+ * @param {string} password - MQTT client password
  * @returns {Promise<object>}
  */
 const authenticateInstance = async (client, username, password) => {
@@ -240,7 +237,7 @@ const authenticateInstance = async (client, username, password) => {
     // if client.model use a model arg ?
     let auth = false;
     // eslint-disable-next-line no-restricted-syntax
-    for await (const { status, details } of authenticateModels(username, Buffer.from(password))) {
+    for await (const { status, details } of authenticateModels(username, password)) {
       // auth = status;
       if (status === 0) {
         auth = true;
