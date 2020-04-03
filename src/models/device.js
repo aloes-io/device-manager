@@ -1,6 +1,6 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
-import { timingSafeEqual } from 'crypto';
+// import { timingSafeEqual } from 'crypto';
 import iotAgent from 'iot-agent';
 import isAlphanumeric from 'validator/lib/isAlphanumeric';
 import isLength from 'validator/lib/isLength';
@@ -622,9 +622,11 @@ module.exports = function(Device) {
       // 'windowsKey',
       // 'masterKey',
     ];
+
     keyNames.forEach(k => {
+      // const isValid = timingSafeEqual(Buffer.from(device[k]), Buffer.from(key));
       // eslint-disable-next-line security/detect-object-injection
-      const isValid = timingSafeEqual(Buffer.from(device[k]), Buffer.from(key));
+      const isValid = device[k] === key;
       if (isValid) {
         result = {
           device,

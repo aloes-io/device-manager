@@ -1,6 +1,6 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
-import { timingSafeEqual } from 'crypto';
+// import { timingSafeEqual } from 'crypto';
 import { appPatternDetector, publish } from 'iot-agent';
 import {
   collectionName,
@@ -252,8 +252,9 @@ module.exports = Application => {
       // 'masterKey',
     ];
     keyNames.forEach(k => {
+      // const isValid = timingSafeEqual(Buffer.from(application[k]), Buffer.from(key));
       // eslint-disable-next-line security/detect-object-injection
-      const isValid = timingSafeEqual(Buffer.from(application[k]), Buffer.from(key));
+      const isValid = application[k] === key;
       if (isValid) {
         result = {
           application,
