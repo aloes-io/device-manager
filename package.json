@@ -266,7 +266,7 @@
       "**/src/**",
       "**/boot/02-migrate-props.js"
     ],
-    "report-dir": "./test",
+    "report-dir": "./coverage",
     "check-coverage": true,
     "functions": 70,
     "lines": 70

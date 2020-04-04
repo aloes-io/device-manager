@@ -22,7 +22,6 @@ npm-debug.log
 /dist/
 /build/
 /log/
-/test
 #config files
 .env
 /config/.env
@@ -32,3 +31,4 @@ npm-debug.log
 device-names.json
 
 .nyc_output/
+/coverage
