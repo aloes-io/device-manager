@@ -61,7 +61,7 @@ test_async:
     - npm run test:cover
   artifacts:
     paths:
-      - coverage
+      - test
 
 pages:
   stage: deploy
