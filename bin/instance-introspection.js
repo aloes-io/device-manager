@@ -1,4 +1,4 @@
-import path from 'path';
+const path = require('path');
 
 const app = path.resolve(__dirname, '../server/server');
 const ds = app.datasources.accountDS;

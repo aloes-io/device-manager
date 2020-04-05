@@ -1737,12 +1737,15 @@ Event reporting that a file instance / collection is requested
         * [.find(filter, options)](#module_Measurement.find) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
         * [.updateById(id, filter)](#module_Measurement.updateById) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.destroyAll(filter, data)](#module_Measurement.destroyAll) ⇒ <code>Promise.&lt;Array.&lt;object&gt;&gt;</code>
+        * [.deleteById(id, options)](#module_Measurement.deleteById) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.delete(filter, options)](#module_Measurement.delete) ⇒ <code>Promise.&lt;(boolean\|null)&gt;</code>
         * [.destroyAll(filter)](#module_Measurement.destroyAll) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.create(sensor)](#module_Measurement.create) ⇒ <code>Promise.&lt;object&gt;</code>
     * _inner_
-        * [~buildQuery(filter, [rp])](#module_Measurement..buildQuery) ⇒ <code>Promise.&lt;string&gt;</code>
-        * [~getRetentionPolicies(filter)](#module_Measurement..getRetentionPolicies) ⇒ <code>Array.&lt;string&gt;</code>
-        * [~findMeasurements([filter])](#module_Measurement..findMeasurements) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+        * [~buildQuery(app, filter, [rp])](#module_Measurement..buildQuery) ⇒ <code>Promise.&lt;string&gt;</code>
+        * [~getRetentionPolicies(app, filter)](#module_Measurement..getRetentionPolicies) ⇒ <code>Array.&lt;string&gt;</code>
+        * [~findMeasurements(app, filter)](#module_Measurement..findMeasurements) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+        * [~deleteMeasurements(app, filter)](#module_Measurement..deleteMeasurements) ⇒ <code>Promise.&lt;(boolean\|null)&gt;</code>
 
 <a name="module_Measurement.publish"></a>
 
@@ -1819,6 +1822,30 @@ Update many Measurement instances
 | filter | <code>object</code> | Where filter |
 | data | <code>object</code> | Update data |
 
+<a name="module_Measurement.deleteById"></a>
+
+### Measurement.deleteById(id, options) ⇒ <code>Promise.&lt;object&gt;</code>
+Delete measurement by id
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type |
+| --- | --- |
+| id | <code>any</code> | 
+| options | <code>object</code> | 
+
+<a name="module_Measurement.delete"></a>
+
+### Measurement.delete(filter, options) ⇒ <code>Promise.&lt;(boolean\|null)&gt;</code>
+Delete measurements
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| filter | <code>object</code> |  |
+| options | <code>object</code> | Request options |
+
 <a name="module_Measurement.destroyAll"></a>
 
 ### Measurement.destroyAll(filter) ⇒ <code>Promise.&lt;object&gt;</code>
@@ -1843,37 +1870,52 @@ Create measurement
 
 <a name="module_Measurement..buildQuery"></a>
 
-### Measurement~buildQuery(filter, [rp]) ⇒ <code>Promise.&lt;string&gt;</code>
+### Measurement~buildQuery(app, filter, [rp]) ⇒ <code>Promise.&lt;string&gt;</code>
 Build influxDB query
 
 **Kind**: inner method of [<code>Measurement</code>](#module_Measurement)  
 
 | Param | Type | Description |
 | --- | --- | --- |
+| app | <code>object</code> | Loopback app |
 | filter | <code>object</code> | Where filter |
 | [rp] | <code>object</code> | retention policy |
 
 <a name="module_Measurement..getRetentionPolicies"></a>
 
-### Measurement~getRetentionPolicies(filter) ⇒ <code>Array.&lt;string&gt;</code>
+### Measurement~getRetentionPolicies(app, filter) ⇒ <code>Array.&lt;string&gt;</code>
 Retrieve retention policies in a where filter for Influx
-
-**Kind**: inner method of [<code>Measurement</code>](#module_Measurement)  
-
-| Param | Type |
-| --- | --- |
-| filter | <code>object</code> | 
-
-<a name="module_Measurement..findMeasurements"></a>
-
-### Measurement~findMeasurements([filter]) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
-Find Measurement instances with optional filter
 
 **Kind**: inner method of [<code>Measurement</code>](#module_Measurement)  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| [filter] | <code>object</code> | Where filter |
+| app | <code>object</code> | Loopback application |
+| filter | <code>object</code> |  |
+
+<a name="module_Measurement..findMeasurements"></a>
+
+### Measurement~findMeasurements(app, filter) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+Find Measurement instances with filter
+
+**Kind**: inner method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| app | <code>object</code> | Loopback app |
+| filter | <code>object</code> | Where filter |
+
+<a name="module_Measurement..deleteMeasurements"></a>
+
+### Measurement~deleteMeasurements(app, filter) ⇒ <code>Promise.&lt;(boolean\|null)&gt;</code>
+Delete Measurement instances with filter
+
+**Kind**: inner method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| app | <code>object</code> | Loopback app |
+| filter | <code>object</code> | Where filter |
 
 <a name="module_OmaObject"></a>
 
