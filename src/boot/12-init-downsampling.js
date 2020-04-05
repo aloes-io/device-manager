@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable security/detect-object-injection */
 import logger from '../services/logger';
@@ -49,7 +49,6 @@ module.exports = async function initializeDownSampling(app) {
         query += `INTO "${influxConnector.retentionPolicies[nextDuration]}"."${modelName}"`;
         query += ` FROM "${influxConnector.retentionPolicies[duration]}"."${modelName}"`;
         if (Array.isArray(rule.group)) {
-          //  query += ` GROUP BY time(${rule.group.join(',')})`;
           query += ` GROUP BY ${rule.group.join(',')}`;
           continuousQueryName += `_to_${rule.group.join(',')}`;
         } else {
@@ -75,31 +74,32 @@ module.exports = async function initializeDownSampling(app) {
         const dsRules = model.settings.downSampling;
         logger.publish(4, 'loopback', 'boot:initializeDownSampling:rules', dsRules);
 
-        //  Create Retention Policies
-        const rpPromises = dsRules.map(async dsRule => {
-          try {
-            const rpName = `rp_${dsRule.duration}`;
-            await influxConnector.client.createRetentionPolicy(rpName, {
-              duration: dsRule.duration,
-              replication: 1,
-              isDefault: dsRule.duration === minDuration,
-            });
-            influxConnector.retentionPolicies[dsRule.duration] = rpName;
-            // console.log('rpName : ', rpName);
-            return rpName;
-          } catch (error) {
-            logger.publish(
-              3,
-              'loopback',
-              'boot:initializeDownSampling:initializeDownSampling:err',
-              error,
-            );
-            return null;
-          }
-        });
+        // Create Retention Policies
+        const rpPolicies = await Promise.all(
+          dsRules.map(async dsRule => {
+            try {
+              const rpName = `rp_${dsRule.duration}`;
+              await influxConnector.client.createRetentionPolicy(rpName, {
+                duration: dsRule.duration,
+                replication: 1,
+                isDefault: dsRule.duration === minDuration,
+              });
+              influxConnector.retentionPolicies[dsRule.duration] = rpName;
+              // console.log('rpName : ', rpName);
+              return rpName;
+            } catch (error) {
+              logger.publish(
+                3,
+                'loopback',
+                'boot:initializeDownSampling:initializeDownSampling:err',
+                error,
+              );
+              return null;
+            }
+          }),
+        );
 
-        await Promise.all(rpPromises);
-        //  console.log('rpPolicies : ', rpPolicies);
+        logger.publish(4, 'loopback', 'boot:initializeDownSampling:rpPolicies', rpPolicies);
 
         await influxConnector.client.createRetentionPolicy('rp_forever', {
           duration: '0s',
@@ -113,34 +113,40 @@ module.exports = async function initializeDownSampling(app) {
         );
 
         // Format and create Continuous Queries
-        const cqPromises = sortedDurations.map(async (duration, i, inputArray) => {
-          try {
-            if (i < inputArray.length - 1) {
-              const nextDuration = inputArray[i + 1];
-              const dsRule = dsRules.find(rule => rule.duration === duration);
-              if (dsRule) {
-                const msg = await buildContinuousQuery(modelName, dsRule, nextDuration, duration);
-                logger.publish(3, 'loopback', 'boot:initializeDownSampling:continuousQueries', msg);
-                const res = await influxConnector.client.createContinuousQuery(
-                  msg.cqName,
-                  msg.query,
-                );
-                return res;
+        const continuousQueries = await Promise.all(
+          sortedDurations.map(async (duration, i, inputArray) => {
+            try {
+              if (i < inputArray.length - 1) {
+                const nextDuration = inputArray[i + 1];
+                const dsRule = dsRules.find(rule => rule.duration === duration);
+                if (dsRule) {
+                  const msg = await buildContinuousQuery(modelName, dsRule, nextDuration, duration);
+                  logger.publish(
+                    3,
+                    'loopback',
+                    'boot:initializeDownSampling:continuousQueries',
+                    msg,
+                  );
+                  const res = await influxConnector.client.createContinuousQuery(
+                    msg.cqName,
+                    msg.query,
+                  );
+                  return res;
+                }
+                return null;
               }
               return null;
+            } catch (error) {
+              logger.publish(
+                3,
+                'loopback',
+                'boot:initializeDownSampling:continuousQueries:err',
+                error,
+              );
+              return null;
             }
-            return null;
-          } catch (error) {
-            logger.publish(
-              3,
-              'loopback',
-              'boot:initializeDownSampling:continuousQueries:err',
-              error,
-            );
-            return null;
-          }
-        });
-        const continuousQueries = await Promise.all(cqPromises);
+          }),
+        );
         return continuousQueries;
       }
       return null;

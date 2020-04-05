@@ -67,41 +67,36 @@ module.exports = function(Measurement) {
    * @fires Server.publish
    */
   Measurement.publish = async (deviceId, measurement, method) => {
-    try {
-      const packet = publish({
-        userId: measurement.ownerId,
-        collection: collectionName,
-        // modelId: measurement.id,
-        data: measurement,
-        method: method || 'POST',
-        pattern: 'aloesclient',
-      });
-
-      if (!deviceId) {
-        throw utils.buildError(403, 'MISSING_DEVICE_ID', 'No device in arguments');
-      }
-      const device = await Measurement.app.models.Device.findById(deviceId);
-      if (!device) {
-        throw utils.buildError(403, 'MISSING_DEVICE', 'No device found');
-      }
-
-      if (packet && packet.topic && packet.payload) {
-        logger.publish(4, `${collectionName}`, 'publish:res', {
-          topic: packet.topic,
-        });
-        // if (client && client.id) {
-        //   // publish to client
-        //   return null;
-        // }
-        publishToDeviceApplications(Measurement.app, device, packet);
-        Measurement.app.emit('publish', packet.topic, packet.payload, false, 0);
-        return measurement;
-      }
-      throw new Error('Invalid MQTT Packet encoding');
-    } catch (error) {
-      logger.publish(2, `${collectionName}`, 'publish:err', error);
-      throw error;
+    if (!deviceId) {
+      throw utils.buildError(403, 'MISSING_DEVICE_ID', 'No device in arguments');
     }
+    const device = await Measurement.app.models.Device.findById(deviceId);
+    if (!device) {
+      throw utils.buildError(403, 'MISSING_DEVICE', 'No device found');
+    }
+
+    const packet = publish({
+      userId: device.ownerId,
+      collection: collectionName,
+      // modelId: measurement.id,
+      data: measurement,
+      method: method || 'POST',
+      pattern: 'aloesclient',
+    });
+
+    if (packet && packet.topic && packet.payload) {
+      logger.publish(4, `${collectionName}`, 'publish:res', {
+        topic: packet.topic,
+      });
+      // if (client && client.id) {
+      //   // publish to client
+      //   return null;
+      // }
+      publishToDeviceApplications(Measurement.app, device, packet);
+      Measurement.app.emit('publish', packet.topic, packet.payload, false, 0);
+      return measurement;
+    }
+    throw new Error('Invalid MQTT Packet encoding');
   };
 
   /**
@@ -123,12 +118,15 @@ module.exports = function(Measurement) {
     ) {
       throw new Error('Invalid sensor instance');
     }
-    const twoHour = 7200000;
-    let timestamp = new Date(sensor.lastSignal).getTime();
-    if (new Date(sensor.lastSignal) < new Date() - twoHour) {
-      //  console.log("OUTDATED DATA, let's cheat");
-      timestamp = new Date().getTime();
-    }
+
+    let timestamp = new Date();
+
+    // const twoHour = 7200000;
+    // let timestamp = new Date(sensor.lastSignal).getTime();
+    // if (new Date(sensor.lastSignal) < new Date() - twoHour) {
+    //   console.log("OUTDATED DATA, let's cheat");
+    //   timestamp = new Date().getTime();
+    // }
 
     const measurement = {
       value: sensor.resources[sensor.resource.toString()],

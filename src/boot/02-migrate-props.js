@@ -13,7 +13,7 @@ module.exports = async function migrateProps(app) {
   await Promise.all(
     devices.map(async device => {
       const deviceHasAddress = await device.address.get();
-      console.log('device has address', deviceHasAddress);
+      // console.log('device has address', deviceHasAddress);
       if (!deviceHasAddress) {
         await device.address.create({
           street: '',
