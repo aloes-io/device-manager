@@ -263,7 +263,7 @@
     "exclude": [
       "**/*.e2e.test.js",
       "**/*.spec.js",
-      "**/src/**",
+      "**/dist/**",
       "**/boot/02-migrate-props.js"
     ],
     "report-dir": "./coverage",
