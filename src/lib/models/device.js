@@ -271,7 +271,7 @@ const createProps = async (app, instance) => {
     // await instance.destroy()
     throw new Error('no device address');
   }
-  instance.createdAt = Date.now();
+  instance.createdAt = new Date();
   return app.models.Device.publish(instance, 'POST');
 };
 
@@ -513,7 +513,7 @@ export const parseMessage = async (app, packet, pattern, client) => {
     app.models.Sensor.emit('publish', {
       device,
       pattern,
-      //  sensor: device.sensors[0],
+      sensor: device.sensors[0],
       attributes,
       client,
     });

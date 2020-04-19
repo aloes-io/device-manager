@@ -625,7 +625,6 @@ const deviceTest = () => {
           client.end(true);
           done(new Error('Should not connect'));
         });
-        // setTimeout(() => done(new Error('Test timeout')), testMaxDuration - 100);
       });
 
       it('device CANNOT connect with wrong credentials', function(done) {
@@ -664,12 +663,12 @@ const deviceTest = () => {
           const device = await DeviceModel.findById(devices[1].id);
           expect(device.status).to.be.equal(true);
           client.end(true);
-        }, 150);
+        }, 250);
 
         return timeout(async () => {
           const device = await DeviceModel.findById(devices[1].id);
           expect(device.status).to.be.equal(false);
-        }, 150);
+        }, 250);
       });
 
       it('device CANNOT publish to ANY route', function(done) {
@@ -694,12 +693,6 @@ const deviceTest = () => {
           client.publish('FAKETOPIC', packets[1].payload, { qos: 1 });
           client.end(true);
           done();
-          // setTimeout(() => {
-          //   if (client.connected) {
-          //     client.end(true);
-          //     done();
-          //   }
-          // }, 1000);
         });
 
         // done(new Error('Should have ended with an error event'));
@@ -727,12 +720,6 @@ const deviceTest = () => {
           client.publish(packets[1].topic, packets[1].payload, { qos: 1 });
           client.end(true);
           done();
-          // setTimeout(() => {
-          //   if (client.connected) {
-          //     client.end();
-          //     done();
-          //   }
-          // }, 100);
         });
       });
 

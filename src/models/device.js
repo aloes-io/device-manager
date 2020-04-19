@@ -219,6 +219,8 @@ module.exports = function(Device) {
     // const messageProtocol = {
     //   like: new RegExp(`.*${pattern.name}.*`, 'i'),
     // };
+    // logger.publish(3, `${collectionName}`, 'findByPattern:req', { attributes });
+
     const deviceFilter = {
       where: {
         and: [
@@ -275,13 +277,14 @@ module.exports = function(Device) {
     //     ownerId: attributes.ownerId,
     //   });
     // }
+    // logger.publish(2, `${collectionName}`, 'findByPattern:filter', deviceFilter);
 
     const device = await Device.findOne(deviceFilter);
     if (!device || !device.id) {
       throw utils.buildError(403, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
     }
 
-    logger.publish(3, `${collectionName}`, 'findByPattern:res', {
+    logger.publish(4, `${collectionName}`, 'findByPattern:res', {
       deviceName: device.name,
       deviceId: device.id,
       sensor: device.sensors() && device.sensors()[0],
@@ -307,6 +310,8 @@ module.exports = function(Device) {
 
     filter.ownerType = 'Device';
     filter.public = true;
+    // todo add limit
+
     /* eslint-disable security/detect-non-literal-regexp */
     const whereFilter = {
       or: [

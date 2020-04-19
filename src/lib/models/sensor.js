@@ -101,7 +101,7 @@ export const compose = (device, attributes, isNewInstance = true) => {
       type: attributes.type,
       method: attributes.method,
       createdAt: Date.now(),
-      lastSignal: attributes.lastSignal,
+      lastSignal: attributes.lastSignal || Date.now(),
       resources: attributes.resources,
       resource: Number(attributes.resource),
       value: attributes.value,
@@ -131,16 +131,10 @@ export const compose = (device, attributes, isNewInstance = true) => {
     const keys = Object.keys(attributes);
     keys.forEach(key => {
       // special check for key === "value" ?
-      // if (key === 'resources') {
-      //   // eslint-disable-next-line security/detect-object-injection
-      //   sensor[key] = { ...attributes[key], ...sensor[key] };
-      // } else {
-      //   // eslint-disable-next-line security/detect-object-injection
-      //   sensor[key] = attributes[key];
-      // }
       // eslint-disable-next-line security/detect-object-injection
       sensor[key] = attributes[key] || sensor[key];
     });
+    sensor.lastSignal = attributes.lastSignal || Date.now();
     sensor.isNewInstance = isNewInstance;
     sensor.devEui = device.devEui;
     sensor.devAddr = device.devAddr;
@@ -456,12 +450,17 @@ export const persistingResource = async (app, sensor, client) => {
  */
 export const onBeforeSave = async ctx => {
   // if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
-  if (ctx.instance && ctx.instance.id) {
+  if (ctx.instance) {
     logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
-    if (ctx.instance.resources) {
-      await replaceResources(ctx.instance, ctx.instance.resources);
+    if (ctx.instance.id) {
+      if (ctx.instance.resources) {
+        await replaceResources(ctx.instance, ctx.instance.resources);
+      }
+      await Promise.all(filteredProperties.map(p => ctx.instance.unsetAttribute(p)));
+    } else {
+      ctx.instance.createdAt = new Date();
     }
-    await Promise.all(filteredProperties.map(p => ctx.instance.unsetAttribute(p)));
+    // ctx.instance.lastSignal = new Date();
   } else if (ctx.data) {
     logger.publish(4, `${collectionName}`, 'onBeforePartialSave:req', ctx.data);
     if (ctx.data.resources) {
@@ -472,9 +471,7 @@ export const onBeforeSave = async ctx => {
         const sensors = await ctx.Model.find({ where: ctx.where });
         if (sensors && sensors.length > 0) {
           await Promise.all(
-            sensors.map(async sensor => {
-              return replaceResources(sensor, ctx.data.resources);
-            }),
+            sensors.map(async sensor => replaceResources(sensor, ctx.data.resources)),
           );
         }
       }

@@ -570,7 +570,7 @@ module.exports = function(Sensor) {
      */
     Sensor.prototype.__replace__measurements = async function(attributes, filter) {
       if (!filter) filter = { where: {} };
-      console.log('__replace__measurements:req', { filter, attributes });
+      // console.log('__replace__measurements:req', { filter, attributes });
       try {
         const result = await Measurement.replace(
           {
@@ -583,10 +583,10 @@ module.exports = function(Sensor) {
           },
           attributes,
         );
-        console.log('__replace__measurements:res', result);
+        // console.log('__replace__measurements:res', result);
         return result;
       } catch (error) {
-        console.log('__replace__measurements:err', error);
+        // console.log('__replace__measurements:err', error);
         return null;
       }
     };
@@ -606,8 +606,7 @@ module.exports = function(Sensor) {
         // deviceId: this.deviceId.toString(),
         // ownerId: this.ownerId.toString(),
       });
-      console.log('__delete__measurements:res', result);
-      return true;
+      return result;
     };
 
     /* eslint-enable camelcase */
