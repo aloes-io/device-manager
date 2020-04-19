@@ -364,17 +364,17 @@ const saveFile = async (app, sensor) => {
  * @param {object} app - Loopback app
  * @param {object} sensor - Sensor instance
  * @param {object} client - MQTT client
- * @returns {Promise<object | null>} point
+ * @returns {Promise<object | null>} measurement
  */
 const saveMeasurement = async (app, sensor, client) => {
   const Measurement = app.models.Measurement;
-  const measurement = await Measurement.compose(sensor);
-  const point = await Measurement.create(measurement);
-  if (point && point.id) {
-    //  console.log('influx measurement : ', point.id);
+  const point = Measurement.compose(sensor);
+  const measurement = await Measurement.create(point);
+  if (measurement && measurement.id) {
+    //  console.log('influx measurement : ', measurement.id);
     // todo fix id generation error
-    await Measurement.publish(sensor.deviceId, point.id, 'POST', client);
-    return point;
+    await Measurement.publish(sensor.deviceId, measurement.id, 'POST', client);
+    return measurement;
   }
   return null;
 };
@@ -434,8 +434,7 @@ export const persistingResource = async (app, sensor, client) => {
       return null;
     }
     // eslint-disable-next-line security/detect-object-injection
-    const persistedResource = await saveSensorRelations[method](app, sensor, client);
-    return persistedResource;
+    return saveSensorRelations[method](app, sensor, client);
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'persistingResource:err', error);
     return null;
@@ -503,7 +502,7 @@ export const onAfterSave = async ctx => {
  * @method module:Sensor~deleteProps
  * @param {object} app - Loopback app
  * @param {object} instance
- * @returns {Promise<function>} Sensor.publish
+ * @returns {Promise<boolean>}
  */
 const deleteProps = async (app, sensor) => {
   try {
@@ -513,8 +512,10 @@ const deleteProps = async (app, sensor) => {
     }).catch(e => e);
     await deleteResources(sensor);
     await app.models.Sensor.publish(sensor.deviceId, sensor, 'DELETE');
+    return true;
   } catch (error) {
     logger.publish(3, `${collectionName}`, 'deleteProps:err', error);
+    return false;
   }
 };
 

@@ -163,9 +163,7 @@ module.exports = function(Sensor) {
         device,
         attributes,
       );
-      const newSensor = await device.sensors.create(sensor);
-      // newSensor = JSON.parse(JSON.stringify(newSensor));
-      return newSensor;
+      return device.sensors.create(sensor);
     }
     if (device.sensors()[0] && device.sensors()[0].id) {
       sensor = compose(
@@ -195,15 +193,15 @@ module.exports = function(Sensor) {
     if (sensor.isNewInstance && sensor.icons) {
       sensor.method = 'HEAD';
       await Sensor.replaceById(sensor.id, sensor);
-      await Sensor.publish(sensor.deviceId, sensor, 'HEAD', client);
-    } else if (!sensor.isNewInstance && sensor.id) {
+      return Sensor.publish(sensor.deviceId, sensor, 'HEAD', client);
+    }
+    if (!sensor.isNewInstance && sensor.id) {
       sensor.method = 'HEAD';
       sensor.frameCounter = 0;
       await Sensor.replaceById(sensor.id, sensor);
-      await Sensor.publish(sensor.deviceId, sensor, 'HEAD', client);
-    } else {
-      throw utils.buildError(400, 'INVALID_SENSOR', 'No valid sensor to register');
+      return Sensor.publish(sensor.deviceId, sensor, 'HEAD', client);
     }
+    throw utils.buildError(400, 'INVALID_SENSOR', 'No valid sensor to register');
   };
 
   /**
@@ -435,7 +433,7 @@ module.exports = function(Sensor) {
    * @property {object} message.attributes - IotAgent parsed message
    * @property {object} [message.sensor] - Found sensor instance
    * @property {object} message.client - MQTT client
-   * @returns {function} Sensor.onPublish
+   * @returns {Promise<function | null>} Sensor.onPublish
    */
   Sensor.on('publish', async message => {
     try {
@@ -445,9 +443,10 @@ module.exports = function(Sensor) {
       if (!device || (!attributes && !sensor)) {
         throw new Error('Message missing properties');
       }
-      await Sensor.onPublish(device, attributes, sensor, client);
+      return Sensor.onPublish(device, attributes, sensor, client);
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-publish:err', error);
+      return null;
     }
   });
 
@@ -518,7 +517,7 @@ module.exports = function(Sensor) {
      * Get sensor measurement from timeseries store
      * @method module:Sensor.prototype.__get__measurements
      * @param {object} filter Measurement filter
-     * @returns {Promise<function>} module:Measurement.find
+     * @returns {Promise<object[]>} module:Measurement.find
      */
     Sensor.prototype.__get__measurements = async function(filter) {
       if (!filter) filter = { where: {} };
@@ -566,7 +565,7 @@ module.exports = function(Sensor) {
      * @method module:Sensor.prototype.__replace__measurements
      * @param {object} attributes
      * @param {object} filter
-     * @returns {Promise<function>} module:Measurement.replace
+     * @returns {Promise<object[] | null>} module:Measurement.replace
      */
     Sensor.prototype.__replace__measurements = async function(attributes, filter) {
       if (!filter) filter = { where: {} };
@@ -595,7 +594,7 @@ module.exports = function(Sensor) {
      * Delete sensor measurement from timeseries store
      * @method module:Sensor.prototype.__delete__measurements
      * @param {object} filter
-     * @returns {Promise<function>} module:Measurement.delete
+     * @returns {Promise<boolean>} module:Measurement.delete
      */
     Sensor.prototype.__delete__measurements = async function(filter) {
       if (!filter) filter = {};

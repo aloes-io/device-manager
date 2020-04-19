@@ -52,12 +52,12 @@ module.exports = function(SensorResource) {
   };
 
   /**
-   * Find Sensor instance from the cache
+   * Find SensorResource instance(s) from the cache
    * @method module:SensorResource.find
    * @param {string} deviceId - Device Id owning the sensor
    * @param {string} sensorId - Sensor instance Id
    * @param {string} [resourceId] - OMA Resource key
-   * @returns {object} resource(s)
+   * @returns {Promise<object[] | null>} resources
    */
   SensorResource.find = async (deviceId, sensorId, resourceId) => {
     let result = null;
@@ -92,13 +92,13 @@ module.exports = function(SensorResource) {
   };
 
   /**
-   * Create or update sensor instance into the cache memory
+   * Create or update SensorResource instance(s) into the cache memory
    * @method module:SensorResource.save
    * @param {string} deviceId - Device Id owning the sensor
    * @param {string} sensorId - Sensor Id owning the resource
    * @param {object} resources - Resource(s) instance to save
    * @param {number} [ttl] - Expire delay
-   * @returns {object} sensor
+   * @returns {Promise<object[] | null>} resources
    */
   SensorResource.save = async (deviceId, sensorId, resources, ttl) => {
     try {
@@ -134,12 +134,12 @@ module.exports = function(SensorResource) {
   };
 
   /**
-   * Delete a sensor stored in cache
+   * Delete a SensorResource instance(s) stored in cache
    * @method module:SensorResource.remove
    * @param {string} deviceId - Device Id owning the sensor
    * @param {string} sensorId - Sensor instance Id
    * @param {string} [resourceId] - OMA Resource key
-   * @returns {boolean} success
+   * @returns {Promise<boolean>} success
    */
   SensorResource.remove = async (deviceId, sensorId, resourceId) => {
     try {
@@ -165,7 +165,7 @@ module.exports = function(SensorResource) {
    * @param {string} sensorId - Sensor instance Id
    * @param {string} resourceId - OMA Resource key
    * @param {number} [ttl] - Sensor instance Id
-   * @returns {boolean} success
+   * @returns {Promise<boolean>} success
    */
   SensorResource.expireCache = async (deviceId, sensorId, resourceId, ttl = 1) => {
     const key = setCacheKey(deviceId, sensorId, resourceId);

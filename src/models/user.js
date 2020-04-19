@@ -43,7 +43,7 @@ module.exports = function(User) {
    * @async
    * @method module:User.findByEmail
    * @param {string} email - User email address
-   * @returns {Promise<object>} mail result
+   * @returns {Promise<object>} user
    */
   User.findByEmail = async email => {
     logger.publish(4, `${collectionName}`, 'findByEmail:req', email);
@@ -70,7 +70,7 @@ module.exports = function(User) {
    * @async
    * @method module:User.verifyEmail
    * @param {object} user - User instance
-   * @returns {Promise<object>} mail result
+   * @returns {Promise<object>} user
    */
   User.verifyEmail = async user => {
     logger.publish(4, `${collectionName}`, 'verifyEmail:req', user);
@@ -244,7 +244,7 @@ module.exports = function(User) {
    * @param {object} message - Parsed MQTT message.
    * @property {object} message.client - MQTT client
    * @property {boolean} message.status - MQTT client status.
-   * @returns {Promise<function>} User.updateStatus
+   * @returns {Promise<function | null>} User.updateStatus
    */
   User.on('client', async message => {
     logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
@@ -301,8 +301,8 @@ module.exports = function(User) {
    */
   User.beforeRemote('**', onBeforeRemote);
 
-  User.afterRemoteError('**', (ctx, next) => {
-    logger.publish(4, `${collectionName}`, `afterRemote ${ctx.methodString}:err`, ctx.error);
+  User.afterRemoteError('*', (ctx, next) => {
+    logger.publish(2, `${collectionName}`, `afterRemote ${ctx.methodString}:err`, ctx.error);
     if (ctx.methodString === 'confirm') {
       ctx.res.redirect(process.env.HTTP_CLIENT_URL);
     }

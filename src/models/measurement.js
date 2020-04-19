@@ -1,7 +1,7 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable no-param-reassign */
-import jugglerUtils from 'loopback-datasource-juggler/lib/utils';
+// import jugglerUtils from 'loopback-datasource-juggler/lib/utils';
 import { publish } from 'iot-agent';
 import { publishToDeviceApplications } from '../lib/models/device';
 import {

@@ -51,7 +51,7 @@ const uploadToContainer = (app, ctx, ownerId, options) =>
 
 const uploadBufferToContainer = (app, buffer, ownerId, name) =>
   new Promise((resolve, reject) => {
-    fileType
+    return fileType
       .fromBuffer(buffer)
       .then(type => {
         if (!type || !type.ext) reject(new Error('File type information not found'));
@@ -338,13 +338,13 @@ module.exports = function(Files) {
    * @param {string} name - File name
    * @returns {Promise<object>} fileMeta
    */
-  Files.download = async (ctx, ownerId, name) => {
+  Files.download = (ctx, ownerId, name) => {
     // let auth = false;
     ctx.res.set('Access-Control-Allow-Origin', '*');
     logger.publish(4, `${collectionName}`, 'download:req', { ownerId, name });
     const readStream = Files.app.models.container.downloadStream(ownerId, name);
     if (readStream && readStream !== null) {
-      const endStream = new Promise((resolve, reject) => {
+      return new Promise((resolve, reject) => {
         const bodyChunks = [];
         readStream.on('data', d => {
           bodyChunks.push(d);
@@ -359,10 +359,6 @@ module.exports = function(Files) {
         });
         readStream.on('error', reject);
       });
-
-      const file = await endStream;
-      return file;
-      // throw utils.buildError(304, 'ERROR_STREAMING', 'Error while reading stream');
     }
     throw utils.buildError(404, 'NOT_FOUND', 'no file found');
   };

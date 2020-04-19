@@ -759,7 +759,7 @@ module.exports = function(Device) {
    * @param {object} message - Parsed MQTT message.
    * @property {object} message.client - MQTT client
    * @property {boolean} message.status - MQTT client status.
-   * @returns {Promise<function>} Device.updateStatus
+   * @returns {Promise<function | null>} Device.updateStatus
    */
   Device.on('client', async message => {
     logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
@@ -767,9 +767,9 @@ module.exports = function(Device) {
     const { client, status } = message;
     if (!client || !client.user || status === undefined) {
       // throw new Error('Message missing properties');
-      return;
+      return null;
     }
-    await Device.updateStatus(client, status);
+    return Device.updateStatus(client, status);
   });
 
   /**
@@ -780,7 +780,7 @@ module.exports = function(Device) {
    * @property {object} message.pattern - Pattern detected by Iot-Agent
    * @property {object} message.device - Found Device instance
    * @property {object}[message.client] - MQTT client
-   * @returns {Promise<functions>} Device.onPublish | Device.execute
+   * @returns {Promise<functions | null>} Device.onPublish | Device.execute
    */
   Device.on('publish', async message => {
     try {
@@ -789,12 +789,14 @@ module.exports = function(Device) {
       logger.publish(4, collectionName, 'on-publish:req', pattern.name);
       if (!pattern) throw new Error('Message is missing pattern');
       if (device && device !== null) {
-        await Device.execute(device, pattern.params.method, client);
+        return Device.execute(device, pattern.params.method, client);
       } else if (packet) {
-        await Device.onPublish(packet, pattern, client);
+        return Device.onPublish(packet, pattern, client);
       }
+      return null;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-publish:err', error);
+      return null;
     }
   });
 
@@ -807,11 +809,11 @@ module.exports = function(Device) {
    *
    * @event stopped
    */
-  Device.on('stopped', async () => {
+  Device.on('stopped', () => {
     if (utils.isMasterProcess(process.env)) {
       logger.publish(3, `${collectionName}`, 'on-stop:res', '');
       // Device.delClock();
-      // await Device.updateAll({ status: true }, { status: false, clients: [] });
+      // return Device.updateAll({ status: true }, { status: false, clients: [] });
     }
   });
 

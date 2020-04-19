@@ -761,9 +761,9 @@ Reset exisiting limiters for user/ip on successful authorisation
         * [~authenticateModels(username, password, [model])](#module_Server..authenticateModels) ⇒ <code>Promise.&lt;string&gt;</code>
         * [~authenticateInstance(client, username, password)](#module_Server..authenticateInstance) ⇒ <code>Promise.&lt;object&gt;</code>
         * ["publish" (topic, payload, [retain], [qos])](#event_publish) ⇒ <code>Promise.&lt;function()&gt;</code>
-        * ["start" (config)](#event_start) ⇒ <code>function</code>
+        * ["start" (config)](#event_start) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["started" (config)](#event_started)
-        * ["stop" (signal)](#event_stop) ⇒ <code>function</code>
+        * ["stop" (signal)](#event_stop) ⇒ <code>Promise.&lt;function()&gt;</code>
 
 <a name="module_Server.publish"></a>
 
@@ -891,11 +891,11 @@ Event reporting that a/several sensor instance(s) will be deleted.
 
 <a name="event_start"></a>
 
-### "start" (config) ⇒ <code>function</code>
+### "start" (config) ⇒ <code>Promise.&lt;function()&gt;</code>
 Event reporting that the application and all subservices should start.
 
 **Kind**: event emitted by [<code>Server</code>](#module_Server)  
-**Returns**: <code>function</code> - Server.init  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - Server.init  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -915,11 +915,11 @@ Event reporting that the application and all subservices have started.
 
 <a name="event_stop"></a>
 
-### "stop" (signal) ⇒ <code>function</code>
+### "stop" (signal) ⇒ <code>Promise.&lt;function()&gt;</code>
 Event reporting that the application and all subservice should stop.
 
 **Kind**: event emitted by [<code>Server</code>](#module_Server)  
-**Returns**: <code>function</code> - Server.stop  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - Server.stop  
 
 | Param | Type | Description |
 | --- | --- | --- |

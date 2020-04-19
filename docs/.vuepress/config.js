@@ -1,10 +1,12 @@
+const pkg = require('../../package.json');
+
 module.exports = {
   title: 'Aloes - Device manager',
   base: '/device-manager/',
   dest: 'public',
   themeConfig: {
     logo: '/logo.png',
-    repo: 'https://framagit.org/aloes/device-manager',
+    repo: pkg.repository.url,
     repoLabel: 'Git',
     docsDir: 'docs',
     nav: [{ text: 'Readme', link: '/readme/' }, { text: 'API', link: '/api/' }],

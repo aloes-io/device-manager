@@ -77,11 +77,11 @@ utils.mkDirByPathSync = async (targetDir, { isRelativeToScript = false } = {}) =
  * @returns {Promise<object>} - HTML file and options
  */
 utils.renderTemplate = options =>
-  new Promise((resolve, reject) => {
+  new Promise((resolve, reject) =>
     ejs.renderFile(options.template, options, (err, html) =>
       err ? reject(err) : resolve({ ...options, html }),
-    );
-  });
+    ),
+  );
 
 /**
  * Promise wrapper to read a file
@@ -91,10 +91,10 @@ utils.renderTemplate = options =>
  * @returns {Promise<object>}
  */
 utils.readFile = (filePath, opts = 'utf8') =>
-  new Promise((resolve, reject) => {
+  new Promise((resolve, reject) =>
     // eslint-disable-next-line security/detect-non-literal-fs-filename
-    fs.readFile(filePath, opts, (err, data) => (err ? reject(err) : resolve(data)));
-  });
+    fs.readFile(filePath, opts, (err, data) => (err ? reject(err) : resolve(data))),
+  );
 
 /**
  * Promise wrapper to write a file
@@ -105,10 +105,10 @@ utils.readFile = (filePath, opts = 'utf8') =>
  * @returns {Promise<object>}
  */
 utils.writeFile = (filePath, data, opts = 'utf8') =>
-  new Promise((resolve, reject) => {
+  new Promise((resolve, reject) =>
     // eslint-disable-next-line security/detect-non-literal-fs-filename
-    fs.appendFile(filePath, data, opts, err => (err ? reject(err) : resolve()));
-  });
+    fs.appendFile(filePath, data, opts, err => (err ? reject(err) : resolve())),
+  );
 
 /**
  * Promise wrapper to remove a file
@@ -117,10 +117,10 @@ utils.writeFile = (filePath, data, opts = 'utf8') =>
  * @returns {Promise<object>}
  */
 utils.removeFile = filePath =>
-  new Promise((resolve, reject) => {
+  new Promise((resolve, reject) =>
     // eslint-disable-next-line security/detect-non-literal-fs-filename
-    fs.unlink(filePath, err => (err && err.code !== 'ENOENT' ? reject(err) : resolve()));
-  });
+    fs.unlink(filePath, err => (err && err.code !== 'ENOENT' ? reject(err) : resolve())),
+  );
 
 /**
  * Iterate over each KV Store keys found in cache

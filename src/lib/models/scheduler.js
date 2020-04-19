@@ -420,5 +420,5 @@ export const syncRunningTimers = async (Scheduler, delay) => {
       return null;
     }
   });
-  await Promise.all(promises);
+  return Promise.all(promises);
 };

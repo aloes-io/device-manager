@@ -350,7 +350,7 @@ export const onAfterSave = async ctx => {
  * @method module:Device~deleteProps
  * @param {object} app - Loopback app
  * @param {object} instance
- * @returns {Promise<function>} Device.publish
+ * @returns {Promise<boolean>}
  */
 const deleteProps = async (app, instance) => {
   try {
@@ -365,8 +365,10 @@ const deleteProps = async (app, instance) => {
       }
       await app.models.Device.publish(instance, 'DELETE');
     }
+    return true;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
+    return false;
   }
 };
 

@@ -426,7 +426,7 @@ app.init = async config => {
  * Event reporting that the application and all subservices should start.
  * @event start
  * @param {object} config - Parsed env variables
- * @returns {function} Server.init
+ * @returns {Promise<function>} Server.init
  */
 app.on('start', app.init);
 
@@ -498,7 +498,7 @@ app.stop = async signal => {
  * Event reporting that the application and all subservice should stop.
  * @event stop
  * @param {string} signal - process signal
- * @returns {function} Server.stop
+ * @returns {Promise<function>} Server.stop
  */
 app.on('stop', app.stop);
 
