@@ -373,25 +373,26 @@ module.exports = function(Sensor) {
       },
     });
 
-    const promises = await omaObjectsList.map(async obj => {
-      try {
-        const whereFilter = {
-          or: [
-            { and: [{ name: { like: new RegExp(`.*${obj.name}.*`, 'i') } }, { type: obj.id }] },
-            { transportProtocol: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
-          ],
-        };
-        const sensors = await Sensor.find({
-          where: whereFilter,
-        });
-        return !sensors || sensors === null ? [] : [...JSON.parse(JSON.stringify(sensors))];
-      } catch (e) {
-        return null;
-      }
-    });
+    const result = await Promise.all(
+      omaObjectsList.map(async obj => {
+        try {
+          const whereFilter = {
+            or: [
+              { and: [{ name: { like: new RegExp(`.*${obj.name}.*`, 'i') } }, { type: obj.id }] },
+              { transportProtocol: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+            ],
+          };
+          const sensors = await Sensor.find({
+            where: whereFilter,
+          });
+          return !sensors || sensors === null ? [] : [...JSON.parse(JSON.stringify(sensors))];
+        } catch (e) {
+          return null;
+        }
+      }),
+    );
     /* eslint-enable security/detect-non-literal-regexp */
 
-    const result = await Promise.all(promises);
     if (!result || result === null) {
       return [];
     }
@@ -418,8 +419,7 @@ module.exports = function(Sensor) {
         // eslint-disable-next-line security/detect-object-injection
         filteredProperties.forEach(p => delete sensor[p]);
       });
-      const result = utils.exportToCSV(sensors, filter);
-      return result;
+      return utils.exportToCSV(sensors, filter);
     }
     return null;
   };
@@ -435,7 +435,7 @@ module.exports = function(Sensor) {
    * @property {object} message.client - MQTT client
    * @returns {Promise<function | null>} Sensor.onPublish
    */
-  Sensor.on('publish', async message => {
+  Sensor.on('publish', message => {
     try {
       // if (!message || message === null) throw new Error('Message empty');
       const { attributes, client, device, sensor } = message;
@@ -462,7 +462,7 @@ module.exports = function(Sensor) {
      * @method module:Sensor.prototype.__get__resources
      * @returns {Promise<function>} module:SensorResource.find
      */
-    Sensor.prototype.__get__resources = async function() {
+    Sensor.prototype.__get__resources = function() {
       return SensorResource.find(this.deviceId, this.id);
     };
 
@@ -472,7 +472,7 @@ module.exports = function(Sensor) {
      * @param {string} id Resource key
      * @returns {Promise<function>} module:SensorResource.find
      */
-    Sensor.prototype.__findById__resources = async function(id) {
+    Sensor.prototype.__findById__resources = function(id) {
       return SensorResource.find(this.deviceId, this.id, id);
     };
 
@@ -482,7 +482,7 @@ module.exports = function(Sensor) {
      * @param {object} resources Resources key/value object
      * @returns {Promise<function>} module:SensorResource.save
      */
-    Sensor.prototype.__create__resources = async function(resources) {
+    Sensor.prototype.__create__resources = function(resources) {
       return SensorResource.save(this.deviceId, this.id, resources);
     };
 
@@ -492,7 +492,7 @@ module.exports = function(Sensor) {
      * @param {object} resources Resources key/value object
      * @returns {Promise<function>} module:SensorResource.save
      */
-    Sensor.prototype.__replace__resources = async function(resources) {
+    Sensor.prototype.__replace__resources = function(resources) {
       return SensorResource.save(this.deviceId, this.id, resources);
     };
 
@@ -505,7 +505,7 @@ module.exports = function(Sensor) {
      * @method module:Sensor.prototype.__delete__resources
      * @returns {Promise<function>} module:SensorResource.remove
      */
-    Sensor.prototype.__delete__resources = async function() {
+    Sensor.prototype.__delete__resources = function() {
       return SensorResource.remove(this.deviceId, this.id);
     };
 

@@ -193,11 +193,11 @@ export const compose = (device, attributes, isNewInstance = true) => {
 
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable camelcase */
-export const getResources = async sensor => sensor.__get__resources(sensor.deviceId, sensor.id);
+export const getResources = sensor => sensor.__get__resources(sensor.deviceId, sensor.id);
 
-export const replaceResources = async (sensor, resources) => sensor.__replace__resources(resources);
+export const replaceResources = (sensor, resources) => sensor.__replace__resources(resources);
 
-export const deleteResources = async sensor => sensor.__delete__resources();
+export const deleteResources = sensor => sensor.__delete__resources();
 /* eslint-enable no-underscore-dangle */
 /* eslint-enable camelcase */
 
