@@ -4,7 +4,8 @@
 /* eslint-disable security/detect-object-injection  */
 /* eslint-disable security/detect-non-literal-fs-filename  */
 
-import { expect } from 'chai';
+import chai, { expect } from 'chai';
+import chaiDeepMatch from 'chai-deep-match';
 import lbe2e from 'lb-declarative-e2e-test';
 import mqtt from 'mqtt';
 import app from '../index';
@@ -12,6 +13,8 @@ import testHelper, { clientEvent, timeout } from '../lib/test-helper';
 import utils from '../lib/utils';
 
 require('../services/broker');
+
+chai.use(chaiDeepMatch);
 
 const delayBeforeTesting = 7000;
 const restApiPath = `${process.env.REST_API_ROOT}`;
@@ -55,7 +58,7 @@ const sensorTest = () => {
       );
       devices = deviceModels.map(model => model.toJSON());
 
-      const sensorTypes = [3300, 3306, 3303, 3336, 3340, 3341, 3342, 3349];
+      const sensorTypes = [null, 3306, 3303, 3336, 3340, 3341, 3342, 3349];
       const sensorModels = await SensorModel.create(
         Array(sensorsCount)
           .fill('')
@@ -66,6 +69,7 @@ const sensorTest = () => {
           ),
       );
       sensors = sensorModels.map(model => model.toJSON());
+      // console.log('created sensors', sensors);
 
       // TODO test more sensor types
       const temperaturePacket = {
@@ -148,6 +152,17 @@ const sensorTest = () => {
                   expect: 401,
                 },
                 {
+                  name: 'everyone CANNOT create resources',
+                  verb: 'post',
+                  url: () => `${apiUrl}${sensors[1].id}/resources`,
+                  body: () => ({
+                    resources: {
+                      '5700': 30,
+                    },
+                  }),
+                  expect: 401,
+                },
+                {
                   name: 'user CAN create',
                   verb: 'post',
                   auth: profiles.user,
@@ -159,7 +174,7 @@ const sensorTest = () => {
                   name: 'user CAN create OWN resources',
                   verb: 'post',
                   auth: profiles.user,
-                  url: () => `${apiUrl}${sensors[2].id}/resources`,
+                  url: () => `${apiUrl}${sensors[1].id}/resources`,
                   body: () => ({
                     resources: {
                       '5700': 30,
@@ -169,6 +184,30 @@ const sensorTest = () => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body).to.deep.equal({
                       '5700': 30,
+                    });
+                  },
+                },
+                {
+                  name: 'user CAN create OWN measurements',
+                  verb: 'post',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}${sensors[1].id}/measurements`,
+                  body: () => ({
+                    value: 30,
+                    timestamp: Date.now(),
+                    type: sensors[1].type.toString(),
+                    resource: sensors[1].resource.toString(),
+                  }),
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(200);
+                    expect(resp.body).to.deep.match({
+                      value: 30,
+                      type: sensors[1].type.toString(),
+                      resource: sensors[1].resource.toString(),
+                      sensorId: sensors[1].id,
+                      deviceId: sensors[1].deviceId,
+                      nativeSensorId: sensors[1].nativeSensorId,
+                      nativeNodeId: sensors[1].nativeNodeId,
                     });
                   },
                 },
@@ -206,6 +245,12 @@ const sensorTest = () => {
                   expect: 401,
                 },
                 {
+                  name: 'everyone CANNOT read ALL measurements',
+                  verb: 'get',
+                  url: () => `${apiUrl}${sensors[4].id}/measurements`,
+                  expect: 401,
+                },
+                {
                   name: 'user CAN read OWN',
                   verb: 'get',
                   auth: profiles.user,
@@ -216,20 +261,40 @@ const sensorTest = () => {
                   name: 'user CAN read OWN resources',
                   verb: 'get',
                   auth: profiles.user,
-                  url: () => `${apiUrl}${sensors[4].id}/resources`,
+                  url: () => `${apiUrl}${sensors[2].id}/resources`,
                   expect: resp => {
                     expect(resp.status).to.be.equal(200);
-                    expect(resp.body).to.deep.equal(sensors[4].resources);
+                    expect(resp.body).to.deep.equal(sensors[2].resources);
                   },
                 },
                 {
                   name: 'user CAN read OWN resources by id',
                   verb: 'get',
                   auth: profiles.user,
-                  url: () => `${apiUrl}${sensors[2].id}/resources/5700`,
+                  url: () => `${apiUrl}${sensors[1].id}/resources/5700`,
                   expect: resp => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body).to.deep.equal({ '5700': 30 });
+                  },
+                },
+                {
+                  name: 'user CAN read OWN measurements',
+                  verb: 'get',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}${sensors[1].id}/measurements`,
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(200);
+                    // console.log('user CAN read OWN measurements', resp.body);
+                    const baseMeasurement = {
+                      ownerId: sensors[1].ownerId.toString(),
+                      deviceId: sensors[1].deviceId.toString(),
+                      nativeNodeId: sensors[1].nativeNodeId,
+                      nativeSensorId: sensors[1].nativeSensorId,
+                      sensorId: sensors[1].id.toString(),
+                      type: sensors[1].type.toString(),
+                      value: 30,
+                    };
+                    expect(resp.body).to.deep.match([baseMeasurement]);
                   },
                 },
                 {
@@ -362,6 +427,42 @@ const sensorTest = () => {
                     }),
                   ],
                 },
+                // {
+                //   name: 'user CAN replace OWN measurements',
+                //   steps: [
+                //     {
+                //       verb: 'get',
+                //       auth: profiles.user,
+                //       url: () => `${apiUrl}${sensors[1].id}/measurements`,
+                //       expect: 200,
+                //     },
+                //     step0Response => ({
+                //       verb: 'put',
+                //       auth: profiles.user,
+                //       url: () => `${apiUrl}${sensors[1].id}/measurements`,
+                //       body: () => ({
+                //         attributes: {
+                //           value: 30,
+                //           timestamp: new Date(),
+                //         },
+                //         filter: {
+                //           where: {
+                //             type: sensors[1].type.toString(),
+                //             resource: sensors[1].resource.toString(),
+                //           },
+                //         },
+                //       }),
+                //       expect: resp => {
+                //         expect(resp.status).to.be.equal(200);
+                //         console.log('user CAN replace OWN measurements', resp.body);
+                //         // expect(resp.body).to.deep.equal({
+                //         //   ...step0Response.body,
+                //         //   '5700': 30,
+                //         // });
+                //       },
+                //     }),
+                //   ],
+                // },
                 {
                   name: 'admin CAN replace ALL',
                   steps: [
@@ -401,27 +502,35 @@ const sensorTest = () => {
                   name: 'user CAN delete OWN resources',
                   verb: 'delete',
                   auth: profiles.user,
-                  url: () => `${apiUrl}${sensors[2].id}/resources`,
+                  url: () => `${apiUrl}${sensors[1].id}/resources`,
                   expect: resp => {
                     expect(resp.status).to.be.equal(200);
+                  },
+                },
+                {
+                  name: 'user CAN delete OWN measurements',
+                  verb: 'delete',
+                  auth: profiles.user,
+                  url: () => `${apiUrl}${sensors[1].id}/measurements`,
+                  expect: resp => {
+                    expect(resp.status).to.be.equal(204);
                   },
                 },
                 {
                   name: 'user CAN delete OWN',
                   verb: 'delete',
                   auth: profiles.user,
-                  url: () => `${apiUrl}${sensors[2].id}`,
+                  url: () => `${apiUrl}${sensors[1].id}`,
                   expect: resp => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body.count).to.be.equal(1);
                   },
                 },
-
                 {
                   name: 'admin CAN delete ALL',
                   verb: 'delete',
                   auth: profiles.admin,
-                  url: () => `${apiUrl}${sensors[1].id}`,
+                  url: () => `${apiUrl}${sensors[0].id}`,
                   expect: resp => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body.count).to.be.equal(1);
@@ -460,7 +569,7 @@ const sensorTest = () => {
                   auth: profiles.user,
                   url: () => `${apiUrl}search`,
                   body: () => ({
-                    filter: { text: sensors[0].type.toString() },
+                    filter: { text: sensors[2].type.toString() },
                   }),
                   expect: resp => {
                     expect(resp.status).to.be.equal(200);
@@ -472,7 +581,7 @@ const sensorTest = () => {
                   auth: profiles.user,
                   url: () => `${apiUrl}search`,
                   body: () => ({
-                    filter: { text: sensors[0].type.toString(), limit: 2 },
+                    filter: { text: sensors[2].type.toString(), limit: 2 },
                   }),
                   expect: resp => {
                     expect(resp.status).to.be.equal(200);
@@ -502,7 +611,7 @@ const sensorTest = () => {
                   url: () => `${apiUrl}export`,
                   body: () => ({
                     sensors,
-                    filter: { ownerId: sensors[0].ownerId, name: sensors[0].name },
+                    filter: { ownerId: sensors[2].ownerId, name: sensors[2].name },
                   }),
                   expect: 200,
                 },
@@ -518,7 +627,7 @@ const sensorTest = () => {
                     return {
                       device: { ...devices[1] },
                       sensor: {
-                        ...sensors[0],
+                        ...sensors[2],
                         value: 10,
                         // resources,
                       },
@@ -536,7 +645,7 @@ const sensorTest = () => {
                     {
                       verb: 'get',
                       auth: profiles.admin,
-                      url: () => `${apiUrl}${sensors[0].id}/resources`,
+                      url: () => `${apiUrl}${sensors[2].id}/resources`,
                       expect: 200,
                     },
                     step0Response => ({
@@ -546,8 +655,9 @@ const sensorTest = () => {
                       body: () => ({
                         device: { ...devices[1] },
                         sensor: {
-                          ...sensors[0],
-                          value: 10,
+                          ...sensors[2],
+                          value: '10',
+                          resource: 5700,
                           resources: { ...step0Response.body },
                         },
                         client: {
@@ -597,6 +707,32 @@ const sensorTest = () => {
         await timeout(async () => {
           const sensor = await SensorModel.findById(sensors[index].id);
           expect(sensor.value).to.be.equal(Number(packets[index].payload));
+
+          const measurements = await app.models.Measurement.find({
+            where: { sensorId: sensors[index].id.toString() },
+          });
+          const baseMeasurement = {
+            ownerId: sensors[index].ownerId.toString(),
+            deviceId: sensors[index].deviceId.toString(),
+            nativeNodeId: sensors[index].nativeNodeId,
+            nativeSensorId: sensors[index].nativeSensorId,
+            sensorId: sensors[index].id.toString(),
+            type: sensors[index].type.toString(),
+            // resource: sensors[index].resource.toString(),
+          };
+          expect(measurements).to.deep.match([
+            {
+              ...baseMeasurement,
+              resource: '5700',
+              value: 10,
+            },
+            {
+              ...baseMeasurement,
+              resource: '5700',
+              value: 35,
+            },
+          ]);
+
           const resources = await SensorResourceModel.find(
             sensors[index].deviceId,
             sensors[index].id,
@@ -657,6 +793,7 @@ const sensorTest = () => {
             sensors[index].deviceId,
             sensors[index].id,
           );
+
           expect(resources[sensor.resource]).to.be.equal(Number(packet.payload));
           const scheduler = JSON.parse(await SchedulerModel.get(`sensor-${sensor.id}`));
           expect(scheduler.sensorId).to.be.equal(sensor.id);
@@ -743,6 +880,7 @@ const sensorTest = () => {
             sensors[index].deviceId,
             sensors[index].id,
           );
+
           expect(resources[sensor.resource].toString()).to.be.equal(packets[index].payload);
           client.end(true);
         }, 150);
