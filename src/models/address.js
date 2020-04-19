@@ -175,6 +175,7 @@ module.exports = function(Address) {
     if (!filter || !filter.ownerType) {
       throw utils.buildError(400, 'INVALID_REQ', 'Missing argument');
     }
+    // todo add limit
     const whereFilter = {
       and: [{ ownerType: filter.ownerType }],
       // and: [{ public: true }],

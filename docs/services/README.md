@@ -38,7 +38,7 @@
         * [~getClients(broker, [id])](#module_Broker..getClients) ⇒ <code>array</code> \| <code>object</code>
         * [~getClientsByTopic(broker, topic)](#module_Broker..getClientsByTopic) ⇒ <code>Promise.&lt;array&gt;</code>
         * [~pickRandomClient(broker, clientIds)](#module_Broker..pickRandomClient) ⇒ <code>object</code>
-        * [~authentificationRequest(data)](#module_Broker..authentificationRequest) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~authentificationRequest(credentials)](#module_Broker..authentificationRequest) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onAuthenticate(client, [username], [password])](#module_Broker..onAuthenticate) ⇒ <code>Promise.&lt;number&gt;</code>
         * [~onAuthorizePublish(client, packet)](#module_Broker..onAuthorizePublish) ⇒ <code>boolean</code>
         * [~onAuthorizeSubscribe(client, packet)](#module_Broker..onAuthorizeSubscribe) ⇒ <code>boolean</code>
@@ -241,14 +241,14 @@ Give an array of clientIds, return a connected client
 
 <a name="module_Broker..authentificationRequest"></a>
 
-### Broker~authentificationRequest(data) ⇒ <code>Promise.&lt;object&gt;</code>
+### Broker~authentificationRequest(credentials) ⇒ <code>Promise.&lt;object&gt;</code>
 HTTP request to Aloes to validate credentials
 
 **Kind**: inner method of [<code>Broker</code>](#module_Broker)  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| data | <code>object</code> | Client instance and credentials |
+| credentials | <code>object</code> | Client instance and credentials |
 
 <a name="module_Broker..onAuthenticate"></a>
 
@@ -761,9 +761,9 @@ Reset exisiting limiters for user/ip on successful authorisation
         * [~authenticateModels(username, password, [model])](#module_Server..authenticateModels) ⇒ <code>Promise.&lt;string&gt;</code>
         * [~authenticateInstance(client, username, password)](#module_Server..authenticateInstance) ⇒ <code>Promise.&lt;object&gt;</code>
         * ["publish" (topic, payload, [retain], [qos])](#event_publish) ⇒ <code>Promise.&lt;function()&gt;</code>
-        * ["start" (config)](#event_start) ⇒ <code>function</code>
+        * ["start" (config)](#event_start) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["started" (config)](#event_started)
-        * ["stop" (signal)](#event_stop) ⇒ <code>function</code>
+        * ["stop" (signal)](#event_stop) ⇒ <code>Promise.&lt;function()&gt;</code>
 
 <a name="module_Server.publish"></a>
 
@@ -819,7 +819,7 @@ Authenticate with User method
 | Param | Type | Description |
 | --- | --- | --- |
 | username | <code>string</code> | MQTT client username |
-| password | <code>buffer</code> | MQTT client password |
+| password | <code>string</code> | MQTT client password |
 
 <a name="module_Server..deviceAuth"></a>
 
@@ -831,7 +831,7 @@ Authenticate with Device method
 | Param | Type | Description |
 | --- | --- | --- |
 | username | <code>string</code> | MQTT client username |
-| password | <code>buffer</code> | MQTT client password |
+| password | <code>string</code> | MQTT client password |
 
 <a name="module_Server..applicationAuth"></a>
 
@@ -843,7 +843,7 @@ Authenticate with Application method
 | Param | Type | Description |
 | --- | --- | --- |
 | username | <code>string</code> | MQTT client username |
-| password | <code>buffer</code> | MQTT client password |
+| password | <code>string</code> | MQTT client password |
 
 <a name="module_Server..authenticateModels"></a>
 
@@ -856,7 +856,7 @@ Iterate over each model to try authentication
 | Param | Type |
 | --- | --- |
 | username | <code>string</code> | 
-| password | <code>buffer</code> | 
+| password | <code>string</code> | 
 | [model] | <code>string</code> | 
 
 <a name="module_Server..authenticateInstance"></a>
@@ -872,7 +872,7 @@ Init external services ( MQTT broker )
 | --- | --- | --- |
 | client | <code>object</code> | Parsed MQTT client |
 | username | <code>string</code> | MQTT client username |
-| password | <code>buffer</code> | MQTT client password |
+| password | <code>string</code> | MQTT client password |
 
 <a name="event_publish"></a>
 
@@ -891,11 +891,11 @@ Event reporting that a/several sensor instance(s) will be deleted.
 
 <a name="event_start"></a>
 
-### "start" (config) ⇒ <code>function</code>
+### "start" (config) ⇒ <code>Promise.&lt;function()&gt;</code>
 Event reporting that the application and all subservices should start.
 
 **Kind**: event emitted by [<code>Server</code>](#module_Server)  
-**Returns**: <code>function</code> - Server.init  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - Server.init  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -915,11 +915,11 @@ Event reporting that the application and all subservices have started.
 
 <a name="event_stop"></a>
 
-### "stop" (signal) ⇒ <code>function</code>
+### "stop" (signal) ⇒ <code>Promise.&lt;function()&gt;</code>
 Event reporting that the application and all subservice should stop.
 
 **Kind**: event emitted by [<code>Server</code>](#module_Server)  
-**Returns**: <code>function</code> - Server.stop  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - Server.stop  
 
 | Param | Type | Description |
 | --- | --- | --- |

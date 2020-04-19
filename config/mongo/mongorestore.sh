@@ -5,7 +5,7 @@
 # some arguments don't have a corresponding value to go with it)
 
 usage() {
-    echo "Usage $0 -d /mongodump/dir -c mongo_docker_container_name"
+    echo "Usage $0 -db aloes_local -d /mongodump/dir -c mongo_docker_container_name"
 }
 
 while [[ $# > 1 ]]
@@ -35,27 +35,33 @@ case $key in
         ;;
     *)
         usage
-    exit 1
+        exit 1
         ;;
 esac
 shift # past argument or value
 done
 
-if [ -z "${DUMPDIR}" -o -z "${CONTAINERNAME}" ]; then
+if [ -z "${DUMPDIR}" -o -z "${DBNAME}" -o -z "${CONTAINERNAME}" ]; then
     usage
     exit 1
 fi
 
-echo "Attempting to restore MongoDB dump at ${DUMPDIR} into container ${CONTAINERNAME}"
+echo "Attempting to restore MongoDB dump for ${DBNAME} into container ${CONTAINERNAME}"
 read -r -p "Is this what you want? [y/N] " response
 case $response in
-    [yY][eE][sS]|[yY])
+  [yY][eE][sS]|[yY])
+    # copy dump source to remote container
     docker cp ${DUMPDIR} ${CONTAINERNAME}:${DUMPDIR}
+    
+    # restore in selected mongo database
     docker exec -i ${CONTAINERNAME} mongorestore --drop --db ${DBNAME} --host ${CONTAINERNAME} \
-     --username ${MONGO_USER} --password ${MONGO_PASS} ${DUMPDIR}
+    --username ${MONGO_USER} --password ${MONGO_PASS} ${DUMPDIR}
+    
+    # delete dump in the container
     docker exec -i ${CONTAINERNAME} rm -r ${DUMPDIR}
-        ;;
-    *)
-        echo "Nevermind then"
-        ;;
+    
+    ;;
+  *)
+    echo "Nevermind then"
+    ;;
 esac

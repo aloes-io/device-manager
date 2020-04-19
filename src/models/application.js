@@ -1,6 +1,6 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
-import { timingSafeEqual } from 'crypto';
+// import { timingSafeEqual } from 'crypto';
 import { appPatternDetector, publish } from 'iot-agent';
 import {
   collectionName,
@@ -252,8 +252,9 @@ module.exports = Application => {
       // 'masterKey',
     ];
     keyNames.forEach(k => {
+      // const isValid = timingSafeEqual(Buffer.from(application[k]), Buffer.from(key));
       // eslint-disable-next-line security/detect-object-injection
-      const isValid = timingSafeEqual(Buffer.from(application[k]), Buffer.from(key));
+      const isValid = application[k] === key;
       if (isValid) {
         result = {
           application,
@@ -303,17 +304,17 @@ module.exports = Application => {
    * @param {object} message - Parsed MQTT message.
    * @property {object} message.client - MQTT client
    * @property {boolean} message.status - MQTT client status.
-   * @returns {Promise<function>} Application.updateStatus
+   * @returns {Promise<function | null>} Application.updateStatus
    */
   Application.on('client', async message => {
     logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
     // if (!message || message === null) throw new Error('Message empty');
     const { client, status } = message;
     if (!client || !client.user) {
-      return;
+      return null;
       // throw new Error('Message missing properties');
     }
-    await Application.updateStatus(client, status);
+    return Application.updateStatus(client, status);
   });
 
   /**
@@ -323,17 +324,20 @@ module.exports = Application => {
    * @property {object} message.packet - MQTT packet.
    * @property {object} message.pattern - Pattern detected
    * @property {object} message.client - MQTT client
-   * @returns {Promise<function>} Application.onPublish
+   * @returns {Promise<function | null>} Application.onPublish
    */
   Application.on('publish', async message => {
     try {
       // if (!message || message === null) throw new Error('Message empty');
       const { client, packet, pattern } = message;
       logger.publish(4, collectionName, 'on:publish:req', pattern.name);
-      if (!packet || !pattern) throw new Error('Message missing properties');
-      await Application.onPublish(packet, client, pattern);
+      if (!packet || !pattern) {
+        throw new Error('Message missing properties');
+      }
+      return Application.onPublish(packet, client, pattern);
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-publish:err', error);
+      return null;
     }
   });
 
@@ -347,11 +351,13 @@ module.exports = Application => {
   Application.on('stopped', async () => {
     try {
       if (utils.isMasterProcess(process.env)) {
-        await Application.updateAll({ status: true }, { status: false, clients: [] });
         logger.publish(3, `${collectionName}`, 'on-stop:res', '');
+        return Application.updateAll({ status: true }, { status: false, clients: [] });
       }
+      return null;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-stop:err', error);
+      return null;
     }
   });
 

@@ -199,8 +199,8 @@ Event reporting that an address instance / collection is requested
         * [~onBeforeDelete(ctx)](#module_Application..onBeforeDelete) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onBeforeRemote(app, ctx)](#module_Application..onBeforeRemote) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~parseMessage(app, packet, pattern, client)](#module_Application..parseMessage)
-        * ["client" (message)](#event_client) ⇒ <code>Promise.&lt;function()&gt;</code>
-        * ["publish" (message)](#event_publish) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * ["client" (message)](#event_client) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
+        * ["publish" (message)](#event_publish) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
         * ["stopped"](#event_stopped)
         * ["before_save" (ctx)](#event_before_save) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["after_save" (ctx)](#event_after_save) ⇒ <code>Promise.&lt;function()&gt;</code>
@@ -503,11 +503,11 @@ Adding device and sensor context to raw incoming data
 
 <a name="event_client"></a>
 
-### "client" (message) ⇒ <code>Promise.&lt;function()&gt;</code>
+### "client" (message) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
 Event reporting that an application client connection status has changed.
 
 **Kind**: event emitted by [<code>Application</code>](#module_Application)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - Application.updateStatus  
+**Returns**: <code>Promise.&lt;(function()\|null)&gt;</code> - Application.updateStatus  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -522,11 +522,11 @@ Event reporting that an application client connection status has changed.
 
 <a name="event_publish"></a>
 
-### "publish" (message) ⇒ <code>Promise.&lt;function()&gt;</code>
+### "publish" (message) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
 Event reporting that an application client sent a message.
 
 **Kind**: event emitted by [<code>Application</code>](#module_Application)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - Application.onPublish  
+**Returns**: <code>Promise.&lt;(function()\|null)&gt;</code> - Application.onPublish  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -885,12 +885,12 @@ Optional result callback
         * [~createProps(app, instance)](#module_Device..createProps) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [~updateProps(app, instance)](#module_Device..updateProps) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [~onAfterSave(ctx)](#module_Device..onAfterSave) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [~deleteProps(app, instance)](#module_Device..deleteProps) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [~deleteProps(app, instance)](#module_Device..deleteProps) ⇒ <code>Promise.&lt;boolean&gt;</code>
         * [~onBeforeDelete(ctx)](#module_Device..onBeforeDelete) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onBeforeRemote(app, ctx)](#module_Device..onBeforeRemote) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~parseMessage(app, packet, pattern, client)](#module_Device..parseMessage) ⇒ <code>Promise.&lt;object&gt;</code>
-        * ["client" (message)](#event_client) ⇒ <code>Promise.&lt;function()&gt;</code>
-        * ["publish" (message)](#event_publish) ⇒ <code>Promise.&lt;functions&gt;</code>
+        * ["client" (message)](#event_client) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
+        * ["publish" (message)](#event_publish) ⇒ <code>Promise.&lt;(functions\|null)&gt;</code>
         * ["stopped"](#event_stopped)
         * ["before_save" (ctx)](#event_before_save) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["after_save" (ctx)](#event_after_save) ⇒ <code>Promise.&lt;function()&gt;</code>
@@ -1306,11 +1306,10 @@ Create relations on instance creation
 
 <a name="module_Device..deleteProps"></a>
 
-### Device~deleteProps(app, instance) ⇒ <code>Promise.&lt;function()&gt;</code>
+### Device~deleteProps(app, instance) ⇒ <code>Promise.&lt;boolean&gt;</code>
 Remove device dependencies
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - Device.publish  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1364,11 +1363,11 @@ Adding device and sensor context to raw incoming data
 
 <a name="event_client"></a>
 
-### "client" (message) ⇒ <code>Promise.&lt;function()&gt;</code>
+### "client" (message) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
 Event reporting that an device client connection status has changed.
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - Device.updateStatus  
+**Returns**: <code>Promise.&lt;(function()\|null)&gt;</code> - Device.updateStatus  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1383,11 +1382,11 @@ Event reporting that an device client connection status has changed.
 
 <a name="event_publish"></a>
 
-### "publish" (message) ⇒ <code>Promise.&lt;functions&gt;</code>
+### "publish" (message) ⇒ <code>Promise.&lt;(functions\|null)&gt;</code>
 Event reporting that a device client sent a message.
 
 **Kind**: event emitted by [<code>Device</code>](#module_Device)  
-**Returns**: <code>Promise.&lt;functions&gt;</code> - Device.onPublish | Device.execute  
+**Returns**: <code>Promise.&lt;(functions\|null)&gt;</code> - Device.onPublish | Device.execute  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1733,16 +1732,23 @@ Event reporting that a file instance / collection is requested
     * _static_
         * [.publish(deviceId, measurement, [method], [client])](#module_Measurement.publish)
         * [.compose(sensor)](#module_Measurement.compose) ⇒ <code>object</code>
-        * [.findById(id, options)](#module_Measurement.findById) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
-        * [.find(filter, options)](#module_Measurement.find) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
-        * [.updateById(id, filter)](#module_Measurement.updateById) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [.destroyAll(filter, data)](#module_Measurement.destroyAll) ⇒ <code>Promise.&lt;Array.&lt;object&gt;&gt;</code>
-        * [.destroyAll(filter)](#module_Measurement.destroyAll) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.create(sensor)](#module_Measurement.create) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.findById(id)](#module_Measurement.findById) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
+        * [.find(filter)](#module_Measurement.find) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+        * [.replaceById(id, attributes)](#module_Measurement.replaceById) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
+        * [.replace(filter, attributes)](#module_Measurement.replace) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+        * [.destroyById(id)](#module_Measurement.destroyById) ⇒ <code>Promise.&lt;boolean&gt;</code>
+        * [.delete(filter)](#module_Measurement.delete) ⇒ <code>Promise.&lt;boolean&gt;</code>
+        * [.destroyAll(filter)](#module_Measurement.destroyAll) ⇒ <code>Promise.&lt;boolean&gt;</code>
     * _inner_
-        * [~buildQuery(filter, [rp])](#module_Measurement..buildQuery) ⇒ <code>Promise.&lt;string&gt;</code>
-        * [~getRetentionPolicies(filter)](#module_Measurement..getRetentionPolicies) ⇒ <code>Array.&lt;string&gt;</code>
-        * [~findMeasurements([filter])](#module_Measurement..findMeasurements) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+        * [~buildQuery(app, filter, [rp])](#module_Measurement..buildQuery) ⇒ <code>Promise.&lt;string&gt;</code>
+        * [~updatePoint(app, attributes, instance)](#module_Measurement..updatePoint) ⇒ <code>Promise.&lt;array&gt;</code>
+        * [~getRetentionPolicies(app, filter)](#module_Measurement..getRetentionPolicies) ⇒ <code>Array.&lt;string&gt;</code>
+        * [~findMeasurements(app, filter)](#module_Measurement..findMeasurements) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+        * [~updateMeasurements(app, attributes, instances)](#module_Measurement..updateMeasurements) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+        * [~deleteMeasurements(app, filter)](#module_Measurement..deleteMeasurements) ⇒ <code>Promise.&lt;boolean&gt;</code>
+        * [~onBeforeRemote(app, ctx)](#module_Measurement..onBeforeRemote) ⇒ <code>Promise.&lt;object&gt;</code>
+        * ["before_*" (ctx)](#event_before_*) ⇒ <code>Promise.&lt;function()&gt;</code>
 
 <a name="module_Measurement.publish"></a>
 
@@ -1771,65 +1777,6 @@ On sensor update, if an OMA resource is of float or integer type
 | --- | --- | --- |
 | sensor | <code>object</code> | updated Sensor instance |
 
-<a name="module_Measurement.findById"></a>
-
-### Measurement.findById(id, options) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
-Find measurement by id
-
-**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| id | <code>string</code> |  |
-| options | <code>object</code> | Request options |
-
-<a name="module_Measurement.find"></a>
-
-### Measurement.find(filter, options) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
-Find measurements
-
-**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| filter | <code>object</code> |  |
-| options | <code>object</code> | Request options |
-
-<a name="module_Measurement.updateById"></a>
-
-### Measurement.updateById(id, filter) ⇒ <code>Promise.&lt;object&gt;</code>
-Update measurement by id
-
-**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
-
-| Param | Type |
-| --- | --- |
-| id | <code>any</code> | 
-| filter | <code>object</code> | 
-
-<a name="module_Measurement.destroyAll"></a>
-
-### Measurement.destroyAll(filter, data) ⇒ <code>Promise.&lt;Array.&lt;object&gt;&gt;</code>
-Update many Measurement instances
-
-**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| filter | <code>object</code> | Where filter |
-| data | <code>object</code> | Update data |
-
-<a name="module_Measurement.destroyAll"></a>
-
-### Measurement.destroyAll(filter) ⇒ <code>Promise.&lt;object&gt;</code>
-Delete many Measurement instances
-
-**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| filter | <code>object</code> | Where filter |
-
 <a name="module_Measurement.create"></a>
 
 ### Measurement.create(sensor) ⇒ <code>Promise.&lt;object&gt;</code>
@@ -1841,39 +1788,188 @@ Create measurement
 | --- | --- |
 | sensor | <code>object</code> | 
 
+<a name="module_Measurement.findById"></a>
+
+### Measurement.findById(id) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
+Find measurement by id
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type |
+| --- | --- |
+| id | <code>string</code> | 
+
+<a name="module_Measurement.find"></a>
+
+### Measurement.find(filter) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+Find measurements
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type |
+| --- | --- |
+| filter | <code>object</code> | 
+
+<a name="module_Measurement.replaceById"></a>
+
+### Measurement.replaceById(id, attributes) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
+Update measurement by id
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type |
+| --- | --- |
+| id | <code>any</code> | 
+| attributes | <code>object</code> | 
+
+<a name="module_Measurement.replace"></a>
+
+### Measurement.replace(filter, attributes) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+Update many Measurement instances
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| filter | <code>object</code> | Where filter |
+| attributes | <code>object</code> |  |
+
+<a name="module_Measurement.destroyById"></a>
+
+### Measurement.destroyById(id) ⇒ <code>Promise.&lt;boolean&gt;</code>
+Delete measurement by id
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type |
+| --- | --- |
+| id | <code>any</code> | 
+
+<a name="module_Measurement.delete"></a>
+
+### Measurement.delete(filter) ⇒ <code>Promise.&lt;boolean&gt;</code>
+Delete measurements
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type |
+| --- | --- |
+| filter | <code>object</code> | 
+
+<a name="module_Measurement.destroyAll"></a>
+
+### Measurement.destroyAll(filter) ⇒ <code>Promise.&lt;boolean&gt;</code>
+Delete many Measurement instances
+
+**Kind**: static method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| filter | <code>object</code> | Where filter |
+
 <a name="module_Measurement..buildQuery"></a>
 
-### Measurement~buildQuery(filter, [rp]) ⇒ <code>Promise.&lt;string&gt;</code>
+### Measurement~buildQuery(app, filter, [rp]) ⇒ <code>Promise.&lt;string&gt;</code>
 Build influxDB query
 
 **Kind**: inner method of [<code>Measurement</code>](#module_Measurement)  
 
 | Param | Type | Description |
 | --- | --- | --- |
+| app | <code>object</code> | Loopback app |
 | filter | <code>object</code> | Where filter |
 | [rp] | <code>object</code> | retention policy |
 
-<a name="module_Measurement..getRetentionPolicies"></a>
+<a name="module_Measurement..updatePoint"></a>
 
-### Measurement~getRetentionPolicies(filter) ⇒ <code>Array.&lt;string&gt;</code>
-Retrieve retention policies in a where filter for Influx
-
-**Kind**: inner method of [<code>Measurement</code>](#module_Measurement)  
-
-| Param | Type |
-| --- | --- |
-| filter | <code>object</code> | 
-
-<a name="module_Measurement..findMeasurements"></a>
-
-### Measurement~findMeasurements([filter]) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
-Find Measurement instances with optional filter
+### Measurement~updatePoint(app, attributes, instance) ⇒ <code>Promise.&lt;array&gt;</code>
+Build influxDB query
 
 **Kind**: inner method of [<code>Measurement</code>](#module_Measurement)  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| [filter] | <code>object</code> | Where filter |
+| app | <code>object</code> | Loopback app |
+| attributes | <code>object</code> |  |
+| instance | <code>object</code> |  |
+
+<a name="module_Measurement..getRetentionPolicies"></a>
+
+### Measurement~getRetentionPolicies(app, filter) ⇒ <code>Array.&lt;string&gt;</code>
+Retrieve retention policies in a where filter for Influx
+
+**Kind**: inner method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| app | <code>object</code> | Loopback application |
+| filter | <code>object</code> |  |
+
+<a name="module_Measurement..findMeasurements"></a>
+
+### Measurement~findMeasurements(app, filter) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+Find Measurement instances with filter
+
+**Kind**: inner method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| app | <code>object</code> | Loopback app |
+| filter | <code>object</code> | Where filter |
+
+<a name="module_Measurement..updateMeasurements"></a>
+
+### Measurement~updateMeasurements(app, attributes, instances) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+Update Measurement instances with filter
+
+**Kind**: inner method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| app | <code>object</code> | Loopback app |
+| attributes | <code>object</code> | Measurement attributes |
+| instances | <code>object</code> \| <code>Array.&lt;object&gt;</code> |  |
+
+<a name="module_Measurement..deleteMeasurements"></a>
+
+### Measurement~deleteMeasurements(app, filter) ⇒ <code>Promise.&lt;boolean&gt;</code>
+Delete Measurement instances with filter
+
+**Kind**: inner method of [<code>Measurement</code>](#module_Measurement)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| app | <code>object</code> | Loopback app |
+| filter | <code>object</code> | Where filter |
+
+<a name="module_Measurement..onBeforeRemote"></a>
+
+### Measurement~onBeforeRemote(app, ctx) ⇒ <code>Promise.&lt;object&gt;</code>
+Called when a remote method tries to access Measurement Model / instance
+
+**Kind**: inner method of [<code>Measurement</code>](#module_Measurement)  
+**Returns**: <code>Promise.&lt;object&gt;</code> - context  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| app | <code>object</code> | Loopback App |
+| ctx | <code>object</code> | Express context |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
+
+<a name="event_before_*"></a>
+
+### "before_*" (ctx) ⇒ <code>Promise.&lt;function()&gt;</code>
+Event reporting that a measurement method is requested
+
+**Kind**: event emitted by [<code>Measurement</code>](#module_Measurement)  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - Measurement~onBeforeRemote  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ctx | <code>object</code> | Express context. |
+| ctx.req | <code>object</code> | Request |
+| ctx.res | <code>object</code> | Response |
 
 <a name="module_OmaObject"></a>
 
@@ -1952,10 +2048,10 @@ Find Measurement instances with optional filter
         * [~parseTimerEvent(Scheduler, sensor, client)](#module_Scheduler..parseTimerEvent) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onTimeout(Scheduler, sensorId)](#module_Scheduler..onTimeout) ⇒ <code>Promise.&lt;boolean&gt;</code>
         * [~syncRunningTimers(Scheduler, delay)](#module_Scheduler..syncRunningTimers)
-        * ["stopped"](#event_stopped) ⇒ <code>functions</code> \| <code>null</code>
-        * ["stopped"](#event_stopped) ⇒ <code>functions</code> \| <code>null</code>
-        * ["tick"](#event_tick) ⇒ <code>functions</code>
-        * ["before_*" (ctx)](#event_before_*) ⇒ <code>function</code>
+        * ["stopped"](#event_stopped) ⇒ <code>Promise.&lt;(functions\|null)&gt;</code>
+        * ["stopped"](#event_stopped) ⇒ <code>Promise.&lt;(functions\|null)&gt;</code>
+        * ["tick"](#event_tick) ⇒ <code>Promise.&lt;functions&gt;</code>
+        * ["before_*" (ctx)](#event_before_*) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [~errorCallback](#module_Scheduler..errorCallback) : <code>function</code>
         * [~resultCallback](#module_Scheduler..resultCallback) : <code>function</code>
 
@@ -2286,38 +2382,38 @@ Update active Scheduler and related Sensor instances
 
 <a name="event_stopped"></a>
 
-### "stopped" ⇒ <code>functions</code> \| <code>null</code>
+### "stopped" ⇒ <code>Promise.&lt;(functions\|null)&gt;</code>
 Event reporting that application started
 
 Trigger Scheduler starting routine
 
 **Kind**: event emitted by [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>functions</code> \| <code>null</code> - Scheduler.setClock  
+**Returns**: <code>Promise.&lt;(functions\|null)&gt;</code> - Scheduler.setClock  
 <a name="event_stopped"></a>
 
-### "stopped" ⇒ <code>functions</code> \| <code>null</code>
+### "stopped" ⇒ <code>Promise.&lt;(functions\|null)&gt;</code>
 Event reporting that application stopped
 
 Trigger Scheduler stopping routine
 
 **Kind**: event emitted by [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>functions</code> \| <code>null</code> - Scheduler.delClock  
+**Returns**: <code>Promise.&lt;(functions\|null)&gt;</code> - Scheduler.delClock  
 <a name="event_tick"></a>
 
-### "tick" ⇒ <code>functions</code>
+### "tick" ⇒ <code>Promise.&lt;functions&gt;</code>
 Event reporting tick
 
 Trigger Scheduler tick routine
 
 **Kind**: event emitted by [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>functions</code> - Scheduler.onTick  
+**Returns**: <code>Promise.&lt;functions&gt;</code> - Scheduler.onTick  
 <a name="event_before_*"></a>
 
-### "before_*" (ctx) ⇒ <code>function</code>
+### "before_*" (ctx) ⇒ <code>Promise.&lt;function()&gt;</code>
 Event reporting that a Scheduler method is requested
 
 **Kind**: event emitted by [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>function</code> - Scheduler~onBeforeRemote  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - Scheduler~onBeforeRemote  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2362,10 +2458,10 @@ Optional result callback
     * _static_
         * [.deleteAll([filter])](#module_SensorResource.deleteAll) ⇒ <code>Array.&lt;object&gt;</code>
         * [.deleteAll([filter])](#module_SensorResource.deleteAll) ⇒ <code>Array.&lt;string&gt;</code>
-        * [.find(deviceId, sensorId, [resourceId])](#module_SensorResource.find) ⇒ <code>object</code>
-        * [.save(deviceId, sensorId, resources, [ttl])](#module_SensorResource.save) ⇒ <code>object</code>
-        * [.remove(deviceId, sensorId, [resourceId])](#module_SensorResource.remove) ⇒ <code>boolean</code>
-        * [.expireCache(deviceId, sensorId, resourceId, [ttl])](#module_SensorResource.expireCache) ⇒ <code>boolean</code>
+        * [.find(deviceId, sensorId, [resourceId])](#module_SensorResource.find) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+        * [.save(deviceId, sensorId, resources, [ttl])](#module_SensorResource.save) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+        * [.remove(deviceId, sensorId, [resourceId])](#module_SensorResource.remove) ⇒ <code>Promise.&lt;boolean&gt;</code>
+        * [.expireCache(deviceId, sensorId, resourceId, [ttl])](#module_SensorResource.expireCache) ⇒ <code>Promise.&lt;boolean&gt;</code>
         * [.get(key, [cb])](#module_SensorResource.get)
         * [.set(key, value, [ttl], [cb])](#module_SensorResource.set)
         * [.delete(key, [cb])](#module_SensorResource.delete)
@@ -2402,11 +2498,11 @@ Delete SensorResource instance(s) stored in cache
 
 <a name="module_SensorResource.find"></a>
 
-### SensorResource.find(deviceId, sensorId, [resourceId]) ⇒ <code>object</code>
-Find Sensor instance from the cache
+### SensorResource.find(deviceId, sensorId, [resourceId]) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+Find SensorResource instance(s) from the cache
 
 **Kind**: static method of [<code>SensorResource</code>](#module_SensorResource)  
-**Returns**: <code>object</code> - resource(s)  
+**Returns**: <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code> - resources  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2416,11 +2512,11 @@ Find Sensor instance from the cache
 
 <a name="module_SensorResource.save"></a>
 
-### SensorResource.save(deviceId, sensorId, resources, [ttl]) ⇒ <code>object</code>
-Create or update sensor instance into the cache memory
+### SensorResource.save(deviceId, sensorId, resources, [ttl]) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+Create or update SensorResource instance(s) into the cache memory
 
 **Kind**: static method of [<code>SensorResource</code>](#module_SensorResource)  
-**Returns**: <code>object</code> - sensor  
+**Returns**: <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code> - resources  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2431,11 +2527,11 @@ Create or update sensor instance into the cache memory
 
 <a name="module_SensorResource.remove"></a>
 
-### SensorResource.remove(deviceId, sensorId, [resourceId]) ⇒ <code>boolean</code>
-Delete a sensor stored in cache
+### SensorResource.remove(deviceId, sensorId, [resourceId]) ⇒ <code>Promise.&lt;boolean&gt;</code>
+Delete a SensorResource instance(s) stored in cache
 
 **Kind**: static method of [<code>SensorResource</code>](#module_SensorResource)  
-**Returns**: <code>boolean</code> - success  
+**Returns**: <code>Promise.&lt;boolean&gt;</code> - success  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2445,11 +2541,11 @@ Delete a sensor stored in cache
 
 <a name="module_SensorResource.expireCache"></a>
 
-### SensorResource.expireCache(deviceId, sensorId, resourceId, [ttl]) ⇒ <code>boolean</code>
+### SensorResource.expireCache(deviceId, sensorId, resourceId, [ttl]) ⇒ <code>Promise.&lt;boolean&gt;</code>
 Set TTL for a sensor stored in cache
 
 **Kind**: static method of [<code>SensorResource</code>](#module_SensorResource)  
-**Returns**: <code>boolean</code> - success  
+**Returns**: <code>Promise.&lt;boolean&gt;</code> - success  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2584,8 +2680,8 @@ Optional result callback
 | id | <code>string</code> | Database generated ID. |
 | name | <code>string</code> | required. |
 | devEui | <code>string</code> | hardware generated Device Id required. |
+| createdAt | <code>date</code> |  |
 | lastSignal | <code>date</code> |  |
-| lastSync | <code>date</code> | last date when this sensor cache was synced |
 | frameCounter | <code>number</code> | Number of messages since last connection |
 | type | <code>string</code> | OMA object ID, used to format resources schema |
 | resource | <code>string</code> | OMA resource ID used for last message |
@@ -2612,8 +2708,11 @@ Optional result callback
         * [.__create__resources(resources)](#module_Sensor+__create__resources) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.__replace__resources(resources)](#module_Sensor+__replace__resources) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.__delete__resources()](#module_Sensor+__delete__resources) ⇒ <code>Promise.&lt;function()&gt;</code>
-        * [.__get__measurements()](#module_Sensor+__get__measurements) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [.__get__measurements(filter)](#module_Sensor+__get__measurements) ⇒ <code>Promise.&lt;Array.&lt;object&gt;&gt;</code>
         * [.__findById__measurements(id)](#module_Sensor+__findById__measurements) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [.__create__measurements(measurement)](#module_Sensor+__create__measurements) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.__replace__measurements(attributes, filter)](#module_Sensor+__replace__measurements) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+        * [.__delete__measurements(filter)](#module_Sensor+__delete__measurements) ⇒ <code>Promise.&lt;boolean&gt;</code>
     * _static_
         * [.createOrUpdate(device, [client])](#module_Sensor.createOrUpdate) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.publish(device, sensor, [method], [client])](#module_Sensor.publish) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
@@ -2643,10 +2742,10 @@ Optional result callback
         * [~persistingResource(app, sensor, [client])](#module_Sensor..persistingResource) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onBeforeSave(ctx)](#module_Sensor..onBeforeSave) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onAfterSave(ctx)](#module_Sensor..onAfterSave) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [~deleteProps(app, instance)](#module_Sensor..deleteProps) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [~deleteProps(app, instance)](#module_Sensor..deleteProps) ⇒ <code>Promise.&lt;boolean&gt;</code>
         * [~onBeforeDelete(ctx)](#module_Sensor..onBeforeDelete) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onBeforeRemote(app, ctx)](#module_Sensor..onBeforeRemote) ⇒ <code>Promise.&lt;object&gt;</code>
-        * ["publish" (message)](#event_publish) ⇒ <code>function</code>
+        * ["publish" (message)](#event_publish) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
         * ["before_save" (ctx)](#event_before_save) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["after_save" (ctx)](#event_after_save) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["before_delete" (ctx)](#event_before_delete) ⇒ <code>Promise.&lt;function()&gt;</code>
@@ -2687,7 +2786,7 @@ Get sensor resources from key/value store by key
 <a name="module_Sensor+__create__resources"></a>
 
 ### sensor.\_\_create\_\_resources(resources) ⇒ <code>Promise.&lt;function()&gt;</code>
-Create sensor resources from key/value store
+Create sensor resources in key/value store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
 **Returns**: <code>Promise.&lt;function()&gt;</code> - module:SensorResource.save  
@@ -2699,7 +2798,7 @@ Create sensor resources from key/value store
 <a name="module_Sensor+__replace__resources"></a>
 
 ### sensor.\_\_replace\_\_resources(resources) ⇒ <code>Promise.&lt;function()&gt;</code>
-Replace sensor resources from key/value store
+Replace sensor resources in key/value store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
 **Returns**: <code>Promise.&lt;function()&gt;</code> - module:SensorResource.save  
@@ -2717,11 +2816,16 @@ Delete sensor resources from key/value store
 **Returns**: <code>Promise.&lt;function()&gt;</code> - module:SensorResource.remove  
 <a name="module_Sensor+__get__measurements"></a>
 
-### sensor.\_\_get\_\_measurements() ⇒ <code>Promise.&lt;function()&gt;</code>
+### sensor.\_\_get\_\_measurements(filter) ⇒ <code>Promise.&lt;Array.&lt;object&gt;&gt;</code>
 Get sensor measurement from timeseries store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - module:Measurement.find  
+**Returns**: <code>Promise.&lt;Array.&lt;object&gt;&gt;</code> - module:Measurement.find  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| filter | <code>object</code> | Measurement filter |
+
 <a name="module_Sensor+__findById__measurements"></a>
 
 ### sensor.\_\_findById\_\_measurements(id) ⇒ <code>Promise.&lt;function()&gt;</code>
@@ -2733,6 +2837,42 @@ Get sensor measurement from timeseries store by id
 | Param | Type | Description |
 | --- | --- | --- |
 | id | <code>string</code> | Resource key |
+
+<a name="module_Sensor+__create__measurements"></a>
+
+### sensor.\_\_create\_\_measurements(measurement) ⇒ <code>Promise.&lt;object&gt;</code>
+Create sensor measurement in timeseries store
+
+**Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
+
+| Param | Type |
+| --- | --- |
+| measurement | <code>object</code> | 
+
+<a name="module_Sensor+__replace__measurements"></a>
+
+### sensor.\_\_replace\_\_measurements(attributes, filter) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
+Replace sensor measurement in timeseries store
+
+**Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code> - module:Measurement.replace  
+
+| Param | Type |
+| --- | --- |
+| attributes | <code>object</code> | 
+| filter | <code>object</code> | 
+
+<a name="module_Sensor+__delete__measurements"></a>
+
+### sensor.\_\_delete\_\_measurements(filter) ⇒ <code>Promise.&lt;boolean&gt;</code>
+Delete sensor measurement from timeseries store
+
+**Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
+**Returns**: <code>Promise.&lt;boolean&gt;</code> - module:Measurement.delete  
+
+| Param | Type |
+| --- | --- |
+| filter | <code>object</code> | 
 
 <a name="module_Sensor.createOrUpdate"></a>
 
@@ -3023,7 +3163,7 @@ Save a sensor resource as a file
 Save a sensor resource as a measurement
 
 **Kind**: inner method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>Promise.&lt;(object\|null)&gt;</code> - point  
+**Returns**: <code>Promise.&lt;(object\|null)&gt;</code> - measurement  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -3089,11 +3229,10 @@ Create relations on instance creation
 
 <a name="module_Sensor..deleteProps"></a>
 
-### Sensor~deleteProps(app, instance) ⇒ <code>Promise.&lt;function()&gt;</code>
+### Sensor~deleteProps(app, instance) ⇒ <code>Promise.&lt;boolean&gt;</code>
 Remove sensor dependencies
 
 **Kind**: inner method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - Sensor.publish  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -3129,11 +3268,11 @@ Called when a remote method tries to access Sensor Model / instance
 
 <a name="event_publish"></a>
 
-### "publish" (message) ⇒ <code>function</code>
+### "publish" (message) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
 Event reporting that a device client sent sensors update.
 
 **Kind**: event emitted by [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>function</code> - Sensor.onPublish  
+**Returns**: <code>Promise.&lt;(function()\|null)&gt;</code> - Sensor.onPublish  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -3253,11 +3392,11 @@ Error callback
         * [.updateById(id)](#module_User.updateById) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.deleteById(id)](#module_User.deleteById) ⇒ <code>Promise.&lt;object&gt;</code>
     * _inner_
-        * [~createProps(app, user)](#module_User..createProps) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~createProps(app, user)](#module_User..createProps) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
         * [~onBeforeSave(ctx)](#module_User..onBeforeSave) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onAfterSave(ctx)](#module_User..onAfterSave) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onBeforeLogin(ctx)](#module_User..onBeforeLogin) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [~deleteProps(app, user)](#module_User..deleteProps) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~deleteProps(app, user)](#module_User..deleteProps) ⇒ <code>Promise.&lt;boolean&gt;</code>
         * [~onBeforeDelete(ctx)](#module_User..onBeforeDelete) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onBeforeRemote(ctx)](#module_User..onBeforeRemote) ⇒ <code>Promise.&lt;object&gt;</code>
         * ["attached"](#event_attached)
@@ -3265,7 +3404,7 @@ Error callback
         * ["sendContactForm" (options)](#event_sendContactForm) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["sendMailInvite" (options)](#event_sendMailInvite) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["resetPasswordRequest" (options)](#event_resetPasswordRequest) ⇒ <code>Promise.&lt;function()&gt;</code>
-        * ["client" (message)](#event_client) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * ["client" (message)](#event_client) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
         * ["before_save" (ctx, user)](#event_before_save) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["after_save" (ctx, user)](#event_after_save) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["before_delete" (ctx)](#event_before_delete) ⇒ <code>Promise.&lt;function()&gt;</code>
@@ -3277,7 +3416,7 @@ Error callback
 Find a user by its email address and send a confirmation link
 
 **Kind**: static method of [<code>User</code>](#module_User)  
-**Returns**: <code>Promise.&lt;object&gt;</code> - mail result  
+**Returns**: <code>Promise.&lt;object&gt;</code> - user  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -3289,7 +3428,7 @@ Find a user by its email address and send a confirmation link
 Send a confirmation link to confirm signup
 
 **Kind**: static method of [<code>User</code>](#module_User)  
-**Returns**: <code>Promise.&lt;object&gt;</code> - mail result  
+**Returns**: <code>Promise.&lt;object&gt;</code> - user  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -3427,11 +3566,11 @@ Delete user by id
 
 <a name="module_User..createProps"></a>
 
-### User~createProps(app, user) ⇒ <code>Promise.&lt;object&gt;</code>
+### User~createProps(app, user) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
 Create dependencies after a new user has been created
 
 **Kind**: inner method of [<code>User</code>](#module_User)  
-**Returns**: <code>Promise.&lt;object&gt;</code> - user  
+**Returns**: <code>Promise.&lt;(object\|null)&gt;</code> - user  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -3478,11 +3617,11 @@ Incrementing counter on failure and resetting it on success
 
 <a name="module_User..deleteProps"></a>
 
-### User~deleteProps(app, user) ⇒ <code>Promise.&lt;object&gt;</code>
+### User~deleteProps(app, user) ⇒ <code>Promise.&lt;boolean&gt;</code>
 Delete relations on instance(s) deletion
 
 **Kind**: inner method of [<code>User</code>](#module_User)  
-**Returns**: <code>Promise.&lt;object&gt;</code> - ctx  
+**Returns**: <code>Promise.&lt;boolean&gt;</code> - ctx  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -3569,11 +3708,11 @@ Event reporting to send password reset link when requested
 
 <a name="event_client"></a>
 
-### "client" (message) ⇒ <code>Promise.&lt;function()&gt;</code>
+### "client" (message) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
 Event reporting that a client ( as the user ) connection status has changed.
 
 **Kind**: event emitted by [<code>User</code>](#module_User)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - User.updateStatus  
+**Returns**: <code>Promise.&lt;(function()\|null)&gt;</code> - User.updateStatus  
 
 | Param | Type | Description |
 | --- | --- | --- |

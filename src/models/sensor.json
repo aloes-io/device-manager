@@ -31,7 +31,7 @@
     "value": {
       "type": "any",
       "required": false,
-      "description": "last measurement",
+      "description": "last saved sensor value",
       "default": null
     },
     "createdAt": {
@@ -178,6 +178,8 @@
         "__get__measurements",
         "__findById__measurements",
         "__create__measurements",
+        "__replace__measurements",
+        "__delete__measurements",
         "__destroyById__measurements",
         "__get__resources",
         "__findById__resources",
@@ -227,6 +229,8 @@
         "__get__measurements",
         "__findById__measurements",
         "__create__measurements",
+        "__replace__measurements",
+        "__delete__measurements",
         "__destroyById__measurements",
         "__get__resources",
         "__findById__resources",
@@ -488,6 +492,29 @@
       "http": {
         "verb": "delete",
         "path": "/resources"
+      }
+    },
+    "prototype.__replace__measurements": {
+      "description": "Replace the sensor measurements",
+      "accepts": [
+        {
+          "arg": "attributes",
+          "type": "object",
+          "required": true
+        },
+        {
+          "arg": "filter",
+          "type": "object",
+          "required": false
+        }
+      ],
+      "returns": {
+        "root": true,
+        "type": "object"
+      },
+      "http": {
+        "verb": "put",
+        "path": "/measurements"
       }
     }
   }

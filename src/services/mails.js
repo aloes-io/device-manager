@@ -61,9 +61,9 @@ const mails = {};
  * @returns {Promise<object>}
  */
 const sendMail = updatedOptions =>
-  new Promise((resolve, reject) => {
-    app.models.Email.send(updatedOptions, (err, mail) => (err ? reject(err) : resolve(mail)));
-  });
+  new Promise((resolve, reject) =>
+    app.models.Email.send(updatedOptions, (err, mail) => (err ? reject(err) : resolve(mail))),
+  );
 
 /**
  * Generate HTML template and send email
@@ -97,9 +97,9 @@ mails.send = async options => {
  * @returns {Promise<object>}
  */
 const verifyUser = (user, options) =>
-  new Promise((resolve, reject) => {
-    user.verify(options, (err, res) => (err ? reject(err) : resolve({ ...options, ...res })));
-  });
+  new Promise((resolve, reject) =>
+    user.verify(options, (err, res) => (err ? reject(err) : resolve({ ...options, ...res }))),
+  );
 
 /**
  * Sending a verification email to confirm account creation
@@ -152,9 +152,10 @@ mails.sendResetPasswordMail = async options => {
       text: `You can assign a new password on clicking that link`,
     };
     logger.publish(4, `${collectionName}`, 'sendResetPasswordMail:req', newOptions);
-    await mails.send(newOptions);
+    return mails.send(newOptions);
   } catch (error) {
     logger.publish(4, `${collectionName}`, 'sendResetPasswordMail:err', error);
+    return null;
   }
 };
 
@@ -175,9 +176,10 @@ mails.sendContactForm = async options => {
       text: options.content,
     };
     logger.publish(4, `${collectionName}`, 'sendContactForm:req', newOptions);
-    await mails.send(newOptions);
+    return mails.send(newOptions);
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'sendContactForm:err', error);
+    return null;
   }
 };
 
@@ -198,9 +200,10 @@ mails.sendMailInvite = async options => {
       }`,
     };
     logger.publish(4, `${collectionName}`, 'sendMailInvite:req', newOptions);
-    await mails.send(newOptions);
+    return mails.send(newOptions);
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'sendConsendMailInvitetactForm:err', error);
+    return null;
   }
 };
 

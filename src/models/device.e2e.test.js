@@ -618,14 +618,15 @@ const deviceTest = () => {
         const client = mqtt.connect(app.get('mqtt url'));
         client.once('error', e => {
           expect(e.code).to.be.equal(4);
-          client.end(true);
-          done();
+          client.end(() => {
+            done();
+          });
         });
         client.once('connect', () => {
-          client.end(true);
-          done(new Error('Should not connect'));
+          client.end(() => {
+            done(new Error('Should not connect'));
+          });
         });
-        // setTimeout(() => done(new Error('Test timeout')), testMaxDuration - 100);
       });
 
       it('device CANNOT connect with wrong credentials', function(done) {
@@ -639,13 +640,16 @@ const deviceTest = () => {
 
         client.once('error', e => {
           expect(e.code).to.be.equal(4);
-          client.end(true);
-          done();
+          client.end(() => {
+            done();
+          });
         });
 
         client.once('connect', () => {
-          client.end(true);
-          done(new Error('Should not connect'));
+          // client.end(true);
+          client.end(() => {
+            done(new Error('Should not connect'));
+          });
         });
       });
 
@@ -664,12 +668,12 @@ const deviceTest = () => {
           const device = await DeviceModel.findById(devices[1].id);
           expect(device.status).to.be.equal(true);
           client.end(true);
-        }, 150);
+        }, 250);
 
         return timeout(async () => {
           const device = await DeviceModel.findById(devices[1].id);
           expect(device.status).to.be.equal(false);
-        }, 150);
+        }, 350);
       });
 
       it('device CANNOT publish to ANY route', function(done) {
@@ -686,20 +690,18 @@ const deviceTest = () => {
         });
 
         client.once('offline', () => {
-          client.end(true);
-          done();
+          client.end(true, () => {
+            done();
+          });
         });
 
         client.once('connect', () => {
           client.publish('FAKETOPIC', packets[1].payload, { qos: 1 });
-          client.end(true);
-          done();
-          // setTimeout(() => {
-          //   if (client.connected) {
-          //     client.end(true);
-          //     done();
-          //   }
-          // }, 1000);
+          // client.end(true);
+          // done();
+          client.end(true, () => {
+            done();
+          });
         });
 
         // done(new Error('Should have ended with an error event'));
@@ -719,20 +721,18 @@ const deviceTest = () => {
         });
 
         client.once('offline', () => {
-          client.end(true);
-          done(new Error('Should not been offlined'));
+          client.end(true, () => {
+            done(new Error('Should not been offlined'));
+          });
         });
 
         client.once('connect', () => {
           client.publish(packets[1].topic, packets[1].payload, { qos: 1 });
-          client.end(true);
-          done();
-          // setTimeout(() => {
-          //   if (client.connected) {
-          //     client.end();
-          //     done();
-          //   }
-          // }, 100);
+          client.end(() => {
+            done();
+          });
+          // client.end(true);
+          // done();
         });
       });
 

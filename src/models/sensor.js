@@ -27,8 +27,8 @@ import utils from '../lib/utils';
  * @property {string} id  Database generated ID.
  * @property {string} name required.
  * @property {string} devEui hardware generated Device Id required.
+ * @property {date} createdAt
  * @property {date} lastSignal
- * @property {date} lastSync last date when this sensor cache was synced
  * @property {number} frameCounter Number of messages since last connection
  * @property {string} type OMA object ID, used to format resources schema
  * @property {string} resource OMA resource ID used for last message
@@ -163,9 +163,7 @@ module.exports = function(Sensor) {
         device,
         attributes,
       );
-      const newSensor = await device.sensors.create(sensor);
-      // newSensor = JSON.parse(JSON.stringify(newSensor));
-      return newSensor;
+      return device.sensors.create(sensor);
     }
     if (device.sensors()[0] && device.sensors()[0].id) {
       sensor = compose(
@@ -195,15 +193,15 @@ module.exports = function(Sensor) {
     if (sensor.isNewInstance && sensor.icons) {
       sensor.method = 'HEAD';
       await Sensor.replaceById(sensor.id, sensor);
-      await Sensor.publish(sensor.deviceId, sensor, 'HEAD', client);
-    } else if (!sensor.isNewInstance && sensor.id) {
+      return Sensor.publish(sensor.deviceId, sensor, 'HEAD', client);
+    }
+    if (!sensor.isNewInstance && sensor.id) {
       sensor.method = 'HEAD';
       sensor.frameCounter = 0;
       await Sensor.replaceById(sensor.id, sensor);
-      await Sensor.publish(sensor.deviceId, sensor, 'HEAD', client);
-    } else {
-      throw utils.buildError(400, 'INVALID_SENSOR', 'No valid sensor to register');
+      return Sensor.publish(sensor.deviceId, sensor, 'HEAD', client);
     }
+    throw utils.buildError(400, 'INVALID_SENSOR', 'No valid sensor to register');
   };
 
   /**
@@ -240,13 +238,17 @@ module.exports = function(Sensor) {
       inType: typeof resourceValue,
       outType: typeof updatedSensor.resources[updatedSensor.resource],
     });
-    updatedSensor.frameCounter += 1;
+
     // updatedSensor.value = null; free sensor space ?
+    updatedSensor.frameCounter += 1;
+    updatedSensor.lastSignal = new Date();
     // updatedSensor.lastSignal = new Date().getTime();
     updatedSensor.method = 'PUT';
+
     await Sensor.replaceById(sensor.id, updatedSensor);
     await Sensor.publish(sensor.deviceId.toString(), updatedSensor, 'PUT', client);
     await persistingResource(Sensor.app, updatedSensor, client);
+
     return updatedSensor;
   };
 
@@ -371,25 +373,26 @@ module.exports = function(Sensor) {
       },
     });
 
-    const promises = await omaObjectsList.map(async obj => {
-      try {
-        const whereFilter = {
-          or: [
-            { and: [{ name: { like: new RegExp(`.*${obj.name}.*`, 'i') } }, { type: obj.id }] },
-            { transportProtocol: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
-          ],
-        };
-        const sensors = await Sensor.find({
-          where: whereFilter,
-        });
-        return !sensors || sensors === null ? [] : [...JSON.parse(JSON.stringify(sensors))];
-      } catch (e) {
-        return null;
-      }
-    });
+    const result = await Promise.all(
+      omaObjectsList.map(async obj => {
+        try {
+          const whereFilter = {
+            or: [
+              { and: [{ name: { like: new RegExp(`.*${obj.name}.*`, 'i') } }, { type: obj.id }] },
+              { transportProtocol: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
+            ],
+          };
+          const sensors = await Sensor.find({
+            where: whereFilter,
+          });
+          return !sensors || sensors === null ? [] : [...JSON.parse(JSON.stringify(sensors))];
+        } catch (e) {
+          return null;
+        }
+      }),
+    );
     /* eslint-enable security/detect-non-literal-regexp */
 
-    const result = await Promise.all(promises);
     if (!result || result === null) {
       return [];
     }
@@ -416,8 +419,7 @@ module.exports = function(Sensor) {
         // eslint-disable-next-line security/detect-object-injection
         filteredProperties.forEach(p => delete sensor[p]);
       });
-      const result = utils.exportToCSV(sensors, filter);
-      return result;
+      return utils.exportToCSV(sensors, filter);
     }
     return null;
   };
@@ -431,9 +433,9 @@ module.exports = function(Sensor) {
    * @property {object} message.attributes - IotAgent parsed message
    * @property {object} [message.sensor] - Found sensor instance
    * @property {object} message.client - MQTT client
-   * @returns {function} Sensor.onPublish
+   * @returns {Promise<function | null>} Sensor.onPublish
    */
-  Sensor.on('publish', async message => {
+  Sensor.on('publish', message => {
     try {
       // if (!message || message === null) throw new Error('Message empty');
       const { attributes, client, device, sensor } = message;
@@ -441,14 +443,17 @@ module.exports = function(Sensor) {
       if (!device || (!attributes && !sensor)) {
         throw new Error('Message missing properties');
       }
-      await Sensor.onPublish(device, attributes, sensor, client);
+      return Sensor.onPublish(device, attributes, sensor, client);
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-publish:err', error);
+      return null;
     }
   });
 
   Sensor.once('started', () => {
     const SensorResource = Sensor.app.models.SensorResource;
+    const Measurement = Sensor.app.models.Measurement;
+
     /* eslint-disable camelcase */
     /* eslint-disable no-underscore-dangle */
 
@@ -457,7 +462,7 @@ module.exports = function(Sensor) {
      * @method module:Sensor.prototype.__get__resources
      * @returns {Promise<function>} module:SensorResource.find
      */
-    Sensor.prototype.__get__resources = async function() {
+    Sensor.prototype.__get__resources = function() {
       return SensorResource.find(this.deviceId, this.id);
     };
 
@@ -467,27 +472,27 @@ module.exports = function(Sensor) {
      * @param {string} id Resource key
      * @returns {Promise<function>} module:SensorResource.find
      */
-    Sensor.prototype.__findById__resources = async function(id) {
+    Sensor.prototype.__findById__resources = function(id) {
       return SensorResource.find(this.deviceId, this.id, id);
     };
 
     /**
-     * Create sensor resources from key/value store
+     * Create sensor resources in key/value store
      * @method module:Sensor.prototype.__create__resources
      * @param {object} resources Resources key/value object
      * @returns {Promise<function>} module:SensorResource.save
      */
-    Sensor.prototype.__create__resources = async function(resources) {
+    Sensor.prototype.__create__resources = function(resources) {
       return SensorResource.save(this.deviceId, this.id, resources);
     };
 
     /**
-     * Replace sensor resources from key/value store
+     * Replace sensor resources in key/value store
      * @method module:Sensor.prototype.__replace__resources
      * @param {object} resources Resources key/value object
      * @returns {Promise<function>} module:SensorResource.save
      */
-    Sensor.prototype.__replace__resources = async function(resources) {
+    Sensor.prototype.__replace__resources = function(resources) {
       return SensorResource.save(this.deviceId, this.id, resources);
     };
 
@@ -500,13 +505,109 @@ module.exports = function(Sensor) {
      * @method module:Sensor.prototype.__delete__resources
      * @returns {Promise<function>} module:SensorResource.remove
      */
-    Sensor.prototype.__delete__resources = async function() {
+    Sensor.prototype.__delete__resources = function() {
       return SensorResource.remove(this.deviceId, this.id);
     };
 
     // Sensor.prototype.__destroyById__resources = async function(id) {
     //   return SensorResource.remove(this.deviceId, this.id, id);
     // };
+
+    /**
+     * Get sensor measurement from timeseries store
+     * @method module:Sensor.prototype.__get__measurements
+     * @param {object} filter Measurement filter
+     * @returns {Promise<object[]>} module:Measurement.find
+     */
+    Sensor.prototype.__get__measurements = async function(filter) {
+      if (!filter) filter = { where: {} };
+      const points = await Measurement.find({
+        // ...filter,
+        where: {
+          ...filter.where,
+          sensorId: this.id.toString(),
+          // deviceId: this.deviceId.toString(),
+          ownerId: this.ownerId.toString(),
+          // OR: [{ rp: '0s' }, { rp: '2h' }],
+          // rp: '0s',
+        },
+      });
+      return points || [];
+    };
+
+    /**
+     * Get sensor measurement from timeseries store by id
+     * @method module:Sensor.prototype.__findById__measurements
+     * @param {string} id Resource key
+     * @returns {Promise<function>} module:Measurement.findById
+     */
+
+    /**
+     * Create sensor measurement in timeseries store
+     * @method module:Sensor.prototype.__create__measurements
+     * @param {object} measurement
+     * @returns {Promise<object>}
+     */
+    Sensor.prototype.__create__measurements = async function(measurement) {
+      const point = await Measurement.create({
+        ...measurement,
+        sensorId: this.id.toString(),
+        deviceId: this.deviceId.toString(),
+        ownerId: this.ownerId.toString(),
+        nativeSensorId: this.nativeSensorId,
+        nativeNodeId: this.nativeNodeId,
+      });
+      return point && point.id;
+    };
+
+    /**
+     * Replace sensor measurement in timeseries store
+     * @method module:Sensor.prototype.__replace__measurements
+     * @param {object} attributes
+     * @param {object} filter
+     * @returns {Promise<object[] | null>} module:Measurement.replace
+     */
+    Sensor.prototype.__replace__measurements = async function(attributes, filter) {
+      if (!filter) filter = { where: {} };
+      // console.log('__replace__measurements:req', { filter, attributes });
+      try {
+        const result = await Measurement.replace(
+          {
+            where: {
+              ...filter.where,
+              sensorId: this.id.toString(),
+              // deviceId: this.deviceId.toString(),
+              // ownerId: this.ownerId.toString(),
+            },
+          },
+          attributes,
+        );
+        // console.log('__replace__measurements:res', result);
+        return result;
+      } catch (error) {
+        // console.log('__replace__measurements:err', error);
+        return null;
+      }
+    };
+
+    /**
+     * Delete sensor measurement from timeseries store
+     * @method module:Sensor.prototype.__delete__measurements
+     * @param {object} filter
+     * @returns {Promise<boolean>} module:Measurement.delete
+     */
+    Sensor.prototype.__delete__measurements = async function(filter) {
+      if (!filter) filter = {};
+      // console.log('__delete__measurements:req', filter);
+      const result = await Measurement.delete({
+        ...filter,
+        sensorId: this.id.toString(),
+        // deviceId: this.deviceId.toString(),
+        // ownerId: this.ownerId.toString(),
+      });
+      return result;
+    };
+
     /* eslint-enable camelcase */
     /* eslint-enable no-underscore-dangle */
   });
@@ -610,27 +711,12 @@ module.exports = function(Sensor) {
    * @returns {Promise<object>}
    */
 
-  /**
-   * Get sensor measurement from timeseries store
-   * @method module:Sensor.prototype.__get__measurements
-   * @returns {Promise<function>} module:Measurement.find
-   */
-
-  /**
-   * Get sensor measurement from timeseries store by id
-   * @method module:Sensor.prototype.__findById__measurements
-   * @param {string} id Resource key
-   * @returns {Promise<function>} module:Measurement.findById
-   */
-
   Sensor.disableRemoteMethodByName('upsertWithWhere');
   Sensor.disableRemoteMethodByName('replaceOrCreate');
   Sensor.disableRemoteMethodByName('createChangeStream');
 
-  Sensor.disableRemoteMethodByName('prototype.__create__measurements');
   Sensor.disableRemoteMethodByName('prototype.__count__measurements');
   Sensor.disableRemoteMethodByName('prototype.__updateById__measurements');
-  Sensor.disableRemoteMethodByName('prototype.__delete__measurements');
   Sensor.disableRemoteMethodByName('prototype.__deleteById__measurements');
   Sensor.disableRemoteMethodByName('prototype.__link__measurements');
   Sensor.disableRemoteMethodByName('prototype.__unlink__measurements');

@@ -13,7 +13,7 @@ export const collectionName = 'User';
  * @method module:User~createProps
  * @param {object} app - Loopback app
  * @param {object} user - New user instance
- * @returns {Promise<object>} user
+ * @returns {Promise<object | null>} user
  */
 const createProps = async (app, user) => {
   try {
@@ -204,7 +204,7 @@ const onBeforeLogin = async ctx => {
  * @method module:User~deleteProps
  * @param {object} app - Loopback app
  * @param {object} user - user to delete
- * @returns {Promise<object>} ctx
+ * @returns {Promise<boolean>} ctx
  */
 const deleteProps = async (app, user) => {
   try {
@@ -232,8 +232,10 @@ const deleteProps = async (app, user) => {
     }
 
     logger.publish(3, `${collectionName}`, 'deleteProps:res', user);
+    return true;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
+    return false;
   }
 };
 

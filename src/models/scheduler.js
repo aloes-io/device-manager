@@ -191,9 +191,10 @@ module.exports = function(Scheduler) {
       const payload = { date: new Date(time), time, lastTime };
       logger.publish(4, `${collectionName}`, 'onTick:req', { payload });
       Scheduler.app.emit('publish', topic, payload, false, 0);
-      await syncRunningTimers(Scheduler, delay);
+      return syncRunningTimers(Scheduler, delay);
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'onTick:err', error);
+      return null;
     }
   };
 
@@ -330,7 +331,7 @@ module.exports = function(Scheduler) {
 
   const checkExternalClock = async () => {
     logger.publish(3, `${collectionName}`, 'checkExternalClock:req', '');
-    await Scheduler.setExternalClock(clockInterval);
+    return Scheduler.setExternalClock(clockInterval);
     // return Scheduler.setInternalClock(checkExternalClock, clockInterval * 2);
   };
 
@@ -400,9 +401,9 @@ module.exports = function(Scheduler) {
    * Trigger Scheduler starting routine
    *
    * @event stopped
-   * @returns {functions | null} Scheduler.setClock
+   * @returns {Promise<functions | null>} Scheduler.setClock
    */
-  Scheduler.once('started', () =>
+  Scheduler.once('started', async () =>
     utils.isMasterProcess(process.env)
       ? setTimeout(() => Scheduler.setClock(clockInterval), 2500)
       : null,
@@ -414,9 +415,11 @@ module.exports = function(Scheduler) {
    * Trigger Scheduler stopping routine
    *
    * @event stopped
-   * @returns {functions | null} Scheduler.delClock
+   * @returns {Promise<functions | null>} Scheduler.delClock
    */
-  Scheduler.on('stopped', () => (utils.isMasterProcess(process.env) ? Scheduler.delClock() : null));
+  Scheduler.on('stopped', async () =>
+    utils.isMasterProcess(process.env) ? Scheduler.delClock() : null,
+  );
 
   /**
    * Event reporting tick
@@ -424,7 +427,7 @@ module.exports = function(Scheduler) {
    * Trigger Scheduler tick routine
    *
    * @event tick
-   * @returns {functions} Scheduler.onTick
+   * @returns {Promise<functions>} Scheduler.onTick
    */
   Scheduler.on('tick', Scheduler.onTick);
 
@@ -434,7 +437,7 @@ module.exports = function(Scheduler) {
    * @param {object} ctx - Express context
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @returns {function} Scheduler~onBeforeRemote
+   * @returns {Promise<function>} Scheduler~onBeforeRemote
    */
   Scheduler.beforeRemote('**', async ctx => onBeforeRemote(Scheduler.app, ctx));
 

@@ -104,8 +104,7 @@ module.exports = function(Client) {
   Client.on('stopped', async () => {
     if (!utils.isMasterProcess(process.env)) return false;
     logger.publish(3, `${collectionName}`, 'on-stop:res', '');
-    await Client.deleteAll();
-    return true;
+    return Client.deleteAll();
   });
 
   /**

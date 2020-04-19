@@ -1,8 +1,6 @@
 # Aloes - Device Manager
 
-[![pipeline status](https://framagit.org/aloes/device-manager/badges/master/pipeline.svg)](https://framagit.org/aloes/device-manager/-/commits/master)
-
-[![coverage report](https://framagit.org/aloes/device-manager/badges/master/coverage.svg)](https://framagit.org/aloes/device-manager/-/commits/master)
+[![pipeline status](https://framagit.org/aloes/device-manager/badges/master/pipeline.svg)](https://framagit.org/aloes/device-manager/-/commits/master)  [![coverage report](https://framagit.org/aloes/device-manager/badges/master/coverage.svg)](https://aloes.frama.io/device-manager/lcov-report)
 
 - Replicate devices with rich semantic properties
 - Authentification by access tokens and API keys

@@ -5,9 +5,12 @@
  */
 
 /* eslint-disable security/detect-object-injection  */
-import request from 'request';
-import table from 'text-table';
-import weighted from 'weighted';
+/* eslint-disable import/no-extraneous-dependencies */
+
+const axios = require('axios');
+// const request = require('request');
+const table = require('text-table');
+const weighted = require('weighted');
 
 const shuffle = require('shuffle').shuffle;
 
@@ -107,7 +110,7 @@ function hit(choices) {
     verb = 'post';
   }
   // Make the request.
-  request[verb](
+  axios[verb](
     getBaseURL() + path,
     {
       json: {},
@@ -133,7 +136,7 @@ function hit(choices) {
  * @type {[type]}
  */
 function start() {
-  request.get(`${getBaseURL()}/routes`, (err, response, body) => {
+  axios.get(`${getBaseURL()}/routes`, (err, response, body) => {
     if (err) throw err;
     body = toJSON(body);
     let routes = distillRoutes(body);

@@ -248,24 +248,22 @@ export const pickRandomClient = (broker, clientIds) => {
 /**
  * HTTP request to Aloes to validate credentials
  * @method module:Broker~authentificationRequest
- * @param {object} data - Client instance and credentials
+ * @param {object} credentials - Client instance and credentials
  * @returns {Promise<object>}
  */
-const authentificationRequest = async data => {
+const authentificationRequest = async credentials => {
   const baseUrl = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}`;
   // const baseUrl =
   // `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
-  const res = await axios.post(`${baseUrl}/authenticate`, data, {
+  const { data } = await axios.post(`${baseUrl}/authenticate`, credentials, {
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
     },
   });
-  if (res && res.data) {
-    logger.publish(4, 'broker', 'authentificationRequest:res', res.data);
-    return res.data;
-  }
-  return null;
+
+  logger.publish(4, 'broker', 'authentificationRequest:res', data);
+  return data || null;
 };
 
 // const brokerResponseCodes = {
@@ -313,7 +311,7 @@ export const onAuthenticate = async (client, username, password) => {
     const result = await authentificationRequest({
       client: foundClient,
       username,
-      password,
+      password: password.toString(),
     });
     if (result && result.status !== undefined) {
       status = result.status;
@@ -330,7 +328,6 @@ export const onAuthenticate = async (client, username, password) => {
 
     return status;
   } catch (error) {
-    logger.publish(2, 'broker', 'onAuthenticate:err', error);
     if (error.code === 'ECONNREFUSED') {
       return 3;
     }

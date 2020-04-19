@@ -202,77 +202,6 @@ export const publishToDeviceApplications = (app, device, packet) => {
   }
 };
 
-// const appendCachedSensors = async (app, ctx) => {
-//   logger.publish(4, `${collectionName}`, 'appendCachedSensors:req', {
-//     query: ctx.req.query,
-//     params: ctx.req.params,
-//   });
-//   let getSensors = false;
-//   let result;
-//   const Device = app.models.Device;
-
-//   if (ctx.method.name.startsWith('__get')) {
-//     const modelName = ctx.method.name.split('__')[2];
-//     const params = ctx.req.params;
-//     // console.log('[DEVICE] beforeRemote get:req', modelName, params);
-//     if (modelName === 'sensors' && params && params.id) {
-//       getSensors = true;
-//       const id = params.id;
-//       let device = {};
-//       if (params.ownerId) {
-//         device = await Device.find({ where: { and: [{ id }, { ownerId: params.ownerId }] } });
-//       } else {
-//         device = await Device.findById(id);
-//       }
-//       result = [JSON.parse(JSON.stringify(device))];
-//     }
-//   }
-
-//   if (ctx.req.query.filter) {
-//     let whereFilter;
-//     if (typeof ctx.req.query.filter === 'string') {
-//       whereFilter = JSON.parse(ctx.req.query.filter);
-//     } else if (typeof ctx.req.query.filter === 'object') {
-//       whereFilter = ctx.req.query.filter;
-//     }
-//     // console.log('[DEVICE] appendCachedSensors:req', whereFilter);
-
-//     if (whereFilter.include) {
-//       if (typeof whereFilter.include === 'object') {
-//         const index = whereFilter.include.indexOf('sensors');
-//         getSensors = true;
-//         if (index !== -1) {
-//           whereFilter.include.splice(index, 1);
-//         }
-//       } else if (typeof whereFilter.include === 'string') {
-//         if (whereFilter.include.search('sensor') !== -1) {
-//           getSensors = true;
-//           delete whereFilter.include;
-//         }
-//       } else if (whereFilter.include.relation && typeof whereFilter.include.relation === 'string') {
-//         if (whereFilter.include.relation.search('sensor') !== -1) {
-//           getSensors = true;
-//           delete whereFilter.include;
-//         }
-//       }
-//     }
-//     if (whereFilter.where) {
-//       const devices = await Device.find(whereFilter);
-//       result = JSON.parse(JSON.stringify(devices));
-//     } else if (whereFilter && whereFilter.id && !whereFilter.id.inq) {
-//       const id = whereFilter.id;
-//       const device = await Device.findById(id);
-//       result = [JSON.parse(JSON.stringify(device))];
-//     }
-//   }
-//   if (result && getSensors) {
-//     const promises = await result.map(app.models.SensorResource.includeCache);
-//     result = await Promise.all(promises);
-//   }
-//   logger.publish(4, `${collectionName}`, 'appendCachedSensors:res', result ? result.length : 0);
-//   return result;
-// };
-
 /**
  * Validate instance before creation
  * @async
@@ -342,7 +271,7 @@ const createProps = async (app, instance) => {
     // await instance.destroy()
     throw new Error('no device address');
   }
-  instance.createdAt = Date.now();
+  instance.createdAt = new Date();
   return app.models.Device.publish(instance, 'POST');
 };
 
@@ -354,26 +283,23 @@ const createProps = async (app, instance) => {
  * @returns {Promise<function>} Device.publish
  */
 const updateProps = async (app, instance) => {
-  // instance = await createKeys(instance);
   await createKeys(instance);
-  // const sensors = await instance.sensors();
   const sensors = await instance.sensors.find();
-  // const sensors = await instance.sensors.get();
-  console.log(sensors);
 
-  await Promise.all(
-    sensors.map(async sensor => {
-      sensor.updateById(sensor.id, {
-        ...sensor,
-        devEui: instance.devEui,
-        transportProtocol: instance.transportProtocol,
-        transportProtocolVersion: instance.transportProtocolVersion,
-        messageProtocol: instance.messageProtocol,
-        messageProtocolVersion: instance.messageProtocolVersion,
-      });
-    }),
-  );
-
+  if (sensors) {
+    await Promise.all(
+      sensors.map(async sensor => {
+        sensor.updateAttributes({
+          ...sensor,
+          devEui: instance.devEui,
+          transportProtocol: instance.transportProtocol,
+          transportProtocolVersion: instance.transportProtocolVersion,
+          messageProtocol: instance.messageProtocol,
+          messageProtocolVersion: instance.messageProtocolVersion,
+        });
+      }),
+    );
+  }
   const defaultAddress = {
     street: '',
     streetNumber: null,
@@ -424,7 +350,7 @@ export const onAfterSave = async ctx => {
  * @method module:Device~deleteProps
  * @param {object} app - Loopback app
  * @param {object} instance
- * @returns {Promise<function>} Device.publish
+ * @returns {Promise<boolean>}
  */
 const deleteProps = async (app, instance) => {
   try {
@@ -439,8 +365,10 @@ const deleteProps = async (app, instance) => {
       }
       await app.models.Device.publish(instance, 'DELETE');
     }
+    return true;
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
+    return false;
   }
 };
 
@@ -587,7 +515,7 @@ export const parseMessage = async (app, packet, pattern, client) => {
     app.models.Sensor.emit('publish', {
       device,
       pattern,
-      //  sensor: device.sensors[0],
+      sensor: device.sensors[0],
       attributes,
       client,
     });

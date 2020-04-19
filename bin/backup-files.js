@@ -94,24 +94,6 @@ async function copyEverything(src, dest) {
   });
 
   await Promise.all(filesCopy);
-  // for (let file of filesToCopy) {
-  //   let srcPath = path.join(src, file.name);
-  //   let destPath = path.join(dest, file.name);
-
-  //   if (file.isDirectory()) {
-  //     try {
-  //       await copyEverything(srcPath, destPath);
-  //     } catch (err) {
-  //       console.log(`${Red}Something went wrong ${err}${Reset}`);
-  //     }
-  //   } else {
-  //     try {
-  //       await fs.copyFileSync(srcPath, destPath);
-  //     } catch (err) {
-  //       console.log(`${Red}Cannot finish the backup ${err}${Reset}`);
-  //     }
-  //   }
-  // }
 }
 
 // Run backup script and time stamp
