@@ -1,7 +1,5 @@
 # Copyright 2020 Edouard Maleix, read LICENSE
 
-image: node:12.10.0
-
 # include:
 # template: Dependency-Scanning.gitlab-ci.yml
 
@@ -21,7 +19,6 @@ variables:
   HTTP_CLIENT_URL: 'http://0.0.0.0:8080'
   HTTP_SERVER_HOST: '0.0.0.0'
   HTTP_SERVER_PORT: '8000'
-  # HTTP_SECURE
   HTTP_TRUST_PROXY: 'true'
   REST_API_ROOT: '/api'
   COOKIE_SECRET: '246bace2-38cb-4138-85d9'
@@ -35,12 +32,13 @@ variables:
   SMTP_SECURE: 'true'
   SMTP_USER: ''
   SMTP_PASS: ''
-  INFLUX_PROTOCOL: ''
-  INFLUX_HOST: ''
-  INFLUX_PORT: ''
-  INFLUX_COLLECTION: ''
-  INFLUX_USER: ''
-  INFLUX_PASS: ''
+  INFLUXDB_ADMIN_ENABLED: false
+  INFLUXDB_PROTOCOL: 'http'
+  INFLUXDB_HOST: 'influxdb'
+  INFLUXDB_PORT: '8086'
+  INFLUXDB_DB: 'aloes_test'
+  INFLUXDB_USER: 'aloes'
+  INFLUXDB_USER_PASSWORD: 'example'
   OCD_API_KEY: $OCD_API_KEY
   FS_PATH: '../storage'
   GITHUB_CLIENT_ID_LOGIN: ''
@@ -50,6 +48,12 @@ variables:
   GIT_REPO_SSH_URL: 'git@framagit.org:aloes/device-manager.git'
   INSTANCES_COUNT: '1'
 
+services:
+  - name: influxdb:1.7-alpine
+    alias: influxdb
+
+image: node:12.10.0
+      
 before_script:
   - npm ci
 
@@ -76,3 +80,5 @@ pages:
   only:
     - master
     - staging
+
+# todo on success build docker image

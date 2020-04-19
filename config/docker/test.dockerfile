@@ -1,9 +1,8 @@
-# Copyright 2019 Edouard Maleix, read LICENSE
+# Copyright 2020 Edouard Maleix, read LICENSE
 
-###############################################################################
-# Step 1 : Builder image
-#
 FROM node:lts-alpine AS builder
+
+RUN apk update && apk add git
 
 ENV NODE_NAME=device-manager
 ENV NODE_ENV=development
@@ -18,25 +17,8 @@ COPY package* ./
 COPY favicon.ico ./
 COPY docs ./docs/
 
+# COPY node_modules ./node_modules/
+
 RUN npm ci 
 
-###############################################################################
-# Step 2 : Run image
-#
-FROM node:lts-alpine
-
-ENV NODE_NAME=device-manager
-ENV NODE_ENV=development
-
-RUN mkdir -p /home/node/$NODE_NAME
-WORKDIR /home/node/$NODE_NAME
-
-# RUN npm ci
-
-# RUN npm install && \
-#     npm cache clean --force
-
-COPY --from=builder /home/node/$NODE_NAME/. ./
-
 CMD ["npm", "run", "test:cover"]
-
