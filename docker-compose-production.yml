@@ -1,4 +1,4 @@
-# Copyright 2019 Edouard Maleix, read LICENSE
+# Copyright 2020 Edouard Maleix, read LICENSE
 
 version: '3.7'
 
@@ -51,12 +51,12 @@ services:
       - storage__path=/var/data/skyring
     image: aloes/timer-api:latest
     restart: always
-    networks:
-      - skyring
     depends_on:
       - nats-a
       - nats-b
       - nats-c
+    networks:
+      - skyring
 
   timer-2:
     build:
@@ -72,12 +72,12 @@ services:
       - storage__path=/var/data/skyring
     image: aloes/timer-api:latest
     restart: always
-    networks:
-      - skyring
     depends_on:
       - nats-a
       - nats-b
       - nats-c
+    networks:
+      - skyring
 
   timer-3:
     build:
@@ -92,14 +92,14 @@ services:
       - storage__path=/var/data/skyring
     image: aloes/timer-api:latest
     restart: always
-    networks:
-      - skyring
     depends_on:
       - nats-a
       - nats-b
       - nats-c
       - timer-1
       - timer-2
+    networks:
+      - skyring
 
   timer-4:
     build:
@@ -114,14 +114,14 @@ services:
       - storage__path=/var/data/skyring
     image: aloes/timer-api:latest
     restart: always
-    networks:
-      - skyring
     depends_on:
       - nats-a
       - nats-b
       - nats-c
       - timer-1
       - timer-2
+    networks:
+      - skyring
 
   timer-5:
     build:
@@ -136,8 +136,6 @@ services:
       - storage__path=/var/data/skyring
     image: aloes/timer-api:latest
     restart: always
-    networks:
-      - skyring
     depends_on:
       - nats-a
       - nats-b
@@ -146,6 +144,8 @@ services:
       - timer-2
       - timer-3
       - timer-4
+    networks:
+      - skyring
 
   nats-a:
     image: nats:latest
@@ -186,16 +186,14 @@ services:
     volumes:
       - ./config/nginx/skyring.conf:/etc/nginx/nginx.conf
     restart: always
-    networks:
-      - skyring
     depends_on:
       - timer-1
       - timer-2
       - timer-3
       - timer-4
       - timer-5
-    ports:
-      - '127.0.0.1:9000:80'
+    networks:
+      - skyring
 
   mqtt-api-1:
     env_file: .env
@@ -214,31 +212,6 @@ services:
       - redis
     networks:
       - aloes
-    # ports:
-    #   - '127.0.0.1:2001:${MQTT_BROKER_PORT}'
-    #   - '127.0.0.1:3001:${WS_BROKER_PORT}'
-
-  mqtt-api-2:
-    env_file: .env
-    environment:
-      - SERVER_LOGGER_LEVEL=4
-    build:
-      context: .
-      dockerfile: ./config/docker/broker.dockerfile
-    image: aloes/mqtt-api:latest
-    volumes:
-      - ./.env:/home/node/device-manager/.env:ro
-      - ./deploy/key.pem:/home/node/device-manager/deploy/key.pem
-      - ./deploy/cert.pem:/home/node/device-manager/deploy/cert.pem
-    restart: always
-    depends_on:
-      - redis
-      - mqtt-api-1
-    networks:
-      - aloes
-    # ports:
-    #   - '127.0.0.1:2002:${MQTT_BROKER_PORT}'
-    #   - '127.0.0.1:3002:${WS_BROKER_PORT}'
 
   http-api-1:
     env_file: .env
@@ -262,70 +235,8 @@ services:
       - redis
       - timer-proxy
       - mqtt-api-1
-      - mqtt-api-2
     networks:
       - aloes
-    # ports:
-    #   - '127.0.0.1:8001:${HTTP_SERVER_PORT}'
-
-  http-api-2:
-    env_file: .env
-    environment:
-      - SERVER_LOGGER_LEVEL=4
-      - INSTANCES_COUNT=2
-      - INSTANCES_PREFIX=2
-    build:
-      context: .
-      dockerfile: ./config/docker/server.dockerfile
-    image: aloes/http-api:latest
-    restart: always
-    volumes:
-      - ./.env:/home/node/device-manager/.env:ro
-      - apivolume:/home/node/device-manager/storage
-      - ./deploy/key.pem:/home/node/device-manager/deploy/key.pem
-      - ./deploy/cert.pem:/home/node/device-manager/deploy/cert.pem
-    depends_on:
-      - mongo
-      - influxdb
-      - redis
-      - timer-proxy
-      - mqtt-api-1
-      - mqtt-api-2
-      - http-api-1
-    networks:
-      - aloes
-    # ports:
-    #   - '127.0.0.1:8002:${HTTP_SERVER_PORT}'
-
-  http-api-3:
-    env_file: .env
-    environment:
-      - SERVER_LOGGER_LEVEL=4
-      - INSTANCES_COUNT=2
-      - INSTANCES_PREFIX=3
-    build:
-      context: .
-      dockerfile: ./config/docker/server.dockerfile
-    image: aloes/http-api:latest
-    restart: always
-    volumes:
-      - ./.env:/home/node/device-manager/.env:ro
-      - apivolume:/home/node/device-manager/storage
-      - ./deploy/key.pem:/home/node/device-manager/deploy/key.pem
-      - ./deploy/cert.pem:/home/node/device-manager/deploy/cert.pem
-    depends_on:
-      - mongo
-      - influxdb
-      - redis
-      - timer-proxy
-      - mqtt-api-1
-      - mqtt-api-2
-      - http-api-1
-      - http-api-2
-    networks:
-      - aloes
-    # ports:
-    #   - '127.0.0.1:8003:${HTTP_SERVER_PORT}'
 
   api-proxy:
     environment:
@@ -343,10 +254,7 @@ services:
       - ./log/nginx:/etc/nginx/log
     depends_on:
       - mqtt-api-1
-      - mqtt-api-2
       - http-api-1
-      - http-api-2
-      - http-api-3
       - timer-proxy
     ports:
       - '80:80'
@@ -356,7 +264,7 @@ services:
     networks:
       - aloes
       - skyring
-    # network_mode: host 
+    # network_mode: host
     command: /bin/bash -c "envsubst '$${HTTP_SERVER_PORT},$${WS_BROKER_PORT},$${MQTT_BROKER_PORT},$${NGINX_SERVER_HOST}' < /etc/nginx/nginx.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"
 
 volumes:
