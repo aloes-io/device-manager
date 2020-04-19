@@ -59,7 +59,7 @@ module.exports = async function initializeDownSampling(app) {
         return { cqName: continuousQueryName, query };
       } catch (error) {
         logger.publish(
-          3,
+          2,
           'loopback',
           'boot:initializeDownSampling:buildContinuousQuery:err',
           error,
@@ -72,10 +72,10 @@ module.exports = async function initializeDownSampling(app) {
       const model = models[modelName];
       if (model && model.settings && model.settings.downSampling) {
         const dsRules = model.settings.downSampling;
-        logger.publish(4, 'loopback', 'boot:initializeDownSampling:rules', dsRules);
+        logger.publish(3, 'loopback', 'boot:initializeDownSampling:rules', dsRules);
 
         // Create Retention Policies
-        const rpPolicies = await Promise.all(
+        await Promise.all(
           dsRules.map(async dsRule => {
             try {
               const rpName = `rp_${dsRule.duration}`;
@@ -99,8 +99,6 @@ module.exports = async function initializeDownSampling(app) {
           }),
         );
 
-        logger.publish(4, 'loopback', 'boot:initializeDownSampling:rpPolicies', rpPolicies);
-
         await influxConnector.client.createRetentionPolicy('rp_forever', {
           duration: '0s',
           replication: 1,
@@ -108,6 +106,14 @@ module.exports = async function initializeDownSampling(app) {
         });
 
         influxConnector.retentionPolicies['0s'] = 'rp_forever';
+
+        logger.publish(
+          2,
+          'loopback',
+          'boot:initializeDownSampling:rpPolicies',
+          influxConnector.retentionPolicies,
+        );
+
         const sortedDurations = await influxConnector.sortDurations(
           Object.keys(influxConnector.retentionPolicies),
         );
@@ -138,7 +144,7 @@ module.exports = async function initializeDownSampling(app) {
               return null;
             } catch (error) {
               logger.publish(
-                3,
+                2,
                 'loopback',
                 'boot:initializeDownSampling:continuousQueries:err',
                 error,
