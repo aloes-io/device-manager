@@ -27,11 +27,11 @@ variables:
   MQTT_TRUST_PROXY: 'true'
   WS_BROKER_PORT: '3000'
   SERVER_LOGGER_LEVEL: '2'
-  SMTP_HOST: ''
+  # SMTP_HOST: ''
   SMTP_PORT: '465'
   SMTP_SECURE: 'true'
-  SMTP_USER: ''
-  SMTP_PASS: ''
+  # SMTP_USER: ''
+  # SMTP_PASS: ''
   INFLUXDB_ADMIN_ENABLED: false
   INFLUXDB_PROTOCOL: 'http'
   INFLUXDB_HOST: 'influxdb'
@@ -39,7 +39,7 @@ variables:
   INFLUXDB_DB: 'aloes_test'
   INFLUXDB_USER: 'aloes'
   INFLUXDB_USER_PASSWORD: 'example'
-  OCD_API_KEY: $OCD_API_KEY
+  # OCD_API_KEY: $OCD_API_KEY
   FS_PATH: '../storage'
   GITHUB_CLIENT_ID_LOGIN: ''
   GITHUB_CLIENT_SECRET_LOGIN: ''
@@ -53,7 +53,7 @@ services:
     alias: influxdb
 
 image: node:12.10.0
-      
+
 before_script:
   - npm ci
 
@@ -80,5 +80,4 @@ pages:
   only:
     - master
     - staging
-
 # todo on success build docker image
