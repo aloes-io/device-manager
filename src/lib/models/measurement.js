@@ -82,6 +82,9 @@ const updatePoint = (app, attributes, instance) =>
 const getRetentionPolicies = (app, filter) => {
   const retentionPolicies = [];
   const influxConnector = getConnector(app);
+  if (!influxConnector) {
+    return retentionPolicies;
+  }
   if (typeof filter.rp === 'object') {
     Object.keys(filter.rp).forEach(keyFilter => {
       if (keyFilter === 'inq') {
@@ -133,8 +136,11 @@ export const checkFilter = (filter, ownerId) => {
  */
 export const findMeasurements = async (app, filter) => {
   logger.publish(4, `${collectionName}`, 'findMeasurements:req', { filter });
-  const influxConnector = getConnector(app);
   try {
+    const influxConnector = getConnector(app);
+    if (!influxConnector) {
+      throw utils.buildError(500, 'SERVER_ERROR', 'Measuremenent API unavailable');
+    }
     let retentionPolicies = []; // '0s' || '2h';
 
     if (filter.where) {
@@ -171,7 +177,7 @@ export const findMeasurements = async (app, filter) => {
       // retentionPolicies = ['2h']; // '0s';
       retentionPolicies = influxConnector.retentionPolicies
         ? Object.keys(influxConnector.retentionPolicies)
-        : ['2h']; // '0s';;
+        : ['2h']; // '0s';
     }
 
     let result = [];
@@ -286,14 +292,5 @@ export const onBeforeRemote = async (app, ctx) => {
     }
   }
 
-  // if (!options.accessToken && !options.apikey) {
-  //   cb(utils.buildError(403, 'INVALID_AUTH', 'No token found in HTTP Options'), null);
-  //   return;
-  // }
-  // const ownerId = utils.getOwnerId(options);
-  // if (!ownerId) {
-  //   cb(utils.buildError(401, 'UNAUTHORIZED', 'Invalid user'), null);
-  //   return;
-  // }
   return ctx;
 };

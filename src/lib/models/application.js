@@ -89,10 +89,10 @@ const createProps = async (app, instance) => {
 const updateProps = async (app, instance) => {
   try {
     instance = await createKeys(instance);
-    await app.models.Application.publish(instance, 'PUT');
+    return app.models.Application.publish(instance, 'PUT');
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'updateProps:err', error);
-    // throw error;
+    return null;
   }
 };
 
@@ -138,9 +138,10 @@ const deleteProps = async (app, instance) => {
     //   const promises = await devices.map(async device => device.delete());
     //   await Promise.all(promises);
     // }
-    await app.models.Application.publish(instance, 'DELETE');
+    return app.models.Application.publish(instance, 'DELETE');
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
+    return null;
   }
 };
 
@@ -213,12 +214,11 @@ export const onBeforeRemote = async ctx => {
     const isAdmin = options.currentUser.roles.includes('admin');
     if (!isAdmin && options.currentUser.appEui) {
       if (options.currentUser.id.toString() !== ctx.args.appId.toString()) {
-        const error = utils.buildError(
+        throw utils.buildError(
           401,
           'INVALID_USER',
           'Only application itself can trigger this endpoint',
         );
-        throw error;
       }
     }
   }

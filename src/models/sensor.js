@@ -226,9 +226,17 @@ module.exports = function(Sensor) {
     if (sensor.isNewInstance || !sensor || !sensor.id) {
       throw utils.buildError(400, 'INVALID_SENSOR', 'Sensor not validated yet');
     }
+
     const foundSensor = await Sensor.findById(sensor.id);
     const resources = await getResources(foundSensor);
-    sensor.resources = { ...sensor.resources, ...resources };
+
+    if (!sensor.resources) {
+      // sensor.setAttribute('resources', resources);
+      sensor.resources = resources;
+    } else {
+      sensor.resources = { ...resources, ...sensor.resources };
+      // sensor.setAttribute('resources', { ...resources, ...sensor.resources });
+    }
 
     const updatedSensor = updateAloesSensors(sensor, Number(resourceKey), resourceValue);
     if (!updatedSensor || !updatedSensor.id) {
@@ -242,8 +250,10 @@ module.exports = function(Sensor) {
     // updatedSensor.value = null; free sensor space ?
     updatedSensor.frameCounter += 1;
     updatedSensor.lastSignal = new Date();
-    // updatedSensor.lastSignal = new Date().getTime();
     updatedSensor.method = 'PUT';
+
+    // await replaceResources(updatedSensor, updatedSensor.resources);
+    // delete updatedSensor.resources;
 
     await Sensor.replaceById(sensor.id, updatedSensor);
     await Sensor.publish(sensor.deviceId.toString(), updatedSensor, 'PUT', client);

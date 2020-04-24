@@ -405,7 +405,7 @@ module.exports = Application => {
   Application.beforeRemote('**', onBeforeRemote);
 
   Application.afterRemoteError('*', (ctx, next) => {
-    logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, ctx.error);
+    logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, ctx.error);
     // publish on collectionName/ERROR
     next();
   });

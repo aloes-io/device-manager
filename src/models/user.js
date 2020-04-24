@@ -53,6 +53,7 @@ module.exports = function(User) {
     const user = await User.findOne({
       where: { email },
       fields: {
+        id: true,
         email: true,
         firstName: true,
         lastName: true,
@@ -88,7 +89,7 @@ module.exports = function(User) {
       throw utils.buildError(404, 'USER_NOT_FOUND', `User doesn't exist`);
     }
     logger.publish(4, `${collectionName}`, 'verifyEmail:res', instance);
-    User.app.emit('verifyEmail', user);
+    User.app.emit('verifyEmail', instance);
     return user;
   };
 

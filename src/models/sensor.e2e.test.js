@@ -709,7 +709,7 @@ const sensorTest = () => {
           expect(sensor.value).to.be.equal(Number(packets[index].payload));
 
           const measurements = await app.models.Measurement.find({
-            where: { sensorId: sensors[index].id.toString() },
+            where: { sensorId: sensors[index].id.toString(), rp: { inq: ['0s', '1h', '2h'] } },
           });
           const baseMeasurement = {
             ownerId: sensors[index].ownerId.toString(),

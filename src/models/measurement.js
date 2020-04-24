@@ -242,7 +242,7 @@ module.exports = function(Measurement) {
   Measurement.beforeRemote('**', async ctx => onBeforeRemote(Measurement.app, ctx));
 
   Measurement.afterRemoteError('*', async ctx => {
-    logger.publish(4, `${collectionName}`, `after ${ctx.methodString}:err`, ctx.error);
+    logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, ctx.error);
     // publish on collectionName/ERROR
     return ctx;
   });
