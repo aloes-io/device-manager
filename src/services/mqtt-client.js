@@ -29,7 +29,7 @@ const baseOptions = {
   password: null,
 };
 
-const serviceNames = ['Device', 'Application', 'Sensor'];
+// const serviceNames = ['Device', 'Application', 'Sensor'];
 
 const setClientId = config => {
   const prefix = `aloes-${config.ALOES_ID}`;
@@ -217,9 +217,9 @@ const onStatus = (app, topic, payload) => {
 
 const onModelPublish = (app, serviceName, pattern, packet, client) => {
   logger.publish(5, 'mqtt-client', 'onModelPublish:req', { serviceName });
-  if (!serviceNames.some(name => name.toLowerCase() === serviceName.toLowerCase())) {
-    return;
-  }
+  // if (!serviceNames.some(name => name.toLowerCase() === serviceName.toLowerCase())) {
+  //   return;
+  // }
   // eslint-disable-next-line security/detect-object-injection
   const Model = app.models[serviceName];
   if (Model) Model.emit('publish', { pattern, packet, client });

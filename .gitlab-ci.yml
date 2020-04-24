@@ -39,7 +39,7 @@ variables:
   INFLUXDB_DB: 'aloes_test'
   INFLUXDB_USER: 'aloes'
   INFLUXDB_USER_PASSWORD: 'example'
-  # OCD_API_KEY: $OCD_API_KEY
+  # OCD_API_KEY: ''
   FS_PATH: '../storage'
   GITHUB_CLIENT_ID_LOGIN: ''
   GITHUB_CLIENT_SECRET_LOGIN: ''

@@ -3,7 +3,7 @@
 import colors from 'colors';
 // import mqttClient from './mqtt-client';
 
-colors.setTheme({
+const themes = {
   USER: ['grey', 'underline'],
   APPLICATION: ['white', 'bold', 'bgCyan'],
   DEVICE: ['white', 'bold', 'bgBlue'],
@@ -15,12 +15,12 @@ colors.setTheme({
   BROKER: ['blue', 'bold'],
   'MQTT-CLIENT': ['green', 'bold'],
   TUNNEL: ['yellow', 'bold'],
-  CACHE: ['red', 'bold'],
   TRACKER: ['yellow', 'bold'],
   DEFAULT: 'white',
-  warn: 'yellow',
-  error: 'red',
-});
+  WARN: 'yellow',
+  ERROR: 'red',
+};
+colors.setTheme(themes);
 
 const logger = {};
 // const remoteLog = false;
@@ -46,48 +46,10 @@ const formatLog = (collectionName, command, content) => {
 };
 
 const sendFormatedLog = (collectionName, command, fullContent) => {
-  switch (collectionName.toUpperCase()) {
-    case 'BROKER':
-      console.log(`${fullContent}`.BROKER);
-      break;
-    case 'MQTT-CLIENT':
-      console.log(`${fullContent}`['MQTT-CLIENT']);
-      break;
-    case 'TUNNEL':
-      console.log(`${fullContent}`.TUNNEL);
-      break;
-    case 'LOOPBACK':
-      console.log(`${fullContent}`.LOOPBACK);
-      break;
-    case 'CACHE':
-      console.log(`${fullContent}`.CACHE);
-      break;
-    case 'TRACKER':
-      console.log(`${fullContent}`.TRACKER);
-      break;
-    case 'USER':
-      console.log(`${fullContent}`.USER);
-      break;
-    case 'APPLICATION':
-      console.log(`${fullContent}`.APPLICATION);
-      break;
-    case 'DEVICE':
-      console.log(`${fullContent}`.DEVICE);
-      break;
-    case 'SENSOR':
-      console.log(`${fullContent}`.SENSOR);
-      break;
-    case 'FILES':
-      console.log(`${fullContent}`.FILES);
-      break;
-    case 'MEASUREMENT':
-      console.log(`${fullContent}`.MEASUREMENT);
-      break;
-    case 'SCHEDULER':
-      console.log(`${fullContent}`.SCHEDULER);
-      break;
-    default:
-      console.log(`${fullContent}`.DEFAULT);
+  if (themes[collectionName.toUpperCase()]) {
+    console.log(`${fullContent}`[collectionName.toUpperCase()]);
+  } else {
+    console.log(`${fullContent}`.DEFAULT);
   }
 };
 
@@ -110,10 +72,7 @@ logger.publish = (priority, collectionName, command, content) => {
     //   }
     // }
     return fullContent;
-  } else if (priority > logLevel) {
-    return null;
   }
-  // const error = new Error('Missing argument in logger');
   return null;
 };
 
