@@ -132,7 +132,7 @@ export const compose = (device, attributes, isNewInstance = true) => {
     keys.forEach(key => {
       // special check for key === "value" ?
       // eslint-disable-next-line security/detect-object-injection
-      sensor[key] = attributes[key] || sensor[key];
+      sensor.setAttribute([key], attributes[key]);
     });
     sensor.lastSignal = attributes.lastSignal || Date.now();
     sensor.isNewInstance = isNewInstance;
