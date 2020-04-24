@@ -39,6 +39,11 @@ COPY --from=builder /home/node/$NODE_NAME/node_modules ./node_modules/
 
 STOPSIGNAL SIGINT
 
+# ENV HOST=0.0.0.0 MQTT_BROKER_PORT=1883 WS_BROKER_PORT=3000
+
+# EXPOSE ${MQTT_BROKER_PORT}
+# EXPOSE ${WS_BROKER_PORT}
+
 CMD ["node","bin/pm2-broker.js", "--start"]
 
 # USER node

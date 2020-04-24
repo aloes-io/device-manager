@@ -42,6 +42,10 @@ COPY --from=builder /home/node/$NODE_NAME/node_modules ./node_modules/
 
 STOPSIGNAL SIGINT
 
+# ENV HOST=0.0.0.0 HTTP_SERVER_HOST=8000
+
+# EXPOSE ${HTTP_SERVER_HOST}
+
 CMD ["node","bin/pm2-server.js", "--start"]
 
 # USER node
