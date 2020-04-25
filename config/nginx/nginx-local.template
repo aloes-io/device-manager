@@ -27,12 +27,12 @@ http {
 
   upstream aloes_http_api_servers {
     least_conn;
-    server http-api-1:${HTTP_SERVER_PORT};
+    server rest-api-1:${HTTP_SERVER_PORT};
   }
 
   upstream aloes_ws_api_servers {
     least_conn;
-    server mqtt-api-1:${WS_BROKER_PORT};
+    server async-api-1:${WS_BROKER_PORT};
   }
 
   upstream timer_load_balancers {
@@ -105,7 +105,7 @@ stream {
 
   upstream aloes_mqtt_api_servers {
     least_conn;
-    server mqtt-api-1:${MQTT_BROKER_PORT};
+    server async-api-1:${MQTT_BROKER_PORT};
   }
 
   server {
