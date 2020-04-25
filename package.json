@@ -21,6 +21,8 @@
     "build:docker:prod": "cp deploy/.env_docker .env ; docker-compose --compatibility -f docker-compose-production.yml build",
     "build:test": "cp deploy/.env_development .env ; npm run clean ; npx babel src --out-dir dist --copy-files",
     "build:test:docker": "docker-compose -f docker-compose-test.yml --compatibility build",
+    "build:docker:rest-api": "docker build -t getlarge/aloes-rest-api:latest -f ./config/docker/server.dockerfile .",
+    "build:docker:async-api": "docker build -t getlarge/aloes-async-api:latest -f ./config/docker/broker.dockerfile .",
     "test:address": "npm run build:test ; ./node_modules/.bin/mocha ./dist/**/address.e2e.test.js",
     "test:application": "npm run build:test ; ./node_modules/.bin/mocha ./dist/**/application.e2e.test.js",
     "test:client": "npm run build:test ; ./node_modules/.bin/mocha ./dist/**/client.e2e.test.js",
@@ -29,10 +31,10 @@
     "test:sensor": "npm run build:test ; ./node_modules/.bin/mocha ./dist/**/sensor.e2e.test.js",
     "test:scheduler": "npm run build:test ; ./node_modules/.bin/mocha ./dist/**/scheduler.e2e.test.js",
     "test:user": "npm run build:test ; ./node_modules/.bin/mocha ./dist/**/user.e2e.test.js",
-    "test": "npm run build:test ; ./node_modules/.bin/mocha ./dist/**/*.test.js",
-    "test:cover": "npm run build:test ; ./node_modules/.bin/nyc ./node_modules/.bin/mocha ./dist/**/*.test.js",
-    "test:docker": "npm run build:test:docker ; docker-compose -f docker-compose-test.yml --compatibility run --rm api",
-    "test:docker2": "npm run build:test:docker ; docker-compose -f docker-compose-test.yml --compatibility up --exit-code-from api",
+    "test": "./node_modules/.bin/mocha ./dist/**/*.test.js",
+    "test:cover": "./node_modules/.bin/nyc ./node_modules/.bin/mocha ./dist/**/*.test.js",
+    "test:docker": "docker-compose -f docker-compose-test.yml --compatibility run --rm api",
+    "test:docker2": "docker-compose -f docker-compose-test.yml --compatibility up --exit-code-from api",
     "start": "cp deploy/.env_development .env ; npm run build && NODE_ENV=development node ./bin/nodemon.js",
     "start:local": "cp deploy/.env_local .env ; npm run build && NODE_ENV=local node ./bin/nodemon.js",
     "start:stage": "cp deploy/.env_staging .env ; npm run build && NODE_ENV=staging node ./bin/nodemon.js",
@@ -47,7 +49,9 @@
     "stop:docker": "cp deploy/.env_docker .env ; docker-compose --compatibility down",
     "stop:docker:prod": "cp deploy/.env_docker .env ; docker-compose --compatibility -f docker-compose-production.yml down",
     "log:docker": "cp deploy/.env_docker .env ; docker-compose --compatibility logs --follow --tail='100'",
-    "log:docker:prod": "cp deploy/.env_docker .env ; docker-compose --compatibility -f docker-compose-production.yml logs --follow --tail='100'"
+    "log:docker:prod": "cp deploy/.env_docker .env ; docker-compose --compatibility -f docker-compose-production.yml logs --follow --tail='100'",
+    "publish:docker:rest-api": "docker push getlarge/aloes-rest-api:latest",
+    "publish:docker:async-api": "docker push getlarge/aloes-async-api:latest"
   },
   "pre-commit": {
     "run": [

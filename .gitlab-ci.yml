@@ -54,14 +54,26 @@ services:
 
 image: node:12.10.0
 
-before_script:
-  - npm ci
+# before_script:
+#   - npm ci
+
+prepare:
+  stage: build
+  before_script:
+    - npm ci
+  script: 
+    - npm run build:test
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - dist
 
 test_async:
   variables:
     NODE_ENV: 'development'
     CI: 'true'
   script:
+    - npm ci
     - npm run test:cover
   artifacts:
     paths:
@@ -80,4 +92,11 @@ pages:
   only:
     - master
     - staging
-# todo on success build docker image
+
+publish:
+  stage: .post
+  script:
+    - curl --request POST https://hub.docker.com/api/build/v1/source/$ASYNC_API_DOCKER_REPO/trigger/accd237c-3aa5-4628-96df-7f19aa07d396/call/
+    - curl --request POST https://hub.docker.com/api/build/v1/source/$REST_API_DOCKER_REPO/trigger/5d376923-84b9-41f5-a3b8-c9c1d2d24d03/call/
+  only:
+    - master
