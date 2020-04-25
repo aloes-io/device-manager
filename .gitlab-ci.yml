@@ -7,6 +7,12 @@ cache:
   paths:
     - node_modules/
 
+stages:
+  - build
+  - test
+  - deploy
+  - .post
+
 variables:
   NODE_ENV: 'development'
   NODE_NAME: 'device-manager'
@@ -53,9 +59,6 @@ services:
     alias: influxdb
 
 image: node:12.10.0
-
-# before_script:
-#   - npm ci
 
 prepare:
   stage: build

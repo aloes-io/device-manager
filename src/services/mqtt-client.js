@@ -313,7 +313,7 @@ MQTTClient.on('start', startClient);
 const initClient = async (app, config) => {
   try {
     setClientId(config);
-    logger.publish(4, 'mqtt-client', 'initClient:req', {
+    logger.publish(3, 'mqtt-client', 'initClient:req', {
       clientId: MQTTClient.id,
       clientProcessId: MQTTClient.processId,
     });
@@ -350,7 +350,7 @@ const initClient = async (app, config) => {
     // });
 
     mqttClient.on('offline', packet => {
-      logger.publish(4, 'mqtt-client', 'offline:req', packet);
+      logger.publish(3, 'mqtt-client', 'offline:req', packet);
     });
 
     const handleMessage = (packet, cb) => {
@@ -361,7 +361,7 @@ const initClient = async (app, config) => {
 
     mqttClient.handleMessage = handleMessage;
 
-    logger.publish(5, 'mqtt-client', 'initClient:res', mqttClientOptions);
+    logger.publish(3, 'mqtt-client', 'initClient:res', mqttClientOptions);
     await startClient();
 
     return true;
