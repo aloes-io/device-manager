@@ -63,12 +63,17 @@ prepare:
     - npm ci
   script: 
     - npm run build:test
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - dist
 
 test_async:
   variables:
     NODE_ENV: 'development'
     CI: 'true'
   script:
+    - npm ci
     - npm run test:cover
   artifacts:
     paths:
