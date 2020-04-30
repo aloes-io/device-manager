@@ -17,8 +17,7 @@ COPY package* ./
 COPY favicon.ico ./
 COPY docs ./docs/
 
-# COPY node_modules ./node_modules/
-
 RUN npm ci 
+RUN npm run build:test
 
 CMD ["npm", "run", "test:cover"]

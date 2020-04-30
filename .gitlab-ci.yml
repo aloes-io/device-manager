@@ -53,10 +53,20 @@ variables:
   GITHUB_CLIENT_SECRET_LINK: ''
   GIT_REPO_SSH_URL: 'git@framagit.org:aloes/device-manager.git'
   INSTANCES_COUNT: '1'
+  DEBUG: 'skyring:*'
+  channel__host: 'timer-1'
+  nats__hosts: 'nats:4222'
+  seeds: 'timer-1:3455'
+  storage__backend: 'leveldown'
+  storage__path: '/var/data/skyring'
 
 services:
   - name: influxdb:1.7-alpine
-    alias: influxdb
+    alias: influxdb  
+  - name: nats:latest
+    alias: nats
+  - name: quay.io/esatterwhite/skyring
+    alias: timer-1
 
 image: node:12.10.0
 
