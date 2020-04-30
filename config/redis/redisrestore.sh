@@ -21,6 +21,10 @@ case $key in
     CONTAINERNAME="$2"
     shift # past argument
     ;;
+  -p|--password)
+    REDIS_PASS="$2"
+    shift # past argument
+    ;;
   *)
     usage
     exit 1
@@ -40,13 +44,15 @@ case $response in
   [yY][eE][sS]|[yY])
       
     # stop redis
-    docker exec -i ${CONTAINERNAME} redis-cli shutdown
+    # docker exec -i ${CONTAINERNAME} redis-cli -a ${REDIS_PASS} shutdown
+    docker stop ${CONTAINERNAME}
 
     # copy the dump
     docker cp ${DUMPPATH} ${CONTAINERNAME}:${REDISDIR}/dump.rdb 
 
     # restart redis
-    docker exec -i ${CONTAINERNAME} redis-server /usr/local/etc/redis/redis.conf
+    # docker exec -i ${CONTAINERNAME} redis-server /usr/local/etc/redis/redis.conf
+    docker start ${CONTAINERNAME}
 
     ;;
   *)

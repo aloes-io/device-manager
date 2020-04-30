@@ -21,7 +21,7 @@ const baseOptions = {
   reschedulePings: true,
   // protocolId : 'MQTT',
   // protocolVersion : 4,
-  reconnectPeriod: 1000,
+  reconnectPeriod: 2000,
   connectTimeout: 2 * 1000,
   clean: false,
   clientId: null,
