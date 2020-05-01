@@ -67,6 +67,7 @@ const sendMail = updatedOptions =>
 
 /**
  * Generate HTML template and send email
+ * @async
  * @method module:Mails.send
  * @param {object} options - Mail options
  * @returns {Promise<object>} result - Mail result
@@ -103,9 +104,10 @@ const verifyUser = (user, options) =>
 
 /**
  * Sending a verification email to confirm account creation
+ * @async
  * @method module:Mails.verifyEmail
  * @param {object} user - Account created
- * @returns {Promise<object>} result - Mail result
+ * @returns {Promise<object>} response
  */
 mails.verifyEmail = async user => {
   try {
@@ -137,8 +139,10 @@ mails.verifyEmail = async user => {
 
 /**
  * Sending a mail to set a new password
+ * @async
  * @method module:Mails.sendResetPasswordMail
- * @param {object} options - Mail options
+ * @param {object} options
+ * @returns {Promise<object>} response
  */
 mails.sendResetPasswordMail = async options => {
   try {
@@ -161,8 +165,10 @@ mails.sendResetPasswordMail = async options => {
 
 /**
  * Sending a mail to admin
+ * @async
  * @method module:Mails.sendContactForm
- * @param {Promise<object>} options - Mail response
+ * @param {object} options
+ * @returns {Promise<object>} response
  */
 mails.sendContactForm = async options => {
   try {
@@ -185,8 +191,10 @@ mails.sendContactForm = async options => {
 
 /**
  * Sending a mail invitation to new user
+ * @async
  * @method module:Mails.sendMailInvite
- * @param {Promise<object>} options - Mail response
+ * @param {object} options
+ * @returns {Promise<object>} response
  */
 mails.sendMailInvite = async options => {
   try {

@@ -40,6 +40,7 @@ utils.buildError = (statusCode, code, message) => {
 
 /**
  * Create directory
+ * @async
  * @method module:Utils.mkDirByPathSync
  * @param {string} targetDir
  * @param {object} options

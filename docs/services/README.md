@@ -442,9 +442,9 @@ Error callback
     * _static_
         * [.send(options)](#module_Mails.send) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.verifyEmail(user)](#module_Mails.verifyEmail) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [.sendResetPasswordMail(options)](#module_Mails.sendResetPasswordMail)
-        * [.sendContactForm(options)](#module_Mails.sendContactForm)
-        * [.sendMailInvite(options)](#module_Mails.sendMailInvite)
+        * [.sendResetPasswordMail(options)](#module_Mails.sendResetPasswordMail) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.sendContactForm(options)](#module_Mails.sendContactForm) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.sendMailInvite(options)](#module_Mails.sendMailInvite) ⇒ <code>Promise.&lt;object&gt;</code>
     * _inner_
         * [~sendMail()](#module_Mails..sendMail) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~verifyUser()](#module_Mails..verifyUser) ⇒ <code>Promise.&lt;object&gt;</code>
@@ -467,7 +467,7 @@ Generate HTML template and send email
 Sending a verification email to confirm account creation
 
 **Kind**: static method of [<code>Mails</code>](#module_Mails)  
-**Returns**: <code>Promise.&lt;object&gt;</code> - result - Mail result  
+**Returns**: <code>Promise.&lt;object&gt;</code> - response  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -475,36 +475,39 @@ Sending a verification email to confirm account creation
 
 <a name="module_Mails.sendResetPasswordMail"></a>
 
-### Mails.sendResetPasswordMail(options)
+### Mails.sendResetPasswordMail(options) ⇒ <code>Promise.&lt;object&gt;</code>
 Sending a mail to set a new password
 
 **Kind**: static method of [<code>Mails</code>](#module_Mails)  
+**Returns**: <code>Promise.&lt;object&gt;</code> - response  
 
-| Param | Type | Description |
-| --- | --- | --- |
-| options | <code>object</code> | Mail options |
+| Param | Type |
+| --- | --- |
+| options | <code>object</code> | 
 
 <a name="module_Mails.sendContactForm"></a>
 
-### Mails.sendContactForm(options)
+### Mails.sendContactForm(options) ⇒ <code>Promise.&lt;object&gt;</code>
 Sending a mail to admin
 
 **Kind**: static method of [<code>Mails</code>](#module_Mails)  
+**Returns**: <code>Promise.&lt;object&gt;</code> - response  
 
-| Param | Type | Description |
-| --- | --- | --- |
-| options | <code>object</code> | Mail options |
+| Param | Type |
+| --- | --- |
+| options | <code>object</code> | 
 
 <a name="module_Mails.sendMailInvite"></a>
 
-### Mails.sendMailInvite(options)
+### Mails.sendMailInvite(options) ⇒ <code>Promise.&lt;object&gt;</code>
 Sending a mail invitation to new user
 
 **Kind**: static method of [<code>Mails</code>](#module_Mails)  
+**Returns**: <code>Promise.&lt;object&gt;</code> - response  
 
-| Param | Type | Description |
-| --- | --- | --- |
-| options | <code>object</code> | Mail options |
+| Param | Type |
+| --- | --- |
+| options | <code>object</code> | 
 
 <a name="module_Mails..sendMail"></a>
 

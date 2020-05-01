@@ -28,6 +28,7 @@ const onBeforeRemote = async ctx => {
 
 /**
  * Find clients in the cache
+ * @async
  * @method module:Client~getAll
  * @param {object} Model - Client model
  * @param {object} [filter] - Client filter
@@ -46,6 +47,7 @@ const getAll = async (Model, filter) => {
 
 /**
  * Delete clients stored in cache
+ * @async
  * @method module:Client~deleteAll
  * @param {object} Model - Client model
  * @param {object} [filter] - Client filter
