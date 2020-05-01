@@ -13,7 +13,7 @@ const collectionName = 'Client';
  * @param {object} [Model] - Response
  * @returns {Promise<object>} context
  */
-const onBeforeRemote = async (ctx) => {
+const onBeforeRemote = async ctx => {
   if (ctx.method.name === 'find' || ctx.method.name === 'remove') {
     // console.log('onBeforeRemote', ctx.method.name);
     const options = ctx.options || {};

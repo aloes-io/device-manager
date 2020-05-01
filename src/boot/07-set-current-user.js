@@ -102,9 +102,9 @@ module.exports = app => {
           return next();
         })
         .catch(next);
-    } else if (options.accessToken && options.accessToken.userId) {
+    } else if (ctx.options.accessToken && ctx.options.accessToken.userId) {
       return setter
-        .user(app, ip, options.accessToken)
+        .user(app, ip, ctx.options.accessToken)
         .then(currentUser => {
           ctx.options.currentUser = currentUser;
           logCurrentUser(ctx.methodString, ctx.options);
