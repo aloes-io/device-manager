@@ -5,6 +5,79 @@ import isLength from 'validator/lib/isLength';
 import logger from '../services/logger';
 import roleManager from '../services/role-manager';
 
+const setter = {
+  aloes: (app, ip, aloesId, aloesKey) =>
+    new Promise((resolve, reject) => {
+      if (aloesId === process.env.ALOES_ID && aloesKey === process.env.ALOES_KEY) {
+        return resolve({
+          id: aloesId,
+          ip,
+          roles: ['machine'],
+          type: 'Aloes',
+        });
+      }
+      return reject(new Error('Invalid Aloes client'));
+    }),
+  user: (app, ip, token) =>
+    new Promise((resolve, reject) => {
+      roleManager
+        .getUserRoleNames(app, token.userId)
+        .then(roles =>
+          resolve({
+            id: token.userId.toString(),
+            ip,
+            roles,
+            type: 'User',
+          }),
+        )
+        .catch(reject);
+    }),
+  device: (app, ip, devEui, apiKey) =>
+    new Promise((resolve, reject) => {
+      app.models.Device.findOne({
+        where: {
+          // eslint-disable-next-line security/detect-non-literal-regexp
+          and: [{ devEui: { like: new RegExp(`.*${devEui}.*`, 'i') } }, { apiKey }],
+        },
+      })
+        .then(device =>
+          resolve({
+            id: device.id.toString(),
+            ip,
+            devEui: device.devEui,
+            roles: ['user'],
+            type: 'Device',
+            ownerId: device.ownerId,
+          }),
+        )
+        .catch(reject);
+    }),
+  application: (app, ip, appId, apiKey) =>
+    new Promise((resolve, reject) => {
+      app.models.Application.findOne({
+        where: {
+          and: [
+            // eslint-disable-next-line security/detect-non-literal-regexp
+            { id: { like: new RegExp(`.*${appId}.*`, 'i') } },
+            { apiKey },
+          ],
+        },
+      })
+        .then(application =>
+          resolve({
+            id: application.id.toString(),
+            ip,
+            appId: application.id.toString(),
+            appEui: application.appEui,
+            roles: ['user'],
+            type: 'Application',
+            ownerId: application.ownerId,
+          }),
+        )
+        .catch(reject);
+    }),
+};
+
 module.exports = app => {
   const logCurrentUser = (method, options) => {
     logger.publish(4, 'loopback', 'setCurrentUser:res', {
@@ -13,98 +86,56 @@ module.exports = app => {
     });
   };
 
-  const setCurrentUserSync = (ctx, next) => {
-    const options = ctx.args.options || {};
+  const setCurrentUser = (ctx, next) => {
+    ctx.options = ctx.args.options || {};
     const headers = ctx.req.headers || {};
     const ip = ctx.req.ip || (ctx.req.connection && ctx.req.connection.remoteAddress);
     // logger.publish(3, 'loopback', 'setCurrentUser:test', { ips: ctx.req.ips, ip: ctx.req.ip });
     logger.publish(4, 'loopback', 'setCurrentUser:req', { ip, headers });
-
-    // console.log('setCurrentUserSync', ctx.req.remotingContext);
     if (headers['aloes-id'] && headers['aloes-key']) {
-      const aloesId = headers['aloes-id'];
-      const aloesKey = headers['aloes-key'];
-      if (aloesId === process.env.ALOES_ID && aloesKey === process.env.ALOES_KEY) {
-        options.currentUser = {
-          id: aloesId,
-          ip,
-          roles: ['machine'],
-          type: 'Aloes',
-        };
-        ctx.options = { ...options };
-        // ctx.args.options = { ...options };
-        logCurrentUser(ctx.methodString, ctx.options);
-        //  await roleManager.setUserRole(app, accounts[0].id, 'machine', true);
-        return next();
-      }
-      return next(new Error('Invalid Aloes client'));
-    } else if (options.accessToken && options.accessToken.userId) {
-      return roleManager
-        .getUserRoleNames(app, options.accessToken.userId)
-        .then(roles => {
-          options.currentUser = {
-            id: options.accessToken.userId.toString(),
-            ip,
-            // email: promises[0].email,
-            roles,
-            type: 'User',
-          };
-          // ctx.args.options = { ...options };
-          ctx.options = { ...options };
+      return setter
+        .aloes(app, ip, headers['aloes-id'], headers['aloes-key'])
+        .then(currentUser => {
+          ctx.options.currentUser = currentUser;
           logCurrentUser(ctx.methodString, ctx.options);
+          //  await roleManager.setUserRole(app, accounts[0].id, 'machine', true);
+          return next();
+        })
+        .catch(next);
+    } else if (options.accessToken && options.accessToken.userId) {
+      return setter
+        .user(app, ip, options.accessToken)
+        .then(currentUser => {
+          ctx.options.currentUser = currentUser;
+          logCurrentUser(ctx.methodString, ctx.options);
+          //  await roleManager.setUserRole(app, accounts[0].id, 'machine', true);
           return next();
         })
         .catch(next);
     } else if (headers.authorization) {
       return app.models.accessToken
         .findById(headers.authorization)
-        .then(token => {
-          roleManager
-            .getUserRoleNames(app, token.userId)
-            .then(roles => {
-              options.currentUser = {
-                id: token.userId.toString(),
-                ip,
-                roles,
-                type: 'User',
-              };
-              // ctx.args.options = { ...options };
-              ctx.options = { ...options };
+        .then(token =>
+          setter
+            .user(app, ip, token)
+            .then(currentUser => {
+              ctx.options.currentUser = currentUser;
               logCurrentUser(ctx.methodString, ctx.options);
+              //  await roleManager.setUserRole(app, accounts[0].id, 'machine', true);
               return next();
             })
-            .catch(next);
-        })
+            .catch(next),
+        )
         .catch(next);
     } else if (
       headers.deveui &&
       isLength(headers.deveui, { min: 4, max: 64 }) &&
       isAlphanumeric(headers.deveui)
     ) {
-      // or device.authenticate ? with header containing 'key'
-      return app.models.Device.findOne({
-        where: {
-          and: [
-            {
-              devEui: {
-                // eslint-disable-next-line security/detect-non-literal-regexp
-                like: new RegExp(`.*${headers.deveui}.*`, 'i'),
-              },
-            },
-            { apiKey: headers.apikey },
-          ],
-        },
-      })
-        .then(device => {
-          options.currentUser = {
-            id: device.id.toString(),
-            ip,
-            devEui: device.devEui,
-            roles: ['user'],
-            type: 'Device',
-            ownerId: device.ownerId,
-          };
-          ctx.options = { ...options };
+      return setter
+        .device(app, ip, headers.deveui, headers.apikey)
+        .then(currentUser => {
+          ctx.options.currentUser = currentUser;
           logCurrentUser(ctx.methodString, ctx.options);
           return next();
         })
@@ -114,41 +145,20 @@ module.exports = app => {
       isLength(headers.appid, { min: 1, max: 32 }) &&
       isAlphanumeric(headers.appid)
     ) {
-      return app.models.Application.findOne({
-        where: {
-          and: [
-            {
-              id: {
-                // eslint-disable-next-line security/detect-non-literal-regexp
-                like: new RegExp(`.*${headers.appid}.*`, 'i'),
-              },
-            },
-            { apiKey: headers.apikey },
-          ],
-        },
-      })
-        .then(application => {
-          options.currentUser = {
-            id: application.id.toString(),
-            ip,
-            appId: application.id.toString(),
-            appEui: application.appEui,
-            roles: ['user'],
-            type: 'Application',
-            ownerId: application.ownerId,
-          };
-          ctx.options = { ...options };
+      return setter
+        .device(app, ip, headers.appid, headers.apikey)
+        .then(currentUser => {
+          ctx.options.currentUser = currentUser;
           logCurrentUser(ctx.methodString, ctx.options);
           return next();
         })
         .catch(next);
     }
-    options.currentUser = {
+    ctx.options.currentUser = {
       ip,
       userId: 'anonymous',
       roles: ['user'],
     };
-    ctx.options = { ...options };
     logCurrentUser(ctx.methodString, ctx.options);
     return next();
   };
@@ -157,7 +167,7 @@ module.exports = app => {
     .remotes()
     // .phases.addBefore('invoke', 'set-current-user')
     .phases.addBefore('auth', 'set-current-user')
-    .use(setCurrentUserSync);
+    .use(setCurrentUser);
 
   // const Role = app.models.Role;
 
