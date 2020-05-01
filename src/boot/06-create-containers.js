@@ -9,8 +9,8 @@ module.exports = async function(server) {
   const Files = server.models.Files;
   const Storage = server.datasources.storage.settings.root;
 
-  const accounts = await User.find();
-  //  const applications = await Application.find();
+  const accounts = await utils.find(User);
+  //  const applications = await utils.find(Application);
   if (accounts.length < 1) {
     return;
   }

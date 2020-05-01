@@ -8,7 +8,7 @@ import utils from '../lib/utils';
 module.exports = async function createSampleAccounts(app) {
   if (!utils.isMasterProcess(process.env)) return;
   const User = app.models.user;
-  let accounts = await User.find();
+  let accounts = await utils.find(User);
   if (!accounts || !accounts.length) {
     accounts = await User.create(initialUsersList);
   }

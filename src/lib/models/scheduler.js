@@ -109,6 +109,8 @@ const startExternalTimer = async (Scheduler, sensor, client, scheduler) => {
   };
   try {
     const response = await createTimer(Scheduler.app, timer);
+    logger.publish(3, `${collectionName}`, 'startExternalTimer:res', response);
+
     const lastTime = +new Date();
     if (response && response.location && response.location.split('/')) {
       const timerId = response.location.split('/')[2];
@@ -186,7 +188,8 @@ const stopExternalTimer = async (Scheduler, sensor, client, scheduler) => {
   try {
     if (!scheduler || !scheduler.timerId) throw new Error('Missing timer');
     logger.publish(4, `${collectionName}`, 'stopExternalTimer:req', scheduler);
-    await deleteTimer(Scheduler.app, scheduler.timerId);
+    const response = await deleteTimer(Scheduler.app, scheduler.timerId);
+    logger.publish(3, `${collectionName}`, 'stopExternalTimer:res', response);
     await Scheduler.delete(`sensor-${sensor.id}`);
     await Scheduler.publish(sensor.deviceId, scheduler, 'DELETE', client);
     return scheduler;
@@ -340,7 +343,7 @@ export const onTimeout = async (Scheduler, sensorId) => {
   const Sensor = Scheduler.app.models.Sensor;
   const SensorResource = Scheduler.app.models.SensorResource;
 
-  const sensor = await Sensor.findById(sensorId);
+  const sensor = await utils.findById(Sensor, sensorId);
   if (!sensor) return false;
   const resources = await SensorResource.find(sensor.deviceId, sensor.id);
   if (!resources) return false;
@@ -399,13 +402,13 @@ export const syncRunningTimers = async (Scheduler, delay) => {
   const promises = schedulers.map(async scheduler => {
     try {
       let timeLeft = Math.round((scheduler.stopTime - Date.now()) / 1000);
-      const sensor = await Sensor.findById(scheduler.sensorId);
+      const sensor = await utils.findById(Sensor, scheduler.sensorId);
       const resources = await SensorResource.find(sensor.deviceId, sensor.id);
       resources['5544'] += Math.round(delay / 1000);
       resources['5543'] = 0;
       resources['5850'] = 1;
       resources['5523'] = 'started';
-      const clients = await Scheduler.app.models.Client.getAll({ match: `${sensor.ownerId}*` });
+      const clients = await Scheduler.app.models.Client.find({ match: `${sensor.ownerId}*` });
       const client = clients.length ? clients[0] : null;
       if (timeLeft <= 0) {
         // in case timeout callback/webhook was not triggered

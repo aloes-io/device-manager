@@ -70,52 +70,30 @@ module.exports = Application => {
   };
 
   /**
-   * Reset keys for this application instance
-   * @method module:Application.prototype.resetKeys
-   * @returns {Promise<object>} this
-   */
-  Application.prototype.resetKeys = async function() {
-    const attributes = {
-      clientKey: utils.generateKey('client'),
-      apiKey: utils.generateKey('apiKey'),
-      // restApiKey: utils.generateKey('restApi'),
-      // javaScriptKey: utils.generateKey('javaScript'),
-      // windowsKey: utils.generateKey('windows'),
-      // masterKey: utils.generateKey('master'),
-    };
-    await this.updateAttributes(attributes);
-    return this;
-  };
-
-  /**
    * Create new keys, and update Application instance
    * @method module:Application.refreshToken
    * @param {string} appId - Application instance id
    * @param {string} ownerId - Application owner id
-   * @returns {Promise<function>} application.updateAttributes
+   * @returns {Promise<object>} application
    */
   Application.refreshToken = async (appId, ownerId) => {
     logger.publish(4, `${collectionName}`, 'refreshToken:req', appId);
-    const application = await Application.findById(appId);
+    let application = await utils.findById(Application, appId);
     if (ownerId !== application.ownerId.toString()) {
-      const error = utils.buildError(401, 'INVALID_OWNER', "User doesn't own this device");
-      throw error;
+      throw utils.buildError(401, 'INVALID_OWNER', "User doesn't own this device");
     }
     if (application && application !== null) {
-      // await application.resetKeys()
-      const attributes = {
+      application = await utils.updateAttributes(application, {
         clientKey: utils.generateKey('client'),
         apiKey: utils.generateKey('apiKey'),
         // restApiKey: utils.generateKey('restApi'),
         // javaScriptKey: utils.generateKey('javaScript'),
         // windowsKey: utils.generateKey('windows'),
         // masterKey: utils.generateKey('master'),
-      };
-      await application.updateAttributes(attributes);
+      });
       return application;
     }
-    const error = utils.buildError(404, 'APP_NOT_FOUND', "The application requested doesn't exist");
-    throw error;
+    throw utils.buildError(404, 'APP_NOT_FOUND', "The application requested doesn't exist");
   };
 
   /**
@@ -131,7 +109,6 @@ module.exports = Application => {
     if (!pattern.name || !pattern.params || !pattern.params.method || !pattern.params.collection) {
       throw new Error('Invalid inputs');
     }
-
     return parseMessage(Application.app, packet, pattern, client);
   };
 
@@ -155,7 +132,7 @@ module.exports = Application => {
     } else {
       throw new Error('Invalid application client');
     }
-    const application = await Application.findOne(filter);
+    const application = await utils.findOne(Application, filter);
     if (!application || application === null) {
       throw new Error('No application found');
     }
@@ -169,21 +146,18 @@ module.exports = Application => {
    * @method module:Application.updateStatus
    * @param {object} client - MQTT client
    * @param {boolean} status - MQTT conection status
-   * @returns {Promise<function>} application.updateAttributes
+   * @returns {Promise<object>} application
    */
   Application.updateStatus = async (client, status) => {
-    // if (!client || !client.id || !client.appId) {
-    //   throw new Error('Invalid client');
-    // }
     logger.publish(4, collectionName, 'updateStatus:req', status);
     const Client = Application.app.models.Client;
-    const application = await Application.findById(client.user);
+    let application = await utils.findById(Application, client.user);
     if (!application) {
       return null;
     }
     let frameCounter = application.frameCounter;
-    // let ttl;
     client.status = status;
+
     const clients = application.clients || [];
     const index = clients.indexOf(client.id);
     if (status) {
@@ -196,7 +170,6 @@ module.exports = Application => {
       }
       await Client.set(client.id, JSON.stringify(client), ttl);
     } else {
-      // ttl = 1 * 24 * 60 * 60 * 1000;
       if (index > -1) {
         clients.splice(index, 1);
       }
@@ -205,21 +178,19 @@ module.exports = Application => {
       } else {
         frameCounter = 0;
         const Device = Application.app.models.Device;
-        const devices = await Device.find({
+        const devices = await utils.find(Device, {
           where: { and: [{ appIds: { inq: [client.appId] } }, { status: true }] },
         });
         await Promise.all(
-          devices.map(async device =>
-            device.updateAttributes({ frameCounter, status }).catch(e => e),
-          ),
+          devices.map(async device => utils.updateAttributes(device, { frameCounter, status })),
         );
       }
       await Client.delete(client.id);
     }
 
     logger.publish(4, collectionName, 'updateStatus:res', client);
-    return application.updateAttributes({ frameCounter, status, clients }).catch(e => e);
-    // return client;
+    application = await utils.updateAttributes(application, { frameCounter, status, clients });
+    return application;
   };
 
   /**
@@ -237,10 +208,7 @@ module.exports = Application => {
    * - masterKey
    */
   Application.authenticate = async (appId, key) => {
-    const application = await Application.findById(appId);
-    // if (!application || !application.id) {
-    //   throw utils.buildError(404, 'APPLICATION_NOTFOUND', 'Wrong application');
-    // }
+    const application = await utils.findById(Application, appId);
 
     let result = null;
     const keyNames = [
@@ -277,25 +245,22 @@ module.exports = Application => {
   Application.getState = async appId => {
     if (!appId) throw new Error('missing application.id');
     logger.publish(4, `${collectionName}`, 'getState:req', { appId });
-    const application = await Application.findById(appId);
+    const application = await utils.findById(Application, appId);
     if (application && application.id) {
-      let devices = await Application.app.models.Device.find({
+      let devices = await utils.find(Application.app.models.Device, {
         where: {
           and: [{ ownerId: application.ownerId }, { appIds: { inq: [application.id] } }],
         },
       });
       if (devices && devices.length > 0) {
         devices = JSON.parse(JSON.stringify(devices));
-        // const promises = devices.map(Application.app.models.SensorResource.includeCache);
-        // application.devices = await Promise.all(promises);
         application.devices = devices;
       } else {
         application.devices = [];
       }
       return application;
     }
-    const error = utils.buildError(404, 'APPLICATION_NOTFOUND', 'Wrong application');
-    throw error;
+    throw utils.buildError(404, 'APPLICATION_NOTFOUND', 'Wrong application');
   };
 
   /**

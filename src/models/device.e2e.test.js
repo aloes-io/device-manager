@@ -7,6 +7,7 @@ import lbe2e from 'lb-declarative-e2e-test';
 import mqtt from 'mqtt';
 import app from '../index';
 import testHelper, { clientEvent, timeout } from '../lib/test-helper';
+import utils from '../lib/utils';
 
 require('../services/broker');
 
@@ -665,13 +666,13 @@ const deviceTest = () => {
         const packet = await clientEvent(client, 'connect');
         expect(packet.returnCode).to.be.equal(0);
         await timeout(async () => {
-          const device = await DeviceModel.findById(devices[1].id);
+          const device = await utils.findById(DeviceModel, devices[1].id);
           expect(device.status).to.be.equal(true);
           client.end(true);
         }, 250);
 
         return timeout(async () => {
-          const device = await DeviceModel.findById(devices[1].id);
+          const device = await utils.findById(DeviceModel, devices[1].id);
           expect(device.status).to.be.equal(false);
         }, 350);
       });
@@ -731,8 +732,6 @@ const deviceTest = () => {
           client.end(() => {
             done();
           });
-          // client.end(true);
-          // done();
         });
       });
 
@@ -755,7 +754,7 @@ const deviceTest = () => {
         client.publish(packet.topic, packet.payload, { qos: 1 });
 
         await timeout(async () => {
-          const device = await DeviceModel.findById(devices[1].id);
+          const device = await utils.findById(DeviceModel, devices[1].id);
           const sensors = await device.sensors.find();
           expect(sensors.some(sensor => sensor.type === 3340)).to.be.equal(true);
           client.end(true);

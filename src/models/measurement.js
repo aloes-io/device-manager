@@ -1,7 +1,6 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable no-param-reassign */
-// import jugglerUtils from 'loopback-datasource-juggler/lib/utils';
 import { publish } from 'iot-agent';
 import { publishToDeviceApplications } from '../lib/models/device';
 import {
@@ -56,7 +55,7 @@ module.exports = function(Measurement) {
     if (!deviceId) {
       throw utils.buildError(403, 'MISSING_DEVICE_ID', 'No device in arguments');
     }
-    const device = await Measurement.app.models.Device.findById(deviceId);
+    const device = await utils.findById(Measurement.app.models.Device, deviceId);
     if (!device) {
       throw utils.buildError(403, 'MISSING_DEVICE', 'No device found');
     }

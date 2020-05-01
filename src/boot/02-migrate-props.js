@@ -9,7 +9,7 @@ module.exports = async function migrateProps(app) {
   const Device = app.models.Device;
   const Sensor = app.models.Sensor;
   const SensorResource = app.models.SensorResource;
-  const devices = await Device.find();
+  const devices = await utils.find(Device);
   await Promise.all(
     devices.map(async device => {
       const deviceHasAddress = await device.address.get();
@@ -29,7 +29,7 @@ module.exports = async function migrateProps(app) {
       }
     }),
   );
-  const sensors = await Sensor.find();
+  const sensors = await utils.find(Sensor);
   await Promise.all(
     sensors.map(async sensor => {
       if (!sensor.createdAt) {

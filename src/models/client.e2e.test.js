@@ -48,7 +48,7 @@ const clientTest = () => {
         async before() {
           try {
             this.timeout(7000);
-            await app.models.Client.deleteAll();
+            await app.models.Client.remove();
 
             users = await Promise.all([
               testHelper.access.admin.create(app),

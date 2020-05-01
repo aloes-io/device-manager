@@ -95,7 +95,7 @@ module.exports = function(Sensor) {
     if (!sensor || !sensor.id || !sensor.ownerId) {
       throw utils.buildError(400, 'INVALID_SENSOR', 'Invalid sensor instance');
     }
-    const device = await Sensor.app.models.Device.findById(deviceId);
+    const device = await utils.findById(Sensor.app.models.Device, deviceId);
     if (!device) {
       throw utils.buildError(400, 'INVALID_DEVICE', 'Invalid device instance');
     }
@@ -227,17 +227,10 @@ module.exports = function(Sensor) {
       throw utils.buildError(400, 'INVALID_SENSOR', 'Sensor not validated yet');
     }
 
-    const foundSensor = await Sensor.findById(sensor.id);
+    const foundSensor = await utils.findById(Sensor, sensor.id);
     const resources = await getResources(foundSensor);
 
-    if (!sensor.resources) {
-      // sensor.setAttribute('resources', resources);
-      sensor.resources = resources;
-    } else {
-      sensor.resources = { ...resources, ...sensor.resources };
-      // sensor.setAttribute('resources', { ...resources, ...sensor.resources });
-    }
-
+    sensor.resources = sensor.resources ? { ...resources, ...sensor.resources } : resources;
     const updatedSensor = updateAloesSensors(sensor, Number(resourceKey), resourceValue);
     if (!updatedSensor || !updatedSensor.id) {
       throw utils.buildError(400, 'INVALID_SENSOR_UPDATE', 'Sensor not updated');
@@ -273,7 +266,7 @@ module.exports = function(Sensor) {
     logger.publish(4, `${collectionName}`, 'getInstance:req', {
       sensorId: sensor.id,
     });
-    const instance = await Sensor.findById(sensor.id);
+    const instance = await utils.findById(Sensor, sensor.id);
     if (!instance) throw new Error('Sensor not found');
     // if (pattern.name.toLowerCase() !== 'aloesclient') {
     //   let packet = { payload: JSON.stringify(instance) };
@@ -373,7 +366,7 @@ module.exports = function(Sensor) {
     }
     /* eslint-disable security/detect-non-literal-regexp */
     // use OMA object description as lexic
-    const omaObjectsList = await Sensor.app.models.OmaObject.find({
+    const omaObjectsList = await utils.find(Sensor.app.models.OmaObject, {
       where: {
         or: [
           { name: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
@@ -392,7 +385,7 @@ module.exports = function(Sensor) {
               { transportProtocol: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
             ],
           };
-          const sensors = await Sensor.find({
+          const sensors = await utils.find(Sensor, {
             where: whereFilter,
           });
           return !sensors || sensors === null ? [] : [...JSON.parse(JSON.stringify(sensors))];

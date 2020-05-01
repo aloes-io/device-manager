@@ -61,9 +61,9 @@ const mails = {};
  * @returns {Promise<object>}
  */
 const sendMail = updatedOptions =>
-  new Promise((resolve, reject) =>
-    app.models.Email.send(updatedOptions, (err, mail) => (err ? reject(err) : resolve(mail))),
-  );
+  new Promise((resolve, reject) => {
+    app.models.Email.send(updatedOptions, (err, mail) => (err ? reject(err) : resolve(mail)));
+  });
 
 /**
  * Generate HTML template and send email
@@ -97,9 +97,9 @@ mails.send = async options => {
  * @returns {Promise<object>}
  */
 const verifyUser = (user, options) =>
-  new Promise((resolve, reject) =>
-    user.verify(options, (err, res) => (err ? reject(err) : resolve({ ...options, ...res }))),
-  );
+  new Promise((resolve, reject) => {
+    user.verify(options, (err, res) => (err ? reject(err) : resolve({ ...options, ...res })));
+  });
 
 /**
  * Sending a verification email to confirm account creation
@@ -162,7 +162,7 @@ mails.sendResetPasswordMail = async options => {
 /**
  * Sending a mail to admin
  * @method module:Mails.sendContactForm
- * @param {object} options - Mail options
+ * @param {Promise<object>} options - Mail response
  */
 mails.sendContactForm = async options => {
   try {
@@ -186,7 +186,7 @@ mails.sendContactForm = async options => {
 /**
  * Sending a mail invitation to new user
  * @method module:Mails.sendMailInvite
- * @param {object} options - Mail options
+ * @param {Promise<object>} options - Mail response
  */
 mails.sendMailInvite = async options => {
   try {

@@ -630,13 +630,13 @@ const userTest = () => {
         const packet = await clientEvent(client, 'connect');
         expect(packet.returnCode).to.be.equal(0);
         await timeout(async () => {
-          const userClients = await ClientModel.getAll({ filter: { match: client.clientId } });
+          const userClients = await ClientModel.find({ filter: { match: client.clientId } });
           expect(userClients[0].status).to.be.equal(true);
           client.end(true);
         }, 250);
 
         return timeout(async () => {
-          const userClients = await ClientModel.getAll({ filter: { match: client.clientId } });
+          const userClients = await ClientModel.find({ filter: { match: client.clientId } });
           expect(
             userClients.some(
               userClient =>

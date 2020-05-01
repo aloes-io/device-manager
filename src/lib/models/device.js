@@ -63,6 +63,11 @@ export function typeValidator(err) {
 //     err();
 //   }
 // }
+
+export const deviceError = (code = 400, status, msg) => {
+  throw utils.buildError(code, `${status}`, `Device Error : ${msg}`);
+};
+
 /**
  * Set device icons ( urls ) based on its type
  * @method module:Device~setDeviceIcons
@@ -109,7 +114,7 @@ const createKeys = async device => {
   // }
 
   if (hasChanged) {
-    await device.updateAttributes(attributes);
+    device = await utils.updateAttributes(device, attributes);
     logger.publish(4, `${collectionName}`, 'createKeys:res', device.apiKey);
   }
   return device;
@@ -227,10 +232,10 @@ export const onBeforeSave = async ctx => {
   if (ctx.data) {
     logger.publish(4, `${collectionName}`, 'onBeforePartialSave:req', ctx.data);
     // if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
-    //   const device = await ctx.Model.findById(ctx.where.id);
+    //   const device = await utils.findById(ctx.Model, ctx.where.id);
     //   await setDeviceIcons(device);
     // } else {
-    //   const devices = await ctx.Model.find({ where: ctx.where });
+    //   const devices = await utils.find(ctx.Model,{ where: ctx.where });
     //   if (devices && devices.length > 0) {
     //     await Promise.all(
     //       devices.map(setDeviceIcons),
@@ -289,7 +294,7 @@ const updateProps = async (app, instance) => {
   if (sensors) {
     await Promise.all(
       sensors.map(async sensor => {
-        sensor.updateAttributes({
+        utils.updateAttributes(sensor, {
           ...sensor,
           devEui: instance.devEui,
           transportProtocol: instance.transportProtocol,
@@ -381,11 +386,11 @@ const deleteProps = async (app, instance) => {
 export const onBeforeDelete = async ctx => {
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
   if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
-    const device = await ctx.Model.findById(ctx.where.id);
+    const device = await utils.findById(ctx.Model, ctx.where.id);
     await deleteProps(ctx.Model.app, device);
   } else {
     const filter = { where: ctx.where };
-    const devices = await ctx.Model.find(filter);
+    const devices = await utils.find(ctx.Model, filter);
     if (devices && devices.length > 0) {
       await Promise.all(devices.map(async device => deleteProps(ctx.Model.app, device)));
     }
@@ -532,7 +537,7 @@ export const parseMessage = async (app, packet, pattern, client) => {
     //   device = null;
     // }
     device = attributes.id
-      ? await Device.findById(attributes.id)
+      ? await utils.findById(Device, attributes.id)
       : await Device.findByPattern(pattern, attributes);
 
     device = JSON.parse(JSON.stringify(device));
@@ -583,9 +588,7 @@ const updateESP = async (ctx, deviceId, version) => {
       ],
     },
   };
-  const device = await ctx.Model.findOne(filter);
-  //  const device = await Device.findById(deviceId);
-  //  console.log('#device ', device);
+  const device = await utils.findOne(ctx.Model, filter);
   if (!device || device === null) {
     throw utils.buildError(404, 'NOT_FOUND', 'No device found');
   }
@@ -595,7 +598,7 @@ const updateESP = async (ctx, deviceId, version) => {
   // look for meta containing firmware tag ?
   //  const fileFilter = { where: { role: {like: new RegExp(`.*firmware.*`, 'i')} } };
   // const fileFilter = { where: { name: { like: new RegExp(`.*bin.*`, 'i') } } };
-  // const fileMeta = await device.files.findOne(fileFilter);
+  // const fileMeta = await utils.findOne(device.files, fileFilter);
 
   const fileFilter = {
     where: {
@@ -608,7 +611,7 @@ const updateESP = async (ctx, deviceId, version) => {
     },
   };
 
-  const fileMeta = await ctx.Model.app.models.files.findOne(fileFilter);
+  const fileMeta = await utils.findOne(ctx.Model.app.models.files, fileFilter);
   //  const fileMeta = await device.files.findOne(fileFilter);
   if (version && fileMeta.version && fileMeta.version === version) {
     throw utils.buildError(304, 'UNCHANGED', 'already up to date');

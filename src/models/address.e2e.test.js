@@ -6,6 +6,7 @@ import { expect } from 'chai';
 import lbe2e from 'lb-declarative-e2e-test';
 import app from '../index';
 import testHelper from '../lib/test-helper';
+import utils from '../lib/utils';
 
 require('../services/broker');
 
@@ -50,7 +51,7 @@ const addressTest = () => {
               testHelper.access.user.create(app),
             ]);
             const userIds = [users[0].id, users[1].id];
-            userAddress = await AddressModel.findOne({
+            userAddress = await utils.findOne(AddressModel, {
               where: {
                 and: [
                   { ownerId: users[1].id },
@@ -62,17 +63,15 @@ const addressTest = () => {
             // console.log('USER ADDRESS ', userAddress);
             const deviceModels = Array(2)
               .fill('')
-              .map((_, index) => {
-                if (index <= 0) {
-                  return deviceFactory(index + 1, userIds[0]);
-                }
-                return deviceFactory(index + 1, userIds[1]);
-              });
-            // console.log('CREATED DEVICES MODELS ', models);
+              .map((_, index) =>
+                index <= 0
+                  ? deviceFactory(index + 1, userIds[0])
+                  : deviceFactory(index + 1, userIds[1]),
+              );
+
             const res = await DeviceModel.create(deviceModels);
             devices = res.map(model => model.toJSON());
-            // deviceAddress = await AddressModel.find({ where: { ownerId: devices[0].id } });
-            deviceAddress = await AddressModel.findOne({
+            deviceAddress = await utils.findOne(AddressModel, {
               where: {
                 and: [
                   { ownerId: devices[1].id },

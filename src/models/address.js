@@ -15,6 +15,21 @@ const geoCodeOptions = {
   formatter: null, // 'gpx', 'string', ...
 };
 
+const addressError = (code = 400, status, msg) => {
+  throw utils.buildError(code, `${status}`, `Address Error : ${msg}`);
+};
+
+/**
+ * Promise wrapper to verify address
+ * @method module:Address~geoCode
+ * @returns {Promise<object>}
+ */
+const geoCode = address =>
+  new Promise((resolve, reject) => {
+    const geocoder = NodeGeocoder(geoCodeOptions);
+    return geocoder.geocode(address, (err, res) => (err ? reject(err) : resolve(res)));
+  });
+
 /**
  * Validate input address; get coordinates and update address instance
  * @method module:Address~onAfterSave
@@ -26,18 +41,18 @@ const onAfterSave = async ctx => {
   if (ctx.instance.ownerId && ctx.instance.ownerType) {
     const fullAddress = `${ctx.instance.street} ${ctx.instance.postalCode} ${ctx.instance.city}`;
     // if (ctx.instance.ownerType.toLowerCase() === 'user') {
-    //   const user = await ctx.Model.app.models.user.findById(ctx.options.accessToken.userId);
+    //   const user = await utils.findById(ctx.Model.app.models.user, ctx.options.accessToken.userId);
     //   await user.updateAttribute({
     //     fullAddress,
     //   });
     // } else if (ctx.instance.ownerType.toLowerCase() === 'device') {
-    //   const device = await Address.app.models.Device.findById(ctx.instance.deviceId);
+    //   const device = await utils.findById(Address.app.models.Device, ctx.instance.deviceId);
     //   await device.updateAttribute({fullAddress: `${ctx.instance.street} ${ctx.instance.postalCode} ${ctx.instance.city }`});
     // }
     logger.publish(3, `${collectionName}`, 'onAfterSave:res', fullAddress);
     return ctx;
   }
-  throw utils.buildError(403, 'INVALID_ACCESS', 'no address owner found');
+  return addressError(403, 'INVALID_ACCESS', 'no address owner found');
 };
 
 /**
@@ -51,7 +66,7 @@ const onBeforeRemote = async ctx => {
     const options = ctx.options || {};
     //  const data = ctx.args || ctx.args.data;
     if (!options.accessToken) {
-      throw utils.buildError(401, 'INVALID_ACCESS', 'token is absent');
+      return addressError(401, 'INVALID_ACCESS', 'token is absent');
     }
     // console.log('authorizedRoles & data', options, data);
   } else if (ctx.method.name === 'search' || ctx.method.name === 'geoLocate') {
@@ -80,11 +95,6 @@ const onBeforeRemote = async ctx => {
  * @property {boolean} public
  */
 module.exports = function(Address) {
-  //  const resources = 'Addresses';
-
-  // Address.validatesPresenceOf('city', 'postalCode', {
-  //   message: 'must contain city and postalCode value',
-  // });
   Address.validatesPresenceOf('ownerId', 'ownerType', {
     message: 'must contain ownerId and ownerType value',
   });
@@ -109,16 +119,16 @@ module.exports = function(Address) {
     } else if (typeof address === 'string') {
       requestAddress.address = address;
     }
-    if (address.postalCode && address.postalCode !== null) {
+    if (address.postalCode) {
       requestAddress.zipCode = address.postalCode;
     }
-    const geocoder = NodeGeocoder(geoCodeOptions);
-    const result = await geocoder.geocode(requestAddress);
-    logger.publish(4, `${collectionName}`, 'verify:res', result);
+
+    const result = await geoCode(requestAddress);
+    logger.publish(3, `${collectionName}`, 'verify:res', result);
 
     const verifiedAddress = {};
     if (result && result.length < 1) {
-      throw utils.buildError(404, 'ADDRESS_NOT_FOUND', "This address couldn't be verified");
+      return addressError(404, 'ADDRESS_NOT_FOUND', "This address couldn't be verified");
     }
     result.forEach(addr => {
       if (!verifiedAddress.streetNumber && addr.streetNumber) {
@@ -146,17 +156,13 @@ module.exports = function(Address) {
     });
 
     if (!verifiedAddress.city || !verifiedAddress.postalCode) {
-      throw utils.buildError(404, 'ADDRESS_NOT_FOUND', "This address couldn't be verified");
+      return addressError(404, 'ADDRESS_NOT_FOUND', "This address couldn't be verified");
     } else if (verifiedAddress.streetName && verifiedAddress.streetNumber) {
       verifiedAddress.street = `${verifiedAddress.streetNumber} ${verifiedAddress.streetName}`;
     } else if (!verifiedAddress.streetNumber && verifiedAddress.streetName) {
       verifiedAddress.street = `${verifiedAddress.streetName}`;
     } else {
-      throw utils.buildError(
-        422,
-        'ADDRESS_NOT_VERIFIED',
-        "This address couldn't be fully verified",
-      );
+      return addressError(422, 'ADDRESS_NOT_VERIFIED', "This address couldn't be fully verified");
     }
     verifiedAddress.public = address.public;
     logger.publish(3, `${collectionName}`, 'verify:res', verifiedAddress);
@@ -173,7 +179,7 @@ module.exports = function(Address) {
   Address.search = async filter => {
     logger.publish(4, `${collectionName}`, 'search:req', filter);
     if (!filter || !filter.ownerType) {
-      throw utils.buildError(400, 'INVALID_REQ', 'Missing argument');
+      return addressError(400, 'INVALID_ARGS', 'Missing argument');
     }
     // todo add limit
     const whereFilter = {
@@ -219,9 +225,9 @@ module.exports = function(Address) {
       whereFilter.and.push({ postalCode: filter.postalCode });
     }
 
-    const addresses = await Address.find({ where: whereFilter });
+    const addresses = await utils.find(Address, { where: whereFilter });
     if (!addresses || addresses === null) {
-      throw utils.buildError(404, 'ADDRESSES_NOT_FOUND', 'No match found from filter');
+      return addressError(404, 'ADDRESSES_NOT_FOUND', 'No match found from filter');
     }
     if (filter.limit && typeof filter.limit === 'number' && addresses.length > filter.limit) {
       addresses.splice(filter.limit, addresses.length - 1);
@@ -240,7 +246,7 @@ module.exports = function(Address) {
   Address.geoLocate = async filter => {
     logger.publish(4, `${collectionName}`, 'geoLocate:req', filter);
     if (!filter || !filter.ownerType) {
-      throw utils.buildError(400, 'INVALID_REQ', 'Missing argument');
+      return addressError(400, 'INVALID_ARGS', 'Missing argument');
     }
     const whereFilter = {
       and: [{ ownerType: filter.ownerType }],
@@ -265,10 +271,9 @@ module.exports = function(Address) {
     if (coordinatesFilter) {
       whereFilter.and.push({ coordinates: coordinatesFilter });
     }
-    // console.log('WHERE FILTER', whereFilter.and);
-    const addresses = await Address.find({ where: whereFilter });
+    const addresses = await utils.find(Address, { where: whereFilter });
     if (!addresses || addresses === null) {
-      throw utils.buildError(404, 'ADDRESSES_NOT_FOUND', 'No match found from filter');
+      return addressError(404, 'ADDRESSES_NOT_FOUND', 'No match found from filter');
     }
     // console.log('ADRESSES', addresses);
     if (filter.limit && typeof filter.limit === 'number' && addresses.length > filter.limit) {

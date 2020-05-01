@@ -249,11 +249,11 @@ const deleteProps = async (app, user) => {
 export const onBeforeDelete = async ctx => {
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
   if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
-    const user = await ctx.Model.findById(ctx.where.id);
+    const user = await utils.findById(ctx.Model, ctx.where.id);
     await deleteProps(ctx.Model.app, user);
   } else {
     const filter = { where: ctx.where };
-    const users = await ctx.Model.find(filter);
+    const users = await utils.find(ctx.Model, filter);
     await Promise.all(users.map(async user => deleteProps(ctx.Model.app, user)));
   }
   // logger.publish(3, `${collectionName}`, 'onBeforeDelete:res', 'done');

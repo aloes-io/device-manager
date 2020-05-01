@@ -1,6 +1,7 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import logger from './logger';
+import utils from '../lib/utils';
 
 /**
  * @module RoleManager
@@ -8,7 +9,6 @@ import logger from './logger';
 const roleManager = {};
 const appRolesById = {};
 
-// roleManager.getAppRoles = async app => app.models.Role.find();
 roleManager.getAppRoles = () => Object.values(appRolesById);
 
 /**
@@ -82,7 +82,7 @@ roleManager.setUserRole = async (app, userId, roleName, reset = false) => {
   }
 
   logger.publish(4, 'loopback', `Setting role ${roleName} for user `, userId);
-  const role = await app.models.Role.findOne({ where: { name: roleName } });
+  const role = await utils.findOne(app.models.Role, { where: { name: roleName } });
   if (role && role !== null) {
     await role.principals.create({
       principalType: app.models.RoleMapping.USER,
@@ -102,7 +102,7 @@ roleManager.setUserRole = async (app, userId, roleName, reset = false) => {
  */
 roleManager.removeUserRole = async (app, userId, roleName) => {
   logger.publish(4, 'loopback', 'removeUserRole:req', `${roleName} from user ${userId}`);
-  const role = await app.models.Role.findOne({ where: { name: roleName } });
+  const role = await utils.findOne(app.models.Role, { where: { name: roleName } });
   if (role && role !== null) {
     await role.principals.destroyAll({ where: { principalId: userId } });
     logger.publish(4, 'loopback', `removeUserRole:res`, userId);

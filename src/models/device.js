@@ -16,10 +16,10 @@ import {
   messageProtocolValidator,
   transportProtocolValidator,
   typeValidator,
+  deviceError,
 } from '../lib/models/device';
 import logger from '../services/logger';
 import utils from '../lib/utils';
-// import DeltaTimer from '../services/delta-timer';
 
 // todo document device instance functions : address, userIds, appIds
 
@@ -89,9 +89,9 @@ module.exports = function(Device) {
    */
   Device.publish = async (device, method, client) => {
     if (!device || !device.id || !device.ownerId) {
-      throw utils.buildError(400, 'INVALID_DEVICE', 'Invalid device instance');
+      return deviceError(400, 'INVALID_DEVICE', 'Invalid device instance');
     }
-    const packet = await iotAgent.publish({
+    const packet = iotAgent.publish({
       userId: device.ownerId,
       collection: collectionName,
       data: device,
@@ -114,34 +114,13 @@ module.exports = function(Device) {
         //  console.log('nativePacket', nativePacket.topic);
       }
       publishToDeviceApplications(Device.app, device, packet);
-
-      // await Device.app.publish(packet.topic, packet.payload, true, 1);
       Device.app.emit('publish', packet.topic, packet.payload, false, 0);
       logger.publish(4, `${collectionName}`, 'publish:res', {
         topic: packet.topic,
       });
       return device;
     }
-    throw utils.buildError(400, 'INVALID_PACKET', 'Invalid MQTT Packet encoding');
-  };
-
-  /**
-   * Reset keys for this device instance
-   * @async
-   * @method module:Device.prototype.resetKeys
-   * @returns {Promise<object>} device
-   */
-  Device.prototype.resetKeys = async function() {
-    const attributes = {
-      clientKey: utils.generateKey('client'),
-      apiKey: utils.generateKey('apiKey'),
-      // restApiKey: utils.generateKey('restApi'),
-      // javaScriptKey: utils.generateKey('javaScript'),
-      // windowsKey: utils.generateKey('windows'),
-      // masterKey: utils.generateKey('master'),
-    };
-    await this.updateAttributes(attributes);
-    return this;
+    return deviceError(400, 'INVALID_PACKET', 'Invalid MQTT Packet encoding');
   };
 
   /**
@@ -153,20 +132,19 @@ module.exports = function(Device) {
    */
   Device.refreshToken = async (deviceId, ownerId) => {
     logger.publish(4, `${collectionName}`, 'refreshToken:req', { deviceId, ownerId });
-    const device = await Device.findById(deviceId);
+    let device = await utils.findById(Device, deviceId);
     if (ownerId !== device.ownerId.toString()) {
       throw utils.buildError(401, 'INVALID_OWNER', "User doesn't own this device");
     }
     if (device && device !== null) {
-      const attributes = {
+      device = await utils.updateAttributes(device, {
         clientKey: utils.generateKey('client'),
         apiKey: utils.generateKey('apiKey'),
         // restApiKey: utils.generateKey('restApi'),
         // javaScriptKey: utils.generateKey('javaScript'),
         // windowsKey: utils.generateKey('windows'),
         // masterKey: utils.generateKey('master'),
-      };
-      await device.updateAttributes(attributes);
+      });
       return device;
     }
     throw utils.buildError(403, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
@@ -193,7 +171,7 @@ module.exports = function(Device) {
       delete device.id;
       device = await Device.replaceById(deviceId, device);
     } else {
-      device = await Device.create(device);
+      device = await utils.create(Device, device);
     }
     return device;
   };
@@ -279,7 +257,7 @@ module.exports = function(Device) {
     // }
     // logger.publish(2, `${collectionName}`, 'findByPattern:filter', deviceFilter);
 
-    const device = await Device.findOne(deviceFilter);
+    const device = await utils.findOne(Device, deviceFilter);
     if (!device || !device.id) {
       throw utils.buildError(403, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
     }
@@ -305,7 +283,7 @@ module.exports = function(Device) {
       !isLength(filter.text, { min: 2, max: 30 }) ||
       !isAlphanumeric(filter.text)
     ) {
-      throw utils.buildError(400, 'INVALID_INPUT', 'Search filter is not valid');
+      return deviceError(400, 'INVALID_INPUT', 'Search filter is not valid');
     }
 
     filter.ownerType = 'Device';
@@ -331,7 +309,7 @@ module.exports = function(Device) {
 
     // if (filter.status !== undefined)
     let result =
-      (await Device.find({
+      (await utils.find(Device, {
         where: whereFilter,
         include: 'address',
         fields: {
@@ -347,18 +325,15 @@ module.exports = function(Device) {
         },
       })) || [];
 
-    // if (!result || result === null) {
-    //   result = [];
-    // }
     try {
       const address = await Device.app.models.Address.verify(filter.text);
-      if (address) {
-        address.ownerType = filter.ownerType;
-        // address.public = filter.public;
-        const addresses = await Device.app.models.Address.search(address);
-        if (addresses.length > 0) {
-          const promises = await addresses.map(async addr =>
-            Device.findOne({
+      address.ownerType = filter.ownerType;
+      // address.public = filter.public;
+      const addresses = await Device.app.models.Address.search(address);
+      if (addresses.length > 0) {
+        const moreDevices = await Promise.all(
+          addresses.map(async addr =>
+            utils.findOne(Device, {
               where: { id: addr.ownerId },
               include: 'address',
               // fields: {
@@ -373,18 +348,16 @@ module.exports = function(Device) {
               //   icons: true,
               // },
             }),
-          );
-          const moreDevices = await Promise.all(promises);
-          if (moreDevices && moreDevices !== null) {
-            result.forEach(dev => {
-              const index = moreDevices.findIndex(d => d.id === dev.id);
-              if (index > -1) {
-                moreDevices.splice(index, 1);
-              }
-            });
-            result = [...moreDevices, ...result];
-            // console.log('DEVICES 2', result);
-          }
+          ),
+        );
+        if (moreDevices && moreDevices !== null) {
+          result.forEach(dev => {
+            const index = moreDevices.findIndex(d => d.id === dev.id);
+            if (index > -1) {
+              moreDevices.splice(index, 1);
+            }
+          });
+          result = [...moreDevices, ...result];
         }
       }
     } catch (error) {
@@ -410,24 +383,25 @@ module.exports = function(Device) {
     const addresses = await Device.app.models.Address.geoLocate(filter);
     let devices = [];
     if (addresses.length > 0) {
-      const promises = await addresses.map(async address =>
-        Device.findOne({
-          where: { id: address.ownerId },
-          include: 'address',
-          // fields: {
-          //   id: true,
-          //   devEui: true,
-          //   apiKey: false,
-          //   clientKey: false,
-          //   frameCounter: true,
-          //   name: true,
-          //   fullAddress: true,
-          //   status: true,
-          //   icons: true,
-          // },
-        }),
+      devices = await Promise.all(
+        addresses.map(async address =>
+          utils.findOne(Device, {
+            where: { id: address.ownerId },
+            include: 'address',
+            // fields: {
+            //   id: true,
+            //   devEui: true,
+            //   apiKey: false,
+            //   clientKey: false,
+            //   frameCounter: true,
+            //   name: true,
+            //   fullAddress: true,
+            //   status: true,
+            //   icons: true,
+            // },
+          }),
+        ),
       );
-      devices = await Promise.all(promises);
     }
     if (filter.limit && typeof filter.limit === 'number' && devices.length > filter.limit) {
       devices.splice(filter.limit, devices.length - 1);
@@ -441,10 +415,10 @@ module.exports = function(Device) {
    * @method module:Device.export
    * @param {array} devices
    * @param {string} [format]
-   * @returns {Promise<object>}
+   * @returns {Promise<object | null>}
    */
   Device.export = async (devices, filter, format = 'csv') => {
-    if (!devices || devices.length < 1) return null;
+    if (!devices || !devices.length) return null;
     if (format === 'csv') {
       devices.forEach(device => {
         // eslint-disable-next-line security/detect-object-injection
@@ -461,14 +435,14 @@ module.exports = function(Device) {
    * @method module:Device~detector
    * @param {object} packet - MQTT packet
    * @param {object} client - MQTT client
-   * @returns {Promise<object>} pattern
+   * @returns {Promise<object | null>} pattern
    */
   Device.detector = async (packet, client) => {
     try {
       //  if (packet.topic.startsWith('$SYS')) return null;
       if (packet.topic.split('/')[0] === '$SYS') return null;
       if (client && !client.ownerId && !client.devEui) return null;
-      const pattern = await iotAgent.patternDetector(packet);
+      const pattern = iotAgent.patternDetector(packet);
       logger.publish(5, collectionName, 'detector:res', { topic: packet.topic, pattern });
       return pattern;
     } catch (error) {
@@ -489,7 +463,7 @@ module.exports = function(Device) {
     //   throw new Error('Invalid client');
     // }
     logger.publish(4, collectionName, 'updateStatus:req', status);
-    const device = await Device.findById(client.user);
+    let device = await utils.findById(Device, client.user);
     if (!device) {
       return null;
     }
@@ -522,15 +496,13 @@ module.exports = function(Device) {
       await Client.delete(client.id);
     }
     logger.publish(3, collectionName, 'updateStatus:res', client);
-    return device
-      .updateAttributes({
-        frameCounter,
-        status,
-        lastSignal: Date.now(),
-        clients,
-      })
-      .catch(e => e);
-    // return client;
+    device = await utils.updateAttributes(device, {
+      frameCounter,
+      status,
+      lastSignal: Date.now(),
+      clients,
+    });
+    return device;
   };
 
   /**
@@ -562,14 +534,14 @@ module.exports = function(Device) {
     logger.publish(4, collectionName, 'execute:req', method);
     switch (method.toUpperCase()) {
       case 'HEAD':
-        await device.updateAttributes({
+        device = await utils.updateAttributes(device, {
           frameCounter: device.frameCounter,
           status: true,
         });
         // todo set a scheduler to check if device is still online after 5 minutes ?
         break;
       case 'GET':
-        //  device = await Device.findById(device.id);
+        device = await utils.findById(Device, device.id);
         await Device.publish(device, 'GET', client);
         break;
       case 'POST':
@@ -614,7 +586,7 @@ module.exports = function(Device) {
    * - masterKey
    */
   Device.authenticate = async (deviceId, key) => {
-    const device = await Device.findById(deviceId);
+    const device = await utils.findById(Device, deviceId);
     if (!device || !device.id) {
       throw utils.buildError(404, 'DEVICE_NOTFOUND', 'Wrong device');
     }
@@ -664,8 +636,7 @@ module.exports = function(Device) {
         status: true,
       },
     };
-    const device = await Device.findById(deviceId, resFilter);
-
+    const device = await utils.findById(Device, deviceId, resFilter);
     if (device && device !== null) {
       logger.publish(4, `${collectionName}`, 'getState:res', device);
       return device;
@@ -698,7 +669,7 @@ module.exports = function(Device) {
         transportProtocolVersion: true,
       },
     };
-    const device = await Device.findById(deviceId, resFilter);
+    const device = await utils.findById(Device, deviceId, resFilter);
     if (device && device !== null && device.id) {
       logger.publish(4, `${collectionName}`, 'getFullState:res', device);
       return device;

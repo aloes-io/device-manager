@@ -347,7 +347,8 @@
       "accepts": [
         {
           "arg": "options",
-          "type": "object"
+          "type": "object",
+          "required": true
         }
       ],
       "returns": {

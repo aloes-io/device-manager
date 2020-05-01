@@ -50,7 +50,7 @@ module.exports = function(User) {
     if (!isEmail(email)) {
       throw utils.buildError(400, 'INVALID_EMAIL', 'Email is not valid');
     }
-    const user = await User.findOne({
+    const user = await utils.findOne(User, {
       where: { email },
       fields: {
         id: true,
@@ -78,7 +78,7 @@ module.exports = function(User) {
     if (!user || !user.id) {
       throw utils.buildError(400, 'INVALID_INPUT', 'User is not valid');
     }
-    const instance = await User.findById(user.id, {
+    const instance = await utils.findById(User, user.id, {
       fields: {
         email: true,
         firstName: true,
@@ -103,15 +103,22 @@ module.exports = function(User) {
    */
   User.updatePasswordFromToken = async (accessToken, newPassword) => {
     logger.publish(3, `${collectionName}`, 'updatePasswordFromToken:req', accessToken);
-    const token = await User.app.models.accessToken.findById(accessToken.id);
+    const token = await utils.findById(User.app.models.accessToken, accessToken.id);
     if (!token || !token.userId || !token.id) {
       throw utils.buildError(401, 'INVALID_TOKEN', 'Token is invalid');
     }
-    const user = await User.findById(accessToken.userId);
+    const user = await utils.findById(User, accessToken.userId);
+    await utils.updateAttribute(user, 'password', newPassword);
 
-    await user.updateAttribute('password', newPassword);
     return true;
   };
+
+  const changePassword = (userId, oldPassword, newPassword) =>
+    new Promise((resolve, reject) => {
+      User.changePassword(userId, oldPassword, newPassword, (err, res) =>
+        err ? reject(err) : resolve(res),
+      );
+    });
 
   /**
    * Updating user password
@@ -125,9 +132,9 @@ module.exports = function(User) {
   User.setNewPassword = async (ctx, oldPassword, newPassword) => {
     logger.publish(3, `${collectionName}`, 'setNewPassword:req', '');
     const accessToken = ctx.req.accessToken;
-    const token = await User.app.models.accessToken.findById(accessToken.id);
-    const user = await User.findById(token.userId);
-    await User.changePassword(user.id, oldPassword, newPassword);
+    const token = await utils.findById(User.app.models.accessToken, accessToken.id);
+    const user = await utils.findById(User, token.userId);
+    await changePassword(user.id, oldPassword, newPassword);
     //  logger.publish(3, `${collectionName}`, 'setNewPassword:res', res);
     return user;
   };
@@ -183,7 +190,6 @@ module.exports = function(User) {
     //   throw new Error('Invalid client');
     // }
     logger.publish(4, collectionName, 'updateStatus:req', status);
-    // const user = await User.findById(client.user);
     const Client = User.app.models.Client;
     const ttl = 1 * 60 * 60 * 1000;
     client.status = status;

@@ -213,6 +213,7 @@ const onStatus = (app, topic, payload) => {
   if (client) {
     updateModelsStatus(app, client, status);
   }
+  return status;
 };
 
 const onModelPublish = (app, serviceName, pattern, packet, client) => {
@@ -248,9 +249,6 @@ const onReceive = async (app, topic, payload) => {
     }
     // set payload based on pattern found ?
     const serviceName = redirectMessage(packet, client, pattern);
-    if (!serviceName || serviceName === null) {
-      throw new Error('no service redirection');
-    }
     logger.publish(4, 'mqtt-client', 'onReceive:res', serviceName);
     onModelPublish(app, serviceName, pattern, packet, client);
     return packet;
@@ -294,6 +292,7 @@ const startClient = async () => {
   await mqttClient.subscribe(`${getBaseTopic()}/rx/#`, { qos: 1 });
   await mqttClient.subscribe(`${getBaseTopic()}/status`, { qos: 1 });
   await mqttClient.subscribe(`aloes-${process.env.ALOES_ID}/sync`, { qos: 2 });
+  return true;
 };
 
 /**
@@ -362,9 +361,7 @@ const initClient = async (app, config) => {
     mqttClient.handleMessage = handleMessage;
 
     logger.publish(3, 'mqtt-client', 'initClient:res', mqttClientOptions);
-    await startClient();
-
-    return true;
+    return startClient();
   } catch (error) {
     logger.publish(2, 'mqtt-client', 'initClient:err', error);
     if (MQTTClient.failureCount <= MQTTClient.maxFailureCount) {
@@ -404,8 +401,8 @@ MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
   }
   // topic = `${pubsubVersion}/${getBaseTopic()}/tx/${topic}`;
   topic = `${getBaseTopic()}/tx/${topic}`;
-  if (!mqttClient) return false;
   logger.publish(3, 'mqtt-client', 'publish:topic', topic);
+  if (!mqttClient) return false;
   await mqttClient.publish(topic, payload, { qos, retain });
   return true;
 };

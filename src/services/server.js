@@ -12,6 +12,7 @@ import path from 'path';
 import logger from './logger';
 import MQTTClient from './mqtt-client';
 import rateLimiter from './rate-limiter';
+import utils from '../lib/utils';
 
 /**
  * @module Server
@@ -39,10 +40,8 @@ const getStoredClients = async filter => {
         'aloes-key': process.env.ALOES_KEY,
       },
     });
-    if (data) {
-      return data;
-    }
-    return null;
+
+    return data || null;
   } catch (error) {
     logger.publish(2, 'loopback', 'getStoredClients:err', error);
     return null;
@@ -61,7 +60,7 @@ const userAuth = async (username, password) => {
   let status;
   const details = {};
   try {
-    const { userId } = await app.models.accessToken.findById(password);
+    const { userId } = await utils.findById(app.models.accessToken, password);
     if (userId && userId.toString() === username) {
       details.ownerId = username;
       details.user = username;
@@ -74,7 +73,7 @@ const userAuth = async (username, password) => {
     status = 4;
     // console.error('authenticateInstance:user', e);
   }
-  const user = await app.models.user.findById(username);
+  const user = await utils.findById(app.models.user, username);
   if (user && user.id) {
     details.foundUsername = username;
   }
