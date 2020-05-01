@@ -55,7 +55,7 @@ variables:
   INSTANCES_COUNT: '1'
   DEBUG: 'skyring:*'
   channel__host: 'timer-1'
-  nats__hosts: 'nats:4222'
+  nats__hosts: 'localhost:4222'
   seeds: 'timer-1:3455'
   storage__backend: 'leveldown'
   storage__path: '/var/data/skyring'
