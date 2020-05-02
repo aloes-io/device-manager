@@ -146,7 +146,7 @@ module.exports = app => {
       isAlphanumeric(headers.appid)
     ) {
       return setter
-        .device(app, ip, headers.appid, headers.apikey)
+        .application(app, ip, headers.appid, headers.apikey)
         .then(currentUser => {
           ctx.options.currentUser = currentUser;
           logCurrentUser(ctx.methodString, ctx.options);

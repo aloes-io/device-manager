@@ -199,7 +199,7 @@ const authenticateInstance = async (client, username, password) => {
   });
 
   if (!client || !client.id) {
-    return { client: null, status: 1 };
+    return sendAuth(null, 1);
   }
 
   const [savedClient] = await getStoredClients({ match: client.id });
@@ -218,7 +218,7 @@ const authenticateInstance = async (client, username, password) => {
         xRateLimitReset: new Date(Date.now() + limiter.msBeforeNext),
       };
     }
-    return { client, status: 4 };
+    return sendAuth(client, 4);
   }
 
   if (
