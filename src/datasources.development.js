@@ -17,6 +17,9 @@ module.exports = {
         host: process.env.SMTP_HOST,
         secure: Boolean(process.env.SMTP_SECURE),
         port: Number(process.env.SMTP_PORT),
+        tls: {
+          rejectUnauthorized: false,
+        },
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
@@ -45,7 +48,6 @@ module.exports = {
     name: 'storage',
     connector: 'loopback-component-storage',
     provider: 'filesystem',
-    // root: process.env.FS_PATH || './storage',
     root: path.join(__dirname, process.env.FS_PATH || '../storage'),
     nameConflict: 'makeUnique',
     maxFileSize: '10428800',
