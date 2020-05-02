@@ -486,7 +486,7 @@ const deviceTest = () => {
                       url: () => `${apiUrl}authenticate`,
                       body: () => ({
                         deviceId: devices[0].id.toString(),
-                        apiKey: devices[0].apiKey,
+                        key: devices[0].apiKey,
                       }),
                       expect: 200,
                     },
@@ -519,7 +519,7 @@ const deviceTest = () => {
                       url: () => `${apiUrl}authenticate`,
                       body: () => ({
                         deviceId: devices[0].id.toString(),
-                        apiKey: devices[0].apiKey,
+                        key: devices[0].apiKey,
                       }),
                       expect: 200,
                     },
@@ -544,7 +544,7 @@ const deviceTest = () => {
                       url: () => `${apiUrl}authenticate`,
                       body: () => ({
                         deviceId: devices[0].id.toString(),
-                        apiKey: devices[0].apiKey,
+                        key: devices[0].apiKey,
                       }),
                       expect: 200,
                     },
@@ -571,7 +571,7 @@ const deviceTest = () => {
                   url: () => `${apiUrl}authenticate`,
                   body: () => ({
                     deviceId: devices[0].id.toString(),
-                    apiKey: devices[0].apiKey,
+                    key: devices[0].apiKey,
                   }),
                   expect: 200,
                 },

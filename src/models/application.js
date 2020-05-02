@@ -145,14 +145,14 @@ module.exports = Application => {
    * Update application status from MQTT conection status
    * @method module:Application.updateStatus
    * @param {object} client - MQTT client
-   * @param {boolean} status - MQTT conection status
+   * @param {boolean} status - MQTT connection status
    * @returns {Promise<object>} application
    */
   Application.updateStatus = async (client, status) => {
-    logger.publish(4, collectionName, 'updateStatus:req', status);
+    logger.publish(4, collectionName, 'updateStatus:req', { status, client });
     const Client = Application.app.models.Client;
     let application = await utils.findById(Application, client.user);
-    if (!application) {
+    if (!application || !application.id) {
       return null;
     }
     let frameCounter = application.frameCounter;
@@ -177,8 +177,7 @@ module.exports = Application => {
         status = true;
       } else {
         frameCounter = 0;
-        const Device = Application.app.models.Device;
-        const devices = await utils.find(Device, {
+        const devices = await utils.find(Application.app.models.Device, {
           where: { and: [{ appIds: { inq: [client.appId] } }, { status: true }] },
         });
         await Promise.all(
@@ -188,8 +187,8 @@ module.exports = Application => {
       await Client.delete(client.id);
     }
 
-    logger.publish(4, collectionName, 'updateStatus:res', client);
     application = await utils.updateAttributes(application, { frameCounter, status, clients });
+    logger.publish(4, collectionName, 'updateStatus:res', application);
     return application;
   };
 
@@ -246,21 +245,21 @@ module.exports = Application => {
     if (!appId) throw new Error('missing application.id');
     logger.publish(4, `${collectionName}`, 'getState:req', { appId });
     const application = await utils.findById(Application, appId);
-    if (application && application.id) {
-      let devices = await utils.find(Application.app.models.Device, {
-        where: {
-          and: [{ ownerId: application.ownerId }, { appIds: { inq: [application.id] } }],
-        },
-      });
-      if (devices && devices.length > 0) {
-        devices = JSON.parse(JSON.stringify(devices));
-        application.devices = devices;
-      } else {
-        application.devices = [];
-      }
-      return application;
+    if (!application || !application.id) {
+      throw utils.buildError(404, 'APPLICATION_NOTFOUND', 'Wrong application');
     }
-    throw utils.buildError(404, 'APPLICATION_NOTFOUND', 'Wrong application');
+    let devices = await utils.find(Application.app.models.Device, {
+      where: {
+        and: [{ ownerId: application.ownerId }, { appIds: { inq: [application.id] } }],
+      },
+    });
+    if (devices && devices.length > 0) {
+      devices = JSON.parse(JSON.stringify(devices));
+      application.devices = devices;
+    } else {
+      application.devices = [];
+    }
+    return application;
   };
 
   /**

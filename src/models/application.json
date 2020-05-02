@@ -277,14 +277,14 @@
           "required": true
         },
         {
-          "arg": "apiKey",
+          "arg": "key",
           "type": "string",
           "required": true
         }
       ],
       "returns": {
         "root": true,
-        "type": "string"
+        "type": "object"
       },
       "http": {
         "verb": "post",

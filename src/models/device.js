@@ -415,7 +415,7 @@ module.exports = function(Device) {
    * @method module:Device.export
    * @param {array} devices
    * @param {string} [format]
-   * @returns {Promise<object | null>}
+   * @returns {Promise<string | null>}
    */
   Device.export = async (devices, filter, format = 'csv') => {
     if (!devices || !devices.length) return null;
@@ -468,7 +468,6 @@ module.exports = function(Device) {
       return null;
     }
     const Client = Device.app.models.Client;
-    // let ttl;
     let frameCounter = device.frameCounter;
     const clients = device.clients || [];
     const index = clients.indexOf(client.id);
@@ -484,7 +483,6 @@ module.exports = function(Device) {
       }
       await Client.set(client.id, JSON.stringify(client), ttl);
     } else {
-      // ttl = 1 * 24 * 60 * 60 * 1000;
       if (index > -1) {
         clients.splice(index, 1);
       }
@@ -538,20 +536,12 @@ module.exports = function(Device) {
           frameCounter: device.frameCounter,
           status: true,
         });
-        // todo set a scheduler to check if device is still online after 5 minutes ?
         break;
       case 'GET':
         device = await utils.findById(Device, device.id);
         await Device.publish(device, 'GET', client);
         break;
       case 'POST':
-        // if (!device.status && client && client.devEui === device.devEui {
-        //   await device.updateAttributes({
-        //     status: true,
-        //     frameCounter: device.frameCounter + 1 || 1,
-        //     lastSignal: attributes.lastSignal || new Date(),
-        //   });
-        // }
         device = await Device.createOrUpdate(device);
         break;
       case 'PUT':
@@ -626,7 +616,7 @@ module.exports = function(Device) {
    */
   Device.getState = async deviceId => {
     logger.publish(4, `${collectionName}`, 'getState:req', { deviceId });
-    const resFilter = {
+    const device = await utils.findById(Device, deviceId, {
       fields: {
         id: true,
         devEui: true,
@@ -635,13 +625,12 @@ module.exports = function(Device) {
         name: true,
         status: true,
       },
-    };
-    const device = await utils.findById(Device, deviceId, resFilter);
-    if (device && device !== null) {
-      logger.publish(4, `${collectionName}`, 'getState:res', device);
-      return device;
+    });
+    if (!device || !device.id) {
+      throw utils.buildError(404, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
     }
-    throw utils.buildError(404, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
+    logger.publish(4, `${collectionName}`, 'getState:res', device);
+    return device;
   };
 
   /**
@@ -670,11 +659,11 @@ module.exports = function(Device) {
       },
     };
     const device = await utils.findById(Device, deviceId, resFilter);
-    if (device && device !== null && device.id) {
-      logger.publish(4, `${collectionName}`, 'getFullState:res', device);
-      return device;
+    if (!device || !device.id) {
+      throw utils.buildError(404, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
     }
-    throw utils.buildError(404, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
+    logger.publish(4, `${collectionName}`, 'getFullState:res', device);
+    return device;
   };
 
   /**
@@ -686,43 +675,6 @@ module.exports = function(Device) {
    * @returns {Promise<function>} Device~updateFirmware
    */
   Device.getOTAUpdate = async (ctx, deviceId, version) => updateFirmware(ctx, deviceId, version);
-
-  // const onSync = async data => {
-  //   try {
-  //     logger.publish(4, `${collectionName}`, 'onSync:res', data.time);
-  //     await Device.syncCache('UP');
-  //   } catch (error) {
-  //     logger.publish(2, `${collectionName}`, 'onSync:err', error);
-  //   }
-  // };
-
-  /**
-   * Init clock to synchronize memories
-   *
-   * a DeltaTimer instance will be created and stored in memory
-   * @method module:Device.setClock
-   * @param {number} interval - Timeout interval
-   * @returns {Promise<object>} Device.timer
-   */
-  // Device.setClock = async interval => {
-  //   try {
-  //     logger.publish(4, `${collectionName}`, 'setClock:req', interval);
-  //     if (utils.isMasterProcess(process.env)) {
-  //       if (Device.timer && Device.timer !== null) {
-  //         Device.timer.stop();
-  //       }
-  //       Device.timer = new DeltaTimer(onSync, {}, interval);
-  //       Device.start = Device.timer.start();
-  //       logger.publish(3, `${collectionName}`, 'setClock:res', Device.start);
-  //     }
-  //   } catch (error) {
-  //     logger.publish(2, `${collectionName}`, 'setClock:err', error);
-  //   }
-  // };
-
-  // Device.delClock = () => {
-  //   if (Device.timer) Device.timer.stop();
-  // };
 
   /**
    * Event reporting that an device client connection status has changed.
@@ -771,8 +723,6 @@ module.exports = function(Device) {
     }
   });
 
-  // Device.once('started', () => setTimeout(() => Device.setClock(clockInterval), 2500));
-
   /**
    * Event reporting that application stopped
    *
@@ -783,7 +733,6 @@ module.exports = function(Device) {
   Device.on('stopped', () => {
     if (utils.isMasterProcess(process.env)) {
       logger.publish(3, `${collectionName}`, 'on-stop:res', '');
-      // Device.delClock();
       // return Device.updateAll({ status: true }, { status: false, clients: [] });
     }
   });

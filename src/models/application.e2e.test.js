@@ -291,7 +291,7 @@ const applicationTest = () => {
                       url: () => `${apiUrl}authenticate`,
                       body: () => ({
                         appId: applications[0].id.toString(),
-                        apiKey: applications[0].apiKey,
+                        key: applications[0].apiKey,
                       }),
                       expect: 200,
                     },
@@ -309,7 +309,8 @@ const applicationTest = () => {
                         client: {
                           appId: applications[0].id,
                           appEui: applications[0].appEui,
-                          id: applications[0].appEui,
+                          id: `${applications[0].id}-1g31g3`,
+                          model: 'Application',
                           user: applications[0].id,
                         },
                         status: true,
@@ -326,7 +327,7 @@ const applicationTest = () => {
                       url: () => `${apiUrl}authenticate`,
                       body: () => ({
                         appId: applications[0].id.toString(),
-                        apiKey: applications[0].apiKey,
+                        key: applications[0].apiKey,
                       }),
                       expect: 200,
                     },
@@ -380,7 +381,7 @@ const applicationTest = () => {
                   url: () => `${apiUrl}authenticate`,
                   body: () => ({
                     appId: applications[0].id.toString(),
-                    apiKey: applications[0].apiKey,
+                    key: applications[0].apiKey,
                   }),
                   expect: 200,
                 },
