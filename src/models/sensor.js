@@ -95,7 +95,7 @@ module.exports = function(Sensor) {
     if (!sensor || !sensor.id || !sensor.ownerId) {
       throw utils.buildError(400, 'INVALID_SENSOR', 'Invalid sensor instance');
     }
-    const device = await Sensor.app.models.Device.findById(deviceId);
+    const device = await utils.findById(Sensor.app.models.Device, deviceId);
     if (!device) {
       throw utils.buildError(400, 'INVALID_DEVICE', 'Invalid device instance');
     }
@@ -227,17 +227,10 @@ module.exports = function(Sensor) {
       throw utils.buildError(400, 'INVALID_SENSOR', 'Sensor not validated yet');
     }
 
-    const foundSensor = await Sensor.findById(sensor.id);
+    const foundSensor = await utils.findById(Sensor, sensor.id);
     const resources = await getResources(foundSensor);
 
-    if (!sensor.resources) {
-      // sensor.setAttribute('resources', resources);
-      sensor.resources = resources;
-    } else {
-      sensor.resources = { ...resources, ...sensor.resources };
-      // sensor.setAttribute('resources', { ...resources, ...sensor.resources });
-    }
-
+    sensor.resources = sensor.resources ? { ...resources, ...sensor.resources } : resources;
     const updatedSensor = updateAloesSensors(sensor, Number(resourceKey), resourceValue);
     if (!updatedSensor || !updatedSensor.id) {
       throw utils.buildError(400, 'INVALID_SENSOR_UPDATE', 'Sensor not updated');
@@ -273,7 +266,7 @@ module.exports = function(Sensor) {
     logger.publish(4, `${collectionName}`, 'getInstance:req', {
       sensorId: sensor.id,
     });
-    const instance = await Sensor.findById(sensor.id);
+    const instance = await utils.findById(Sensor, sensor.id);
     if (!instance) throw new Error('Sensor not found');
     // if (pattern.name.toLowerCase() !== 'aloesclient') {
     //   let packet = { payload: JSON.stringify(instance) };
@@ -373,7 +366,7 @@ module.exports = function(Sensor) {
     }
     /* eslint-disable security/detect-non-literal-regexp */
     // use OMA object description as lexic
-    const omaObjectsList = await Sensor.app.models.OmaObject.find({
+    const omaObjectsList = await utils.find(Sensor.app.models.OmaObject, {
       where: {
         or: [
           { name: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
@@ -392,7 +385,7 @@ module.exports = function(Sensor) {
               { transportProtocol: { like: new RegExp(`.*${filter.text}.*`, 'i') } },
             ],
           };
-          const sensors = await Sensor.find({
+          const sensors = await utils.find(Sensor, {
             where: whereFilter,
           });
           return !sensors || sensors === null ? [] : [...JSON.parse(JSON.stringify(sensors))];
@@ -419,7 +412,7 @@ module.exports = function(Sensor) {
    * @method module:Sensor.export
    * @param {array} sensors
    * @param {string} [format]
-   * @returns {Promise<string>}
+   * @returns {Promise<string | null>}
    */
   Sensor.export = async (sensors, filter, format = 'csv') => {
     if (!sensors || sensors.length < 1) return null;
@@ -470,7 +463,7 @@ module.exports = function(Sensor) {
     /**
      * Get sensor resources from key/value store
      * @method module:Sensor.prototype.__get__resources
-     * @returns {Promise<function>} module:SensorResource.find
+     * @returns {Promise<object>} 
      */
     Sensor.prototype.__get__resources = function() {
       return SensorResource.find(this.deviceId, this.id);
@@ -480,7 +473,7 @@ module.exports = function(Sensor) {
      * Get sensor resources from key/value store by key
      * @method module:Sensor.prototype.__findById__resources
      * @param {string} id Resource key
-     * @returns {Promise<function>} module:SensorResource.find
+     * @returns {Promise<object>}
      */
     Sensor.prototype.__findById__resources = function(id) {
       return SensorResource.find(this.deviceId, this.id, id);
@@ -490,7 +483,7 @@ module.exports = function(Sensor) {
      * Create sensor resources in key/value store
      * @method module:Sensor.prototype.__create__resources
      * @param {object} resources Resources key/value object
-     * @returns {Promise<function>} module:SensorResource.save
+     * @returns {Promise<object>}
      */
     Sensor.prototype.__create__resources = function(resources) {
       return SensorResource.save(this.deviceId, this.id, resources);
@@ -500,7 +493,7 @@ module.exports = function(Sensor) {
      * Replace sensor resources in key/value store
      * @method module:Sensor.prototype.__replace__resources
      * @param {object} resources Resources key/value object
-     * @returns {Promise<function>} module:SensorResource.save
+     * @returns {Promise<object>}
      */
     Sensor.prototype.__replace__resources = function(resources) {
       return SensorResource.save(this.deviceId, this.id, resources);
@@ -513,7 +506,7 @@ module.exports = function(Sensor) {
     /**
      * Delete sensor resources from key/value store
      * @method module:Sensor.prototype.__delete__resources
-     * @returns {Promise<function>} module:SensorResource.remove
+     * @returns {Promise<string[]>}
      */
     Sensor.prototype.__delete__resources = function() {
       return SensorResource.remove(this.deviceId, this.id);
@@ -527,12 +520,11 @@ module.exports = function(Sensor) {
      * Get sensor measurement from timeseries store
      * @method module:Sensor.prototype.__get__measurements
      * @param {object} filter Measurement filter
-     * @returns {Promise<object[]>} module:Measurement.find
+     * @returns {Promise<object[]>}
      */
     Sensor.prototype.__get__measurements = async function(filter) {
       if (!filter) filter = { where: {} };
       const points = await Measurement.find({
-        // ...filter,
         where: {
           ...filter.where,
           sensorId: this.id.toString(),
@@ -549,7 +541,7 @@ module.exports = function(Sensor) {
      * Get sensor measurement from timeseries store by id
      * @method module:Sensor.prototype.__findById__measurements
      * @param {string} id Resource key
-     * @returns {Promise<function>} module:Measurement.findById
+     * @returns {Promise<object>}
      */
 
     /**
@@ -575,11 +567,10 @@ module.exports = function(Sensor) {
      * @method module:Sensor.prototype.__replace__measurements
      * @param {object} attributes
      * @param {object} filter
-     * @returns {Promise<object[] | null>} module:Measurement.replace
+     * @returns {Promise<object[] | null>}
      */
     Sensor.prototype.__replace__measurements = async function(attributes, filter) {
       if (!filter) filter = { where: {} };
-      // console.log('__replace__measurements:req', { filter, attributes });
       try {
         const result = await Measurement.replace(
           {
@@ -592,10 +583,8 @@ module.exports = function(Sensor) {
           },
           attributes,
         );
-        // console.log('__replace__measurements:res', result);
         return result;
       } catch (error) {
-        // console.log('__replace__measurements:err', error);
         return null;
       }
     };
@@ -604,11 +593,10 @@ module.exports = function(Sensor) {
      * Delete sensor measurement from timeseries store
      * @method module:Sensor.prototype.__delete__measurements
      * @param {object} filter
-     * @returns {Promise<boolean>} module:Measurement.delete
+     * @returns {Promise<boolean>}
      */
     Sensor.prototype.__delete__measurements = async function(filter) {
       if (!filter) filter = {};
-      // console.log('__delete__measurements:req', filter);
       const result = await Measurement.delete({
         ...filter,
         sensorId: this.id.toString(),

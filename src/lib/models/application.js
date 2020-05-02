@@ -23,9 +23,9 @@ export const onBeforeSave = async ctx => {
   if (ctx.data) {
     logger.publish(4, `${collectionName}`, 'onBeforePartialSave:req', ctx.data);
     // if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
-    //   const application = await ctx.Model.findById(ctx.where.id);
+    //   const application = await utils.findById(ctx.Model, ctx.where.id);
     // } else {
-    //   const applications = await ctx.Model.find({ where: ctx.where });
+    //   const applications = await utils.find(ctx.Model, { where: ctx.where });
     //   if (applications && applications.length > 0) {
     //     await Promise.all(
     //       applications.map(async application => application._resources.save(ctx.data.resources)),
@@ -58,7 +58,7 @@ const createKeys = async application => {
     hasChanged = true;
   }
   if (hasChanged) {
-    await application.updateAttributes(attributes);
+    application = await utils.updateAttributes(application, attributes);
   }
   return application;
 };
@@ -133,7 +133,7 @@ const deleteProps = async (app, instance) => {
   try {
     logger.publish(4, `${collectionName}`, 'deleteProps:req', instance);
     // const Device = app.models.Device;
-    // const devices = await Device.find({ where: { appEui: instance.appEui } });
+    // const devices = await utils.find(Device, { where: { appEui: instance.appEui } });
     // if (devices && devices.length > 0) {
     //   const promises = await devices.map(async device => device.delete());
     //   await Promise.all(promises);
@@ -154,11 +154,11 @@ const deleteProps = async (app, instance) => {
 export const onBeforeDelete = async ctx => {
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
   if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
-    const instance = await ctx.Model.findById(ctx.where.id);
+    const instance = await utils.findById(ctx.Model, ctx.where.id);
     await deleteProps(ctx.Model.app, instance);
   } else {
     const filter = { where: ctx.where };
-    const applications = await ctx.Model.find(filter);
+    const applications = await utils.find(ctx.Model, filter);
     if (applications && applications.length > 0) {
       await Promise.all(applications.map(async instance => deleteProps(ctx.Model.app, instance)));
     }
@@ -258,9 +258,9 @@ export const parseMessage = async (app, packet, pattern, client) => {
   switch (pattern.params.collection.toLowerCase()) {
     case 'application':
       if (instanceId) {
-        foundInstance = await Application.findBy(instanceId);
+        foundInstance = await utils.findBy(Application, instanceId);
       } else {
-        foundInstance = await Application.findOne({
+        foundInstance = await utils.findOne(Application, {
           where: { or: [{ id: client.appId }, { appEui: client.appEui }] },
         });
       }

@@ -8,9 +8,10 @@ import utils from '../lib/utils';
 module.exports = async function createSampleAccounts(app) {
   if (!utils.isMasterProcess(process.env)) return;
   const User = app.models.user;
-  const accounts = await User.find().then(res =>
-    res.length < 1 ? User.create(initialUsersList).then(res) : res,
-  );
+  let accounts = await utils.find(User);
+  if (!accounts || !accounts.length) {
+    accounts = await User.create(initialUsersList);
+  }
   await roleManager.setUserRole(app, accounts[0].id, 'admin', true);
   logger.publish(4, 'loopback', 'boot:createSampleAccounts:res', accounts);
 };

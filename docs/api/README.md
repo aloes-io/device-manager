@@ -64,6 +64,7 @@
         * [.search(filter)](#module_Address.search) ⇒ <code>Promise.&lt;array&gt;</code>
         * [.geoLocate(filter)](#module_Address.geoLocate) ⇒ <code>Promise.&lt;array&gt;</code>
     * _inner_
+        * [~geoCode()](#module_Address..geoCode) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onAfterSave(ctx)](#module_Address..onAfterSave) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onBeforeRemote(ctx)](#module_Address..onBeforeRemote) ⇒ <code>Promise.&lt;object&gt;</code>
         * ["create" (ctx, user)](#event_create) ⇒ <code>Promise.&lt;function()&gt;</code>
@@ -105,6 +106,12 @@ Search addresses by location ( GPS coordinates )
 | --- | --- | --- |
 | filter | <code>object</code> | Requested filter |
 
+<a name="module_Address..geoCode"></a>
+
+### Address~geoCode() ⇒ <code>Promise.&lt;object&gt;</code>
+Promise wrapper to verify address
+
+**Kind**: inner method of [<code>Address</code>](#module_Address)  
 <a name="module_Address..onAfterSave"></a>
 
 ### Address~onAfterSave(ctx) ⇒ <code>Promise.&lt;object&gt;</code>
@@ -173,13 +180,11 @@ Event reporting that an address instance / collection is requested
 
 
 * [Application](#module_Application)
-    * _instance_
-        * [.resetKeys()](#module_Application+resetKeys) ⇒ <code>Promise.&lt;object&gt;</code>
     * _static_
         * [.publish(application, method, [client])](#module_Application.publish) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
-        * [.refreshToken(appId, ownerId)](#module_Application.refreshToken) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [.refreshToken(appId, ownerId)](#module_Application.refreshToken) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.onPublish(packet, client, pattern)](#module_Application.onPublish) ⇒ <code>Promise.&lt;function()&gt;</code>
-        * [.updateStatus(client, status)](#module_Application.updateStatus) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [.updateStatus(client, status)](#module_Application.updateStatus) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.authenticate(applicationId, key)](#module_Application.authenticate) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.getState(applicationId)](#module_Application.getState) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.find(filter)](#module_Application.find) ⇒ <code>Promise.&lt;object&gt;</code>
@@ -207,13 +212,6 @@ Event reporting that an address instance / collection is requested
         * ["before_delete" (ctx)](#event_before_delete) ⇒ <code>Promise.&lt;function()&gt;</code>
         * ["before_*" (ctx)](#event_before_*) ⇒ <code>Promise.&lt;function()&gt;</code>
 
-<a name="module_Application+resetKeys"></a>
-
-### application.resetKeys() ⇒ <code>Promise.&lt;object&gt;</code>
-Reset keys for this application instance
-
-**Kind**: instance method of [<code>Application</code>](#module_Application)  
-**Returns**: <code>Promise.&lt;object&gt;</code> - this  
 <a name="module_Application.publish"></a>
 
 ### Application.publish(application, method, [client]) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
@@ -231,11 +229,11 @@ Format packet and send it via MQTT broker
 
 <a name="module_Application.refreshToken"></a>
 
-### Application.refreshToken(appId, ownerId) ⇒ <code>Promise.&lt;function()&gt;</code>
+### Application.refreshToken(appId, ownerId) ⇒ <code>Promise.&lt;object&gt;</code>
 Create new keys, and update Application instance
 
 **Kind**: static method of [<code>Application</code>](#module_Application)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - application.updateAttributes  
+**Returns**: <code>Promise.&lt;object&gt;</code> - application  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -258,16 +256,16 @@ Dispatch incoming MQTT packet
 
 <a name="module_Application.updateStatus"></a>
 
-### Application.updateStatus(client, status) ⇒ <code>Promise.&lt;function()&gt;</code>
+### Application.updateStatus(client, status) ⇒ <code>Promise.&lt;object&gt;</code>
 Update application status from MQTT conection status
 
 **Kind**: static method of [<code>Application</code>](#module_Application)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - application.updateAttributes  
+**Returns**: <code>Promise.&lt;object&gt;</code> - application  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | client | <code>object</code> | MQTT client |
-| status | <code>boolean</code> | MQTT conection status |
+| status | <code>boolean</code> | MQTT connection status |
 
 <a name="module_Application.authenticate"></a>
 
@@ -626,8 +624,6 @@ Event reporting that an Application instance / collection is requested
 
 * [Client](#module_Client)
     * _static_
-        * [.getAll([filter])](#module_Client.getAll) ⇒ <code>Promise.&lt;array&gt;</code>
-        * [.deleteAll([filter])](#module_Client.deleteAll) ⇒ <code>Promise.&lt;array&gt;</code>
         * [.get(key, [cb])](#module_Client.get)
         * [.set(key, value, [ttl], [cb])](#module_Client.set)
         * [.delete(key, [cb])](#module_Client.delete)
@@ -635,35 +631,13 @@ Event reporting that an Application instance / collection is requested
         * [.keys([filter], [cb])](#module_Client.keys) ⇒ <code>Array.&lt;string&gt;</code>
         * [.iterateKeys([filter])](#module_Client.iterateKeys) ⇒ <code>AsyncIterator</code>
     * _inner_
-        * [~onBeforeRemote(app, ctx)](#module_Client..onBeforeRemote) ⇒ <code>Promise.&lt;object&gt;</code>
-        * ["before_*" (ctx)](#event_before_*) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [~onBeforeRemote(ctx, [Model])](#module_Client..onBeforeRemote) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~getAll(Model, [filter])](#module_Client..getAll) ⇒ <code>Promise.&lt;array&gt;</code>
+        * [~deleteAll(Model, [filter])](#module_Client..deleteAll) ⇒ <code>Promise.&lt;array&gt;</code>
+        * ["before_*" (ctx)](#event_before_*) ⇒ <code>function</code>
         * ["stopped"](#event_stopped)
         * [~errorCallback](#module_Client..errorCallback) : <code>function</code>
         * [~resultCallback](#module_Client..resultCallback) : <code>function</code>
-
-<a name="module_Client.getAll"></a>
-
-### Client.getAll([filter]) ⇒ <code>Promise.&lt;array&gt;</code>
-Find clients in the cache
-
-**Kind**: static method of [<code>Client</code>](#module_Client)  
-**Returns**: <code>Promise.&lt;array&gt;</code> - schedulers - Cached clients  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| [filter] | <code>object</code> | Client filter |
-
-<a name="module_Client.deleteAll"></a>
-
-### Client.deleteAll([filter]) ⇒ <code>Promise.&lt;array&gt;</code>
-Delete clients stored in cache
-
-**Kind**: static method of [<code>Client</code>](#module_Client)  
-**Returns**: <code>Promise.&lt;array&gt;</code> - clients - Cached clients keys  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| [filter] | <code>object</code> | Client filter |
 
 <a name="module_Client.get"></a>
 
@@ -760,7 +734,7 @@ Use callback or promise
 
 <a name="module_Client..onBeforeRemote"></a>
 
-### Client~onBeforeRemote(app, ctx) ⇒ <code>Promise.&lt;object&gt;</code>
+### Client~onBeforeRemote(ctx, [Model]) ⇒ <code>Promise.&lt;object&gt;</code>
 Called when a remote method tries to access Client Model / instance
 
 **Kind**: inner method of [<code>Client</code>](#module_Client)  
@@ -768,18 +742,42 @@ Called when a remote method tries to access Client Model / instance
 
 | Param | Type | Description |
 | --- | --- | --- |
-| app | <code>object</code> | Loopback App |
 | ctx | <code>object</code> | Express context |
-| ctx.req | <code>object</code> | Request |
-| ctx.res | <code>object</code> | Response |
+| [Model] | <code>object</code> | Response |
+
+<a name="module_Client..getAll"></a>
+
+### Client~getAll(Model, [filter]) ⇒ <code>Promise.&lt;array&gt;</code>
+Find clients in the cache
+
+**Kind**: inner method of [<code>Client</code>](#module_Client)  
+**Returns**: <code>Promise.&lt;array&gt;</code> - schedulers - Cached clients  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| Model | <code>object</code> | Client model |
+| [filter] | <code>object</code> | Client filter |
+
+<a name="module_Client..deleteAll"></a>
+
+### Client~deleteAll(Model, [filter]) ⇒ <code>Promise.&lt;array&gt;</code>
+Delete clients stored in cache
+
+**Kind**: inner method of [<code>Client</code>](#module_Client)  
+**Returns**: <code>Promise.&lt;array&gt;</code> - clients - Cached clients keys  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| Model | <code>object</code> | Client model |
+| [filter] | <code>object</code> | Client filter |
 
 <a name="event_before_*"></a>
 
-### "before_*" (ctx) ⇒ <code>Promise.&lt;function()&gt;</code>
+### "before_*" (ctx) ⇒ <code>function</code>
 Event reporting that a Client method is requested
 
 **Kind**: event emitted by [<code>Client</code>](#module_Client)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - Client~onBeforeRemote  
+**Returns**: <code>function</code> - Client~onBeforeRemote  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -850,7 +848,6 @@ Optional result callback
 
 * [Device](#module_Device)
     * _instance_
-        * [.resetKeys()](#module_Device+resetKeys) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.__get__sensors()](#module_Device+__get__sensors) ⇒ <code>Promise.&lt;function()&gt;</code>
     * _static_
         * [.publish(device, method, [client])](#module_Device.publish) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
@@ -858,14 +855,13 @@ Optional result callback
         * [.findByPattern(pattern, attributes)](#module_Device.findByPattern) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.search(filter)](#module_Device.search) ⇒ <code>Promise.&lt;array&gt;</code>
         * [.geoLocate(filter)](#module_Device.geoLocate) ⇒ <code>Promise.&lt;array&gt;</code>
-        * [.export(devices, [format])](#module_Device.export) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.export(devices, [format])](#module_Device.export) ⇒ <code>Promise.&lt;(string\|null)&gt;</code>
         * [.updateStatus(client, status)](#module_Device.updateStatus) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.onPublish(packet, pattern, client)](#module_Device.onPublish) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.authenticate(deviceId, key)](#module_Device.authenticate) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.getState(deviceId)](#module_Device.getState) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.getFullState(deviceId)](#module_Device.getFullState) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.getOTAUpdate(ctx, deviceId, [version])](#module_Device.getOTAUpdate) ⇒ <code>Promise.&lt;function()&gt;</code>
-        * [.setClock(interval)](#module_Device.setClock) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.find(filter)](#module_Device.find) ⇒ <code>object</code>
         * [.count(where)](#module_Device.count) ⇒ <code>number</code>
         * [.findById(id, filter)](#module_Device.findById) ⇒ <code>object</code>
@@ -873,7 +869,7 @@ Optional result callback
         * [.updateById(id, filter)](#module_Device.updateById) ⇒ <code>object</code>
         * [.deleteById(id, filter)](#module_Device.deleteById) ⇒ <code>object</code>
     * _inner_
-        * [~detector(packet, client)](#module_Device..detector) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~detector(packet, client)](#module_Device..detector) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
         * [~transportProtocolValidator(err)](#module_Device..transportProtocolValidator)
         * [~messageProtocolValidator(err)](#module_Device..messageProtocolValidator)
         * [~typeValidator(err)](#module_Device..typeValidator)
@@ -898,13 +894,6 @@ Optional result callback
         * ["before_*" (ctx)](#event_before_*) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [~errorCallback](#module_Device..errorCallback) : <code>function</code>
 
-<a name="module_Device+resetKeys"></a>
-
-### device.resetKeys() ⇒ <code>Promise.&lt;object&gt;</code>
-Reset keys for this device instance
-
-**Kind**: instance method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>Promise.&lt;object&gt;</code> - device  
 <a name="module_Device+__get__sensors"></a>
 
 ### device.\_\_get\_\_sensors() ⇒ <code>Promise.&lt;function()&gt;</code>
@@ -979,7 +968,7 @@ Search devices by location ( GPS coordinates )
 
 <a name="module_Device.export"></a>
 
-### Device.export(devices, [format]) ⇒ <code>Promise.&lt;object&gt;</code>
+### Device.export(devices, [format]) ⇒ <code>Promise.&lt;(string\|null)&gt;</code>
 Export devices list from JSON to {format}
 
 **Kind**: static method of [<code>Device</code>](#module_Device)  
@@ -1073,20 +1062,6 @@ Update OTA if a firmware is available
 | deviceId | <code>string</code> | Device instance id |
 | [version] | <code>string</code> | Firmware version requested |
 
-<a name="module_Device.setClock"></a>
-
-### Device.setClock(interval) ⇒ <code>Promise.&lt;object&gt;</code>
-Init clock to synchronize memories
-
-a DeltaTimer instance will be created and stored in memory
-
-**Kind**: static method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>Promise.&lt;object&gt;</code> - Device.timer  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| interval | <code>number</code> | Timeout interval |
-
 <a name="module_Device.find"></a>
 
 ### Device.find(filter) ⇒ <code>object</code>
@@ -1158,11 +1133,11 @@ Delete device by id
 
 <a name="module_Device..detector"></a>
 
-### Device~detector(packet, client) ⇒ <code>Promise.&lt;object&gt;</code>
+### Device~detector(packet, client) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
 Detect device known pattern and load the application instance
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>Promise.&lt;object&gt;</code> - pattern  
+**Returns**: <code>Promise.&lt;(object\|null)&gt;</code> - pattern  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2703,13 +2678,13 @@ Optional result callback
 * [Sensor](#module_Sensor)
     * _instance_
         * [.__findById__sensors(id)](#module_Sensor+__findById__sensors) ⇒ <code>Promise.&lt;function()&gt;</code>
-        * [.__get__resources()](#module_Sensor+__get__resources) ⇒ <code>Promise.&lt;function()&gt;</code>
-        * [.__findById__resources(id)](#module_Sensor+__findById__resources) ⇒ <code>Promise.&lt;function()&gt;</code>
-        * [.__create__resources(resources)](#module_Sensor+__create__resources) ⇒ <code>Promise.&lt;function()&gt;</code>
-        * [.__replace__resources(resources)](#module_Sensor+__replace__resources) ⇒ <code>Promise.&lt;function()&gt;</code>
-        * [.__delete__resources()](#module_Sensor+__delete__resources) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [.__get__resources()](#module_Sensor+__get__resources) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.__findById__resources(id)](#module_Sensor+__findById__resources) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.__create__resources(resources)](#module_Sensor+__create__resources) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.__replace__resources(resources)](#module_Sensor+__replace__resources) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.__delete__resources()](#module_Sensor+__delete__resources) ⇒ <code>Promise.&lt;Array.&lt;string&gt;&gt;</code>
         * [.__get__measurements(filter)](#module_Sensor+__get__measurements) ⇒ <code>Promise.&lt;Array.&lt;object&gt;&gt;</code>
-        * [.__findById__measurements(id)](#module_Sensor+__findById__measurements) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [.__findById__measurements(id)](#module_Sensor+__findById__measurements) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.__create__measurements(measurement)](#module_Sensor+__create__measurements) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.__replace__measurements(attributes, filter)](#module_Sensor+__replace__measurements) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
         * [.__delete__measurements(filter)](#module_Sensor+__delete__measurements) ⇒ <code>Promise.&lt;boolean&gt;</code>
@@ -2722,7 +2697,7 @@ Optional result callback
         * [.getInstance(sensor, [client])](#module_Sensor.getInstance) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.onPublish(device, attributes, [sensor], client)](#module_Sensor.onPublish) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.search(filter)](#module_Sensor.search) ⇒ <code>Promise.&lt;array&gt;</code>
-        * [.export(sensors, [format])](#module_Sensor.export) ⇒ <code>Promise.&lt;string&gt;</code>
+        * [.export(sensors, [format])](#module_Sensor.export) ⇒ <code>Promise.&lt;(string\|null)&gt;</code>
         * [.find(filter)](#module_Sensor.find) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.count(where)](#module_Sensor.count) ⇒ <code>Promise.&lt;number&gt;</code>
         * [.findById(id, filter)](#module_Sensor.findById) ⇒ <code>Promise.&lt;object&gt;</code>
@@ -2766,18 +2741,16 @@ Get device sensors by id
 
 <a name="module_Sensor+__get__resources"></a>
 
-### sensor.\_\_get\_\_resources() ⇒ <code>Promise.&lt;function()&gt;</code>
+### sensor.\_\_get\_\_resources() ⇒ <code>Promise.&lt;object&gt;</code>
 Get sensor resources from key/value store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - module:SensorResource.find  
 <a name="module_Sensor+__findById__resources"></a>
 
-### sensor.\_\_findById\_\_resources(id) ⇒ <code>Promise.&lt;function()&gt;</code>
+### sensor.\_\_findById\_\_resources(id) ⇒ <code>Promise.&lt;object&gt;</code>
 Get sensor resources from key/value store by key
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - module:SensorResource.find  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2785,11 +2758,10 @@ Get sensor resources from key/value store by key
 
 <a name="module_Sensor+__create__resources"></a>
 
-### sensor.\_\_create\_\_resources(resources) ⇒ <code>Promise.&lt;function()&gt;</code>
+### sensor.\_\_create\_\_resources(resources) ⇒ <code>Promise.&lt;object&gt;</code>
 Create sensor resources in key/value store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - module:SensorResource.save  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2797,11 +2769,10 @@ Create sensor resources in key/value store
 
 <a name="module_Sensor+__replace__resources"></a>
 
-### sensor.\_\_replace\_\_resources(resources) ⇒ <code>Promise.&lt;function()&gt;</code>
+### sensor.\_\_replace\_\_resources(resources) ⇒ <code>Promise.&lt;object&gt;</code>
 Replace sensor resources in key/value store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - module:SensorResource.save  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2809,18 +2780,16 @@ Replace sensor resources in key/value store
 
 <a name="module_Sensor+__delete__resources"></a>
 
-### sensor.\_\_delete\_\_resources() ⇒ <code>Promise.&lt;function()&gt;</code>
+### sensor.\_\_delete\_\_resources() ⇒ <code>Promise.&lt;Array.&lt;string&gt;&gt;</code>
 Delete sensor resources from key/value store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - module:SensorResource.remove  
 <a name="module_Sensor+__get__measurements"></a>
 
 ### sensor.\_\_get\_\_measurements(filter) ⇒ <code>Promise.&lt;Array.&lt;object&gt;&gt;</code>
 Get sensor measurement from timeseries store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>Promise.&lt;Array.&lt;object&gt;&gt;</code> - module:Measurement.find  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2828,11 +2797,10 @@ Get sensor measurement from timeseries store
 
 <a name="module_Sensor+__findById__measurements"></a>
 
-### sensor.\_\_findById\_\_measurements(id) ⇒ <code>Promise.&lt;function()&gt;</code>
+### sensor.\_\_findById\_\_measurements(id) ⇒ <code>Promise.&lt;object&gt;</code>
 Get sensor measurement from timeseries store by id
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - module:Measurement.findById  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2855,7 +2823,6 @@ Create sensor measurement in timeseries store
 Replace sensor measurement in timeseries store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code> - module:Measurement.replace  
 
 | Param | Type |
 | --- | --- |
@@ -2868,7 +2835,6 @@ Replace sensor measurement in timeseries store
 Delete sensor measurement from timeseries store
 
 **Kind**: instance method of [<code>Sensor</code>](#module_Sensor)  
-**Returns**: <code>Promise.&lt;boolean&gt;</code> - module:Measurement.delete  
 
 | Param | Type |
 | --- | --- |
@@ -2986,7 +2952,7 @@ Search sensor by keywords ( name, type, )
 
 <a name="module_Sensor.export"></a>
 
-### Sensor.export(sensors, [format]) ⇒ <code>Promise.&lt;string&gt;</code>
+### Sensor.export(sensors, [format]) ⇒ <code>Promise.&lt;(string\|null)&gt;</code>
 Export sensors list from JSON to {format}
 
 **Kind**: static method of [<code>Sensor</code>](#module_Sensor)  

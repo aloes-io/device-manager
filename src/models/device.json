@@ -422,7 +422,7 @@
           "required": true
         },
         {
-          "arg": "apiKey",
+          "arg": "key",
           "type": "string",
           "required": true
         }

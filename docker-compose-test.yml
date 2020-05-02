@@ -8,40 +8,66 @@ networks:
 
 services:
   influxdb:
+    container_name: influxdb
+    image: influxdb:1.7-alpine
     environment:
       - INFLUXDB_ADMIN_ENABLED=false
       - INFLUXDB_DB=aloes_test
       - INFLUXDB_USER=aloes
       - INFLUXDB_USER_PASSWORD=example
-    image: influxdb:1.7-alpine
     networks:
       - aloes
 
+  nats:
+    image: nats:latest
+    container_name: nats
+    restart: always
+    networks:
+      - aloes
+
+  timer-1:
+    image: quay.io/esatterwhite/skyring
+    container_name: timer-1
+    hostname: timer-1
+    environment:
+      - NODE_ENV=test
+      - DEBUG=skyring:*
+      - channel__host=timer-1
+      - nats__hosts=nats:4222
+      - seeds=timer-1:3455
+      - storage__backend=leveldown
+      - storage__path=/var/data/skyring
+    restart: always
+    depends_on:
+      - nats
+    networks:
+      - aloes
+    
   api:
     environment:
       - CI=true
       - NODE_ENV=development
       - NODE_NAME=device-manager
-      - ALOES_ID=9e35aae4-c8c5-11e9-a32f-51ba8653
-      - ALOES_KEY=9a742eca81ba99ac826d3a7cc766f1ce94a321b0
+      - ALOES_ID=${ALOES_ID}
+      - ALOES_KEY=${ALOES_KEY}
       - ADMIN_EMAIL=ed@getlarge.eu
       - CONTACT_EMAIL=hey@getlarge.eu
       - DOMAIN=localhost
-      - HTTP_SERVER_URL=http://localhost:8000
+      - HTTP_SERVER_URL=http://api:8000
       - HTTP_CLIENT_URL=http://localhost:8080
       - HTTP_SERVER_HOST=0.0.0.0
       - HTTP_SERVER_PORT=8000
       - REST_API_ROOT=/api
       - COOKIE_SECRET=246bace2-38cb-1954-2481-ebc12531
-      - MQTT_BROKER_URL=mqtt://localhost:1883
+      - MQTT_BROKER_URL=mqtt://api:1883
       - MQTT_BROKER_PORT=1883
       - WS_BROKER_PORT=3000
       - SERVER_LOGGER_LEVEL=2
-      - SMTP_HOST=
-      - SMTP_PORT=465
-      - SMTP_SECURE=
-      - SMTP_USER=
-      - SMTP_PASS=
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_SECURE=${SMTP_SECURE}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
       - INFLUXDB_ADMIN_ENABLED=false
       - INFLUXDB_PROTOCOL=http
       - INFLUXDB_HOST=influxdb
@@ -49,7 +75,9 @@ services:
       - INFLUXDB_DB=aloes_test
       - INFLUXDB_USER=aloes
       - INFLUXDB_USER_PASSWORD=example
-      - OCD_API_KEY=682b827b96294325a99e344b4466923b
+      - EXTERNAL_TIMER=true
+      - TIMER_SERVER_URL=http://timer-1:3000/timer
+      - OCD_API_KEY=${OCD_API_KEY}
       - FS_PATH=../storage
       - GITHUB_CLIENT_ID_LOGIN=
       - GITHUB_CLIENT_SECRET_LOGIN=
@@ -57,16 +85,15 @@ services:
       - GITHUB_CLIENT_SECRET_LINK=
       - GIT_REPO_SSH_URL=git@framagit.org:aloes/device-manager.git
       - INSTANCES_COUNT=1
+    container_name: api
     build:
       context: .
       dockerfile: ./config/docker/test.dockerfile
     ports:
       - '8000:8000'
       - '1883:1883'
-    expose:
-      - 8000
-      - 1883
     depends_on:
+      - timer-1
       - influxdb
     networks:
       - aloes

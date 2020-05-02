@@ -51,10 +51,12 @@ const uploadToContainer = (app, ctx, ownerId, options) =>
 
 const uploadBufferToContainer = (app, buffer, ownerId, name) =>
   new Promise((resolve, reject) => {
-    return fileType
+    fileType
       .fromBuffer(buffer)
       .then(type => {
-        if (!type || !type.ext) reject(new Error('File type information not found'));
+        if (!type || !type.ext) {
+          return reject(new Error('File type information not found'));
+        }
         name = `${name}.${type.ext}`;
         // const nameParts = name.split('.');
         // if (nameParts.length < 2) {
@@ -75,6 +77,7 @@ const uploadBufferToContainer = (app, buffer, ownerId, name) =>
           });
         });
         writeStream.on('error', reject);
+        return null;
       })
       .catch(reject);
   });
@@ -150,11 +153,11 @@ const deleteProps = async (app, fileMeta) => {
  */
 const onBeforeDelete = async ctx => {
   if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
-    const file = await ctx.Model.findById(ctx.where.id);
+    const file = await utils.findById(ctx.Model, ctx.where.id);
     await deleteProps(ctx.Model.app, file);
   } else {
     const filter = { where: ctx.where };
-    const files = await ctx.Model.find(filter);
+    const files = await utils.find(ctx.Model, filter);
     await Promise.all(files.map(async file => deleteProps(ctx.Model.app, file)));
   }
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:res', 'success');
@@ -203,18 +206,23 @@ module.exports = function(Files) {
   Files.disableRemoteMethodByName('replaceOrCreate');
   Files.disableRemoteMethodByName('createChangeStream');
 
-  const updateFileMeta = async (fileMeta, newFileMeta, ownerId) => {
+  const updateFileMeta = (fileMeta, newFileMeta, ownerId) => {
     logger.publish(4, `${collectionName}`, 'updateFileMeta:req', { ownerId, ...newFileMeta });
-    if (fileMeta && fileMeta.id) {
-      await fileMeta.updateAttributes({ ...newFileMeta });
-    } else {
-      fileMeta = await Files.create({
-        ...newFileMeta,
-        ownerId,
-        // url: `${CONTAINERS_URL}${ownerId}/download/${newFileMeta.originalFilename}`,
-      });
-    }
-    return fileMeta;
+    return new Promise((resolve, reject) => {
+      return fileMeta && fileMeta.id
+        ? utils
+            .updateAttributes(fileMeta, { ...newFileMeta })
+            .then(res => resolve(res))
+            .catch(reject)
+        : utils
+            .create(Files, {
+              ...newFileMeta,
+              ownerId,
+              // url: `${CONTAINERS_URL}${ownerId}/download/${newFileMeta.originalFilename}`,
+            })
+            .then(res => resolve(res))
+            .catch(reject);
+    });
   };
   /**
    * Request to upload file in userId container via multipart/form data
@@ -247,7 +255,7 @@ module.exports = function(Files) {
     }
     /* eslint-enable security/detect-non-literal-regexp */
 
-    let fileMeta = await Files.findOne(filter);
+    let fileMeta = await utils.findOne(Files, filter);
     if (fileMeta && fileMeta.id) {
       await deleteProps(Files.app, fileMeta);
     }
@@ -303,7 +311,7 @@ module.exports = function(Files) {
     if (!name || name === null || !isLength(name, { min: 3, max: 65 })) {
       throw utils.buildError(400, 'INVALID_PARAM', 'Invalid file name');
     }
-    let fileMeta = await Files.findOne({
+    let fileMeta = await utils.findOne(Files, {
       where: {
         // eslint-disable-next-line security/detect-non-literal-regexp
         and: [{ name: { like: new RegExp(`.*${name}.*`, 'i') } }, { ownerId }],
@@ -338,13 +346,13 @@ module.exports = function(Files) {
    * @param {string} name - File name
    * @returns {Promise<object>} fileMeta
    */
-  Files.download = (ctx, ownerId, name) => {
+  Files.download = async (ctx, ownerId, name) => {
     // let auth = false;
     ctx.res.set('Access-Control-Allow-Origin', '*');
     logger.publish(4, `${collectionName}`, 'download:req', { ownerId, name });
     const readStream = Files.app.models.container.downloadStream(ownerId, name);
     if (readStream && readStream !== null) {
-      return new Promise((resolve, reject) => {
+      const result = await new Promise((resolve, reject) => {
         const bodyChunks = [];
         readStream.on('data', d => {
           bodyChunks.push(d);
@@ -359,6 +367,7 @@ module.exports = function(Files) {
         });
         readStream.on('error', reject);
       });
+      return result;
     }
     throw utils.buildError(404, 'NOT_FOUND', 'no file found');
   };
@@ -439,7 +448,6 @@ module.exports = function(Files) {
     const resourceId = sensor.resource.toString();
     // eslint-disable-next-line security/detect-object-injection
     const resource = sensor.resources[resourceId];
-    // const resource = await sensor.resources.findById(resourceId);
     const resourceType = typeof resource;
     logger.publish(4, `${collectionName}`, 'compose:req', {
       resourceType,

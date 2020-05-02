@@ -4,6 +4,7 @@
 import ejs from 'ejs';
 import * as fs from 'fs';
 import crypto from 'crypto';
+// import jugglerUtils from 'loopback-datasource-juggler/lib/utils';
 import path from 'path';
 import Papa from 'papaparse';
 import JSONFilter from 'simple-json-filter';
@@ -39,6 +40,7 @@ utils.buildError = (statusCode, code, message) => {
 
 /**
  * Create directory
+ * @async
  * @method module:Utils.mkDirByPathSync
  * @param {string} targetDir
  * @param {object} options
@@ -69,6 +71,35 @@ utils.mkDirByPathSync = async (targetDir, { isRelativeToScript = false } = {}) =
     return curDir;
   }, initDir);
 };
+
+// utils.createPromiseCallback = jugglerUtils.createPromiseCallback;
+
+// utils.observablePromise = promise => {
+//   if (promise.isResolved) return promise;
+
+//   let isPending = true;
+//   let isRejected = false;
+//   let isFulfilled = false;
+
+//   // Observe the promise, saving the fulfillment in a closure scope.
+//   const result = promise.then(
+//     function(v) {
+//       isFulfilled = true;
+//       isPending = false;
+//       return v;
+//     },
+//     function(e) {
+//       isRejected = true;
+//       isPending = false;
+//       throw e;
+//     },
+//   );
+
+//   result.isFulfilled = () => isFulfilled;
+//   result.isPending = () => isPending;
+//   result.isRejected = () => isRejected;
+//   return result;
+// };
 
 /**
  * Promise wrapper to render EJS template in HTML
@@ -123,6 +154,15 @@ utils.removeFile = filePath =>
   );
 
 /**
+ * Promise wrapper to get next key in Cache store
+ * @method module:Utils~getCacheKey
+ * @param {object} iterator
+ * @returns {Promise<string>}
+ */
+const getCacheKey = iterator =>
+  new Promise(resolve => iterator.next((err, key) => (err ? resolve(null) : resolve(key))));
+
+/**
  * Iterate over each KV Store keys found in cache
  * @generator
  * @async
@@ -137,7 +177,7 @@ utils.cacheIterator = async function*(Model, filter) {
   let empty = false;
   while (!empty) {
     // eslint-disable-next-line no-await-in-loop
-    const key = await iterator.next();
+    const key = await getCacheKey(iterator);
     if (!key) {
       empty = true;
       break;
@@ -145,6 +185,80 @@ utils.cacheIterator = async function*(Model, filter) {
     yield key;
   }
 };
+
+/**
+ * Promise wrapper to find Model instances
+ * @method module:Utils.find
+ * @param {function} Model
+ * @param {object} [filter]
+ * @returns {Promise<object[]>} instances
+ */
+utils.find = (Model, filter) =>
+  new Promise((resolve, reject) =>
+    Model.find(filter, (err, instances) => (err ? reject(err) : resolve(instances))),
+  );
+
+/**
+ * Promise wrapper to findOne Model instance
+ * @method module:Utils.find
+ * @param {function} Model
+ * @param {object} [filter]
+ * @returns {Promise<object>} instance
+ */
+utils.findOne = (Model, filter) =>
+  new Promise((resolve, reject) =>
+    Model.findOne(filter, (err, instance) => (err ? reject(err) : resolve(instance))),
+  );
+
+/**
+ * Promise wrapper to findById Model instance
+ * @method module:Utils.find
+ * @param {function} Model
+ * @param {string | number} id
+ * @param {object} [filter]
+ * @returns {Promise<object>} instance
+ */
+utils.findById = (Model, id, filter) =>
+  new Promise((resolve, reject) =>
+    Model.findById(id, filter, (err, instance) => (err ? reject(err) : resolve(instance))),
+  );
+
+/**
+ * Promise wrapper to create Model instance(s)
+ * @method module:Utils.create
+ * @param {function} Model
+ * @param {object | object[]} instances
+ * @returns {Promise<object | object[]>}
+ */
+utils.create = (Model, instances) =>
+  new Promise((resolve, reject) =>
+    Model.create(instances, (err, res) => (err ? reject(err) : resolve(res))),
+  );
+
+/**
+ * Promise wrapper to updateAttribute of an instance
+ * @method module:Utils.updateAttribute
+ * @param {function} instance
+ * @param {string} name
+ * @param {any} value
+ * @returns {Promise<object>} instance
+ */
+utils.updateAttribute = (instance, name, value) =>
+  new Promise((resolve, reject) =>
+    instance.updateAttribute(name, value, (err, res) => (err ? reject(err) : resolve(res))),
+  );
+
+/**
+ * Promise wrapper to updateAttributes of an instance
+ * @method module:Utils.updateAttributes
+ * @param {function} instance
+ * @param {object} attributes
+ * @returns {Promise<object>} instance
+ */
+utils.updateAttributes = (instance, attributes) =>
+  new Promise((resolve, reject) =>
+    instance.updateAttributes(attributes, (err, res) => (err ? reject(err) : resolve(res))),
+  );
 
 /**
  * Key generator for authentification
@@ -190,7 +304,7 @@ utils.flatten = input => {
  * @method module:Utils.exportToCSV
  * @param {object | array} input
  * @param {object} [filter]
- * @returns {object}
+ * @returns {string}
  */
 utils.exportToCSV = (input, filter) => {
   let selection;
@@ -221,8 +335,6 @@ utils.exportToCSV = (input, filter) => {
       .data(input)
       .wantArray()
       .exec();
-
-    // console.log('export selection', selection);
   } else {
     selection = input;
   }

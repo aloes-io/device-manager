@@ -3,18 +3,27 @@
 ## Utils
 
 * [Utils](#module_Utils)
-    * [.buildError(statusCode, code, message)](#module_Utils.buildError) ⇒ <code>Error</code>
-    * [.mkDirByPathSync(targetDir, options)](#module_Utils.mkDirByPathSync) ⇒ <code>Promise.&lt;string&gt;</code>
-    * [.readFile(options)](#module_Utils.readFile) ⇒ <code>Promise.&lt;object&gt;</code>
-    * [.readFile(filePath, [opts])](#module_Utils.readFile) ⇒ <code>Promise.&lt;object&gt;</code>
-    * [.writeFile(filePath, data, [opts])](#module_Utils.writeFile) ⇒ <code>Promise.&lt;object&gt;</code>
-    * [.removeFile(filePath)](#module_Utils.removeFile) ⇒ <code>Promise.&lt;object&gt;</code>
-    * [.cacheIterator(Model, [filter])](#module_Utils.cacheIterator) ⇒ <code>Promise.&lt;string&gt;</code>
-    * [.generateKey([hmacKey], [algorithm], [encoding])](#module_Utils.generateKey) ⇒ <code>string</code>
-    * [.flatten(input)](#module_Utils.flatten) ⇒ <code>array</code>
-    * [.exportToCSV(input, [filter])](#module_Utils.exportToCSV) ⇒ <code>object</code>
-    * [.isMasterProcess(env)](#module_Utils.isMasterProcess) ⇒ <code>boolean</code>
-    * [.getOwnerId(options)](#module_Utils.getOwnerId) ⇒ <code>string</code> \| <code>null</code>
+    * _static_
+        * [.buildError(statusCode, code, message)](#module_Utils.buildError) ⇒ <code>Error</code>
+        * [.mkDirByPathSync(targetDir, options)](#module_Utils.mkDirByPathSync) ⇒ <code>Promise.&lt;string&gt;</code>
+        * [.readFile(options)](#module_Utils.readFile) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.readFile(filePath, [opts])](#module_Utils.readFile) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.writeFile(filePath, data, [opts])](#module_Utils.writeFile) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.removeFile(filePath)](#module_Utils.removeFile) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.cacheIterator(Model, [filter])](#module_Utils.cacheIterator) ⇒ <code>Promise.&lt;string&gt;</code>
+        * [.find(Model, [filter])](#module_Utils.find) ⇒ <code>Promise.&lt;Array.&lt;object&gt;&gt;</code>
+        * [.find(Model, [filter])](#module_Utils.find) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.find(Model, id, [filter])](#module_Utils.find) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.create(Model, instances)](#module_Utils.create) ⇒ <code>Promise.&lt;(object\|Array.&lt;object&gt;)&gt;</code>
+        * [.updateAttribute(instance, name, value)](#module_Utils.updateAttribute) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.updateAttributes(instance, attributes)](#module_Utils.updateAttributes) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.generateKey([hmacKey], [algorithm], [encoding])](#module_Utils.generateKey) ⇒ <code>string</code>
+        * [.flatten(input)](#module_Utils.flatten) ⇒ <code>array</code>
+        * [.exportToCSV(input, [filter])](#module_Utils.exportToCSV) ⇒ <code>string</code>
+        * [.isMasterProcess(env)](#module_Utils.isMasterProcess) ⇒ <code>boolean</code>
+        * [.getOwnerId(options)](#module_Utils.getOwnerId) ⇒ <code>string</code> \| <code>null</code>
+    * _inner_
+        * [~getCacheKey(iterator)](#module_Utils..getCacheKey) ⇒ <code>Promise.&lt;string&gt;</code>
 
 <a name="module_Utils.buildError"></a>
 
@@ -103,6 +112,85 @@ Iterate over each KV Store keys found in cache
 | Model | <code>object</code> | Loopback Model |
 | [filter] | <code>object</code> | filter.match |
 
+<a name="module_Utils.find"></a>
+
+### Utils.find(Model, [filter]) ⇒ <code>Promise.&lt;Array.&lt;object&gt;&gt;</code>
+Promise wrapper to find Model instances
+
+**Kind**: static method of [<code>Utils</code>](#module_Utils)  
+**Returns**: <code>Promise.&lt;Array.&lt;object&gt;&gt;</code> - instances  
+
+| Param | Type |
+| --- | --- |
+| Model | <code>function</code> | 
+| [filter] | <code>object</code> | 
+
+<a name="module_Utils.find"></a>
+
+### Utils.find(Model, [filter]) ⇒ <code>Promise.&lt;object&gt;</code>
+Promise wrapper to findOne Model instance
+
+**Kind**: static method of [<code>Utils</code>](#module_Utils)  
+**Returns**: <code>Promise.&lt;object&gt;</code> - instance  
+
+| Param | Type |
+| --- | --- |
+| Model | <code>function</code> | 
+| [filter] | <code>object</code> | 
+
+<a name="module_Utils.find"></a>
+
+### Utils.find(Model, id, [filter]) ⇒ <code>Promise.&lt;object&gt;</code>
+Promise wrapper to findById Model instance
+
+**Kind**: static method of [<code>Utils</code>](#module_Utils)  
+**Returns**: <code>Promise.&lt;object&gt;</code> - instance  
+
+| Param | Type |
+| --- | --- |
+| Model | <code>function</code> | 
+| id | <code>string</code> \| <code>number</code> | 
+| [filter] | <code>object</code> | 
+
+<a name="module_Utils.create"></a>
+
+### Utils.create(Model, instances) ⇒ <code>Promise.&lt;(object\|Array.&lt;object&gt;)&gt;</code>
+Promise wrapper to create Model instance(s)
+
+**Kind**: static method of [<code>Utils</code>](#module_Utils)  
+
+| Param | Type |
+| --- | --- |
+| Model | <code>function</code> | 
+| instances | <code>object</code> \| <code>Array.&lt;object&gt;</code> | 
+
+<a name="module_Utils.updateAttribute"></a>
+
+### Utils.updateAttribute(instance, name, value) ⇒ <code>Promise.&lt;object&gt;</code>
+Promise wrapper to updateAttribute of an instance
+
+**Kind**: static method of [<code>Utils</code>](#module_Utils)  
+**Returns**: <code>Promise.&lt;object&gt;</code> - instance  
+
+| Param | Type |
+| --- | --- |
+| instance | <code>function</code> | 
+| name | <code>string</code> | 
+| value | <code>any</code> | 
+
+<a name="module_Utils.updateAttributes"></a>
+
+### Utils.updateAttributes(instance, attributes) ⇒ <code>Promise.&lt;object&gt;</code>
+Promise wrapper to updateAttributes of an instance
+
+**Kind**: static method of [<code>Utils</code>](#module_Utils)  
+**Returns**: <code>Promise.&lt;object&gt;</code> - instance  
+
+| Param | Type |
+| --- | --- |
+| instance | <code>function</code> | 
+| attributes | <code>object</code> | 
+
 <a name="module_Utils.generateKey"></a>
 
 ### Utils.generateKey([hmacKey], [algorithm], [encoding]) ⇒ <code>string</code>
@@ -130,7 +218,7 @@ Array flattener, to transform multi dimensional arrays
 
 <a name="module_Utils.exportToCSV"></a>
 
-### Utils.exportToCSV(input, [filter]) ⇒ <code>object</code>
+### Utils.exportToCSV(input, [filter]) ⇒ <code>string</code>
 Convert an object as a CSV table
 
 **Kind**: static method of [<code>Utils</code>](#module_Utils)  
@@ -161,4 +249,15 @@ Extract ownerId from HTTP user options
 | Param | Type |
 | --- | --- |
 | options | <code>object</code> | 
+
+<a name="module_Utils..getCacheKey"></a>
+
+### Utils~getCacheKey(iterator) ⇒ <code>Promise.&lt;string&gt;</code>
+Promise wrapper to get next key in Cache store
+
+**Kind**: inner method of [<code>Utils</code>](#module_Utils)  
+
+| Param | Type |
+| --- | --- |
+| iterator | <code>object</code> | 
 

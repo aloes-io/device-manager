@@ -426,7 +426,7 @@ export const persistingResource = async (app, sensor, client) => {
     resource: sensor.resource,
   });
   try {
-    const resourceModel = await app.models.OmaResource.findById(sensor.resource);
+    const resourceModel = await utils.findById(app.models.OmaResource, sensor.resource);
     // if (!resourceModel) throw new Error('OMA Resource does not exist');
     const method = getPersistingMethod(sensor.type, resourceModel.id, resourceModel.type);
     // eslint-disable-next-line security/detect-object-injection
@@ -464,10 +464,10 @@ export const onBeforeSave = async ctx => {
     logger.publish(4, `${collectionName}`, 'onBeforePartialSave:req', ctx.data);
     if (ctx.data.resources) {
       if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
-        const sensor = await ctx.Model.findById(ctx.where.id);
+        const sensor = await utils.findById(ctx.Model, ctx.where.id);
         await replaceResources(sensor, ctx.data.resources);
       } else {
-        const sensors = await ctx.Model.find({ where: ctx.where });
+        const sensors = await utils.find(ctx.Model, { where: ctx.where });
         if (sensors && sensors.length > 0) {
           await Promise.all(
             sensors.map(async sensor => replaceResources(sensor, ctx.data.resources)),
@@ -528,11 +528,11 @@ const deleteProps = async (app, sensor) => {
 export const onBeforeDelete = async ctx => {
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
   if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
-    const sensor = await ctx.Model.findById(ctx.where.id);
+    const sensor = await utils.findById(ctx.Model, ctx.where.id);
     await deleteProps(ctx.Model.app, sensor);
   } else {
     const filter = { where: ctx.where };
-    const sensors = await ctx.Model.find(filter);
+    const sensors = await utils.find(ctx.Model, filter);
     if (sensors && sensors.length > 0) {
       await Promise.all(sensors.map(async sensor => deleteProps(ctx.Model.app, sensor)));
     }

@@ -6,6 +6,7 @@ import lbe2e from 'lb-declarative-e2e-test';
 import mqtt from 'mqtt';
 import app from '../index';
 import testHelper, { clientEvent, timeout } from '../lib/test-helper';
+import utils from '../lib/utils';
 
 require('../services/broker');
 
@@ -290,7 +291,7 @@ const applicationTest = () => {
                       url: () => `${apiUrl}authenticate`,
                       body: () => ({
                         appId: applications[0].id.toString(),
-                        apiKey: applications[0].apiKey,
+                        key: applications[0].apiKey,
                       }),
                       expect: 200,
                     },
@@ -308,7 +309,8 @@ const applicationTest = () => {
                         client: {
                           appId: applications[0].id,
                           appEui: applications[0].appEui,
-                          id: applications[0].appEui,
+                          id: `${applications[0].id}-1g31g3`,
+                          model: 'Application',
                           user: applications[0].id,
                         },
                         status: true,
@@ -325,7 +327,7 @@ const applicationTest = () => {
                       url: () => `${apiUrl}authenticate`,
                       body: () => ({
                         appId: applications[0].id.toString(),
-                        apiKey: applications[0].apiKey,
+                        key: applications[0].apiKey,
                       }),
                       expect: 200,
                     },
@@ -379,7 +381,7 @@ const applicationTest = () => {
                   url: () => `${apiUrl}authenticate`,
                   body: () => ({
                     appId: applications[0].id.toString(),
-                    apiKey: applications[0].apiKey,
+                    key: applications[0].apiKey,
                   }),
                   expect: 200,
                 },
@@ -469,13 +471,13 @@ const applicationTest = () => {
         const packet = await clientEvent(client, 'connect');
         expect(packet.returnCode).to.be.equal(0);
         await timeout(async () => {
-          const application = await ApplicationModel.findById(applications[1].id);
+          const application = await utils.findById(ApplicationModel, applications[1].id);
           expect(application.status).to.be.equal(true);
           client.end(true);
         }, 150);
 
         return timeout(async () => {
-          const application = await ApplicationModel.findById(applications[1].id);
+          const application = await utils.findById(ApplicationModel, applications[1].id);
           expect(application.status).to.be.equal(false);
         }, 150);
       });
@@ -531,14 +533,12 @@ const applicationTest = () => {
 
         client.once('connect', () => {
           client.publish(packets[1].topic, packets[1].payload, { qos: 1 });
-          client.end(true);
-          done();
-          // setTimeout(() => {
-          //   if (client.connected) {
-          //     client.end();
-          //     done();
-          //   }
-          // }, 150);
+          // client.end(true);
+          // done();
+          setTimeout(() => {
+            client.end(true);
+            done();
+          }, 150);
         });
       });
     });

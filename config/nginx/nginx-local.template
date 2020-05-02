@@ -7,8 +7,8 @@ worker_processes 8;
 events { 
   worker_connections 2048; 
   # https://itnext.io/how-we-manage-live-1m-graphql-websocket-subscriptions-11e1880758b0
-  # use epoll;
-  # multi_accept on;
+  use epoll;
+  multi_accept on;
 }
 
 http {
@@ -36,7 +36,7 @@ http {
   }
 
   upstream timer_load_balancers {
-    server timer-proxy:80;
+    server timer-1:3000;
   }
 
   server {

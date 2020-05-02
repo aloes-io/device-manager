@@ -3,8 +3,6 @@
 version: '3.7'
 
 networks:
-  skyring:
-    driver: bridge
   aloes:
     driver: bridge
 
@@ -39,190 +37,51 @@ services:
     command: ['redis-server', '/usr/local/etc/redis/redis.conf']
 
   timer-1:
-    build:
-      context: https://github.com/esatterwhite/skyring.git#master
+    image: quay.io/esatterwhite/skyring
     hostname: timer-1
     environment:
       - DEBUG=*
       - channel__host=timer-1
-      - nats__hosts=nats-a:4222,nats-b:4222,nats-c:4222
-      - seeds=timer-1:3455,timer-2:3456
+      - nats__hosts=nats-a:4222
+      - seeds=timer-1:3455
       - storage__backend=leveldown
       - storage__path=/var/data/skyring
-    image: aloes/timer-api:latest
     restart: always
     depends_on:
       - nats-a
-      - nats-b
-      - nats-c
     networks:
-      - skyring
-
-  timer-2:
-    build:
-      context: https://github.com/esatterwhite/skyring.git#master
-    hostname: timer-2
-    environment:
-      - DEBUG=*
-      - channel__host=timer-2
-      - channel__port=3456
-      - nats__hosts=nats-a:4222,nats-b:4222,nats-c:4222
-      - seeds=timer-1:3455,timer-2:3456
-      - storage__backend=leveldown
-      - storage__path=/var/data/skyring
-    image: aloes/timer-api:latest
-    restart: always
-    depends_on:
-      - nats-a
-      - nats-b
-      - nats-c
-    networks:
-      - skyring
-
-  timer-3:
-    build:
-      context: https://github.com/esatterwhite/skyring.git#master
-    hostname: timer-3
-    environment:
-      - DEBUG=*
-      - channel__host=timer-3
-      - nats__hosts=nats-a:4222,nats-b:4222,nats-c:4222
-      - seeds=timer-1:3455,timer-2:3456
-      - storage__backend=leveldown
-      - storage__path=/var/data/skyring
-    image: aloes/timer-api:latest
-    restart: always
-    depends_on:
-      - nats-a
-      - nats-b
-      - nats-c
-      - timer-1
-      - timer-2
-    networks:
-      - skyring
-
-  timer-4:
-    build:
-      context: https://github.com/esatterwhite/skyring.git#master
-    hostname: timer-4
-    environment:
-      - DEBUG=*
-      - channel__host=timer-4
-      - nats__hosts=nats-a:4222,nats-b:4222,nats-c:4222
-      - seeds=timer-1:3455,timer-2:3456
-      - storage__backend=leveldown
-      - storage__path=/var/data/skyring
-    image: aloes/timer-api:latest
-    restart: always
-    depends_on:
-      - nats-a
-      - nats-b
-      - nats-c
-      - timer-1
-      - timer-2
-    networks:
-      - skyring
-
-  timer-5:
-    build:
-      context: https://github.com/esatterwhite/skyring.git#master
-    hostname: timer-5
-    environment:
-      - DEBUG=*
-      - channel__host=timer-5
-      - nats__hosts=nats-a:4222,nats-b:4222,nats-c:4222
-      - seeds=timer-1:3455,timer-2:3456
-      - storage__backend=leveldown
-      - storage__path=/var/data/skyring
-    image: aloes/timer-api:latest
-    restart: always
-    depends_on:
-      - nats-a
-      - nats-b
-      - nats-c
-      - timer-1
-      - timer-2
-      - timer-3
-      - timer-4
-    networks:
-      - skyring
+      - aloes
 
   nats-a:
     image: nats:latest
-    volumes:
-      - ./config/nats:/tmp
     restart: always
     networks:
-      - skyring
-    command: >
-      -c /tmp/a.conf -D
+      - aloes
 
-  nats-b:
-    image: nats:latest
-    volumes:
-      - ./config/nats:/tmp
-    depends_on:
-      - nats-a
-    restart: always
-    networks:
-      - skyring
-    command: >
-      -c /tmp/b.conf -D
-
-  nats-c:
-    image: nats:latest
-    volumes:
-      - ./config/nats:/tmp
-    restart: always
-    depends_on:
-      - nats-a
-    networks:
-      - skyring
-    command: >
-      -c /tmp/c.conf -D
-
-  timer-proxy:
-    image: nginx:latest
-    volumes:
-      - ./config/nginx/skyring.conf:/etc/nginx/nginx.conf
-    restart: always
-    depends_on:
-      - timer-1
-      - timer-2
-      - timer-3
-      - timer-4
-      - timer-5
-    networks:
-      - skyring
-
-  mqtt-api-1:
+  async-api-1:
+    image: getlarge/aloes-async-api:staging
+    container_name: async-api-1
     env_file: .env
     environment:
       - SERVER_LOGGER_LEVEL=4
-    build:
-      context: .
-      dockerfile: ./config/docker/broker.dockerfile
-    image: aloes/mqtt-api:latest
+    restart: always
     volumes:
       - ./.env:/home/node/device-manager/.env:ro
       - ./deploy/key.pem:/home/node/device-manager/deploy/key.pem
       - ./deploy/cert.pem:/home/node/device-manager/deploy/cert.pem
-    restart: always
     depends_on:
       - redis
     networks:
       - aloes
-
-  http-api-1:
+    
+  rest-api-1:
+    image: getlarge/aloes-rest-api:staging
+    container_name: rest-api-1
     env_file: .env
     environment:
       - SERVER_LOGGER_LEVEL=4
       - INSTANCES_COUNT=2
       - INSTANCES_PREFIX=1
-    build:
-      context: .
-      dockerfile: ./config/docker/server.dockerfile
-    image: aloes/http-api:latest
     restart: always
     volumes:
       - ./.env:/home/node/device-manager/.env:ro
@@ -233,8 +92,8 @@ services:
       - mongo
       - influxdb
       - redis
-      - timer-proxy
-      - mqtt-api-1
+      - timer-1
+      - async-api-1
     networks:
       - aloes
 
@@ -255,7 +114,7 @@ services:
     depends_on:
       - mqtt-api-1
       - http-api-1
-      - timer-proxy
+      - timer-1
     ports:
       - '80:80'
       - '443:443'
@@ -263,8 +122,6 @@ services:
       - '8883:8883'
     networks:
       - aloes
-      - skyring
-    # network_mode: host
     command: /bin/bash -c "envsubst '$${HTTP_SERVER_PORT},$${WS_BROKER_PORT},$${MQTT_BROKER_PORT},$${NGINX_SERVER_HOST}' < /etc/nginx/nginx.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"
 
 volumes:

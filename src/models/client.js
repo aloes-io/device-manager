@@ -4,16 +4,16 @@
 import logger from '../services/logger';
 import utils from '../lib/utils';
 
+const collectionName = 'Client';
+
 /**
  * Called when a remote method tries to access Client Model / instance
  * @method module:Client~onBeforeRemote
- * @param {object} app - Loopback App
  * @param {object} ctx - Express context
- * @param {object} ctx.req - Request
- * @param {object} ctx.res - Response
+ * @param {object} [Model] - Response
  * @returns {Promise<object>} context
  */
-export const onBeforeRemote = async (app, ctx) => {
+const onBeforeRemote = async ctx => {
   if (ctx.method.name === 'find' || ctx.method.name === 'remove') {
     // console.log('onBeforeRemote', ctx.method.name);
     const options = ctx.options || {};
@@ -24,6 +24,44 @@ export const onBeforeRemote = async (app, ctx) => {
     }
   }
   return ctx;
+};
+
+/**
+ * Find clients in the cache
+ * @async
+ * @method module:Client~getAll
+ * @param {object} Model - Client model
+ * @param {object} [filter] - Client filter
+ * @returns {Promise<array>} schedulers - Cached clients
+ */
+const getAll = async (Model, filter) => {
+  const clients = [];
+  logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
+  for await (const key of utils.cacheIterator(Model, filter)) {
+    const client = JSON.parse(await Model.get(key));
+    clients.push(client);
+  }
+  logger.publish(3, `${collectionName}`, 'getAll:res', clients);
+  return clients;
+};
+
+/**
+ * Delete clients stored in cache
+ * @async
+ * @method module:Client~deleteAll
+ * @param {object} Model - Client model
+ * @param {object} [filter] - Client filter
+ * @returns {Promise<array>} clients - Cached clients keys
+ */
+const deleteAll = async (Model, filter) => {
+  const clients = [];
+  logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
+  for await (const key of utils.cacheIterator(Model, filter)) {
+    await Model.delete(key);
+    clients.push(key);
+  }
+  logger.publish(3, `${collectionName}`, 'deleteAll:res', clients);
+  return clients;
 };
 
 /**
@@ -39,45 +77,11 @@ export const onBeforeRemote = async (app, ctx) => {
  */
 
 module.exports = function(Client) {
-  const collectionName = 'Client';
+  Client.once('dataSourceAttached', Model => {
+    Model.find = async filter => getAll(Model, filter);
 
-  /**
-   * Find clients in the cache
-   * @method module:Client.getAll
-   * @param {object} [filter] - Client filter
-   * @returns {Promise<array>} schedulers - Cached clients
-   */
-  Client.getAll = async filter => {
-    const clients = [];
-    logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
-    for await (const key of utils.cacheIterator(Client, filter)) {
-      const client = JSON.parse(await Client.get(key));
-      clients.push(client);
-    }
-    logger.publish(3, `${collectionName}`, 'getAll:res', clients);
-    return clients;
-  };
-
-  Client.find = Client.getAll;
-
-  /**
-   * Delete clients stored in cache
-   * @method module:Client.deleteAll
-   * @param {object} [filter] - Client filter
-   * @returns {Promise<array>} clients - Cached clients keys
-   */
-  Client.deleteAll = async filter => {
-    const clients = [];
-    logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
-    for await (const key of utils.cacheIterator(Client, filter)) {
-      await Client.delete(key);
-      clients.push(key);
-    }
-    logger.publish(3, `${collectionName}`, 'deleteAll:res', clients);
-    return clients;
-  };
-
-  Client.remove = Client.deleteAll;
+    Model.remove = async filter => deleteAll(Model, filter);
+  });
 
   /**
    * Event reporting that a Client method is requested
@@ -85,9 +89,9 @@ module.exports = function(Client) {
    * @param {object} ctx - Express context.
    * @param {object} ctx.req - Request
    * @param {object} ctx.res - Response
-   * @returns {Promise<function>} Client~onBeforeRemote
+   * @returns {function} Client~onBeforeRemote
    */
-  Client.beforeRemote('**', async ctx => onBeforeRemote(Client.app, ctx));
+  Client.beforeRemote('**', onBeforeRemote);
 
   Client.afterRemoteError('*', (ctx, next) => {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, ctx.error);

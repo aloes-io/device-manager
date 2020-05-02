@@ -34,8 +34,8 @@ variables:
   WS_BROKER_PORT: '3000'
   SERVER_LOGGER_LEVEL: '2'
   # SMTP_HOST: ''
-  SMTP_PORT: '465'
-  SMTP_SECURE: 'true'
+  # SMTP_PORT: ''
+  # SMTP_SECURE: 'true'
   # SMTP_USER: ''
   # SMTP_PASS: ''
   INFLUXDB_ADMIN_ENABLED: 'false'
@@ -54,17 +54,13 @@ variables:
   GIT_REPO_SSH_URL: 'git@framagit.org:aloes/device-manager.git'
   INSTANCES_COUNT: '1'
 
-services:
-  - name: influxdb:1.7-alpine
-    alias: influxdb
-
 image: node:12.10.0
 
 prepare:
   stage: build
   before_script:
     - npm ci
-  script: 
+  script:
     - npm run build:test
   artifacts:
     expire_in: 1 week
@@ -72,9 +68,22 @@ prepare:
       - dist
 
 test_async:
+  services:
+    - name: influxdb:1.7-alpine
+      alias: influxdb
+    - name: nats:latest
+      alias: nats
+    - name: quay.io/esatterwhite/skyring
+      alias: timer-1
   variables:
     NODE_ENV: 'development'
     CI: 'true'
+    FF_NETWORK_PER_BUILD: 1
+    channel__host: 'timer-1'
+    nats__hosts: 'nats:4222'
+    seeds: 'timer-1:3455'
+    storage__backend: 'leveldown'
+    storage__path: '/var/data/skyring'
   script:
     - npm ci
     - npm run test:cover

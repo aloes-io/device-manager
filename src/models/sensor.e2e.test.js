@@ -705,7 +705,7 @@ const sensorTest = () => {
         client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
 
         await timeout(async () => {
-          const sensor = await SensorModel.findById(sensors[index].id);
+          const sensor = await utils.findById(SensorModel, sensors[index].id);
           expect(sensor.value).to.be.equal(Number(packets[index].payload));
 
           const measurements = await app.models.Measurement.find({
@@ -757,7 +757,7 @@ const sensorTest = () => {
         client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
 
         await timeout(async () => {
-          const sensor = await SensorModel.findById(sensors[index].id);
+          const sensor = await utils.findById(SensorModel, sensors[index].id);
           expect(sensor.value).to.be.equal(Number(packets[index].payload));
           const resources = await SensorResourceModel.find(
             sensors[index].deviceId,
@@ -787,7 +787,7 @@ const sensorTest = () => {
         client.publish(packet.topic, packet.payload, { qos: 1 });
 
         await timeout(async () => {
-          const sensor = await SensorModel.findById(sensors[index].id);
+          const sensor = await utils.findById(SensorModel, sensors[index].id);
           expect(sensor.value).to.be.equal(Number(packet.payload));
           const resources = await SensorResourceModel.find(
             sensors[index].deviceId,
@@ -820,7 +820,7 @@ const sensorTest = () => {
         client.publish(packet.topic, packet.payload, { qos: 1 });
 
         await timeout(async () => {
-          const sensor = await SensorModel.findById(sensors[index].id);
+          const sensor = await utils.findById(SensorModel, sensors[index].id);
           expect(sensor.value).to.be.equal(Number(packet.payload));
           const resources = await SensorResourceModel.find(
             sensors[index].deviceId,
@@ -848,7 +848,7 @@ const sensorTest = () => {
         client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
 
         await timeout(async () => {
-          const sensor = await SensorModel.findById(sensors[index].id);
+          const sensor = await utils.findById(SensorModel, sensors[index].id);
           expect(sensor.value).to.be.equal(packets[index].payload);
           const resources = await SensorResourceModel.find(
             sensors[index].deviceId,
@@ -874,7 +874,7 @@ const sensorTest = () => {
         client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
 
         await timeout(async () => {
-          const sensor = await SensorModel.findById(sensors[index].id);
+          const sensor = await utils.findById(SensorModel, sensors[index].id);
           expect(sensor.value.toString()).to.be.equal(packets[index].payload);
           const resources = await SensorResourceModel.find(
             sensors[index].deviceId,
@@ -901,7 +901,7 @@ const sensorTest = () => {
         client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
 
         await timeout(async () => {
-          const sensor = await SensorModel.findById(sensors[index].id);
+          const sensor = await utils.findById(SensorModel, sensors[index].id);
           // expect(sensor.value.toString()).to.be.equal(packets[index].payload);
           expect(sensor.type).to.be.equal(3349);
           const resources = await SensorResourceModel.find(
@@ -933,7 +933,7 @@ const sensorTest = () => {
         client.publish(packet.topic, packet.payload, { qos: 1 });
 
         await timeout(async () => {
-          const sensor = await SensorModel.findById(sensors[index].id);
+          const sensor = await utils.findById(SensorModel, sensors[index].id);
           const resources = await SensorResourceModel.find(
             sensors[index].deviceId,
             sensors[index].id,

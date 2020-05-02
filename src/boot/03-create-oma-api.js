@@ -7,7 +7,7 @@ import utils from '../lib/utils';
 export default async function createOmaApi(server) {
   if (!utils.isMasterProcess(process.env)) return;
   // update models based on package.json version for oma-json
-  const foundOmaObjects = await server.models.OmaObject.find();
+  const foundOmaObjects = await utils.find(server.models.OmaObject);
   if (
     foundOmaObjects.length === omaObjects.length &&
     foundOmaObjects[0].version &&
