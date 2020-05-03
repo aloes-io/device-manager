@@ -372,7 +372,7 @@ export const syncRunningTimers = async (Scheduler, delay) => {
       resources['5543'] = 0;
       resources['5850'] = 1;
       resources['5523'] = 'started';
-      const clients = await Scheduler.app.models.Client.find({ match: `${sensor.ownerId}*` });
+      const clients = await Scheduler.app.models.Client.find({ match: `${sensor.ownerId}-*` });
       const client = clients.length ? clients[0] : null;
       if (timeLeft <= 0) {
         // in case timeout callback/webhook was not triggered
