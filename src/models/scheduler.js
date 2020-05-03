@@ -5,8 +5,9 @@ import { publish } from 'iot-agent';
 import { publishToDeviceApplications } from '../lib/models/device';
 import {
   collectionName,
-  createTimer,
+  clockInterval,
   deleteTimer,
+  resetClock,
   onBeforeRemote,
   onTimeout,
   parseTimerEvent,
@@ -17,7 +18,6 @@ import logger from '../services/logger';
 import DeltaTimer from '../services/delta-timer';
 import utils from '../lib/utils';
 
-const clockInterval = 5000;
 const schedulerClockId = `scheduler-clock`;
 
 /**
@@ -81,7 +81,7 @@ module.exports = function(Scheduler) {
     if (!device) {
       throw utils.buildError(403, 'MISSING_DEVICE', 'No device found');
     }
-    const packet = await publish({
+    const packet = publish({
       userId: device.ownerId,
       collection: collectionName,
       //  modelId: scheduler.id,
@@ -108,7 +108,7 @@ module.exports = function(Scheduler) {
    * @async
    * @method module:Scheduler.onTimeout
    * @param {object} body - Timer callback body
-   * @returns {Promise<function>} onTimeout
+   * @returns {Promise<function>} Scheduler~onTimeout
    */
   Scheduler.onTimeout = async body => {
     const { sensorId } = body;
@@ -124,7 +124,7 @@ module.exports = function(Scheduler) {
    * @method module:Scheduler.createOrUpdate
    * @param {object} sensor - found Sensor instance
    * @param {object} [client] - MQTT client
-   * @returns {Promise<object>} scheduler - Updated scheduler
+   * @returns {Promise<object>} scheduler
    */
   Scheduler.createOrUpdate = async (sensor, client) => {
     let scheduler = {};
@@ -182,6 +182,7 @@ module.exports = function(Scheduler) {
    * @method module:Scheduler.onTick
    * @param {object} data - Timer event data
    * @fires Scheduler.publish
+   * @returns {Promise<function>} Scheduler~syncRunningTimers
    */
   Scheduler.onTick = async data => {
     try {
@@ -199,17 +200,17 @@ module.exports = function(Scheduler) {
   };
 
   /**
-   * Scheduler timeout callback ( scheduler clock )
+   * Endpoint for Scheduler external timeout callback
    *
    * validate webhook content before dispatch
    *
    * @async
-   * @method module:Scheduler~onTickHook
+   * @method module:Scheduler.onTickHook
    * @param {object} body - Timer callback data
    * @fires Scheduler.tick
    * @returns {Promise<boolean>}
    */
-  const onTickHook = async body => {
+  Scheduler.onTickHook = async body => {
     try {
       let scheduler;
       try {
@@ -238,52 +239,27 @@ module.exports = function(Scheduler) {
         time: thisTime,
         lastTime: scheduler && scheduler.lastTime ? scheduler.lastTime : +new Date(),
       };
-      Scheduler.emit('ticked', payload);
+      Scheduler.emit('tick', payload);
 
-      const baseUrl = Scheduler.app.get('url')
-        ? Scheduler.app.get('url')
-        : process.env.HTTP_SERVER_URL;
+      scheduler = await resetClock(Scheduler.app, scheduler, clockInterval, body);
+      await Scheduler.set(schedulerClockId, JSON.stringify(scheduler));
+      logger.publish(3, `${collectionName}`, 'onTickHook:res', { scheduler });
 
-      const timer = {
-        timeout: clockInterval,
-        data: body,
-        callback: {
-          transport: 'http',
-          method: 'post',
-          uri: `${baseUrl}${process.env.REST_API_ROOT}/${collectionName}s/on-tick`,
-          // uri: `${baseUrl}${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}/${collectionName}s/on-tick`;
-        },
-      };
-
-      const response = await createTimer(Scheduler.app, timer);
-      if (response && response.location) {
-        const timerId = response.location.split('/')[2];
-        logger.publish(3, `${collectionName}`, 'onTickHook:res', timerId);
-        scheduler.stopTime = Date.now() + clockInterval;
-        scheduler.lastTime = +new Date();
-        scheduler.timerId = timerId;
-        scheduler.interval = clockInterval;
-        scheduler.isUpdating = false;
-        await Scheduler.set(schedulerClockId, JSON.stringify(scheduler));
-        return true;
-      }
-      return false;
+      return true;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'onTickHook:err', error);
-      // throw error;
       return false;
     }
   };
 
   /**
-   * Endpoint for Scheduler external timeout hooks
-   * @method module:Scheduler.onTickHook
-   * @param {object} body - Timer callback data
-   * @returns {function} Scheduler~onTickHook
+   * Initialize external Clock to keep every active schedulers synchronized
+   *
+   * @async
+   * @method module:Scheduler.setExternalClock
+   * @param {number} interval - Interval between each tick
+   * @returns {Promise<object>} scheduler
    */
-  // debounce(onTickHook, 150);
-  Scheduler.onTickHook = onTickHook;
-
   Scheduler.setExternalClock = async interval => {
     let scheduler = JSON.parse(await Scheduler.get(schedulerClockId)) || {};
     logger.publish(3, `${collectionName}`, 'setExternalClock:req', interval);
@@ -297,44 +273,25 @@ module.exports = function(Scheduler) {
         return scheduler;
       }
     }
-    // if (!scheduler || scheduler === null) {
-    //   scheduler = {};
-    // }
 
-    const baseUrl = Scheduler.app.get('url');
-    const timer = {
-      timeout: interval,
-      data: { name: schedulerClockId, secret: process.env.ALOES_KEY },
-      callback: {
-        transport: 'http',
-        method: 'post',
-        uri: `${baseUrl}${process.env.REST_API_ROOT}/${collectionName}s/on-tick`,
-        // uri: `${baseUrl}${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}/${collectionName}s/on-timeout`;
-      },
-    };
-    // logger.publish(4, `${collectionName}`, 'setExternalClock:callback', timer.callback.uri);
+    scheduler = await resetClock(Scheduler.app, scheduler, interval, {
+      name: schedulerClockId,
+      secret: process.env.ALOES_KEY,
+    });
+    await Scheduler.set(schedulerClockId, JSON.stringify(scheduler));
+    logger.publish(3, `${collectionName}`, 'setExternalClock:res', { scheduler });
 
-    const response = await createTimer(Scheduler.app, timer);
-    if (response && response.location && response.location.split('/')) {
-      const timerId = response.location.split('/')[2];
-      scheduler = {
-        stopTime: Date.now() + interval,
-        lastTime: +new Date(),
-        timerId,
-        interval,
-      };
-      await Scheduler.set(schedulerClockId, JSON.stringify(scheduler));
-      logger.publish(3, `${collectionName}`, 'setExternalClock:res', { scheduler });
-    }
     return scheduler;
   };
 
-  const checkExternalClock = async () => {
-    logger.publish(3, `${collectionName}`, 'checkExternalClock:req', '');
-    return Scheduler.setExternalClock(clockInterval);
-    // return Scheduler.setInternalClock(checkExternalClock, clockInterval * 2);
-  };
-
+  /**
+   * Initialize internal Clock to insure external clock is alive
+   *
+   * @method module:Scheduler.setInternalClock
+   * @param {function} callback
+   * @param {number} interval
+   * @returns {function} DeltaTimer
+   */
   Scheduler.setInternalClock = (callback, interval) => {
     logger.publish(4, `${collectionName}`, 'setInternalClock:req', interval);
     if (Scheduler.timer && Scheduler.timer !== null) {
@@ -349,12 +306,10 @@ module.exports = function(Scheduler) {
   /**
    * Init clock to synchronize with every active schedulers
    *
-   * if EXTERNAL_TIMER is enabled, Scheduler will use Skyring external timer handler
+   * Scheduler will use Skyring external timer handler
    *
-   * else a DeltaTimer instance will be created and stored in memory
    * @method module:Scheduler.setClock
    * @param {number} interval - Timeout interval
-   * @returns {Promise<functions>} setExternalClock | setInternalClock
    */
   Scheduler.setClock = async interval => {
     try {
@@ -363,12 +318,11 @@ module.exports = function(Scheduler) {
         externalTimer: process.env.EXTERNAL_TIMER,
         timerUrl: process.env.TIMER_SERVER_URL,
       });
-      if (process.env.EXTERNAL_TIMER && process.env.TIMER_SERVER_URL) {
-        await Scheduler.setExternalClock(interval);
-        Scheduler.setInternalClock(checkExternalClock, interval * 2);
-      } else {
-        Scheduler.setInternalClock(Scheduler.onTick, interval);
-      }
+      await Scheduler.setExternalClock(interval);
+      Scheduler.setInternalClock(
+        async () => Scheduler.setExternalClock(clockInterval),
+        interval * 2,
+      );
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'setClock:err', error);
     }
@@ -381,15 +335,12 @@ module.exports = function(Scheduler) {
       timerUrl: process.env.TIMER_SERVER_URL,
     });
     try {
-      if (process.env.EXTERNAL_TIMER && process.env.TIMER_SERVER_URL) {
-        const scheduler = JSON.parse(await Scheduler.get(schedulerClockId));
-        if (scheduler && scheduler !== null) {
-          await deleteTimer(Scheduler.app, scheduler.timerId);
-          await Scheduler.delete(schedulerClockId);
-        }
-      } else {
-        await Scheduler.timer.stop();
+      const scheduler = JSON.parse(await Scheduler.get(schedulerClockId));
+      if (scheduler && scheduler !== null) {
+        await deleteTimer(Scheduler.app, scheduler.timerId);
+        await Scheduler.delete(schedulerClockId);
       }
+      Scheduler.timer.stop();
     } catch (error) {
       logger.publish(3, `${collectionName}`, 'delClock:err', error);
     }
@@ -424,7 +375,7 @@ module.exports = function(Scheduler) {
   /**
    * Event reporting tick
    *
-   * Trigger Scheduler tick routine
+   * Trigger Scheduler.onTick routine
    *
    * @event tick
    * @returns {Promise<functions>} Scheduler.onTick
@@ -439,7 +390,7 @@ module.exports = function(Scheduler) {
    * @param {object} ctx.res - Response
    * @returns {Promise<function>} Scheduler~onBeforeRemote
    */
-  Scheduler.beforeRemote('**', async ctx => onBeforeRemote(Scheduler.app, ctx));
+  Scheduler.beforeRemote('**', onBeforeRemote);
 
   Scheduler.afterRemoteError('*', (ctx, next) => {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, ctx.error);

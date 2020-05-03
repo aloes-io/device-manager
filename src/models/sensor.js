@@ -245,9 +245,6 @@ module.exports = function(Sensor) {
     updatedSensor.lastSignal = new Date();
     updatedSensor.method = 'PUT';
 
-    // await replaceResources(updatedSensor, updatedSensor.resources);
-    // delete updatedSensor.resources;
-
     await Sensor.replaceById(sensor.id, updatedSensor);
     await Sensor.publish(sensor.deviceId.toString(), updatedSensor, 'PUT', client);
     await persistingResource(Sensor.app, updatedSensor, client);
@@ -333,13 +330,13 @@ module.exports = function(Sensor) {
       attributes: attributes && attributes.devEui,
     });
 
-    if (!sensor || sensor === null) {
+    if (!sensor) {
       sensor = await Sensor.compose(
         device,
         attributes,
       );
     }
-    if (sensor && sensor !== null) {
+    if (sensor && sensor.id) {
       let method = sensor.method;
       if (!method) {
         method = sensor.isNewInstance ? 'HEAD' : 'PUT';
@@ -463,7 +460,7 @@ module.exports = function(Sensor) {
     /**
      * Get sensor resources from key/value store
      * @method module:Sensor.prototype.__get__resources
-     * @returns {Promise<object>} 
+     * @returns {Promise<object>}
      */
     Sensor.prototype.__get__resources = function() {
       return SensorResource.find(this.deviceId, this.id);
