@@ -1,6 +1,6 @@
 # Aloes - Device Manager
 
-[![pipeline status](https://framagit.org/aloes/device-manager/badges/master/pipeline.svg)](https://framagit.org/aloes/device-manager/-/commits/master)  [![coverage report](https://framagit.org/aloes/device-manager/badges/master/coverage.svg)](https://aloes.frama.io/device-manager/lcov-report)
+[![pipeline status](https://framagit.org/aloes/device-manager/badges/master/pipeline.svg)](https://framagit.org/aloes/device-manager/-/commits/master) [![coverage report](https://framagit.org/aloes/device-manager/badges/master/coverage.svg)](https://aloes.frama.io/device-manager/lcov-report)
 
 - Replicate devices with rich semantic properties
 - Authentification by access tokens and API keys
@@ -9,8 +9,10 @@
 - Dispatch MQTT payload from several protocol sources
 - Adding context to sensors with OMA schemas
 - Store devices and sensors state ( MongoDB )
-- Fast access to sensor resources ( Redis )
-- Automatically store sensors value in timeseries ( InfluxDB ), in file, or trigger some timers
+- Fast access to sensor resources, clients and timers ( Redis )
+- Mesurement (sensor values and tags ) stored in timeseries ( InfluxDB )
+- Users and Devices files stored in filesystem or cloud providers, see [loopback-component-storage](https://www.npmjs.com/package/loopback-component-storage)
+- Trigger persisted schedulers (via sensors) to create timed scenarios ( Skyring )
 - Interact with external application and share selection of devices
 
 [Swagger Explorer](https://aloes.io/app/explorer/)
@@ -30,13 +32,35 @@ Application build upon :
 
 ## Prerequisites
 
-- Install [MongoDB](https://www.mongodb.com/)
+These need to be installed, configured and started manually, when working locally and not using docker setup.
 
-- Install [Redis](https://redis.io/)
+- Install [MongoDB](https://www.mongodb.com/) to persist Users, AccessTokens, Devices, Sensors, Addresses, File models.
 
-- Install [InfluxDB](https://www.influxdata.com/)
+```bash
+mongod --config /usr/local/etc/mongod.conf
+```
 
-- Install [Skyring](https://github.com/esatterwhite/skyring) to use external timers
+- Install [Redis](https://redis.io/) to persist SensorResources, Schedulers and Client models, MQTT connection and RateLimiter
+
+```bash
+redis-server /usr/local/etc/redis.conf
+```
+
+- Install [InfluxDB](https://www.influxdata.com/) to persist Measurements
+
+```bash
+influxd -config /usr/local/etc/influxdb.conf
+```
+
+- Install [Skyring](https://esatterwhite.github.io/skyring/) to use persistent timers for Scheduler
+
+```bash
+# start NATS server
+nats-server
+
+# start Skyring
+DEBUG=skyring:* skyring run -p 3000 -s localhost:3455
+```
 
 ## Folder structure
 
@@ -46,19 +70,20 @@ Application build upon :
 
 - /deploy --> contains environment variables ( hidden files )
 
-- /log --> contains logs from PM2
+- /log --> contains logs from PM2 and Nginx used via Docker
 
-- /storage --> contains folders where users files are stored
+- /storage --> contains folders where Users / Devices files are stored
 
 - /src --> contains source code
   - /. --> Loopback configuration
   - /boot --> code executed at application start
   - /initial-data --> JSON datasets to make global application running
+  - /lib --> Helpers for models and services
   - /middleware --> scripts used in development/staging only
   - /mixins --> add special properties to models
-  - /models --> REST API descriptions and controllers
+  - /models --> Data models, controllers and REST API descriptions
   - /services --> external modules
-  - /views --> templates used for automatic mailing
+  - /views --> templates used for automated mailing
 
 ## API
 
@@ -175,7 +200,7 @@ Finally, configure TUNNEL_HOST and TUNNEL_SECURE in your environment files.
 
 - Add e2e tests for processes interruption signal and tests for MQTT with mysensors / lorawan source
 
-- Finish restore helper for InfluxDB 
+- Finish restore helper for InfluxDB
 
 - Implement user+ip rate limit for HTTP endpoints requiring auth
 
