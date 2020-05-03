@@ -32,7 +32,7 @@ const onBeforeRemote = async ctx => {
  * @method module:Client~getAll
  * @param {object} Model - Client model
  * @param {object} [filter] - Client filter
- * @returns {Promise<array>} schedulers - Cached clients
+ * @returns {Promise<object[]>} clients
  */
 const getAll = async (Model, filter) => {
   const clients = [];
@@ -51,7 +51,7 @@ const getAll = async (Model, filter) => {
  * @method module:Client~deleteAll
  * @param {object} Model - Client model
  * @param {object} [filter] - Client filter
- * @returns {Promise<array>} clients - Cached clients keys
+ * @returns {Promise<string[]>} clients keys
  */
 const deleteAll = async (Model, filter) => {
   const clients = [];
@@ -78,8 +78,22 @@ const deleteAll = async (Model, filter) => {
 
 module.exports = function(Client) {
   Client.once('dataSourceAttached', Model => {
+    /**
+     * Find clients in the cache
+     * @async
+     * @method module:Client.find
+     * @param {object} filter - Client filter
+     * @returns {Promise<object[]>} clients
+     */
     Model.find = async filter => getAll(Model, filter);
 
+    /**
+     * Find clients in the cache
+     * @async
+     * @method module:Client.remove
+     * @param {object} filter - Client filter
+     * @returns {Promise<string[]>} clients keys
+     */
     Model.remove = async filter => deleteAll(Model, filter);
   });
 

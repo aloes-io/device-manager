@@ -33,7 +33,7 @@ module.exports = function(Scheduler) {
    * @async
    * @method module:Scheduler.getAll
    * @param {object} [filter] - Scheduler filter
-   * @returns {Promise<array>} schedulers - Cached schedulers
+   * @returns {Promise<object[]>} schedulers
    */
   Scheduler.getAll = async filter => {
     const schedulers = [];
@@ -50,7 +50,7 @@ module.exports = function(Scheduler) {
    * @async
    * @method module:Scheduler.deleteAll
    * @param {object} [filter] - Scheduler filter
-   * @returns {Promise<array>} schedulers - Cached schedulers keys
+   * @returns {Promise<string[]>} schedulers keys
    */
   Scheduler.deleteAll = async filter => {
     const schedulers = [];
@@ -351,7 +351,7 @@ module.exports = function(Scheduler) {
    *
    * Trigger Scheduler starting routine
    *
-   * @event stopped
+   * @event started
    * @returns {Promise<functions | null>} Scheduler.setClock
    */
   Scheduler.once('started', async () =>

@@ -266,7 +266,7 @@ export const parseTimerEvent = async (Scheduler, sensor, client) => {
  *
  * ( startTimer | stopTimer )
  *
- * @method module:Scheduler~parseTimerEvent
+ * @method module:Scheduler~parseTimerState
  * @param {object} Scheduler - Scheduler Model
  * @param {object} sensor - Sensor instance
  * @param {object} client - MQTT client

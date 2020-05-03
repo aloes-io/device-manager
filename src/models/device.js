@@ -790,14 +790,14 @@ module.exports = function(Device) {
    * Find devices
    * @method module:Device.find
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object[]>}
    */
 
   /**
    * Returns devices length
    * @method module:Device.count
    * @param {object} where
-   * @returns {number}
+   * @returns {Promise<object>}
    */
 
   /**
@@ -805,14 +805,14 @@ module.exports = function(Device) {
    * @method module:Device.findById
    * @param {any} id
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Create device
    * @method module:Device.create
    * @param {object} device
-   * @returns {object}
+   * @returns {Promise<object | object[]>}
    */
 
   /**
@@ -820,7 +820,7 @@ module.exports = function(Device) {
    * @method module:Device.updateById
    * @param {any} id
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
@@ -828,20 +828,20 @@ module.exports = function(Device) {
    * @method module:Device.deleteById
    * @param {any} id
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Get device sensors
    * @method module:Device.prototype.__get__sensors
-   * @returns {Promise<function>} module:Sensor.find
+   * @returns {Promise<object[]>}
    */
 
   /**
-   * Get device sensors by id
-   * @method module:Sensor.prototype.__findById__sensors
-   * @param {string} id Resource key
-   * @returns {Promise<function>} module:Sensor.findById
+   * Get device sensor by id
+   * @method module:Device.prototype.__findById__sensors
+   * @param {string} id
+   * @returns {Promise<object>}
    */
 
   Device.disableRemoteMethodByName('upsertWithWhere');

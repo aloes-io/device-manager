@@ -668,7 +668,7 @@ module.exports = function(Sensor) {
    * @async
    * @method module:Sensor.count
    * @param {object} where
-   * @returns {Promise<number>}
+   * @returns {Promise<object>}
    */
 
   /**

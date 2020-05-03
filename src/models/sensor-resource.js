@@ -21,9 +21,9 @@ const setCacheKey = (deviceId, sensorId, resourceId) => {
 module.exports = function(SensorResource) {
   /**
    * Get SensorResource instances stored in cache
-   * @method module:SensorResource.deleteAll
+   * @method module:SensorResource.getAll
    * @param {object} [filter] - Key filter
-   * @returns {object[]} resources - Cached sensorResources
+   * @returns {Promise<object[]>} resources
    */
   SensorResource.getAll = async filter => {
     const resources = [];
@@ -39,7 +39,7 @@ module.exports = function(SensorResource) {
    * Delete SensorResource instance(s) stored in cache
    * @method module:SensorResource.deleteAll
    * @param {object} [filter] - Key filter
-   * @returns {string[]} resources - Cached SensorResource keys
+   * @returns {Promise<string[]>} resources keys
    */
   SensorResource.deleteAll = async filter => {
     const resources = [];

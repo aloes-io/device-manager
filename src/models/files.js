@@ -505,4 +505,50 @@ module.exports = function(Files) {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, ctx.error);
     next();
   });
+
+
+  /**
+   * Find files
+   * @method module:Files.find
+   * @param {object} filter
+   * @returns {Promise<object[]>}
+   */
+
+  /**
+   * Returns files length
+   * @method module:Files.count
+   * @param {object} where
+   * @returns {Promise<object>}
+   */
+
+  /**
+   * Find file by id
+   * @method module:Files.findById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {Promise<object>}
+   */
+
+  /**
+   * Create file
+   * @method module:Files.create
+   * @param {object} device
+   * @returns {Promise<object | object[]>}
+   */
+
+  /**
+   * Update file by id
+   * @method module:Files.updateById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {Promise<object>}
+   */
+
+  /**
+   * Delete file by id
+   * @method module:Files.deleteById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {Promise<object>}
+   */
 };

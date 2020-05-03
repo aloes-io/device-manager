@@ -136,7 +136,7 @@ module.exports = function(Measurement) {
     /**
      * Create measurement
      * @method module:Measurement.create
-     * @param {object} sensor
+     * @param {object} measurement
      * @returns {Promise<object>}
      */
 
