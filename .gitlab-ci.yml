@@ -46,7 +46,7 @@ variables:
   INFLUXDB_USER: 'aloes'
   INFLUXDB_USER_PASSWORD: 'example'
   # OCD_API_KEY: ''
-  TIMER_SERVER_URL: http://timer-1:3000
+  TIMER_SERVER_URL: http://timer-1:3000/timer
   FS_PATH: '../storage'
   GITHUB_CLIENT_ID_LOGIN: ''
   GITHUB_CLIENT_SECRET_LOGIN: ''
