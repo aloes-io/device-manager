@@ -1,23 +1,19 @@
 /* Copyright 2020 Edouard Maleix, read LICENSE */
 
 import logger from '../../services/logger';
-import DeltaTimer from '../../services/delta-timer';
 import utils from '../utils';
 
 export const collectionName = 'Scheduler';
-// store timers in memory when using internal timer
-const timers = {};
+
+export const clockInterval = 5000;
 
 /**
  * Called when a remote method tries to access Scheduler Model / instance
  * @method module:Scheduler~onBeforeRemote
- * @param {object} app - Loopback App
  * @param {object} ctx - Express context
- * @param {object} ctx.req - Request
- * @param {object} ctx.res - Response
  * @returns {Promise<object>} context
  */
-export const onBeforeRemote = async (app, ctx) => {
+export const onBeforeRemote = async ctx => {
   if (ctx.method.name === 'createOrUpdate') {
     const options = ctx.options || {};
     const isAdmin = options.currentUser.roles.includes('admin');
@@ -56,47 +52,52 @@ export const deleteTimer = async (app, timerId) =>
     );
   });
 
-export const startInternalTimer = async (Scheduler, sensor, client, scheduler) => {
-  try {
-    let timer = timers[`${sensor.id}`];
-    logger.publish(3, `${collectionName}`, 'startInternalTimer:req', scheduler);
-    let lastTime;
-    if (timer && timer !== null) {
-      lastTime = timer.stop();
-      delete timers[`${sensor.id}`];
-    } else {
-      timer = new DeltaTimer(
-        Scheduler.onTimeout,
-        { sensorId: sensor.id, deviceId: sensor.deviceId },
-        scheduler.interval,
-      );
-      timers[`${sensor.id}`] = timer;
-    }
-    lastTime = timer.start();
-    scheduler = {
-      stopTime: Date.now() + scheduler.interval,
-      lastTime,
-      sensorId: sensor.id,
-      deviceId: sensor.deviceId,
-      interval: scheduler.interval,
-    };
-    await Scheduler.set(`sensor-${sensor.id}`, JSON.stringify(scheduler));
-    await Scheduler.publish(sensor.deviceId, scheduler, 'POST', client);
-    return scheduler;
-  } catch (error) {
-    logger.publish(2, `${collectionName}`, 'startInternalTimer:err', error);
-    return null;
-  }
-};
-
-const startExternalTimer = async (Scheduler, sensor, client, scheduler) => {
-  logger.publish(3, `${collectionName}`, 'startExternalTimer:req', scheduler);
-  const baseUrl = Scheduler.app.get('url');
+/**
+ * Create a new Skyring timer and update Scheduler instance
+ * @async
+ * @method module:Scheduler~resetClock
+ * @param {object} app - Loopback application
+ * @param {object} [scheduler] - Scheduler instance
+ * @param {number} timeout - delay
+ * @param {object} data - data contained when timeout wille be executed
+ * @returns {Promise<object>} scheduler
+ */
+export const resetClock = async (app, scheduler = {}, timeout, data) => {
+  const baseUrl = app.get('url') || process.env.HTTP_SERVER_URL;
 
   const timer = {
-    timeout: scheduler.interval,
+    timeout,
+    data,
+    callback: {
+      transport: 'http',
+      method: 'post',
+      uri: `${baseUrl}${process.env.REST_API_ROOT}/${collectionName}s/on-tick`,
+      // uri: `${baseUrl}${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}/${collectionName}s/on-tick`;
+    },
+  };
+
+  const response = await createTimer(app, timer);
+  if (!response || !response.location) {
+    throw utils.buildError(400, 'INVALID_TIMER_RESPONSE', 'Invalid Timer service response');
+  }
+  const timerId = response.location.split('/')[2];
+  logger.publish(3, `${collectionName}`, 'resetClock:res', timerId);
+  scheduler.stopTime = Date.now() + clockInterval;
+  scheduler.lastTime = +new Date();
+  scheduler.timerId = timerId;
+  scheduler.interval = clockInterval;
+  scheduler.isUpdating = false;
+
+  return scheduler;
+};
+
+const startExternalTimer = async (Model, sensor, client, scheduler) => {
+  logger.publish(3, `${collectionName}`, 'startExternalTimer:req', scheduler);
+  const baseUrl = Model.app.get('url');
+  const timer = {
+    timeout: +scheduler.interval,
     data: {
-      sensorId: sensor.id,
+      sensorId: sensor.id.toString(),
       deviceId: sensor.deviceId.toString(),
       secret: process.env.ALOES_KEY,
     },
@@ -107,30 +108,25 @@ const startExternalTimer = async (Scheduler, sensor, client, scheduler) => {
       // uri: `${baseUrl}${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}/${collectionName}s/on-timeout`;
     },
   };
-  try {
-    const response = await createTimer(Scheduler.app, timer);
-    logger.publish(3, `${collectionName}`, 'startExternalTimer:res', response);
 
-    const lastTime = +new Date();
-    if (response && response.location && response.location.split('/')) {
-      const timerId = response.location.split('/')[2];
-      logger.publish(3, `${collectionName}`, 'startExternalTimer:res', timerId);
-      scheduler = {
-        stopTime: Date.now() + scheduler.interval,
-        lastTime,
-        timerId,
-        sensorId: sensor.id,
-        deviceId: sensor.deviceId,
-        interval: scheduler.interval,
-      };
-      await Scheduler.set(`sensor-${sensor.id}`, JSON.stringify(scheduler));
-      await Scheduler.publish(sensor.deviceId, scheduler, 'POST', client);
-    }
-    return scheduler;
-  } catch (error) {
-    logger.publish(2, `${collectionName}`, 'startExternalTimer:err', error);
-    return null;
+  const response = await createTimer(Model.app, timer);
+  if (!response || !response.location) {
+    throw utils.buildError(400, 'INVALID_TIMER_RESPONSE', 'Invalid Timer service response');
   }
+  scheduler = {
+    stopTime: Date.now() + scheduler.interval,
+    lastTime: +new Date(),
+    timerId: response.location.split('/')[2],
+    sensorId: sensor.id,
+    deviceId: sensor.deviceId,
+    interval: scheduler.interval,
+  };
+  logger.publish(3, `${collectionName}`, 'startExternalTimer:res', scheduler);
+
+  await Model.set(`sensor-${sensor.id}`, JSON.stringify(scheduler));
+  await Model.publish(sensor.deviceId, scheduler, 'POST', client);
+
+  return scheduler;
 };
 
 /**
@@ -147,10 +143,7 @@ const startExternalTimer = async (Scheduler, sensor, client, scheduler) => {
  * @returns {Promise<object>} scheduler
  */
 export const startTimer = async (Scheduler, sensor, resources, client, mode = 0) => {
-  let scheduler = JSON.parse(await Scheduler.get(`sensor-${sensor.id}`));
-  if (!scheduler || scheduler === null) {
-    scheduler = {};
-  }
+  let scheduler = JSON.parse(await Scheduler.get(`sensor-${sensor.id}`)) || {};
   logger.publish(4, `${collectionName}`, 'startTimer:req', mode);
 
   // todo improve timeLeft setting
@@ -160,11 +153,8 @@ export const startTimer = async (Scheduler, sensor, resources, client, mode = 0)
   } else if (mode === 1) {
     scheduler.interval = resources['5538'] * 1000;
   }
-  if (process.env.EXTERNAL_TIMER && process.env.TIMER_SERVER_URL) {
-    scheduler = await startExternalTimer(Scheduler, sensor, client, scheduler);
-  } else {
-    scheduler = await startInternalTimer(Scheduler, sensor, client, scheduler);
-  }
+
+  scheduler = await startExternalTimer(Scheduler, sensor, client, scheduler);
 
   if (mode === 1) {
     if (!resources['5538']) {
@@ -184,41 +174,15 @@ export const startTimer = async (Scheduler, sensor, resources, client, mode = 0)
   return scheduler;
 };
 
-const stopExternalTimer = async (Scheduler, sensor, client, scheduler) => {
-  try {
-    if (!scheduler || !scheduler.timerId) throw new Error('Missing timer');
-    logger.publish(4, `${collectionName}`, 'stopExternalTimer:req', scheduler);
-    const response = await deleteTimer(Scheduler.app, scheduler.timerId);
-    logger.publish(3, `${collectionName}`, 'stopExternalTimer:res', response);
-    await Scheduler.delete(`sensor-${sensor.id}`);
-    await Scheduler.publish(sensor.deviceId, scheduler, 'DELETE', client);
-    return scheduler;
-  } catch (error) {
-    logger.publish(2, `${collectionName}`, 'stopExternalTimer:err', error);
-    return null;
+const stopExternalTimer = async (Model, sensor, client, scheduler) => {
+  if (!scheduler || !scheduler.timerId) {
+    throw new Error('Missing timer');
   }
-};
-
-const stopInternalTimer = async (Scheduler, sensor, client, scheduler) => {
-  try {
-    const timer = timers[`${sensor.id}`];
-    if (!timer && !scheduler) throw new Error('Missing timer');
-    logger.publish(4, `${collectionName}`, 'stopInternalTimer:req', scheduler);
-    // let lastTime;
-    if (timer) {
-      // lastTime = timer.stop();
-      timer.stop();
-      delete timers[`${sensor.id}`];
-    }
-    // lastTime = scheduler.lastTime;
-    await Scheduler.delete(`sensor-${sensor.id}`);
-    await Scheduler.publish(sensor.deviceId, scheduler, 'DELETE', client);
-    // if sensor.resources['5525'] > 0 setTimeout to update 5543
-    return scheduler;
-  } catch (error) {
-    logger.publish(2, `${collectionName}`, 'stopInternalTimer:err', error);
-    return null;
-  }
+  logger.publish(4, `${collectionName}`, 'stopExternalTimer:req', scheduler);
+  await deleteTimer(Model.app, scheduler.timerId);
+  await Model.delete(`sensor-${sensor.id}`);
+  await Model.publish(sensor.deviceId, scheduler, 'DELETE', client);
+  return scheduler;
 };
 
 /**
@@ -239,11 +203,7 @@ const stopTimer = async (Scheduler, sensor, resources, client, mode = 0) => {
   let scheduler = JSON.parse(await Scheduler.get(`sensor-${sensor.id}`));
   // if (!scheduler || !scheduler.timerId) throw new Error('Missing timer');
 
-  if (process.env.EXTERNAL_TIMER && process.env.TIMER_SERVER_URL) {
-    scheduler = await stopExternalTimer(Scheduler, sensor, client, scheduler);
-  } else {
-    scheduler = await stopInternalTimer(Scheduler, sensor, client, scheduler);
-  }
+  scheduler = await stopExternalTimer(Scheduler, sensor, client, scheduler);
 
   if (mode === 1) {
     const stopTime = scheduler ? scheduler.stopTime : Date.now() + resources['5521'] * 1000;
@@ -379,7 +339,7 @@ export const onTimeout = async (Scheduler, sensorId) => {
       await SensorResource.save(sensor.deviceId, sensor.id, resources);
       break;
     default:
-      throw new Error('Wrong timer type');
+      throw new Error('Wrong timer mode');
   }
   await Sensor.createOrUpdate(sensor, 5543, 1);
   return true;
@@ -393,10 +353,14 @@ export const onTimeout = async (Scheduler, sensorId) => {
  * @async
  * @method module:Scheduler~syncRunningTimers
  * @param {object} Scheduler - Scheduler Model
- * @param {object} delay - Sensor instance id
+ * @param {object} delay
+ * @returns {object[]} sensors
  */
 export const syncRunningTimers = async (Scheduler, delay) => {
   const schedulers = await Scheduler.getAll({ match: 'sensor-*' });
+  logger.publish(3, `${collectionName}`, 'syncRunningTimers:req', {
+    schedulersCount: schedulers && schedulers.length,
+  });
   const Sensor = Scheduler.app.models.Sensor;
   const SensorResource = Scheduler.app.models.SensorResource;
   const promises = schedulers.map(async scheduler => {
@@ -408,7 +372,7 @@ export const syncRunningTimers = async (Scheduler, delay) => {
       resources['5543'] = 0;
       resources['5850'] = 1;
       resources['5523'] = 'started';
-      const clients = await Scheduler.app.models.Client.find({ match: `${sensor.ownerId}*` });
+      const clients = await Scheduler.app.models.Client.find({ match: `${sensor.ownerId}-*` });
       const client = clients.length ? clients[0] : null;
       if (timeLeft <= 0) {
         // in case timeout callback/webhook was not triggered

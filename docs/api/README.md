@@ -2005,9 +2005,11 @@ Event reporting that a measurement method is requested
         * [.publish(device, measurement, [method], [client])](#module_Scheduler.publish) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
         * [.onTimeout(body)](#module_Scheduler.onTimeout) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.createOrUpdate(sensor, [client])](#module_Scheduler.createOrUpdate) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [.onTick(data)](#module_Scheduler.onTick)
-        * [.onTickHook(body)](#module_Scheduler.onTickHook) ⇒ <code>function</code>
-        * [.setClock(interval)](#module_Scheduler.setClock) ⇒ <code>Promise.&lt;functions&gt;</code>
+        * [.onTick(data)](#module_Scheduler.onTick) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [.onTickHook(body)](#module_Scheduler.onTickHook) ⇒ <code>Promise.&lt;boolean&gt;</code>
+        * [.setExternalClock(interval)](#module_Scheduler.setExternalClock) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.setInternalClock(callback, interval)](#module_Scheduler.setInternalClock) ⇒ <code>function</code>
+        * [.setClock(interval)](#module_Scheduler.setClock)
         * [.get(key, [cb])](#module_Scheduler.get)
         * [.set(key, value, [ttl], [cb])](#module_Scheduler.set)
         * [.delete(key, [cb])](#module_Scheduler.delete)
@@ -2015,14 +2017,14 @@ Event reporting that a measurement method is requested
         * [.keys([filter], [cb])](#module_Scheduler.keys) ⇒ <code>Array.&lt;string&gt;</code>
         * [.iterateKeys([filter])](#module_Scheduler.iterateKeys) ⇒ <code>AsyncIterator</code>
     * _inner_
-        * [~onTickHook(body)](#module_Scheduler..onTickHook) ⇒ <code>Promise.&lt;boolean&gt;</code>
-        * [~onBeforeRemote(app, ctx)](#module_Scheduler..onBeforeRemote) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~onBeforeRemote(ctx)](#module_Scheduler..onBeforeRemote) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~resetClock(app, [scheduler], timeout, data)](#module_Scheduler..resetClock) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~startTimer(Scheduler, sensor, resources, client, mode)](#module_Scheduler..startTimer) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~stopTimer(Scheduler, sensor, resources, client, mode)](#module_Scheduler..stopTimer) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~parseTimerEvent(Scheduler, sensor, client)](#module_Scheduler..parseTimerEvent) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~parseTimerEvent(Scheduler, sensor, client)](#module_Scheduler..parseTimerEvent) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onTimeout(Scheduler, sensorId)](#module_Scheduler..onTimeout) ⇒ <code>Promise.&lt;boolean&gt;</code>
-        * [~syncRunningTimers(Scheduler, delay)](#module_Scheduler..syncRunningTimers)
+        * [~syncRunningTimers(Scheduler, delay)](#module_Scheduler..syncRunningTimers) ⇒ <code>Array.&lt;object&gt;</code>
         * ["stopped"](#event_stopped) ⇒ <code>Promise.&lt;(functions\|null)&gt;</code>
         * ["stopped"](#event_stopped) ⇒ <code>Promise.&lt;(functions\|null)&gt;</code>
         * ["tick"](#event_tick) ⇒ <code>Promise.&lt;functions&gt;</code>
@@ -2076,7 +2078,7 @@ Format packet and send it via MQTT broker
 Scheduler timeout callback / webhook ( sensor timer )
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - onTimeout  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - Scheduler~onTimeout  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2088,7 +2090,7 @@ Scheduler timeout callback / webhook ( sensor timer )
 Create or update scheduler stored in cache
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>Promise.&lt;object&gt;</code> - scheduler - Updated scheduler  
+**Returns**: <code>Promise.&lt;object&gt;</code> - scheduler  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2097,12 +2099,13 @@ Create or update scheduler stored in cache
 
 <a name="module_Scheduler.onTick"></a>
 
-### Scheduler.onTick(data)
+### Scheduler.onTick(data) ⇒ <code>Promise.&lt;function()&gt;</code>
 Scheduler tick event ( scheduler clock )
 
 Update every sensor having an active scheduler
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
+**Returns**: <code>Promise.&lt;function()&gt;</code> - Scheduler~syncRunningTimers  
 **Emits**: <code>Scheduler.event:publish</code>  
 
 | Param | Type | Description |
@@ -2111,27 +2114,51 @@ Update every sensor having an active scheduler
 
 <a name="module_Scheduler.onTickHook"></a>
 
-### Scheduler.onTickHook(body) ⇒ <code>function</code>
-Endpoint for Scheduler external timeout hooks
+### Scheduler.onTickHook(body) ⇒ <code>Promise.&lt;boolean&gt;</code>
+Endpoint for Scheduler external timeout callback
+
+validate webhook content before dispatch
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>function</code> - Scheduler~onTickHook  
+**Emits**: <code>Scheduler.event:tick</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | body | <code>object</code> | Timer callback data |
 
-<a name="module_Scheduler.setClock"></a>
+<a name="module_Scheduler.setExternalClock"></a>
 
-### Scheduler.setClock(interval) ⇒ <code>Promise.&lt;functions&gt;</code>
-Init clock to synchronize with every active schedulers
-
-if EXTERNAL_TIMER is enabled, Scheduler will use Skyring external timer handler
-
-else a DeltaTimer instance will be created and stored in memory
+### Scheduler.setExternalClock(interval) ⇒ <code>Promise.&lt;object&gt;</code>
+Initialize external Clock to keep every active schedulers synchronized
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>Promise.&lt;functions&gt;</code> - setExternalClock | setInternalClock  
+**Returns**: <code>Promise.&lt;object&gt;</code> - scheduler  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| interval | <code>number</code> | Interval between each tick |
+
+<a name="module_Scheduler.setInternalClock"></a>
+
+### Scheduler.setInternalClock(callback, interval) ⇒ <code>function</code>
+Initialize internal Clock to insure external clock is alive
+
+**Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
+**Returns**: <code>function</code> - DeltaTimer  
+
+| Param | Type |
+| --- | --- |
+| callback | <code>function</code> | 
+| interval | <code>number</code> | 
+
+<a name="module_Scheduler.setClock"></a>
+
+### Scheduler.setClock(interval)
+Init clock to synchronize with every active schedulers
+
+Scheduler will use Skyring external timer handler
+
+**Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2229,23 +2256,9 @@ Use callback or promise
 | [filter] | <code>object</code> |  |
 | filter.match | <code>object</code> | Glob string used to filter returned keys (i.e. userid.*) |
 
-<a name="module_Scheduler..onTickHook"></a>
-
-### Scheduler~onTickHook(body) ⇒ <code>Promise.&lt;boolean&gt;</code>
-Scheduler timeout callback ( scheduler clock )
-
-validate webhook content before dispatch
-
-**Kind**: inner method of [<code>Scheduler</code>](#module_Scheduler)  
-**Emits**: <code>Scheduler.event:tick</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| body | <code>object</code> | Timer callback data |
-
 <a name="module_Scheduler..onBeforeRemote"></a>
 
-### Scheduler~onBeforeRemote(app, ctx) ⇒ <code>Promise.&lt;object&gt;</code>
+### Scheduler~onBeforeRemote(ctx) ⇒ <code>Promise.&lt;object&gt;</code>
 Called when a remote method tries to access Scheduler Model / instance
 
 **Kind**: inner method of [<code>Scheduler</code>](#module_Scheduler)  
@@ -2253,10 +2266,22 @@ Called when a remote method tries to access Scheduler Model / instance
 
 | Param | Type | Description |
 | --- | --- | --- |
-| app | <code>object</code> | Loopback App |
 | ctx | <code>object</code> | Express context |
-| ctx.req | <code>object</code> | Request |
-| ctx.res | <code>object</code> | Response |
+
+<a name="module_Scheduler..resetClock"></a>
+
+### Scheduler~resetClock(app, [scheduler], timeout, data) ⇒ <code>Promise.&lt;object&gt;</code>
+Create a new Skyring timer and update Scheduler instance
+
+**Kind**: inner method of [<code>Scheduler</code>](#module_Scheduler)  
+**Returns**: <code>Promise.&lt;object&gt;</code> - scheduler  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| app | <code>object</code> | Loopback application |
+| [scheduler] | <code>object</code> | Scheduler instance |
+| timeout | <code>number</code> | delay |
+| data | <code>object</code> | data contained when timeout wille be executed |
 
 <a name="module_Scheduler..startTimer"></a>
 
@@ -2343,17 +2368,18 @@ Method called by a timer instance at timeout
 
 <a name="module_Scheduler..syncRunningTimers"></a>
 
-### Scheduler~syncRunningTimers(Scheduler, delay)
+### Scheduler~syncRunningTimers(Scheduler, delay) ⇒ <code>Array.&lt;object&gt;</code>
 Method called by a timer instance at timeout
 
 Update active Scheduler and related Sensor instances
 
 **Kind**: inner method of [<code>Scheduler</code>](#module_Scheduler)  
+**Returns**: <code>Array.&lt;object&gt;</code> - sensors  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | Scheduler | <code>object</code> | Scheduler Model |
-| delay | <code>object</code> | Sensor instance id |
+| delay | <code>object</code> |  |
 
 <a name="event_stopped"></a>
 
@@ -2378,7 +2404,7 @@ Trigger Scheduler stopping routine
 ### "tick" ⇒ <code>Promise.&lt;functions&gt;</code>
 Event reporting tick
 
-Trigger Scheduler tick routine
+Trigger Scheduler.onTick routine
 
 **Kind**: event emitted by [<code>Scheduler</code>](#module_Scheduler)  
 **Returns**: <code>Promise.&lt;functions&gt;</code> - Scheduler.onTick  

@@ -61,7 +61,7 @@ module.exports = {
   timer: {
     name: 'timer',
     connector: 'rest',
-    baseURL: process.env.TIMER_SERVER_URL || 'http://localhost:8080/timer',
+    baseURL: process.env.TIMER_SERVER_URL || 'http://localhost:3000/timer',
     debug: true,
     options: {
       headers: {
@@ -74,7 +74,7 @@ module.exports = {
       {
         template: {
           method: 'POST',
-          url: `${process.env.TIMER_SERVER_URL || 'http://localhost:8080/timer'}`,
+          url: `${process.env.TIMER_SERVER_URL || 'http://localhost:3000/timer'}`,
           headers: {
             accept: 'application/json',
             'content-type': 'application/json',
@@ -88,7 +88,7 @@ module.exports = {
       {
         template: {
           method: 'POST', // 'PUT'
-          url: `${process.env.TIMER_SERVER_URL || 'http://localhost:8080/timer'}/{timerId}`,
+          url: `${process.env.TIMER_SERVER_URL || 'http://localhost:3000/timer'}/{timerId}`,
           headers: {
             accept: 'application/json',
             'content-type': 'application/json',
@@ -102,7 +102,7 @@ module.exports = {
       {
         template: {
           method: 'DELETE',
-          url: `${process.env.TIMER_SERVER_URL || 'http://localhost:8080/timer'}/{timerId}`,
+          url: `${process.env.TIMER_SERVER_URL || 'http://localhost:3000/timer'}/{timerId}`,
           headers: {
             accept: 'application/json',
             'content-type': 'application/json',

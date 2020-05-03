@@ -63,7 +63,7 @@ services:
     container_name: async-api-1
     env_file: .env
     environment:
-      - SERVER_LOGGER_LEVEL=4
+      - SERVER_LOGGER_LEVEL=3
     restart: always
     volumes:
       - ./.env:/home/node/device-manager/.env:ro
@@ -77,7 +77,7 @@ services:
     container_name: rest-api-1
     env_file: .env
     environment:
-      - SERVER_LOGGER_LEVEL=4
+      - SERVER_LOGGER_LEVEL=3
       - INSTANCES_COUNT=2
       - INSTANCES_PREFIX=1
     restart: always
