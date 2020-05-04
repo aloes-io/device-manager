@@ -417,7 +417,7 @@ module.exports = function(Scheduler) {
    * @method module:Scheduler.get
    * @param {string} key
    * @param {resultCallback} [cb] - Optional callback
-   * @promise result
+   * @returns {Promise<object | null>}
    */
 
   /**
@@ -430,7 +430,7 @@ module.exports = function(Scheduler) {
    * @param {string} value
    * @param {number} [ttl]
    * @param {ErrorCallback} [cb] - Optional callback
-   * @promise undefined
+   * @returns {Promise<object>}
    */
 
   /**
@@ -441,7 +441,7 @@ module.exports = function(Scheduler) {
    * @method module:Scheduler.delete
    * @param {string} key
    * @param {ErrorCallback} [cb] - Optional callback
-   * @promise undefined
+   * @returns {Promise<undefined>}
    */
 
   /**
@@ -453,7 +453,7 @@ module.exports = function(Scheduler) {
    * @param {string} key
    * @param {number} [ttl]
    * @param {ErrorCallback} [cb] - Optional callback
-   * @promise undefined
+   * @returns {Promise<undefined>}
    */
 
   /**
@@ -465,7 +465,7 @@ module.exports = function(Scheduler) {
    * @param {object} [filter]
    * @param {object} filter.match Glob string used to filter returned keys (i.e. userid.*)
    * @param {function} [cb]
-   * @returns {string[]}
+   * @returns {Promise<string[]>}
    */
 
   /**

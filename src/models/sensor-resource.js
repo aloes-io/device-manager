@@ -196,6 +196,7 @@ module.exports = function(SensorResource) {
    * @param {string} key
    * @param {resultCallback} [cb] - Optional callback
    * @promise result
+   * @returns {Promise<object | null>}
    */
 
   /**
@@ -209,6 +210,7 @@ module.exports = function(SensorResource) {
    * @param {number} [ttl]
    * @param {ErrorCallback} [cb] - Optional callback
    * @promise undefined
+   * @returns {Promise<undefined>}
    */
 
   /**
@@ -220,6 +222,7 @@ module.exports = function(SensorResource) {
    * @param {string} key
    * @param {ErrorCallback} [cb] - Optional callback
    * @promise undefined
+   * @returns {Promise<undefined>}
    */
 
   /**
@@ -232,6 +235,7 @@ module.exports = function(SensorResource) {
    * @param {number} [ttl]
    * @param {ErrorCallback} [cb] - Optional callback
    * @promise undefined
+   * @returns {Promise<undefined>}
    */
 
   /**
@@ -243,7 +247,7 @@ module.exports = function(SensorResource) {
    * @param {object} [filter]
    * @param {object} filter.match Glob string used to filter returned keys (i.e. userid.*)
    * @param {function} [cb]
-   * @returns {string[]}
+   * @returns {Promise<string[]>}
    */
 
   /**

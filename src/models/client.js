@@ -147,6 +147,7 @@ module.exports = function(Client) {
    * @param {string} key
    * @param {resultCallback} [cb] - Optional callback
    * @promise result
+   * @returns {Promise<object | null>}
    */
 
   /**
@@ -160,6 +161,7 @@ module.exports = function(Client) {
    * @param {number} [ttl]
    * @param {errorCallback} [cb] - Optional callback
    * @promise undefined
+   * @returns {Promise<undefined>}
    */
 
   /**
@@ -171,6 +173,7 @@ module.exports = function(Client) {
    * @param {string} key
    * @param {errorCallback} [cb] - Optional callback
    * @promise undefined
+   * @returns {Promise<undefined>}
    */
 
   /**
@@ -183,6 +186,7 @@ module.exports = function(Client) {
    * @param {number} [ttl]
    * @param {errorCallback} [cb] - Optional callback
    * @promise undefined
+   * @returns {Promise<undefined>}
    */
 
   /**
@@ -194,7 +198,7 @@ module.exports = function(Client) {
    * @param {object} [filter]
    * @param {object} filter.match Glob string used to filter returned keys (i.e. userid.*)
    * @param {function} [cb]
-   * @returns {string[]}
+   * @returns {Promise<string[]>}
    */
 
   /**

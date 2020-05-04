@@ -200,7 +200,7 @@ utils.find = (Model, filter) =>
 
 /**
  * Promise wrapper to findOne Model instance
- * @method module:Utils.find
+ * @method module:Utils.findOne
  * @param {function} Model
  * @param {object} [filter]
  * @returns {Promise<object>} instance
@@ -212,7 +212,7 @@ utils.findOne = (Model, filter) =>
 
 /**
  * Promise wrapper to findById Model instance
- * @method module:Utils.find
+ * @method module:Utils.findById
  * @param {function} Model
  * @param {string | number} id
  * @param {object} [filter]

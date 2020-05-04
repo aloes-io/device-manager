@@ -367,6 +367,7 @@ export const syncRunningTimers = async (Scheduler, delay) => {
     try {
       let timeLeft = Math.round((scheduler.stopTime - Date.now()) / 1000);
       const sensor = await utils.findById(Sensor, scheduler.sensorId);
+      sensor.value = timeLeft;
       const resources = await SensorResource.find(sensor.deviceId, sensor.id);
       resources['5544'] += Math.round(delay / 1000);
       resources['5543'] = 0;

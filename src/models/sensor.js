@@ -530,6 +530,7 @@ module.exports = function(Sensor) {
           // OR: [{ rp: '0s' }, { rp: '2h' }],
           // rp: '0s',
         },
+        limit: filter.limit || 100,
       });
       return points || [];
     };
