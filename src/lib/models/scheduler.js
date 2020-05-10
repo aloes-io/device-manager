@@ -92,7 +92,7 @@ export const resetClock = async (app, scheduler = {}, timeout, data) => {
 };
 
 const startExternalTimer = async (Model, sensor, client, scheduler) => {
-  logger.publish(3, `${collectionName}`, 'startExternalTimer:req', scheduler);
+  logger.publish(4, `${collectionName}`, 'startExternalTimer:req', scheduler);
   const baseUrl = Model.app.get('url');
   const timer = {
     timeout: +scheduler.interval,
@@ -147,12 +147,13 @@ export const startTimer = async (Scheduler, sensor, resources, client, mode = 0)
   logger.publish(4, `${collectionName}`, 'startTimer:req', mode);
 
   // todo improve timeLeft setting
-  scheduler.interval = resources['5521'] * 1000;
-  if (resources['5526'] === 0) {
-    scheduler.interval = 200;
-  } else if (mode === 1) {
-    scheduler.interval = resources['5538'] * 1000;
-  }
+  // scheduler.interval = resources['5521'] * 1000;
+  // if (resources['5526'] === 0) {
+  //   scheduler.interval = 200;
+  // } else if (mode === 1) {
+  //   scheduler.interval = resources['5538'] * 1000;
+  // }
+  scheduler.interval = mode === 0 ? resources['5521'] * 1000 : resources['5538'] * 1000;
 
   scheduler = await startExternalTimer(Scheduler, sensor, client, scheduler);
 
@@ -178,7 +179,7 @@ const stopExternalTimer = async (Model, sensor, client, scheduler) => {
   if (!scheduler || !scheduler.timerId) {
     throw new Error('Missing timer');
   }
-  logger.publish(4, `${collectionName}`, 'stopExternalTimer:req', scheduler);
+  logger.publish(3, `${collectionName}`, 'stopExternalTimer:req', scheduler);
   await deleteTimer(Model.app, scheduler.timerId);
   await Model.delete(`sensor-${sensor.id}`);
   await Model.publish(sensor.deviceId, scheduler, 'DELETE', client);
@@ -205,7 +206,6 @@ const stopTimer = async (Scheduler, sensor, resources, client, mode = 0) => {
 
   if (mode === 1) {
     const stopTime = scheduler ? scheduler.stopTime : Date.now() + resources['5521'] * 1000;
-
     // console.log('Pause stopTime :', stopTime);
     const timeLeft = Math.round((stopTime - Date.now()) / 1000);
     if (typeof timeLeft === 'number' && !isNaN(timeLeft)) {
@@ -235,22 +235,25 @@ const stopTimer = async (Scheduler, sensor, resources, client, mode = 0) => {
  */
 export const parseTimerEvent = async (Scheduler, sensor, client) => {
   let scheduler;
-  logger.publish(4, `${collectionName}`, 'parseTimerEvent:req', sensor.resources['5523']);
-  switch (sensor.resources['5523']) {
+  const resources =
+    sensor.resources ||
+    (await Scheduler.app.models.SensorResource.find(sensor.deviceId, sensor.id));
+  logger.publish(4, `${collectionName}`, 'parseTimerEvent:req', resources['5523']);
+  switch (resources['5523']) {
     case 'start':
-      scheduler = await startTimer(Scheduler, sensor, sensor.resources, client);
+      scheduler = await startTimer(Scheduler, sensor, resources, client);
       break;
     case 'stop':
-      scheduler = await stopTimer(Scheduler, sensor, sensor.resources, client);
+      scheduler = await stopTimer(Scheduler, sensor, resources, client);
       break;
     case 'pause':
-      scheduler = await stopTimer(Scheduler, sensor, sensor.resources, client, 1);
+      scheduler = await stopTimer(Scheduler, sensor, resources, client, 1);
       break;
     case 'restart':
-      scheduler = await startTimer(Scheduler, sensor, sensor.resources, client, 1);
+      scheduler = await startTimer(Scheduler, sensor, resources, client, 1);
       break;
     default:
-      logger.publish(3, `${collectionName}`, 'parseTimerEvent:notFound', sensor.resources['5523']);
+      logger.publish(3, `${collectionName}`, 'parseTimerEvent:notFound', resources['5523']);
   }
   logger.publish(4, `${collectionName}`, 'parseTimerEvent:res', {
     scheduler: scheduler || null,
@@ -272,9 +275,13 @@ export const parseTimerEvent = async (Scheduler, sensor, client) => {
  */
 export const parseTimerState = async (Scheduler, sensor, client) => {
   logger.publish(4, `${collectionName}`, 'parseTimerState:req', sensor.resources['5850']);
-  const scheduler = sensor.resources['5850']
-    ? await startTimer(Scheduler, sensor, sensor.resources, client)
-    : await stopTimer(Scheduler, sensor, sensor.resources, client);
+  const resources =
+    sensor.resources ||
+    (await Scheduler.app.models.SensorResource.find(sensor.deviceId, sensor.id));
+
+  const scheduler = resources['5850']
+    ? await startTimer(Scheduler, sensor, resources, client)
+    : await stopTimer(Scheduler, sensor, resources, client);
 
   return scheduler;
 };

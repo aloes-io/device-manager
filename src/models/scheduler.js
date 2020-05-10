@@ -167,9 +167,6 @@ module.exports = function (Scheduler) {
       default:
         throw new Error('wrong resource');
     }
-    // if (!scheduler ) {
-    //   throw new Error('Event parsed with error');
-    // }
     return scheduler;
   };
 
@@ -221,9 +218,7 @@ module.exports = function (Scheduler) {
 
       logger.publish(4, `${collectionName}`, 'onTickHook:req', scheduler);
       if (scheduler && scheduler.timerId) {
-        if (scheduler.isUpdating) {
-          return false;
-        }
+        // if (scheduler.isUpdating) return false;
         // logger.publish(4, `${collectionName}`, 'onTick:res', payload);
         // const deltaTime = thisTime - scheduler.lastTime;
         // const interval = Math.max(clockInterval - deltaTime, 0);
@@ -243,7 +238,7 @@ module.exports = function (Scheduler) {
 
       scheduler = await resetClock(Scheduler.app, scheduler, clockInterval, body);
       await Scheduler.set(schedulerClockId, JSON.stringify(scheduler));
-      logger.publish(4, `${collectionName}`, 'onTickHook:res', scheduler);
+      logger.publish(3, `${collectionName}`, 'onTickHook:res', scheduler);
 
       return true;
     } catch (error) {
@@ -350,7 +345,7 @@ module.exports = function (Scheduler) {
    */
   Scheduler.once('started', async () =>
     utils.isMasterProcess(process.env)
-      ? setTimeout(() => Scheduler.setClock(clockInterval), 2500)
+      ? setTimeout(() => Scheduler.setClock(clockInterval), 1500)
       : null,
   );
 
