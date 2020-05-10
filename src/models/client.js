@@ -13,7 +13,7 @@ const collectionName = 'Client';
  * @param {object} [Model] - Response
  * @returns {Promise<object>} context
  */
-const onBeforeRemote = async ctx => {
+const onBeforeRemote = async (ctx) => {
   if (ctx.method.name === 'find' || ctx.method.name === 'remove') {
     // console.log('onBeforeRemote', ctx.method.name);
     const options = ctx.options || {};
@@ -32,7 +32,7 @@ const onBeforeRemote = async ctx => {
  * @method module:Client~getAll
  * @param {object} Model - Client model
  * @param {object} [filter] - Client filter
- * @returns {Promise<array>} schedulers - Cached clients
+ * @returns {Promise<object[]>} clients
  */
 const getAll = async (Model, filter) => {
   const clients = [];
@@ -51,7 +51,7 @@ const getAll = async (Model, filter) => {
  * @method module:Client~deleteAll
  * @param {object} Model - Client model
  * @param {object} [filter] - Client filter
- * @returns {Promise<array>} clients - Cached clients keys
+ * @returns {Promise<string[]>} clients keys
  */
 const deleteAll = async (Model, filter) => {
   const clients = [];
@@ -76,11 +76,25 @@ const deleteAll = async (Model, filter) => {
  * @property {string} [appEui] application AppEui
  */
 
-module.exports = function(Client) {
-  Client.once('dataSourceAttached', Model => {
-    Model.find = async filter => getAll(Model, filter);
+module.exports = function (Client) {
+  Client.once('dataSourceAttached', (Model) => {
+    /**
+     * Find clients in the cache
+     * @async
+     * @method module:Client.find
+     * @param {object} filter - Client filter
+     * @returns {Promise<object[]>} clients
+     */
+    Model.find = async (filter) => getAll(Model, filter);
 
-    Model.remove = async filter => deleteAll(Model, filter);
+    /**
+     * Find clients in the cache
+     * @async
+     * @method module:Client.remove
+     * @param {object} filter - Client filter
+     * @returns {Promise<string[]>} clients keys
+     */
+    Model.remove = async (filter) => deleteAll(Model, filter);
   });
 
   /**
@@ -133,6 +147,7 @@ module.exports = function(Client) {
    * @param {string} key
    * @param {resultCallback} [cb] - Optional callback
    * @promise result
+   * @returns {Promise<object | null>}
    */
 
   /**
@@ -146,6 +161,7 @@ module.exports = function(Client) {
    * @param {number} [ttl]
    * @param {errorCallback} [cb] - Optional callback
    * @promise undefined
+   * @returns {Promise<undefined>}
    */
 
   /**
@@ -157,6 +173,7 @@ module.exports = function(Client) {
    * @param {string} key
    * @param {errorCallback} [cb] - Optional callback
    * @promise undefined
+   * @returns {Promise<undefined>}
    */
 
   /**
@@ -169,6 +186,7 @@ module.exports = function(Client) {
    * @param {number} [ttl]
    * @param {errorCallback} [cb] - Optional callback
    * @promise undefined
+   * @returns {Promise<undefined>}
    */
 
   /**
@@ -180,7 +198,7 @@ module.exports = function(Client) {
    * @param {object} [filter]
    * @param {object} filter.match Glob string used to filter returned keys (i.e. userid.*)
    * @param {function} [cb]
-   * @returns {string[]}
+   * @returns {Promise<string[]>}
    */
 
   /**

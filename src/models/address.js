@@ -24,7 +24,7 @@ const addressError = (code = 400, status, msg) => {
  * @method module:Address~geoCode
  * @returns {Promise<object>}
  */
-const geoCode = address =>
+const geoCode = (address) =>
   new Promise((resolve, reject) => {
     const geocoder = NodeGeocoder(geoCodeOptions);
     return geocoder.geocode(address, (err, res) => (err ? reject(err) : resolve(res)));
@@ -36,7 +36,7 @@ const geoCode = address =>
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-const onAfterSave = async ctx => {
+const onAfterSave = async (ctx) => {
   logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.instance);
   if (ctx.instance.ownerId && ctx.instance.ownerType) {
     const fullAddress = `${ctx.instance.street} ${ctx.instance.postalCode} ${ctx.instance.city}`;
@@ -61,7 +61,7 @@ const onAfterSave = async ctx => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-const onBeforeRemote = async ctx => {
+const onBeforeRemote = async (ctx) => {
   if (ctx.method.name.indexOf('create') !== -1) {
     const options = ctx.options || {};
     //  const data = ctx.args || ctx.args.data;
@@ -94,7 +94,7 @@ const onBeforeRemote = async ctx => {
  * @property {boolean} verified
  * @property {boolean} public
  */
-module.exports = function(Address) {
+module.exports = function (Address) {
   Address.validatesPresenceOf('ownerId', 'ownerType', {
     message: 'must contain ownerId and ownerType value',
   });
@@ -106,7 +106,7 @@ module.exports = function(Address) {
    * @param {any} address - Instance address
    * @returns {Promise<object>} address
    */
-  Address.verify = async address => {
+  Address.verify = async (address) => {
     logger.publish(4, `${collectionName}`, 'verify:req', address);
     // const requestAddress = { countryCode: 'fr' };
     const requestAddress = {};
@@ -130,7 +130,7 @@ module.exports = function(Address) {
     if (result && result.length < 1) {
       return addressError(404, 'ADDRESS_NOT_FOUND', "This address couldn't be verified");
     }
-    result.forEach(addr => {
+    result.forEach((addr) => {
       if (!verifiedAddress.streetNumber && addr.streetNumber) {
         verifiedAddress.streetNumber = Number(addr.streetNumber);
       }
@@ -176,7 +176,7 @@ module.exports = function(Address) {
    * @param {object} filter - Requested filter
    * @returns {Promise<array>} addresses
    */
-  Address.search = async filter => {
+  Address.search = async (filter) => {
     logger.publish(4, `${collectionName}`, 'search:req', filter);
     if (!filter || !filter.ownerType) {
       return addressError(400, 'INVALID_ARGS', 'Missing argument');
@@ -243,7 +243,7 @@ module.exports = function(Address) {
    * @param {object} filter - Requested filter
    * @returns {Promise<array>} addresses
    */
-  Address.geoLocate = async filter => {
+  Address.geoLocate = async (filter) => {
     logger.publish(4, `${collectionName}`, 'geoLocate:req', filter);
     if (!filter || !filter.ownerType) {
       return addressError(400, 'INVALID_ARGS', 'Missing argument');

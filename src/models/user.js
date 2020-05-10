@@ -28,7 +28,7 @@ import utils from '../lib/utils';
  * @property {string} roleName admin or user
  */
 
-module.exports = function(User) {
+module.exports = function (User) {
   //  User.validatesAbsenceOf('deleted', {unless: 'admin'});
   User.validatesLengthOf('password', {
     min: 5,
@@ -45,7 +45,7 @@ module.exports = function(User) {
    * @param {string} email - User email address
    * @returns {Promise<object>} user
    */
-  User.findByEmail = async email => {
+  User.findByEmail = async (email) => {
     logger.publish(4, `${collectionName}`, 'findByEmail:req', email);
     if (!isEmail(email)) {
       throw utils.buildError(400, 'INVALID_EMAIL', 'Email is not valid');
@@ -73,7 +73,7 @@ module.exports = function(User) {
    * @param {object} user - User instance
    * @returns {Promise<object>} user
    */
-  User.verifyEmail = async user => {
+  User.verifyEmail = async (user) => {
     logger.publish(4, `${collectionName}`, 'verifyEmail:req', user);
     if (!user || !user.id) {
       throw utils.buildError(400, 'INVALID_INPUT', 'User is not valid');
@@ -147,7 +147,7 @@ module.exports = function(User) {
    * @fires User.sendContactForm
    * @returns {Promise<boolean>}
    */
-  User.sendContactForm = async form => {
+  User.sendContactForm = async (form) => {
     logger.publish(4, `${collectionName}`, 'sendContactForm:req', form);
     if (!form || !form.email || !form.subject || !form.content) {
       throw utils.buildError(400, 'INVALID_ARGS', 'Form is invalid');
@@ -167,7 +167,7 @@ module.exports = function(User) {
    * @fires User.sendMailInvite
    * @returns {Promise<boolean>}
    */
-  User.sendInvite = async options => {
+  User.sendInvite = async (options) => {
     if (!options || !options.email || !options.profile) {
       throw utils.buildError(400, 'INVALID_ARGS', 'Options are invalid');
     }
@@ -253,7 +253,7 @@ module.exports = function(User) {
    * @property {boolean} message.status - MQTT client status.
    * @returns {Promise<function | null>} User.updateStatus
    */
-  User.on('client', async message => {
+  User.on('client', async (message) => {
     logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
     // if (!message || message === null) {
     //   // throw new Error('Message empty');

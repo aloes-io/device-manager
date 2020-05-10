@@ -16,7 +16,7 @@ const createContainer = (app, options) =>
     app.models.container.createContainer(options, (err, res) => (err ? reject(err) : resolve(res))),
   );
 
-const getContainers = app =>
+const getContainers = (app) =>
   new Promise((resolve, reject) =>
     app.models.container.getContainers((err, res) => (err ? reject(err) : resolve(res))),
   );
@@ -53,7 +53,7 @@ const uploadBufferToContainer = (app, buffer, ownerId, name) =>
   new Promise((resolve, reject) => {
     fileType
       .fromBuffer(buffer)
-      .then(type => {
+      .then((type) => {
         if (!type || !type.ext) {
           return reject(new Error('File type information not found'));
         }
@@ -102,7 +102,7 @@ const removeContainer = (app, ownerId) =>
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-const onBeforeSave = async ctx => {
+const onBeforeSave = async (ctx) => {
   if (ctx.data) {
     logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.data);
     if (ctx.data.name) {
@@ -151,14 +151,14 @@ const deleteProps = async (app, fileMeta) => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-const onBeforeDelete = async ctx => {
+const onBeforeDelete = async (ctx) => {
   if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
     const file = await utils.findById(ctx.Model, ctx.where.id);
     await deleteProps(ctx.Model.app, file);
   } else {
     const filter = { where: ctx.where };
     const files = await utils.find(ctx.Model, filter);
-    await Promise.all(files.map(async file => deleteProps(ctx.Model.app, file)));
+    await Promise.all(files.map(async (file) => deleteProps(ctx.Model.app, file)));
   }
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:res', 'success');
   return ctx;
@@ -172,7 +172,7 @@ const onBeforeDelete = async ctx => {
  * @param {object} ctx.res - Response
  * @returns {Promise<object>} context
  */
-const onBeforeRemote = async ctx => {
+const onBeforeRemote = async (ctx) => {
   if (
     ctx.method.name === 'upload' ||
     ctx.method.name === 'uploadBuffer' ||
@@ -198,7 +198,7 @@ const onBeforeRemote = async ctx => {
  * @property {string} role
  * @property {string} url
  */
-module.exports = function(Files) {
+module.exports = function (Files) {
   Files.validatesPresenceOf('ownerId');
 
   Files.disableRemoteMethodByName('count');
@@ -212,7 +212,7 @@ module.exports = function(Files) {
       return fileMeta && fileMeta.id
         ? utils
             .updateAttributes(fileMeta, { ...newFileMeta })
-            .then(res => resolve(res))
+            .then((res) => resolve(res))
             .catch(reject)
         : utils
             .create(Files, {
@@ -220,7 +220,7 @@ module.exports = function(Files) {
               ownerId,
               // url: `${CONTAINERS_URL}${ownerId}/download/${newFileMeta.originalFilename}`,
             })
-            .then(res => resolve(res))
+            .then((res) => resolve(res))
             .catch(reject);
     });
   };
@@ -264,8 +264,8 @@ module.exports = function(Files) {
       if (result.files.length > 1) {
         let fileInfo;
         await Promise.all(
-          result.files.map(async file => {
-            Object.keys(file).forEach(key => {
+          result.files.map(async (file) => {
+            Object.keys(file).forEach((key) => {
               if (key === 'fields' && result.files.fields) {
                 fileInfo = result.files.fields;
               }
@@ -279,7 +279,7 @@ module.exports = function(Files) {
         );
       } else {
         let fileInfo;
-        Object.keys(result.files).forEach(key => {
+        Object.keys(result.files).forEach((key) => {
           if (key === 'fields' && result.files.fields) {
             fileInfo = result.files.fields;
           }
@@ -354,7 +354,7 @@ module.exports = function(Files) {
     if (readStream && readStream !== null) {
       const result = await new Promise((resolve, reject) => {
         const bodyChunks = [];
-        readStream.on('data', d => {
+        readStream.on('data', (d) => {
           bodyChunks.push(d);
         });
         readStream.on('end', () => {
@@ -378,7 +378,7 @@ module.exports = function(Files) {
    * @param {string} userId
    * @returns {Promise<function>} createContainer
    */
-  Files.createContainer = async userId => createContainer(Files.app, { name: userId.toString() });
+  Files.createContainer = async (userId) => createContainer(Files.app, { name: userId.toString() });
 
   /**
    * Get a list of file containers info
@@ -386,7 +386,7 @@ module.exports = function(Files) {
    * @param {string} userId
    * @returns {Promise<function>} getContainers
    */
-  Files.getContainers = async userId => getContainers(Files.app, userId);
+  Files.getContainers = async (userId) => getContainers(Files.app, userId);
 
   /**
    * Get a file container info
@@ -404,7 +404,7 @@ module.exports = function(Files) {
    * @param {string} name
    * @returns {Promise<function>} removeContainer
    */
-  Files.removeContainer = async userId => removeContainer(Files.app, userId);
+  Files.removeContainer = async (userId) => removeContainer(Files.app, userId);
 
   /**
    * Get files info from a container
@@ -412,7 +412,7 @@ module.exports = function(Files) {
    * @param {string} userId
    * @returns {Promise<function>} getFilesFromContainer
    */
-  Files.getFilesFromContainer = async userId => getFilesFromContainer(Files.app, userId);
+  Files.getFilesFromContainer = async (userId) => getFilesFromContainer(Files.app, userId);
 
   /**
    * Get a file info from a container
@@ -440,7 +440,7 @@ module.exports = function(Files) {
    * @param {object} sensor - updated Sensor instance
    * @returns {Promise<object>} buffer
    */
-  Files.compose = sensor => {
+  Files.compose = (sensor) => {
     if (!sensor || !sensor.id || !sensor.deviceId || !sensor.resource || !sensor.type) {
       throw new Error('Invalid sensor instance');
     }
@@ -505,4 +505,49 @@ module.exports = function(Files) {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, ctx.error);
     next();
   });
+
+  /**
+   * Find files
+   * @method module:Files.find
+   * @param {object} filter
+   * @returns {Promise<object[]>}
+   */
+
+  /**
+   * Returns files length
+   * @method module:Files.count
+   * @param {object} where
+   * @returns {Promise<object>}
+   */
+
+  /**
+   * Find file by id
+   * @method module:Files.findById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {Promise<object>}
+   */
+
+  /**
+   * Create file
+   * @method module:Files.create
+   * @param {object} device
+   * @returns {Promise<object | object[]>}
+   */
+
+  /**
+   * Update file by id
+   * @method module:Files.updateById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {Promise<object>}
+   */
+
+  /**
+   * Delete file by id
+   * @method module:Files.deleteById
+   * @param {any} id
+   * @param {object} filter
+   * @returns {Promise<object>}
+   */
 };

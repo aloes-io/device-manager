@@ -22,7 +22,7 @@ const setter = {
     new Promise((resolve, reject) => {
       roleManager
         .getUserRoleNames(app, token.userId)
-        .then(roles =>
+        .then((roles) =>
           resolve({
             id: token.userId.toString(),
             ip,
@@ -40,7 +40,7 @@ const setter = {
           and: [{ devEui: { like: new RegExp(`.*${devEui}.*`, 'i') } }, { apiKey }],
         },
       })
-        .then(device =>
+        .then((device) =>
           resolve({
             id: device.id.toString(),
             ip,
@@ -63,7 +63,7 @@ const setter = {
           ],
         },
       })
-        .then(application =>
+        .then((application) =>
           resolve({
             id: application.id.toString(),
             ip,
@@ -78,7 +78,7 @@ const setter = {
     }),
 };
 
-module.exports = app => {
+module.exports = (app) => {
   const logCurrentUser = (method, options) => {
     logger.publish(4, 'loopback', 'setCurrentUser:res', {
       method,
@@ -95,7 +95,7 @@ module.exports = app => {
     if (headers['aloes-id'] && headers['aloes-key']) {
       return setter
         .aloes(app, ip, headers['aloes-id'], headers['aloes-key'])
-        .then(currentUser => {
+        .then((currentUser) => {
           ctx.options.currentUser = currentUser;
           logCurrentUser(ctx.methodString, ctx.options);
           //  await roleManager.setUserRole(app, accounts[0].id, 'machine', true);
@@ -105,7 +105,7 @@ module.exports = app => {
     } else if (ctx.options.accessToken && ctx.options.accessToken.userId) {
       return setter
         .user(app, ip, ctx.options.accessToken)
-        .then(currentUser => {
+        .then((currentUser) => {
           ctx.options.currentUser = currentUser;
           logCurrentUser(ctx.methodString, ctx.options);
           //  await roleManager.setUserRole(app, accounts[0].id, 'machine', true);
@@ -115,10 +115,10 @@ module.exports = app => {
     } else if (headers.authorization) {
       return app.models.accessToken
         .findById(headers.authorization)
-        .then(token =>
+        .then((token) =>
           setter
             .user(app, ip, token)
-            .then(currentUser => {
+            .then((currentUser) => {
               ctx.options.currentUser = currentUser;
               logCurrentUser(ctx.methodString, ctx.options);
               //  await roleManager.setUserRole(app, accounts[0].id, 'machine', true);
@@ -134,7 +134,7 @@ module.exports = app => {
     ) {
       return setter
         .device(app, ip, headers.deveui, headers.apikey)
-        .then(currentUser => {
+        .then((currentUser) => {
           ctx.options.currentUser = currentUser;
           logCurrentUser(ctx.methodString, ctx.options);
           return next();
@@ -147,7 +147,7 @@ module.exports = app => {
     ) {
       return setter
         .application(app, ip, headers.appid, headers.apikey)
-        .then(currentUser => {
+        .then((currentUser) => {
           ctx.options.currentUser = currentUser;
           logCurrentUser(ctx.methodString, ctx.options);
           return next();

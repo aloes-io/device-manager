@@ -38,10 +38,7 @@ const Red = '\x1b[31m';
 const Blue = '\x1b[34m';
 const Green = '\u001b[36m';
 
-const now = new Date()
-  .toJSON()
-  .slice(0, 16)
-  .replace(/[-T]/g, '-');
+const now = new Date().toJSON().slice(0, 16).replace(/[-T]/g, '-');
 
 // Get user inputs, src and dest paths.
 //  args;
@@ -50,10 +47,7 @@ const sourcePath = args.argv.s;
 const destinationPath = args.argv.d;
 
 function getDestinationPath(baseDirectory) {
-  const date = new Date()
-    .toJSON()
-    .slice(0, 10)
-    .replace(/[-T]/g, '-');
+  const date = new Date().toJSON().slice(0, 10).replace(/[-T]/g, '-');
   return baseDirectory + date;
 }
 
@@ -69,12 +63,12 @@ async function copyEverything(src, dest) {
     {
       recursive: true,
     },
-    err => {
+    (err) => {
       if (err) throw err;
     },
   );
 
-  const filesCopy = Object.key(filesToCopy).map(async key => {
+  const filesCopy = Object.key(filesToCopy).map(async (key) => {
     const file = filesToCopy[key];
     const srcPath = path.join(src, file.name);
     const destPath = path.join(dest, file.name);
@@ -111,7 +105,7 @@ backup()
   .then(() => {
     console.log(`${Green}Backup ended: ${now} ${Reset}`);
   })
-  .catch(err => {
+  .catch((err) => {
     console.log(`${Red}Did not work... ${err} ${Reset}`);
   });
 

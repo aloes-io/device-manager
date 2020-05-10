@@ -166,7 +166,7 @@ const userTest = () => {
                   verb: 'get',
                   auth: profiles.admin,
                   url: () => `${apiUrl}${users[2].id}`,
-                  expect: res => expect(res.body.password).to.be.undefined,
+                  expect: (res) => expect(res.body.password).to.be.undefined,
                 },
                 {
                   name: 'admin CAN read user details',
@@ -180,7 +180,7 @@ const userTest = () => {
                   verb: 'get',
                   auth: profiles.admin,
                   url: apiUrl,
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     // expect(resp.body[0].id).to.be.equal(users[0].id);
                   },
@@ -270,7 +270,7 @@ const userTest = () => {
                   auth: profiles.user,
                   url: () => `${apiUrl}${users[2].id}`,
                   body: () => ({ ...users[2], firstName: 'test' }),
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body.firstName).to.be.equal('test');
                   },
@@ -281,7 +281,7 @@ const userTest = () => {
                   auth: profiles.admin,
                   url: () => `${apiUrl}${users[0].id}`,
                   body: () => ({ ...users[0], firstName: 'test' }),
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body.firstName).to.be.equal('test');
                   },
@@ -307,7 +307,7 @@ const userTest = () => {
                       body: profiles.admin,
                       expect: 200,
                     },
-                    step0Response => ({
+                    (step0Response) => ({
                       url: () => `${apiUrl}logout?access_token=${step0Response.body.id}`,
                       verb: 'post',
                       expect: 204,
@@ -527,7 +527,7 @@ const userTest = () => {
                       body: profiles.admin,
                       expect: 200,
                     },
-                    step0Response => ({
+                    (step0Response) => ({
                       verb: 'post',
                       headers: () => ({
                         authorization: step0Response.body.id.toString(),
@@ -540,7 +540,7 @@ const userTest = () => {
                         newPassword: 'TRICKYPASSWORD',
                         accessToken: step0Response.body,
                       }),
-                      expect: resp => {
+                      expect: (resp) => {
                         expect(resp.status).to.be.equal(200);
                         expect(resp.body.success).to.be.equal(true);
                       },
@@ -556,7 +556,7 @@ const userTest = () => {
 
       const testConfig = {
         auth: { url: loginUrl },
-        error: err => {
+        error: (err) => {
           console.error('TEST ERR', err.error);
         },
       };
@@ -564,7 +564,7 @@ const userTest = () => {
       lbe2e(app, testConfig, e2eTestsSuite);
     });
 
-    describe(`${collectionName} MQTT`, function() {
+    describe(`${collectionName} MQTT`, function () {
       this.timeout(delayBeforeTesting);
 
       const profiles = {
@@ -578,13 +578,13 @@ const userTest = () => {
         },
       };
 
-      it('everyone CANNOT connect to backend', function(done) {
+      it('everyone CANNOT connect to backend', function (done) {
         const testMaxDuration = 2000;
         this.timeout(testMaxDuration);
         this.slow(testMaxDuration / 2);
 
         const client = mqtt.connect(app.get('mqtt url'));
-        client.once('error', e => {
+        client.once('error', (e) => {
           expect(e.code).to.be.equal(4);
           client.end(true);
           done();
@@ -595,7 +595,7 @@ const userTest = () => {
         });
       });
 
-      it('user CANNOT connect with wrong credentials', function(done) {
+      it('user CANNOT connect with wrong credentials', function (done) {
         const testMaxDuration = 2000;
         this.timeout(testMaxDuration);
         this.slow(testMaxDuration / 2);
@@ -604,7 +604,7 @@ const userTest = () => {
           clientFactory(users[3], 'user', 'wrong token'),
         );
 
-        client.once('error', e => {
+        client.once('error', (e) => {
           expect(e.code).to.be.equal(4);
           client.end(true);
           done();
@@ -616,7 +616,7 @@ const userTest = () => {
         });
       });
 
-      it('user CAN connect and its status is updated accordingly', async function() {
+      it('user CAN connect and its status is updated accordingly', async function () {
         const testMaxDuration = 2500;
         this.timeout(testMaxDuration);
         this.slow(testMaxDuration / 2);
@@ -639,7 +639,7 @@ const userTest = () => {
           const userClients = await ClientModel.find({ filter: { match: client.clientId } });
           expect(
             userClients.some(
-              userClient =>
+              (userClient) =>
                 userClient.model === 'User' && userClient.username === users[3].id.toString(),
             ).length,
           ).to.be.equal(undefined);

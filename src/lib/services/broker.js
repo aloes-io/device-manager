@@ -13,7 +13,7 @@ import logger from '../../services/logger';
  * @param {object} config - Environment variables
  * @returns {function} aedesPersistence | aedesPersistenceRedis
  */
-export const persistence = config => {
+export const persistence = (config) => {
   if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
     const aedesPersistence = require('aedes-persistence');
     return aedesPersistence();
@@ -49,7 +49,7 @@ export const persistence = config => {
  * @param {object} config - Environment variables
  * @returns {function} MQEmitter | MQEmitterRedis
  */
-export const emitter = config => {
+export const emitter = (config) => {
   if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
     const MQEmitter = require('mqemitter');
     return MQEmitter({
@@ -94,7 +94,7 @@ export const initServers = (brokerInterfaces, brokerInstance) => {
     logger.publish(3, 'broker', 'MQTT broker closed', '');
   });
 
-  tcpServer.on('error', err => {
+  tcpServer.on('error', (err) => {
     logger.publish(3, 'broker', 'MQTT broker:err', err);
   });
 
@@ -115,7 +115,7 @@ export const initServers = (brokerInterfaces, brokerInstance) => {
     logger.publish(3, 'broker', 'WS broker closed', '');
   });
 
-  wsServer.on('error', err => {
+  wsServer.on('error', (err) => {
     logger.publish(3, 'broker', 'WS broker:err', err);
   });
 
@@ -136,7 +136,7 @@ export const decodeProtocol = (client, buff) => {
  * @param {object} client - MQTT client
  * @returns {object} client
  */
-export const getClientProps = client => {
+export const getClientProps = (client) => {
   /* eslint-disable security/detect-object-injection */
   const clientProperties = [
     'id',
@@ -154,7 +154,7 @@ export const getClientProps = client => {
   ];
 
   const clientObject = {};
-  clientProperties.forEach(key => {
+  clientProperties.forEach((key) => {
     if (client[key] !== undefined) {
       if (key === 'connDetails') {
         clientObject.type = client.connDetails.isWebsocket ? 'WS' : 'MQTT';
@@ -201,7 +201,7 @@ export const getClientsByTopic = (broker, topic) =>
     const stream = broker.instance.persistence.getClientList(topic);
     const clients = [];
     return stream
-      .on('data', clientId => {
+      .on('data', (clientId) => {
         if (clientId !== null) clients.push(clientId);
       })
       .on('end', () => {
@@ -211,7 +211,7 @@ export const getClientsByTopic = (broker, topic) =>
       .on('error', reject);
   });
 
-export const getAloesClientTopic = clientId => {
+export const getAloesClientTopic = (clientId) => {
   const aloesPrefix = `aloes-${process.env.ALOES_ID}`;
   const processId = clientId.substring(aloesPrefix.length + 1);
   return `${aloesPrefix}/${processId}`;
@@ -228,12 +228,12 @@ export const pickRandomClient = (broker, clientIds) => {
   try {
     if (!clientIds || clientIds === null) return null;
     const connectedClients = clientIds
-      .map(clientId => {
+      .map((clientId) => {
         const client = getClients(broker, clientId);
         if (client) return clientId;
         return null;
       })
-      .filter(val => val !== null);
+      .filter((val) => val !== null);
     logger.publish(5, 'broker', 'pickRandomClient:req', { clientIds: connectedClients });
     const clientId = connectedClients[Math.floor(Math.random() * connectedClients.length)];
     const client = getClients(broker, clientId);
@@ -251,7 +251,7 @@ export const pickRandomClient = (broker, clientIds) => {
  * @param {object} credentials - Client instance and credentials
  * @returns {Promise<object>}
  */
-const authentificationRequest = async credentials => {
+const authentificationRequest = async (credentials) => {
   const baseUrl = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}`;
   // const baseUrl =
   // `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
@@ -317,7 +317,7 @@ export const onAuthenticate = async (client, username, password) => {
       status = result.status;
       foundClient = { ...foundClient, ...result.client };
       if (status === 0) {
-        Object.keys(foundClient).forEach(key => {
+        Object.keys(foundClient).forEach((key) => {
           // eslint-disable-next-line security/detect-object-injection
           client[key] = foundClient[key];
         });
@@ -419,7 +419,7 @@ export const onAuthorizeSubscribe = (client, packet) => {
   return auth;
 };
 
-const getAloesClient = async broker => {
+const getAloesClient = async (broker) => {
   const aloesId = process.env.ALOES_ID;
   const aloesClientsIds = await getClientsByTopic(broker, `aloes-${aloesId}/sync`);
   if (!aloesClientsIds || aloesClientsIds === null) {
@@ -509,6 +509,7 @@ const onExternalPublished = async (broker, packet, client) => {
   // }
   packet.payload = Buffer.from(JSON.stringify({ payload: packet.payload, client: foundClient }));
   broker.publish(packet);
+
   return packet;
 };
 

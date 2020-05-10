@@ -9,12 +9,10 @@ import testHelper from '../lib/test-helper';
 require('../services/broker');
 
 const delayBeforeTesting = 7000;
-// const afterTestDelay = 3000;
 const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
-// todo test createOrUpdate unauthorized access
-// test createOrUpdate pause / restart event
+// todo :
 // test createOrUpdate mode === 1 || 2 || 3 (should trigger error)
 const schedulerTest = () => {
   const deviceFactory = testHelper.factories.device;
@@ -43,8 +41,8 @@ const schedulerTest = () => {
           }
           return deviceFactory(index + 1, userIds[1]);
         });
-      await DeviceModel.create(deviceModels).then(res => {
-        devices = res.map(model => model.toJSON());
+      await DeviceModel.create(deviceModels).then((res) => {
+        devices = res.map((model) => model.toJSON());
         return res;
       });
 
@@ -56,8 +54,8 @@ const schedulerTest = () => {
             : sensorFactory(index + 1, devices[1], userIds[1], 3340);
         });
 
-      await SensorModel.create(sensorModels).then(res => {
-        sensors = res.map(model => model.toJSON());
+      await SensorModel.create(sensorModels).then((res) => {
+        sensors = res.map((model) => model.toJSON());
         return res;
       });
 
@@ -71,14 +69,6 @@ const schedulerTest = () => {
   async function afterTests() {
     return Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()]);
   }
-
-  // function afterTests(done) {
-  //   setTimeout(() => {
-  //     Promise.all([DeviceModel.destroyAll(), app.models.user.destroyAll()])
-  //       .then(() => done())
-  //       .catch(done);
-  //   }, afterTestDelay);
-  // }
 
   describe(`${collectionName} HTTP`, () => {
     const profiles = {
@@ -94,22 +84,14 @@ const schedulerTest = () => {
 
     const e2eTestsSuite = {
       [`[TEST] ${collectionName} E2E Tests`]: {
-        // todo : if process.env.TEST_EXTERNAL_TIMER
-        // make a serie with process.env.EXTERNAL_TIMER && process.env.TIMER_SERVER_URL
-        // and another without
         before: beforeTests,
         after: afterTests,
-        // after(done) {
-        //   this.timeout(delayBeforeTesting);
-        //   afterTests(done);
-        // },
         tests: {
           '[TEST] Verifying "CreateOrUpdate" access': {
             tests: [
               {
-                name: 'user CAN start a new Scheduler via event property',
+                name: 'everyone CANNOT start a new Scheduler via event property',
                 verb: 'post',
-                auth: profiles.user,
                 url: () => `${apiUrl}create-or-update`,
                 body: () => ({
                   sensor: {
@@ -129,7 +111,90 @@ const schedulerTest = () => {
                     user: users[1].id,
                   },
                 }),
-                expect: resp => {
+                expect: 401,
+              },
+              {
+                name: 'user CAN start a new Scheduler via event property',
+                verb: 'post',
+                auth: profiles.user,
+                url: () => `${apiUrl}create-or-update`,
+                body: () => ({
+                  sensor: {
+                    ...sensors[3],
+                    resources: {
+                      ...sensors[3].resources,
+                      '5523': 'start',
+                      '5526': 1,
+                      '5521': 1500,
+                    },
+                    resource: 5523,
+                    value: 'start',
+                    lastSignal: new Date(),
+                  },
+                  client: {
+                    id: users[1].id,
+                    user: users[1].id,
+                  },
+                }),
+                expect: (resp) => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body.sensorId).to.be.equal(sensors[3].id);
+                },
+              },
+              {
+                name: 'user CAN pause an existing Scheduler via event property',
+                verb: 'post',
+                auth: profiles.user,
+                url: () => `${apiUrl}create-or-update`,
+                body: () => ({
+                  sensor: {
+                    ...sensors[3],
+                    resources: {
+                      ...sensors[3].resources,
+                      '5521': 1500,
+                      '5538': 1300,
+                      '5523': 'pause',
+                      '5526': 1,
+                    },
+                    resource: 5523,
+                    value: 'pause',
+                    lastSignal: new Date(),
+                  },
+                  client: {
+                    id: users[1].id,
+                    user: users[1].id,
+                  },
+                }),
+                expect: (resp) => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body.sensorId).to.be.equal(sensors[3].id);
+                },
+              },
+              {
+                name: 'user CAN restart an existing Scheduler via event property',
+                verb: 'post',
+                auth: profiles.user,
+                url: () => `${apiUrl}create-or-update`,
+                body: () => ({
+                  sensor: {
+                    ...sensors[3],
+                    resources: {
+                      ...sensors[3].resources,
+                      '5521': 1500,
+                      '5538': 1300,
+                      '5523': 'restart',
+                      '5526': 1,
+                    },
+                    resource: 5523,
+                    value: 'restart',
+                    lastSignal: new Date(),
+                  },
+                  client: {
+                    id: users[1].id,
+                    user: users[1].id,
+                  },
+                }),
+                expect: (resp) => {
                   expect(resp.status).to.be.equal(200);
                   expect(resp.body.sensorId).to.be.equal(sensors[3].id);
                 },
@@ -144,8 +209,10 @@ const schedulerTest = () => {
                     ...sensors[3],
                     resources: {
                       ...sensors[3].resources,
+                      '5521': 1500,
+                      '5538': 1300,
                       '5523': 'stop',
-                      '5526': 0,
+                      '5526': 1,
                     },
                     resource: 5523,
                     value: 'stop',
@@ -156,13 +223,13 @@ const schedulerTest = () => {
                     user: users[1].id,
                   },
                 }),
-                expect: resp => {
+                expect: (resp) => {
                   expect(resp.status).to.be.equal(200);
                   expect(resp.body.sensorId).to.be.equal(sensors[3].id);
                 },
               },
               {
-                name: 'user CAN start a new Scheduler with via trigger property',
+                name: 'user CAN start a new Scheduler via trigger property',
                 verb: 'post',
                 auth: profiles.user,
                 url: () => `${apiUrl}create-or-update`,
@@ -171,12 +238,12 @@ const schedulerTest = () => {
                     ...sensors[3],
                     resources: {
                       ...sensors[3].resources,
-                      '5850': 1,
+                      '5850': true,
                       '5526': 0,
                       '5521': 1500,
                     },
                     resource: 5850,
-                    value: 1,
+                    value: true,
                     lastSignal: new Date(),
                   },
                   client: {
@@ -184,7 +251,34 @@ const schedulerTest = () => {
                     user: users[1].id,
                   },
                 }),
-                expect: resp => {
+                expect: (resp) => {
+                  expect(resp.status).to.be.equal(200);
+                  expect(resp.body.sensorId).to.be.equal(sensors[3].id);
+                },
+              },
+              {
+                name: 'user CAN stop an existing Scheduler via trigger property',
+                verb: 'post',
+                auth: profiles.user,
+                url: () => `${apiUrl}create-or-update`,
+                body: () => ({
+                  sensor: {
+                    ...sensors[3],
+                    resources: {
+                      ...sensors[3].resources,
+                      '5850': false,
+                      '5526': 0,
+                    },
+                    resource: 5850,
+                    value: false,
+                    lastSignal: new Date(),
+                  },
+                  client: {
+                    id: users[1].id,
+                    user: users[1].id,
+                  },
+                }),
+                expect: (resp) => {
                   expect(resp.status).to.be.equal(200);
                   expect(resp.body.sensorId).to.be.equal(sensors[3].id);
                 },
@@ -206,17 +300,45 @@ const schedulerTest = () => {
               },
               {
                 name: 'authenticated client CAN trigger on-timeout webhook',
-                verb: 'post',
-                url: () => `${apiUrl}on-timeout`,
-                body: () => ({
-                  secret: process.env.ALOES_KEY,
-                  deviceId: devices[1].id,
-                  sensorId: sensors[3].id,
-                }),
-                expect: resp => {
-                  expect(resp.status).to.be.equal(200);
-                  expect(resp.body).to.be.equal(true);
-                },
+                steps: [
+                  {
+                    verb: 'post',
+                    auth: profiles.user,
+                    url: () => `${apiUrl}create-or-update`,
+                    body: () => ({
+                      sensor: {
+                        ...sensors[3],
+                        resources: {
+                          ...sensors[3].resources,
+                          '5850': true,
+                          '5526': 0,
+                          '5521': 1500,
+                        },
+                        resource: 5850,
+                        value: true,
+                        lastSignal: new Date(),
+                      },
+                      client: {
+                        id: users[1].id,
+                        user: users[1].id,
+                      },
+                    }),
+                    expect: 200,
+                  },
+                  () => ({
+                    verb: 'post',
+                    url: () => `${apiUrl}on-timeout`,
+                    body: () => ({
+                      secret: process.env.ALOES_KEY,
+                      deviceId: devices[1].id,
+                      sensorId: sensors[3].id,
+                    }),
+                    expect: (resp) => {
+                      expect(resp.status).to.be.equal(200);
+                      expect(resp.body).to.be.equal(true);
+                    },
+                  }),
+                ],
               },
               {
                 name: 'everyone CANNOT trigger on-tick webhook',
@@ -229,7 +351,6 @@ const schedulerTest = () => {
                 expect: 401,
               },
               {
-                // requires external timer to return true
                 name: 'authenticated client CAN trigger on-tick webhook',
                 verb: 'post',
                 url: () => `${apiUrl}on-tick`,
@@ -237,9 +358,9 @@ const schedulerTest = () => {
                   secret: process.env.ALOES_KEY,
                   name: 'scheduler-clock',
                 }),
-                expect: resp => {
+                expect: (resp) => {
                   expect(resp.status).to.be.equal(200);
-                  expect(resp.body).to.be.equal(false);
+                  // expect(resp.body).to.be.equal(false);
                 },
               },
             ],

@@ -59,7 +59,7 @@ influxd -config /usr/local/etc/influxdb.conf
 nats-server
 
 # start Skyring
-DEBUG=skyring:* skyring run -p 3000 -s localhost:3455
+DEBUG=skyring:* skyring run -p 3005 -s localhost:3455
 ```
 
 ## Folder structure

@@ -22,7 +22,7 @@ import utils from '../lib/utils';
  * @property {Array} clients A list of client ids authentified as this application
  */
 
-module.exports = Application => {
+module.exports = (Application) => {
   Application.validatesUniquenessOf('appEui');
 
   Application.validatesPresenceOf('ownerId');
@@ -181,7 +181,7 @@ module.exports = Application => {
           where: { and: [{ appIds: { inq: [client.appId] } }, { status: true }] },
         });
         await Promise.all(
-          devices.map(async device => utils.updateAttributes(device, { frameCounter, status })),
+          devices.map(async (device) => utils.updateAttributes(device, { frameCounter, status })),
         );
       }
       await Client.delete(client.id);
@@ -218,7 +218,7 @@ module.exports = Application => {
       // 'windowsKey',
       // 'masterKey',
     ];
-    keyNames.forEach(k => {
+    keyNames.forEach((k) => {
       // const isValid = timingSafeEqual(Buffer.from(application[k]), Buffer.from(key));
       // eslint-disable-next-line security/detect-object-injection
       const isValid = application[k] === key;
@@ -241,7 +241,7 @@ module.exports = Application => {
    * @param {string} applicationId
    * @returns {Promise<object>} application
    */
-  Application.getState = async appId => {
+  Application.getState = async (appId) => {
     if (!appId) throw new Error('missing application.id');
     logger.publish(4, `${collectionName}`, 'getState:req', { appId });
     const application = await utils.findById(Application, appId);
@@ -270,7 +270,7 @@ module.exports = Application => {
    * @property {boolean} message.status - MQTT client status.
    * @returns {Promise<function | null>} Application.updateStatus
    */
-  Application.on('client', async message => {
+  Application.on('client', async (message) => {
     logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
     // if (!message || message === null) throw new Error('Message empty');
     const { client, status } = message;
@@ -290,7 +290,7 @@ module.exports = Application => {
    * @property {object} message.client - MQTT client
    * @returns {Promise<function | null>} Application.onPublish
    */
-  Application.on('publish', async message => {
+  Application.on('publish', async (message) => {
     try {
       // if (!message || message === null) throw new Error('Message empty');
       const { client, packet, pattern } = message;

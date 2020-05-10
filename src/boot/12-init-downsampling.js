@@ -68,7 +68,7 @@ module.exports = async function initializeDownSampling(app) {
       }
     };
 
-    const promises = Object.keys(models).map(async modelName => {
+    const promises = Object.keys(models).map(async (modelName) => {
       const model = models[modelName];
       if (model && model.settings && model.settings.downSampling) {
         const dsRules = model.settings.downSampling;
@@ -76,7 +76,7 @@ module.exports = async function initializeDownSampling(app) {
 
         // Create Retention Policies
         await Promise.all(
-          dsRules.map(async dsRule => {
+          dsRules.map(async (dsRule) => {
             try {
               const rpName = `rp_${dsRule.duration}`;
               await influxConnector.client.createRetentionPolicy(rpName, {
@@ -124,7 +124,7 @@ module.exports = async function initializeDownSampling(app) {
             try {
               if (i < inputArray.length - 1) {
                 const nextDuration = inputArray[i + 1];
-                const dsRule = dsRules.find(rule => rule.duration === duration);
+                const dsRule = dsRules.find((rule) => rule.duration === duration);
                 if (dsRule) {
                   const msg = await buildContinuousQuery(modelName, dsRule, nextDuration, duration);
                   logger.publish(

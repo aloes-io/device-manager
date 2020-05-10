@@ -43,7 +43,7 @@ const applicationTest = () => {
         );
       // console.log('CREATED applications MODELS ', models);
       const res = await ApplicationModel.create(models);
-      applications = res.map(model => model.toJSON());
+      applications = res.map((model) => model.toJSON());
 
       const userPacket = {
         topic: `${users[1].id}/Application/PUT/${applications[1].id}`,
@@ -77,7 +77,7 @@ const applicationTest = () => {
       return afterTests();
     });
 
-    describe(`${collectionName} HTTP`, function() {
+    describe(`${collectionName} HTTP`, function () {
       this.timeout(5000);
       this.slow(500);
 
@@ -418,16 +418,16 @@ const applicationTest = () => {
       lbe2e(app, testConfig, e2eTestsSuite);
     });
 
-    describe(`${collectionName} MQTT`, function() {
+    describe(`${collectionName} MQTT`, function () {
       this.timeout(delayBeforeTesting);
 
-      it('everyone CANNOT connect to backend', function(done) {
+      it('everyone CANNOT connect to backend', function (done) {
         const testMaxDuration = 4000;
         this.timeout(testMaxDuration);
         this.slow(testMaxDuration / 2);
 
         const client = mqtt.connect(app.get('mqtt url'));
-        client.once('error', e => {
+        client.once('error', (e) => {
           expect(e.code).to.be.equal(4);
           client.end(true);
           done();
@@ -440,7 +440,7 @@ const applicationTest = () => {
         // setTimeout(() => done(new Error('Test timeout')), testMaxDuration - 100);
       });
 
-      it('application CANNOT connect with wrong credentials', function(done) {
+      it('application CANNOT connect with wrong credentials', function (done) {
         const testMaxDuration = 4000;
         this.timeout(testMaxDuration);
         this.slow(testMaxDuration / 2);
@@ -448,7 +448,7 @@ const applicationTest = () => {
           app.get('mqtt url'),
           clientFactory(applications[1], 'application', applications[0].apiKey),
         );
-        client.once('error', e => {
+        client.once('error', (e) => {
           expect(e.code).to.be.equal(4);
           client.end(true);
           done();
@@ -459,7 +459,7 @@ const applicationTest = () => {
         });
       });
 
-      it('application CAN connect and its status is updated accordingly', async function() {
+      it('application CAN connect and its status is updated accordingly', async function () {
         const testMaxDuration = 4000;
         this.timeout(testMaxDuration);
         this.slow(testMaxDuration / 2);
@@ -482,7 +482,7 @@ const applicationTest = () => {
         }, 150);
       });
 
-      it('application CANNOT publish to ANY route', function(done) {
+      it('application CANNOT publish to ANY route', function (done) {
         const testMaxDuration = 5000;
         this.timeout(testMaxDuration);
         this.slow(testMaxDuration / 2);
@@ -491,7 +491,7 @@ const applicationTest = () => {
           clientFactory(applications[0], 'application', applications[0].apiKey),
         );
 
-        client.once('error', e => {
+        client.once('error', (e) => {
           console.log('client error:', e);
         });
 
@@ -515,7 +515,7 @@ const applicationTest = () => {
         // done(new Error('Should have ended with an error event'));
       });
 
-      it('application CAN publish to OWN route', function(done) {
+      it('application CAN publish to OWN route', function (done) {
         const testMaxDuration = 5000;
         this.timeout(testMaxDuration);
         this.slow(testMaxDuration / 2);
@@ -523,7 +523,7 @@ const applicationTest = () => {
           app.get('mqtt url'),
           clientFactory(applications[1], 'application', applications[1].apiKey),
         );
-        client.once('error', e => {
+        client.once('error', (e) => {
           done(e);
         });
         client.once('offline', () => {

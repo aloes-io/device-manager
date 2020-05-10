@@ -2,14 +2,14 @@
 
 const pm2 = require('pm2');
 
-const startAppsList = apps =>
+const startAppsList = (apps) =>
   new Promise((resolve, reject) => {
     pm2.start(apps, (err, list) => (err ? reject(err) : resolve(list)));
   });
 
 const connectPM2 = () =>
   new Promise((resolve, reject) => {
-    pm2.connect(err => (err ? reject(err) : resolve(true)));
+    pm2.connect((err) => (err ? reject(err) : resolve(true)));
   });
 
 // const getAppsList = () =>
@@ -35,13 +35,13 @@ const startBus = () =>
     pm2.launchBus((err, bus) => (err ? reject(err) : resolve(bus)));
   });
 
-const stopProcess = processIdentifier => {
+const stopProcess = (processIdentifier) => {
   try {
     if (processIdentifier === undefined) {
       processIdentifier = 'all';
     }
     console.log('STOP PROCESS', processIdentifier);
-    pm2.stop(processIdentifier, err => {
+    pm2.stop(processIdentifier, (err) => {
       if (err) throw err;
       process.exit(0);
     });
@@ -51,13 +51,13 @@ const stopProcess = processIdentifier => {
   }
 };
 
-const deleteProcess = processIdentifier => {
+const deleteProcess = (processIdentifier) => {
   try {
     if (processIdentifier === undefined) {
       processIdentifier = 'all';
     }
     console.log('DELETE PROCESS', processIdentifier);
-    pm2.delete(processIdentifier, err => {
+    pm2.delete(processIdentifier, (err) => {
       if (err) throw err;
       process.exit(0);
     });
@@ -67,13 +67,13 @@ const deleteProcess = processIdentifier => {
   }
 };
 
-const restartProcess = processIdentifier => {
+const restartProcess = (processIdentifier) => {
   try {
     if (processIdentifier === undefined) {
       processIdentifier = 'all';
     }
     console.log('RESTART PROCESS', processIdentifier);
-    pm2.restart(processIdentifier, err => {
+    pm2.restart(processIdentifier, (err) => {
       if (err) throw err;
       process.exit(0);
     });
@@ -83,13 +83,13 @@ const restartProcess = processIdentifier => {
   }
 };
 
-const reloadProcess = processIdentifier => {
+const reloadProcess = (processIdentifier) => {
   try {
     if (processIdentifier === undefined) {
       processIdentifier = 'all';
     }
     console.log('RELOAD PROCESS', processIdentifier);
-    pm2.gracefulReload(processIdentifier, {}, err => {
+    pm2.gracefulReload(processIdentifier, {}, (err) => {
       if (err) throw err;
     });
   } catch (error) {
@@ -100,7 +100,7 @@ const reloadProcess = processIdentifier => {
 const disableDaemon = () => {
   try {
     console.log('DISABLE PM2 DAEMON');
-    pm2.kill(err => {
+    pm2.kill((err) => {
       if (err) throw err;
       process.exit(0);
     });
@@ -110,7 +110,7 @@ const disableDaemon = () => {
   }
 };
 
-const parseProcessPacket = async packet => {
+const parseProcessPacket = async (packet) => {
   try {
     // console.log('PM2 RECEIVED MESSAGE', packet);
     if (packet.process && typeof packet.process.pm_id === 'number') {
@@ -130,7 +130,7 @@ const parseProcessPacket = async packet => {
   }
 };
 
-const logMessage = packet => {
+const logMessage = (packet) => {
   if (packet.data && packet.data.fullContent) {
     console.log(packet.data.fullContent);
   }

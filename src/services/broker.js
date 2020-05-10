@@ -74,14 +74,14 @@ export const preConnect = (client, cb) => {
  */
 const authenticate = (client, username, password, cb) =>
   onAuthenticate(client, username, password)
-    .then(status => {
+    .then((status) => {
       logger.publish(3, 'broker', 'authenticate:res', { status });
       if (status !== 0) {
         return cb({ returnCode: status || 3 }, null);
       }
       return cb(null, true);
     })
-    .catch(e => {
+    .catch((e) => {
       logger.publish(2, 'broker', 'authenticate:err', e);
       return cb(e, null);
     });
@@ -147,7 +147,7 @@ const published = (packet, client, cb) =>
  * @param {object} packet - MQTT Packet
  * @returns {function} broker.instance.publish
  */
-broker.publish = packet => {
+broker.publish = (packet) => {
   // if (typeof packet.payload === 'boolean') {
   //   packet.payload = packet.payload.toString();
   // } else if (typeof packet.payload === 'number') {
@@ -185,7 +185,7 @@ broker.start = () => {
    * @param {object} client - MQTT client
    * @returns {Promise<function>} Broker~updateClientStatus
    */
-  broker.instance.on('client', async client => {
+  broker.instance.on('client', async (client) => {
     logger.publish(3, 'broker', 'onClientConnect', client.id);
     return updateClientStatus(broker, client, true);
   });
@@ -196,7 +196,7 @@ broker.start = () => {
    * @param {object} client - MQTT client
    * @returns {Promise<function>} Broker~updateClientStatus
    */
-  broker.instance.on('clientDisconnect', async client => {
+  broker.instance.on('clientDisconnect', async (client) => {
     logger.publish(3, 'broker', 'onClientDisconnect', client.id);
     return updateClientStatus(broker, client, false);
   });
@@ -206,7 +206,7 @@ broker.start = () => {
    * @event keepaliveTimeout
    * @param {object} client - MQTT client
    */
-  broker.instance.on('keepaliveTimeout', client => {
+  broker.instance.on('keepaliveTimeout', (client) => {
     logger.publish(3, 'broker', 'onKeepaliveTimeout', client.id);
   });
 
@@ -276,7 +276,7 @@ broker.stop = async () => {
 broker.init = () => {
   const config = {};
 
-  envVariablesKeys.forEach(key => {
+  envVariablesKeys.forEach((key) => {
     // eslint-disable-next-line security/detect-object-injection
     config[key] = process.env[key];
   });
@@ -348,7 +348,7 @@ if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
   setTimeout(() => broker.init(), 1500);
 } else {
   logger.publish(1, 'broker', 'init:cluster', { pid: process.pid });
-  process.on('message', packet => {
+  process.on('message', (packet) => {
     // console.log('PROCESS PACKET ', packet);
     if (typeof packet.id === 'number' && packet.data && packet.data.ready) {
       // broker.init();

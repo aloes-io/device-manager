@@ -26,7 +26,7 @@ const clientTest = () => {
   const collectionName = 'Clients';
   const apiUrl = `${restApiPath}/${collectionName}/`;
 
-  describe(collectionName, function() {
+  describe(collectionName, function () {
     this.timeout(5000);
     this.slow(1000);
     const DeviceModel = app.models.Device;
@@ -64,14 +64,14 @@ const clientTest = () => {
                   : deviceFactory(index + 1, userIds[1]),
               );
             const res = await DeviceModel.create(deviceModels);
-            devices = res.map(model => model.toJSON());
+            devices = res.map((model) => model.toJSON());
 
-            deviceClientsConf = devices.map(device =>
+            deviceClientsConf = devices.map((device) =>
               clientFactory(device, 'device', device.apiKey),
             );
 
             deviceClients = await Promise.all(
-              deviceClientsConf.map(async conf => mqtt.connectAsync(app.get('mqtt url'), conf)),
+              deviceClientsConf.map(async (conf) => mqtt.connectAsync(app.get('mqtt url'), conf)),
             );
 
             deviceClientStore = deviceClientsConf
@@ -99,7 +99,7 @@ const clientTest = () => {
         async after() {
           this.timeout(3000);
           await app.models.user.destroyAll();
-          return Promise.all(deviceClients.map(async client => client.end(true)));
+          return Promise.all(deviceClients.map(async (client) => client.end(true)));
         },
         tests: {
           '[TEST] Verifying "Read" access': {
@@ -123,7 +123,7 @@ const clientTest = () => {
                 auth: profiles.admin,
                 url: () => `${apiUrl}/find`,
                 body: () => ({ filter: { match: deviceClientsConf[0].clientId } }),
-                expect: resp => {
+                expect: (resp) => {
                   expect(resp.status).to.be.equal(200);
                   expect(resp.body).to.deep.match([
                     {
@@ -143,7 +143,7 @@ const clientTest = () => {
                 verb: 'post',
                 auth: profiles.admin,
                 url: () => `${apiUrl}/find`,
-                expect: resp => {
+                expect: (resp) => {
                   const result = resp.body.sort((a, b) => {
                     if (a.devEui < b.devEui) return -1;
                     if (a.devEui > b.devEui) return 1;
@@ -176,7 +176,7 @@ const clientTest = () => {
                 auth: profiles.admin,
                 url: () => `${apiUrl}/remove`,
                 body: () => ({ filter: { match: deviceClientsConf[0].clientId } }),
-                expect: resp => {
+                expect: (resp) => {
                   expect(resp.status).to.be.equal(200);
                   expect(resp.body).to.deep.equal([deviceClientsConf[0].clientId]);
                 },
@@ -186,12 +186,12 @@ const clientTest = () => {
                 verb: 'post',
                 auth: profiles.admin,
                 url: () => `${apiUrl}/remove`,
-                expect: resp => {
+                expect: (resp) => {
                   expect(resp.status).to.be.equal(200);
                   expect(resp.body.sort()).to.deep.equal(
                     deviceClientsConf
-                      .map(conf => conf.clientId)
-                      .filter(clientId => clientId !== deviceClientsConf[0].clientId)
+                      .map((conf) => conf.clientId)
+                      .filter((clientId) => clientId !== deviceClientsConf[0].clientId)
                       .sort(),
                   );
                 },

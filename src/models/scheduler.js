@@ -27,15 +27,15 @@ const schedulerClockId = `scheduler-clock`;
  * @property {String} [model] Aloes model ( Application, Device, ... )
  */
 
-module.exports = function(Scheduler) {
+module.exports = function (Scheduler) {
   /**
    * Find schedulers in the cache and add to device instance
    * @async
    * @method module:Scheduler.getAll
    * @param {object} [filter] - Scheduler filter
-   * @returns {Promise<array>} schedulers - Cached schedulers
+   * @returns {Promise<object[]>} schedulers
    */
-  Scheduler.getAll = async filter => {
+  Scheduler.getAll = async (filter) => {
     const schedulers = [];
     logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
     for await (const key of utils.cacheIterator(Scheduler, filter)) {
@@ -50,9 +50,9 @@ module.exports = function(Scheduler) {
    * @async
    * @method module:Scheduler.deleteAll
    * @param {object} [filter] - Scheduler filter
-   * @returns {Promise<array>} schedulers - Cached schedulers keys
+   * @returns {Promise<string[]>} schedulers keys
    */
-  Scheduler.deleteAll = async filter => {
+  Scheduler.deleteAll = async (filter) => {
     const schedulers = [];
     logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
     for await (const key of utils.cacheIterator(Scheduler, filter)) {
@@ -110,7 +110,7 @@ module.exports = function(Scheduler) {
    * @param {object} body - Timer callback body
    * @returns {Promise<function>} Scheduler~onTimeout
    */
-  Scheduler.onTimeout = async body => {
+  Scheduler.onTimeout = async (body) => {
     const { sensorId } = body;
     if (!sensorId) throw new Error('Missing sensor Id');
     logger.publish(4, `${collectionName}`, 'onTimeout:req', body);
@@ -167,9 +167,6 @@ module.exports = function(Scheduler) {
       default:
         throw new Error('wrong resource');
     }
-    // if (!scheduler ) {
-    //   throw new Error('Event parsed with error');
-    // }
     return scheduler;
   };
 
@@ -182,16 +179,16 @@ module.exports = function(Scheduler) {
    * @method module:Scheduler.onTick
    * @param {object} data - Timer event data
    * @fires Scheduler.publish
-   * @returns {Promise<function>} Scheduler~syncRunningTimers
+   * @returns {Promise<function | null>} Scheduler~syncRunningTimers
    */
-  Scheduler.onTick = async data => {
+  Scheduler.onTick = async (data) => {
     try {
       const { delay, time, lastTime } = data;
       if (!time || !lastTime) throw new Error('Missing event properties');
       const topic = `aloes-${process.env.ALOES_ID}/${collectionName}/HEAD`;
       const payload = { date: new Date(time), time, lastTime };
-      logger.publish(4, `${collectionName}`, 'onTick:req', { payload });
       Scheduler.app.emit('publish', topic, payload, false, 0);
+      logger.publish(4, `${collectionName}`, 'onTick:res', { payload });
       return syncRunningTimers(Scheduler, delay);
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'onTick:err', error);
@@ -210,7 +207,7 @@ module.exports = function(Scheduler) {
    * @fires Scheduler.tick
    * @returns {Promise<boolean>}
    */
-  Scheduler.onTickHook = async body => {
+  Scheduler.onTickHook = async (body) => {
     try {
       let scheduler;
       try {
@@ -219,11 +216,9 @@ module.exports = function(Scheduler) {
         scheduler = {};
       }
 
-      logger.publish(3, `${collectionName}`, 'onTickHook:req', scheduler);
+      logger.publish(4, `${collectionName}`, 'onTickHook:req', scheduler);
       if (scheduler && scheduler.timerId) {
-        if (scheduler.isUpdating) {
-          return false;
-        }
+        // if (scheduler.isUpdating) return false;
         // logger.publish(4, `${collectionName}`, 'onTick:res', payload);
         // const deltaTime = thisTime - scheduler.lastTime;
         // const interval = Math.max(clockInterval - deltaTime, 0);
@@ -243,7 +238,7 @@ module.exports = function(Scheduler) {
 
       scheduler = await resetClock(Scheduler.app, scheduler, clockInterval, body);
       await Scheduler.set(schedulerClockId, JSON.stringify(scheduler));
-      logger.publish(3, `${collectionName}`, 'onTickHook:res', { scheduler });
+      logger.publish(3, `${collectionName}`, 'onTickHook:res', scheduler);
 
       return true;
     } catch (error) {
@@ -260,18 +255,12 @@ module.exports = function(Scheduler) {
    * @param {number} interval - Interval between each tick
    * @returns {Promise<object>} scheduler
    */
-  Scheduler.setExternalClock = async interval => {
+  Scheduler.setExternalClock = async (interval) => {
     let scheduler = JSON.parse(await Scheduler.get(schedulerClockId)) || {};
-    logger.publish(3, `${collectionName}`, 'setExternalClock:req', interval);
+    logger.publish(5, `${collectionName}`, 'setExternalClock:req', interval);
     if (scheduler && scheduler.timerId) {
       const diff = Date.now() - scheduler.stopTime;
-      logger.publish(3, `${collectionName}`, 'setExternalClock:diff', {
-        stopTime: scheduler.stopTime,
-        diff,
-      });
-      if (diff < 0) {
-        return scheduler;
-      }
+      if (diff < 0) return scheduler;
     }
 
     scheduler = await resetClock(Scheduler.app, scheduler, interval, {
@@ -279,7 +268,7 @@ module.exports = function(Scheduler) {
       secret: process.env.ALOES_KEY,
     });
     await Scheduler.set(schedulerClockId, JSON.stringify(scheduler));
-    logger.publish(3, `${collectionName}`, 'setExternalClock:res', { scheduler });
+    logger.publish(4, `${collectionName}`, 'setExternalClock:res', { scheduler });
 
     return scheduler;
   };
@@ -299,7 +288,7 @@ module.exports = function(Scheduler) {
     }
     Scheduler.timer = new DeltaTimer(callback, {}, interval);
     Scheduler.start = Scheduler.timer.start();
-    logger.publish(3, `${collectionName}`, 'setInternalClock:res', Scheduler.start);
+    logger.publish(4, `${collectionName}`, 'setInternalClock:res', Scheduler.start);
     return Scheduler.timer;
   };
 
@@ -311,7 +300,7 @@ module.exports = function(Scheduler) {
    * @method module:Scheduler.setClock
    * @param {number} interval - Timeout interval
    */
-  Scheduler.setClock = async interval => {
+  Scheduler.setClock = async (interval) => {
     try {
       logger.publish(3, `${collectionName}`, 'setClock:req', {
         clusterMode: process.env.CLUSTER_MODE,
@@ -351,12 +340,12 @@ module.exports = function(Scheduler) {
    *
    * Trigger Scheduler starting routine
    *
-   * @event stopped
+   * @event started
    * @returns {Promise<functions | null>} Scheduler.setClock
    */
   Scheduler.once('started', async () =>
     utils.isMasterProcess(process.env)
-      ? setTimeout(() => Scheduler.setClock(clockInterval), 2500)
+      ? setTimeout(() => Scheduler.setClock(clockInterval), 1500)
       : null,
   );
 
@@ -417,7 +406,7 @@ module.exports = function(Scheduler) {
    * @method module:Scheduler.get
    * @param {string} key
    * @param {resultCallback} [cb] - Optional callback
-   * @promise result
+   * @returns {Promise<object | null>}
    */
 
   /**
@@ -430,7 +419,7 @@ module.exports = function(Scheduler) {
    * @param {string} value
    * @param {number} [ttl]
    * @param {ErrorCallback} [cb] - Optional callback
-   * @promise undefined
+   * @returns {Promise<object>}
    */
 
   /**
@@ -441,7 +430,7 @@ module.exports = function(Scheduler) {
    * @method module:Scheduler.delete
    * @param {string} key
    * @param {ErrorCallback} [cb] - Optional callback
-   * @promise undefined
+   * @returns {Promise<undefined>}
    */
 
   /**
@@ -453,7 +442,7 @@ module.exports = function(Scheduler) {
    * @param {string} key
    * @param {number} [ttl]
    * @param {ErrorCallback} [cb] - Optional callback
-   * @promise undefined
+   * @returns {Promise<undefined>}
    */
 
   /**
@@ -465,7 +454,7 @@ module.exports = function(Scheduler) {
    * @param {object} [filter]
    * @param {object} filter.match Glob string used to filter returned keys (i.e. userid.*)
    * @param {function} [cb]
-   * @returns {string[]}
+   * @returns {Promise<string[]>}
    */
 
   /**

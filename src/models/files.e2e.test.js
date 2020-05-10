@@ -16,7 +16,7 @@ function fileTest() {
   const fileFactory = testHelper.factories.file;
   const fileMetaFactory = testHelper.factories.fileMeta;
 
-  describe(collectionName, function() {
+  describe(collectionName, function () {
     this.timeout(4000);
     const FileModel = app.models.files;
     const loginUrl = `${restApiPath}/Users/login`;
@@ -66,7 +66,7 @@ function fileTest() {
           this.timeout(4000);
           Promise.all([FileModel.destroyAll(), app.models.user.destroyAll()])
             .then(() => done())
-            .catch(e => done(e));
+            .catch((e) => done(e));
         },
         tests: {
           '[TEST] Verifying "Create" access': {
@@ -117,7 +117,7 @@ function fileTest() {
                     body: profiles.user,
                     expect: 200,
                   },
-                  step0Response => ({
+                  (step0Response) => ({
                     url: () => `${apiUrl}${userIds[1]}/upload/test`,
                     verb: 'post',
                     body: formDataBody,
@@ -202,7 +202,7 @@ function fileTest() {
                     body: profiles.user,
                     expect: 200,
                   },
-                  step0Response => ({
+                  (step0Response) => ({
                     url: () => `${apiUrl}${userIds[1]}/upload/test4.png`,
                     verb: 'post',
                     body: formDataBody,
@@ -214,7 +214,7 @@ function fileTest() {
                     },
                     expect: 200,
                   }),
-                  step1Response => ({
+                  (step1Response) => ({
                     url: () => `${step1Response.body.url}`,
                     verb: 'get',
                     auth: profiles.user,

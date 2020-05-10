@@ -56,7 +56,7 @@ const createProps = async (app, user) => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-export const onBeforeSave = async ctx => {
+export const onBeforeSave = async (ctx) => {
   let roleName;
   const appRoles = roleManager.getAppRoles();
   if (ctx.data) {
@@ -89,7 +89,7 @@ export const onBeforeSave = async ctx => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-export const onAfterSave = async ctx => {
+export const onAfterSave = async (ctx) => {
   logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.instance);
   if (ctx.hookState.updateData) {
     // const updatedProps = Object.keys(ctx.hookState.updateData);
@@ -126,7 +126,7 @@ export const onAfterSave = async ctx => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-const onBeforeLogin = async ctx => {
+const onBeforeLogin = async (ctx) => {
   logger.publish(4, `${collectionName}`, 'beforeLogin:req', {
     username: ctx.args && ctx.args.credentials ? ctx.args.credentials.email : null,
     options: ctx.options,
@@ -246,7 +246,7 @@ const deleteProps = async (app, user) => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-export const onBeforeDelete = async ctx => {
+export const onBeforeDelete = async (ctx) => {
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
   if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
     const user = await utils.findById(ctx.Model, ctx.where.id);
@@ -254,7 +254,7 @@ export const onBeforeDelete = async ctx => {
   } else {
     const filter = { where: ctx.where };
     const users = await utils.find(ctx.Model, filter);
-    await Promise.all(users.map(async user => deleteProps(ctx.Model.app, user)));
+    await Promise.all(users.map(async (user) => deleteProps(ctx.Model.app, user)));
   }
   // logger.publish(3, `${collectionName}`, 'onBeforeDelete:res', 'done');
   return ctx;
@@ -267,7 +267,7 @@ export const onBeforeDelete = async ctx => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-export const onBeforeRemote = async ctx => {
+export const onBeforeRemote = async (ctx) => {
   if (
     ctx.method.name.indexOf('upsert') !== -1 ||
     ctx.method.name.indexOf('updateAll') !== -1 ||

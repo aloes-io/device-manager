@@ -72,8 +72,6 @@ utils.mkDirByPathSync = async (targetDir, { isRelativeToScript = false } = {}) =
   }, initDir);
 };
 
-// utils.createPromiseCallback = jugglerUtils.createPromiseCallback;
-
 // utils.observablePromise = promise => {
 //   if (promise.isResolved) return promise;
 
@@ -107,7 +105,7 @@ utils.mkDirByPathSync = async (targetDir, { isRelativeToScript = false } = {}) =
  * @param {object} options
  * @returns {Promise<object>} - HTML file and options
  */
-utils.renderTemplate = options =>
+utils.renderTemplate = (options) =>
   new Promise((resolve, reject) =>
     ejs.renderFile(options.template, options, (err, html) =>
       err ? reject(err) : resolve({ ...options, html }),
@@ -138,7 +136,7 @@ utils.readFile = (filePath, opts = 'utf8') =>
 utils.writeFile = (filePath, data, opts = 'utf8') =>
   new Promise((resolve, reject) =>
     // eslint-disable-next-line security/detect-non-literal-fs-filename
-    fs.appendFile(filePath, data, opts, err => (err ? reject(err) : resolve())),
+    fs.appendFile(filePath, data, opts, (err) => (err ? reject(err) : resolve())),
   );
 
 /**
@@ -147,10 +145,10 @@ utils.writeFile = (filePath, data, opts = 'utf8') =>
  * @param {string} filePath
  * @returns {Promise<object>}
  */
-utils.removeFile = filePath =>
+utils.removeFile = (filePath) =>
   new Promise((resolve, reject) =>
     // eslint-disable-next-line security/detect-non-literal-fs-filename
-    fs.unlink(filePath, err => (err && err.code !== 'ENOENT' ? reject(err) : resolve())),
+    fs.unlink(filePath, (err) => (err && err.code !== 'ENOENT' ? reject(err) : resolve())),
   );
 
 /**
@@ -159,8 +157,8 @@ utils.removeFile = filePath =>
  * @param {object} iterator
  * @returns {Promise<string>}
  */
-const getCacheKey = iterator =>
-  new Promise(resolve => iterator.next((err, key) => (err ? resolve(null) : resolve(key))));
+const getCacheKey = (iterator) =>
+  new Promise((resolve) => iterator.next((err, key) => (err ? resolve(null) : resolve(key))));
 
 /**
  * Iterate over each KV Store keys found in cache
@@ -172,7 +170,7 @@ const getCacheKey = iterator =>
  * @yields {Promise<string>}  Storage key
  * @returns {Promise<string>}  Storage key
  */
-utils.cacheIterator = async function*(Model, filter) {
+utils.cacheIterator = async function* (Model, filter) {
   const iterator = Model.iterateKeys(filter);
   let empty = false;
   while (!empty) {
@@ -200,7 +198,7 @@ utils.find = (Model, filter) =>
 
 /**
  * Promise wrapper to findOne Model instance
- * @method module:Utils.find
+ * @method module:Utils.findOne
  * @param {function} Model
  * @param {object} [filter]
  * @returns {Promise<object>} instance
@@ -212,7 +210,7 @@ utils.findOne = (Model, filter) =>
 
 /**
  * Promise wrapper to findById Model instance
- * @method module:Utils.find
+ * @method module:Utils.findById
  * @param {function} Model
  * @param {string | number} id
  * @param {object} [filter]
@@ -282,7 +280,7 @@ utils.generateKey = (hmacKey = 'loopback', algorithm = 'sha1', encoding = 'hex')
  * @param {array} input
  * @returns {array}
  */
-utils.flatten = input => {
+utils.flatten = (input) => {
   const stack = [...input];
   const res = [];
   while (stack.length) {
@@ -325,16 +323,12 @@ utils.exportToCSV = (input, filter) => {
 
     const filterTemplate = {};
     // todo : filter valid keys
-    Object.keys(filter).forEach(key => {
+    Object.keys(filter).forEach((key) => {
       // eslint-disable-next-line security/detect-object-injection
       filterTemplate[key] = filter[key];
     });
 
-    selection = sjf
-      .filter(filterTemplate)
-      .data(input)
-      .wantArray()
-      .exec();
+    selection = sjf.filter(filterTemplate).data(input).wantArray().exec();
   } else {
     selection = input;
   }
@@ -349,7 +343,7 @@ utils.exportToCSV = (input, filter) => {
  * @param {object} env - environment variables
  * @returns {boolean}
  */
-utils.isMasterProcess = env => {
+utils.isMasterProcess = (env) => {
   if (
     env.CLUSTER_MODE &&
     (env.PROCESS_ID !== '0' || (env.INSTANCES_PREFIX && env.INSTANCES_PREFIX !== '1'))
@@ -365,7 +359,7 @@ utils.isMasterProcess = env => {
  * @param {object} options
  * @returns {string | null}
  */
-utils.getOwnerId = options => {
+utils.getOwnerId = (options) => {
   if (options.currentUser && options.currentUser.type) {
     if (options.currentUser.type === 'User') {
       return options.currentUser.id.toString();

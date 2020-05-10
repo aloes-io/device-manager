@@ -7,9 +7,10 @@
 import chai, { expect } from 'chai';
 import chaiDeepMatch from 'chai-deep-match';
 import lbe2e from 'lb-declarative-e2e-test';
-import mqtt from 'mqtt';
+import mqttTest from 'mqtt-declarative-e2e-test';
+// import mqtt from 'mqtt';
 import app from '../index';
-import testHelper, { clientEvent, timeout } from '../lib/test-helper';
+import testHelper from '../lib/test-helper';
 import utils from '../lib/utils';
 
 require('../services/broker');
@@ -56,7 +57,7 @@ const sensorTest = () => {
               : deviceFactory(index + 1, userIds[1]),
           ),
       );
-      devices = deviceModels.map(model => model.toJSON());
+      devices = deviceModels.map((model) => model.toJSON());
 
       const sensorTypes = [null, 3306, 3303, 3336, 3340, 3341, 3342, 3349];
       const sensorModels = await SensorModel.create(
@@ -68,7 +69,7 @@ const sensorTest = () => {
               : sensorFactory(index + 1, devices[1], userIds[1], sensorTypes[index]),
           ),
       );
-      sensors = sensorModels.map(model => model.toJSON());
+      sensors = sensorModels.map((model) => model.toJSON());
       // console.log('created sensors', sensors);
 
       // TODO test more sensor types
@@ -180,7 +181,7 @@ const sensorTest = () => {
                       '5700': 30,
                     },
                   }),
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body).to.deep.equal({
                       '5700': 30,
@@ -198,7 +199,7 @@ const sensorTest = () => {
                     type: sensors[1].type.toString(),
                     resource: sensors[1].resource.toString(),
                   }),
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body).to.deep.match({
                       value: 30,
@@ -217,7 +218,7 @@ const sensorTest = () => {
                   auth: profiles.admin,
                   url: apiUrl,
                   body: () => sensorFactory(sensorsCount + 2, devices[0], userIds[0]),
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     // expect(resp.body.id).to.be.equal(sensorsCount + 2);
                   },
@@ -262,7 +263,7 @@ const sensorTest = () => {
                   verb: 'get',
                   auth: profiles.user,
                   url: () => `${apiUrl}${sensors[2].id}/resources`,
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body).to.deep.equal(sensors[2].resources);
                   },
@@ -272,7 +273,7 @@ const sensorTest = () => {
                   verb: 'get',
                   auth: profiles.user,
                   url: () => `${apiUrl}${sensors[1].id}/resources/5700`,
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body).to.deep.equal({ '5700': 30 });
                   },
@@ -282,7 +283,7 @@ const sensorTest = () => {
                   verb: 'get',
                   auth: profiles.user,
                   url: () => `${apiUrl}${sensors[1].id}/measurements`,
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     // console.log('user CAN read OWN measurements', resp.body);
                     const baseMeasurement = {
@@ -302,7 +303,7 @@ const sensorTest = () => {
                   verb: 'get',
                   auth: profiles.admin,
                   url: () => apiUrl,
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     // expect(resp.body[0].id).to.be.equal(sensors[0].id);
                   },
@@ -332,7 +333,7 @@ const sensorTest = () => {
                   auth: profiles.user,
                   url: () => `${apiUrl}${sensors[3].id}`,
                   body: () => ({ name: `${sensors[3].name} - updated` }),
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body.name).to.be.equal(`${sensors[3].name} - updated`);
                   },
@@ -343,7 +344,7 @@ const sensorTest = () => {
                   auth: profiles.admin,
                   url: () => `${apiUrl}${sensors[4].id}`,
                   body: () => ({ name: `${sensors[4].name} - updated` }),
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body.name).to.be.equal(`${sensors[4].name} - updated`);
                   },
@@ -382,7 +383,7 @@ const sensorTest = () => {
                       url: () => `${apiUrl}${sensors[3].id}/resources`,
                       expect: 200,
                     },
-                    step0Response => ({
+                    (step0Response) => ({
                       verb: 'put',
                       auth: profiles.user,
                       url: () => `${apiUrl}${sensors[3].id}`,
@@ -391,7 +392,7 @@ const sensorTest = () => {
                         name: `${sensors[3].name} - replaced`,
                         resources: { ...step0Response.body },
                       }),
-                      expect: resp => {
+                      expect: (resp) => {
                         expect(resp.status).to.be.equal(200);
                         expect(resp.body.name).to.be.equal(`${sensors[3].name} - replaced`);
                       },
@@ -407,7 +408,7 @@ const sensorTest = () => {
                       url: () => `${apiUrl}${sensors[3].id}/resources`,
                       expect: 200,
                     },
-                    step0Response => ({
+                    (step0Response) => ({
                       verb: 'put',
                       auth: profiles.user,
                       url: () => `${apiUrl}${sensors[3].id}/resources`,
@@ -417,7 +418,7 @@ const sensorTest = () => {
                           '5700': 30,
                         },
                       }),
-                      expect: resp => {
+                      expect: (resp) => {
                         expect(resp.status).to.be.equal(200);
                         expect(resp.body).to.deep.equal({
                           ...step0Response.body,
@@ -472,7 +473,7 @@ const sensorTest = () => {
                       url: () => `${apiUrl}${sensors[4].id}/resources`,
                       expect: 200,
                     },
-                    step0Response => ({
+                    (step0Response) => ({
                       verb: 'put',
                       auth: profiles.admin,
                       url: () => `${apiUrl}${sensors[4].id}`,
@@ -481,7 +482,7 @@ const sensorTest = () => {
                         name: `${sensors[4].name} - replaced`,
                         resources: { ...step0Response.body },
                       }),
-                      expect: resp => {
+                      expect: (resp) => {
                         expect(resp.status).to.be.equal(200);
                         expect(resp.body.name).to.be.equal(`${sensors[4].name} - replaced`);
                       },
@@ -503,7 +504,7 @@ const sensorTest = () => {
                   verb: 'delete',
                   auth: profiles.user,
                   url: () => `${apiUrl}${sensors[1].id}/resources`,
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                   },
                 },
@@ -512,7 +513,7 @@ const sensorTest = () => {
                   verb: 'delete',
                   auth: profiles.user,
                   url: () => `${apiUrl}${sensors[1].id}/measurements`,
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(204);
                   },
                 },
@@ -521,7 +522,7 @@ const sensorTest = () => {
                   verb: 'delete',
                   auth: profiles.user,
                   url: () => `${apiUrl}${sensors[1].id}`,
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body.count).to.be.equal(1);
                   },
@@ -531,7 +532,7 @@ const sensorTest = () => {
                   verb: 'delete',
                   auth: profiles.admin,
                   url: () => `${apiUrl}${sensors[0].id}`,
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body.count).to.be.equal(1);
                   },
@@ -547,7 +548,7 @@ const sensorTest = () => {
                   body: () => ({
                     filter: { text: 0 },
                   }),
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(401);
                   },
                 },
@@ -559,7 +560,7 @@ const sensorTest = () => {
                   body: () => ({
                     filter: { text: 0 },
                   }),
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(400);
                   },
                 },
@@ -571,7 +572,7 @@ const sensorTest = () => {
                   body: () => ({
                     filter: { text: sensors[2].type.toString() },
                   }),
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                   },
                 },
@@ -583,7 +584,7 @@ const sensorTest = () => {
                   body: () => ({
                     filter: { text: sensors[2].type.toString(), limit: 2 },
                   }),
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                   },
                 },
@@ -600,7 +601,7 @@ const sensorTest = () => {
                     sensors,
                     filter: {},
                   }),
-                  expect: resp => {
+                  expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                   },
                 },
@@ -648,7 +649,7 @@ const sensorTest = () => {
                       url: () => `${apiUrl}${sensors[2].id}/resources`,
                       expect: 200,
                     },
-                    step0Response => ({
+                    (step0Response) => ({
                       verb: 'post',
                       auth: profiles.admin,
                       url: () => `${apiUrl}on-publish`,
@@ -665,7 +666,7 @@ const sensorTest = () => {
                           user: users[1].id,
                         },
                       }),
-                      expect: resp => {
+                      expect: (resp) => {
                         expect(resp.status).to.be.equal(200);
                         // expect(resp.body.name).to.be.equal(`${sensors[3].name} - replaced`);
                       },
@@ -685,265 +686,279 @@ const sensorTest = () => {
       lbe2e(app, testConfig, e2eTestsSuite);
     });
 
-    describe(`${collectionName} MQTT`, function() {
-      this.timeout(delayBeforeTesting);
-      // mqtte2e(app, testConfig, e2eTestsSuite);
+    describe(`${collectionName} MQTT`, function () {
+      const e2eTestsSuite = {
+        [`[TEST] ${collectionName} E2E Tests`]: {
+          tests: {
+            '[TEST] Verifying "Temperature" sensor': {
+              tests: [
+                {
+                  skip: false,
+                  name: 'temperature sensor IS updated after publish',
+                  options: () => clientFactory(devices[1], 'device', devices[1].apiKey),
+                  url: () => app.get('mqtt url'),
+                  verb: 'publish',
+                  packet: () => ({
+                    topic: packets[2].topic,
+                    payload: packets[2].payload,
+                  }),
+                  timeout: 150,
+                  expect: async (packet) => {
+                    const index = 2;
+                    const sensor = await utils.findById(SensorModel, sensors[index].id);
+                    expect(sensor.value).to.be.equal(Number(packet.payload));
+                    const measurements = await app.models.Measurement.find({
+                      where: {
+                        sensorId: sensors[index].id.toString(),
+                        rp: { inq: ['0s', '1h', '2h'] },
+                      },
+                    });
+                    const baseMeasurement = {
+                      ownerId: sensors[index].ownerId.toString(),
+                      deviceId: sensors[index].deviceId.toString(),
+                      nativeNodeId: sensors[index].nativeNodeId,
+                      nativeSensorId: sensors[index].nativeSensorId,
+                      sensorId: sensors[index].id.toString(),
+                      type: sensors[index].type.toString(),
+                      // resource: sensors[index].resource.toString(),
+                    };
+                    expect(measurements).to.deep.match([
+                      {
+                        ...baseMeasurement,
+                        resource: '5700',
+                        value: 10,
+                      },
+                      {
+                        ...baseMeasurement,
+                        resource: '5700',
+                        value: 35,
+                      },
+                    ]);
 
-      // TODO test more sensor resources for each type
-      it('temperature sensor IS updated after publish', async function() {
-        const testMaxDuration = 2000;
-        this.timeout(testMaxDuration);
-        this.slow(testMaxDuration / 2);
-        const index = 2;
-
-        const client = mqtt.connect(
-          app.get('mqtt url'),
-          clientFactory(devices[1], 'device', devices[1].apiKey),
-        );
-
-        await clientEvent(client, 'connect');
-        client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
-
-        await timeout(async () => {
-          const sensor = await utils.findById(SensorModel, sensors[index].id);
-          expect(sensor.value).to.be.equal(Number(packets[index].payload));
-
-          const measurements = await app.models.Measurement.find({
-            where: { sensorId: sensors[index].id.toString(), rp: { inq: ['0s', '1h', '2h'] } },
-          });
-          const baseMeasurement = {
-            ownerId: sensors[index].ownerId.toString(),
-            deviceId: sensors[index].deviceId.toString(),
-            nativeNodeId: sensors[index].nativeNodeId,
-            nativeSensorId: sensors[index].nativeSensorId,
-            sensorId: sensors[index].id.toString(),
-            type: sensors[index].type.toString(),
-            // resource: sensors[index].resource.toString(),
-          };
-          expect(measurements).to.deep.match([
-            {
-              ...baseMeasurement,
-              resource: '5700',
-              value: 10,
+                    const resources = await SensorResourceModel.find(
+                      sensors[index].deviceId,
+                      sensors[index].id,
+                    );
+                    expect(resources[sensor.resource]).to.be.equal(Number(packet.payload));
+                  },
+                  error: (err) => {
+                    console.log(`temperature sensor test:err : ${err}`);
+                    throw err;
+                  },
+                },
+              ],
             },
-            {
-              ...baseMeasurement,
-              resource: '5700',
-              value: 35,
+            '[TEST] Verifying "Timer" sensor': {
+              tests: [
+                {
+                  skip: false,
+                  name: 'timer sensor IS updated after publish',
+                  options: () => clientFactory(devices[1], 'device', devices[1].apiKey),
+                  url: () => app.get('mqtt url'),
+                  verb: 'publish',
+                  packet: () => ({
+                    topic: packets[4].topic,
+                    payload: packets[4].payload,
+                  }),
+                  timeout: 150,
+                  expect: async () => {
+                    const index = 4;
+                    const sensor = await utils.findById(SensorModel, sensors[index].id);
+                    expect(sensor.value).to.be.equal(Number(packets[index].payload));
+                    const resources = await SensorResourceModel.find(
+                      sensors[index].deviceId,
+                      sensors[index].id,
+                    );
+                    expect(resources[sensor.resource]).to.be.equal(Number(packets[index].payload));
+                  },
+                  error: (err) => {
+                    console.log(`timer sensor test:err : ${err}`);
+                    throw err;
+                  },
+                },
+                {
+                  skip: false,
+                  name: 'timer sensor CAN create scheduler instance after publish',
+                  options: () => clientFactory(devices[1], 'device', devices[1].apiKey),
+                  url: () => app.get('mqtt url'),
+                  verb: 'publish',
+                  packet: () => ({
+                    topic: `${devices[1].devEui}-out/1/3340/0/1/5850`,
+                    payload: '1',
+                  }),
+                  timeout: 100,
+                  expect: async () => {
+                    const index = 4;
+                    const sensor = await utils.findById(SensorModel, sensors[index].id);
+                    expect(sensor.value).to.be.equal(true);
+                    const resources = await SensorResourceModel.find(
+                      sensors[index].deviceId,
+                      sensors[index].id,
+                    );
+
+                    expect(resources[sensor.resource]).to.be.equal(true);
+                    const scheduler = JSON.parse(await SchedulerModel.get(`sensor-${sensor.id}`));
+                    expect(scheduler.sensorId).to.be.equal(sensor.id);
+                  },
+                  error: (err) => {
+                    console.log(`timer sensor test:err : ${err}`);
+                    throw err;
+                  },
+                },
+                {
+                  skip: false,
+                  name: 'timer sensor CAN delete scheduler instance after publish',
+                  options: () => clientFactory(devices[1], 'device', devices[1].apiKey),
+                  url: () => app.get('mqtt url'),
+                  verb: 'publish',
+                  packet: () => ({
+                    topic: `${devices[1].devEui}-out/1/3340/0/1/5850`,
+                    payload: '0',
+                  }),
+                  timeout: 150,
+                  expect: async () => {
+                    const index = 4;
+                    const sensor = await utils.findById(SensorModel, sensors[index].id);
+                    expect(sensor.value).to.be.equal(false);
+                    const resources = await SensorResourceModel.find(
+                      sensors[index].deviceId,
+                      sensors[index].id,
+                    );
+                    expect(resources[sensor.resource]).to.be.equal(false);
+                    const scheduler = JSON.parse(await SchedulerModel.get(`sensor-${sensor.id}`));
+                    expect(scheduler).to.be.equal(null);
+                  },
+                  error: (err) => {
+                    console.log(`timer sensor test:err : ${err}`);
+                    throw err;
+                  },
+                },
+              ],
             },
-          ]);
+            '[TEST] Verifying "Text" sensor': {
+              tests: [
+                {
+                  skip: false,
+                  name: 'text sensor IS updated after publish',
+                  options: () => clientFactory(devices[1], 'device', devices[1].apiKey),
+                  url: () => app.get('mqtt url'),
+                  verb: 'publish',
+                  packet: () => ({
+                    topic: packets[5].topic,
+                    payload: packets[5].payload,
+                  }),
+                  timeout: 150,
+                  expect: async (packet) => {
+                    const index = 5;
+                    const sensor = await utils.findById(SensorModel, sensors[index].id);
+                    expect(sensor.value).to.be.equal(packet.payload);
+                    const resources = await SensorResourceModel.find(
+                      sensors[index].deviceId,
+                      sensors[index].id,
+                    );
+                    expect(resources[sensor.resource]).to.be.equal(packet.payload);
+                  },
+                  error: (err) => {
+                    console.log(`text sensor test:err : ${err}`);
+                    throw err;
+                  },
+                },
+              ],
+            },
+            '[TEST] Verifying "Switch" sensor': {
+              tests: [
+                {
+                  skip: false,
+                  name: 'switch sensor IS updated after publish',
+                  options: () => clientFactory(devices[1], 'device', devices[1].apiKey),
+                  url: () => app.get('mqtt url'),
+                  verb: 'publish',
+                  packet: () => ({
+                    topic: packets[6].topic,
+                    payload: packets[6].payload,
+                  }),
+                  timeout: 150,
+                  expect: async (packet) => {
+                    const index = 6;
+                    const sensor = await utils.findById(SensorModel, sensors[index].id);
+                    expect(sensor.value.toString()).to.be.equal(packet.payload);
+                    const resources = await SensorResourceModel.find(
+                      sensors[index].deviceId,
+                      sensors[index].id,
+                    );
 
-          const resources = await SensorResourceModel.find(
-            sensors[index].deviceId,
-            sensors[index].id,
-          );
-          expect(resources[sensor.resource]).to.be.equal(Number(packets[index].payload));
-          client.end(true);
-        }, 150);
-      });
+                    expect(resources[sensor.resource].toString()).to.be.equal(packet.payload);
+                  },
+                  error: (err) => {
+                    console.log(`switch sensor test:err : ${err}`);
+                    throw err;
+                  },
+                },
+              ],
+            },
+            '[TEST] Verifying "Bitmap" sensor': {
+              tests: [
+                {
+                  skip: false,
+                  name: 'bitmap sensor IS created after publish',
+                  options: () => clientFactory(devices[1], 'device', devices[1].apiKey),
+                  url: () => app.get('mqtt url'),
+                  verb: 'publish',
+                  packet: () => ({
+                    topic: packets[7].topic,
+                    payload: packets[7].payload,
+                  }),
+                  timeout: 150,
+                  expect: async () => {
+                    const index = 7;
+                    const sensor = await utils.findById(SensorModel, sensors[index].id);
+                    // expect(sensor.value.toString()).to.be.equal(packets[index].payload);
+                    expect(sensor.type).to.be.equal(3349);
+                    const resources = await SensorResourceModel.find(
+                      sensors[index].deviceId,
+                      sensors[index].id,
+                    );
+                    expect(Object.keys(resources)).to.deep.equal(['5750', '5910', '5911', '5912']);
+                  },
+                  error: (err) => {
+                    console.log(`bitmap sensor test:err : ${err}`);
+                    throw err;
+                  },
+                },
+                {
+                  skip: false,
+                  name: 'bitmap sensor IS created after publish',
+                  options: () => clientFactory(devices[1], 'device', devices[1].apiKey),
+                  url: () => app.get('mqtt url'),
+                  verb: 'publish',
+                  packet: async () => ({
+                    topic: `${devices[1].devEui}-out/1/3349/0/1/5910`,
+                    payload: await utils.readFile(`${__dirname}/../../favicon.ico`, null),
+                  }),
+                  timeout: 150,
+                  expect: async (packet) => {
+                    const index = 7;
+                    const sensor = await utils.findById(SensorModel, sensors[index].id);
+                    const resources = await SensorResourceModel.find(
+                      sensors[index].deviceId,
+                      sensors[index].id,
+                    );
+                    expect(Buffer.byteLength(Buffer.from(resources[sensor.resource]))).to.be.equal(
+                      Buffer.byteLength(packet.payload),
+                    );
+                  },
+                  error: (err) => {
+                    console.log(`bitmap sensor test:err : ${err}`);
+                    throw err;
+                  },
+                },
+              ],
+            },
+          },
+        },
+      };
 
-      it('timer sensor IS updated after publish', async function() {
-        const testMaxDuration = 2000;
-        this.timeout(testMaxDuration);
-        this.slow(testMaxDuration / 2);
-        const index = 4;
-
-        const client = mqtt.connect(
-          app.get('mqtt url'),
-          clientFactory(devices[1], 'device', devices[1].apiKey),
-        );
-
-        await clientEvent(client, 'connect');
-        client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
-
-        await timeout(async () => {
-          const sensor = await utils.findById(SensorModel, sensors[index].id);
-          expect(sensor.value).to.be.equal(Number(packets[index].payload));
-          const resources = await SensorResourceModel.find(
-            sensors[index].deviceId,
-            sensors[index].id,
-          );
-          expect(resources[sensor.resource]).to.be.equal(Number(packets[index].payload));
-          client.end(true);
-        }, 150);
-      });
-
-      it('timer sensor CAN create scheduler instance after publish', async function() {
-        const testMaxDuration = 2000;
-        this.timeout(testMaxDuration);
-        this.slow(testMaxDuration / 2);
-        const index = 4;
-
-        const client = mqtt.connect(
-          app.get('mqtt url'),
-          clientFactory(devices[1], 'device', devices[1].apiKey),
-        );
-        const packet = {
-          topic: `${devices[1].devEui}-out/1/3340/0/1/5850`,
-          payload: '1',
-        };
-
-        await clientEvent(client, 'connect');
-        client.publish(packet.topic, packet.payload, { qos: 1 });
-
-        await timeout(async () => {
-          const sensor = await utils.findById(SensorModel, sensors[index].id);
-          expect(sensor.value).to.be.equal(Number(packet.payload));
-          const resources = await SensorResourceModel.find(
-            sensors[index].deviceId,
-            sensors[index].id,
-          );
-
-          expect(resources[sensor.resource]).to.be.equal(Number(packet.payload));
-          const scheduler = JSON.parse(await SchedulerModel.get(`sensor-${sensor.id}`));
-          expect(scheduler.sensorId).to.be.equal(sensor.id);
-          client.end(true);
-        }, 150);
-      });
-
-      it('timer sensor CAN delete scheduler instance after publish', async function() {
-        const testMaxDuration = 2000;
-        this.timeout(testMaxDuration);
-        this.slow(testMaxDuration / 2);
-        const index = 4;
-
-        const client = mqtt.connect(
-          app.get('mqtt url'),
-          clientFactory(devices[1], 'device', devices[1].apiKey),
-        );
-        const packet = {
-          topic: `${devices[1].devEui}-out/1/3340/0/1/5850`,
-          payload: '0',
-        };
-
-        await clientEvent(client, 'connect');
-        client.publish(packet.topic, packet.payload, { qos: 1 });
-
-        await timeout(async () => {
-          const sensor = await utils.findById(SensorModel, sensors[index].id);
-          expect(sensor.value).to.be.equal(Number(packet.payload));
-          const resources = await SensorResourceModel.find(
-            sensors[index].deviceId,
-            sensors[index].id,
-          );
-          expect(resources[sensor.resource]).to.be.equal(Number(packet.payload));
-          const scheduler = JSON.parse(await SchedulerModel.get(`sensor-${sensor.id}`));
-          expect(scheduler).to.be.equal(null);
-          client.end(true);
-        }, 150);
-      });
-
-      it('text sensor IS updated after publish', async function() {
-        const testMaxDuration = 2000;
-        this.timeout(testMaxDuration);
-        this.slow(testMaxDuration / 2);
-        const index = 5;
-
-        const client = mqtt.connect(
-          app.get('mqtt url'),
-          clientFactory(devices[1], 'device', devices[1].apiKey),
-        );
-
-        await clientEvent(client, 'connect');
-        client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
-
-        await timeout(async () => {
-          const sensor = await utils.findById(SensorModel, sensors[index].id);
-          expect(sensor.value).to.be.equal(packets[index].payload);
-          const resources = await SensorResourceModel.find(
-            sensors[index].deviceId,
-            sensors[index].id,
-          );
-          expect(resources[sensor.resource]).to.be.equal(packets[index].payload);
-          client.end(true);
-        }, 150);
-      });
-
-      it('switch sensor IS updated after publish', async function() {
-        const testMaxDuration = 2000;
-        this.timeout(testMaxDuration);
-        this.slow(testMaxDuration / 2);
-        const index = 6;
-
-        const client = mqtt.connect(
-          app.get('mqtt url'),
-          clientFactory(devices[1], 'device', devices[1].apiKey),
-        );
-
-        await clientEvent(client, 'connect');
-        client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
-
-        await timeout(async () => {
-          const sensor = await utils.findById(SensorModel, sensors[index].id);
-          expect(sensor.value.toString()).to.be.equal(packets[index].payload);
-          const resources = await SensorResourceModel.find(
-            sensors[index].deviceId,
-            sensors[index].id,
-          );
-
-          expect(resources[sensor.resource].toString()).to.be.equal(packets[index].payload);
-          client.end(true);
-        }, 150);
-      });
-
-      it('bitmap sensor IS created after publish', async function() {
-        const testMaxDuration = 2000;
-        this.timeout(testMaxDuration);
-        this.slow(testMaxDuration / 2);
-        const index = 7;
-
-        const client = mqtt.connect(
-          app.get('mqtt url'),
-          clientFactory(devices[1], 'device', devices[1].apiKey),
-        );
-
-        await clientEvent(client, 'connect');
-        client.publish(packets[index].topic, packets[index].payload, { qos: 1 });
-
-        await timeout(async () => {
-          const sensor = await utils.findById(SensorModel, sensors[index].id);
-          // expect(sensor.value.toString()).to.be.equal(packets[index].payload);
-          expect(sensor.type).to.be.equal(3349);
-          const resources = await SensorResourceModel.find(
-            sensors[index].deviceId,
-            sensors[index].id,
-          );
-          expect(Object.keys(resources)).to.deep.equal(['5750', '5910', '5911', '5912']);
-          client.end(true);
-        }, 150);
-      });
-
-      it('bitmap sensor CAN upload image after publish', async function() {
-        const testMaxDuration = 2000;
-        this.timeout(testMaxDuration);
-        this.slow(testMaxDuration / 2);
-        const index = 7;
-
-        const client = mqtt.connect(
-          app.get('mqtt url'),
-          clientFactory(devices[1], 'device', devices[1].apiKey),
-        );
-
-        const packet = {
-          topic: `${devices[1].devEui}-out/1/3349/0/1/5910`,
-          payload: await utils.readFile(`${__dirname}/../../favicon.ico`, null),
-        };
-
-        await clientEvent(client, 'connect');
-        client.publish(packet.topic, packet.payload, { qos: 1 });
-
-        await timeout(async () => {
-          const sensor = await utils.findById(SensorModel, sensors[index].id);
-          const resources = await SensorResourceModel.find(
-            sensors[index].deviceId,
-            sensors[index].id,
-          );
-          expect(Buffer.byteLength(Buffer.from(resources[sensor.resource]))).to.be.equal(
-            Buffer.byteLength(packet.payload),
-          );
-          client.end(true);
-        }, 150);
-      });
+      mqttTest({}, e2eTestsSuite);
     });
   });
 };

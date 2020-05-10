@@ -50,7 +50,7 @@ import utils from '../lib/utils';
 
 // const clockInterval = 5 * 60 * 1000;
 
-module.exports = function(Device) {
+module.exports = function (Device) {
   Device.validate('transportProtocol', transportProtocolValidator, {
     message: 'Wrong transport protocol name',
   });
@@ -157,7 +157,7 @@ module.exports = function(Device) {
    * @param {object} [client] - MQTT client
    * @returns {Promise<object>} device
    */
-  Device.createOrUpdate = async device => {
+  Device.createOrUpdate = async (device) => {
     logger.publish(4, `${collectionName}`, 'createOrUpdate:req', {
       deviceId: device.id,
       name: device.name,
@@ -276,7 +276,7 @@ module.exports = function(Device) {
    * @param {object} filter - Requested filter
    * @returns {Promise<array>} devices
    */
-  Device.search = async filter => {
+  Device.search = async (filter) => {
     logger.publish(4, `${collectionName}`, 'search:req', filter);
     if (
       !filter.text ||
@@ -332,7 +332,7 @@ module.exports = function(Device) {
       const addresses = await Device.app.models.Address.search(address);
       if (addresses.length > 0) {
         const moreDevices = await Promise.all(
-          addresses.map(async addr =>
+          addresses.map(async (addr) =>
             utils.findOne(Device, {
               where: { id: addr.ownerId },
               include: 'address',
@@ -351,8 +351,8 @@ module.exports = function(Device) {
           ),
         );
         if (moreDevices && moreDevices !== null) {
-          result.forEach(dev => {
-            const index = moreDevices.findIndex(d => d.id === dev.id);
+          result.forEach((dev) => {
+            const index = moreDevices.findIndex((d) => d.id === dev.id);
             if (index > -1) {
               moreDevices.splice(index, 1);
             }
@@ -376,7 +376,7 @@ module.exports = function(Device) {
    * @param {object} filter - Requested filter
    * @returns {Promise<array>} devices
    */
-  Device.geoLocate = async filter => {
+  Device.geoLocate = async (filter) => {
     logger.publish(4, `${collectionName}`, 'geoLocate:req', filter);
     filter.ownerType = 'Device';
     // filter.public = true;
@@ -384,7 +384,7 @@ module.exports = function(Device) {
     let devices = [];
     if (addresses.length > 0) {
       devices = await Promise.all(
-        addresses.map(async address =>
+        addresses.map(async (address) =>
           utils.findOne(Device, {
             where: { id: address.ownerId },
             include: 'address',
@@ -420,9 +420,9 @@ module.exports = function(Device) {
   Device.export = async (devices, filter, format = 'csv') => {
     if (!devices || !devices.length) return null;
     if (format === 'csv') {
-      devices.forEach(device => {
+      devices.forEach((device) => {
         // eslint-disable-next-line security/detect-object-injection
-        ['address', 'icons', 'sensors', 'collaborators', 'appIds'].forEach(p => delete device[p]);
+        ['address', 'icons', 'sensors', 'collaborators', 'appIds'].forEach((p) => delete device[p]);
       });
       const result = utils.exportToCSV(devices, filter);
       return result;
@@ -435,15 +435,15 @@ module.exports = function(Device) {
    * @method module:Device~detector
    * @param {object} packet - MQTT packet
    * @param {object} client - MQTT client
-   * @returns {Promise<object | null>} pattern
+   * @returns {object | null} pattern
    */
-  Device.detector = async (packet, client) => {
+  Device.detector = (packet, client) => {
     try {
       //  if (packet.topic.startsWith('$SYS')) return null;
       if (packet.topic.split('/')[0] === '$SYS') return null;
       if (client && !client.ownerId && !client.devEui) return null;
       const pattern = iotAgent.patternDetector(packet);
-      logger.publish(5, collectionName, 'detector:res', { topic: packet.topic, pattern });
+      logger.publish(3, collectionName, 'detector:res', { pattern });
       return pattern;
     } catch (error) {
       logger.publish(2, collectionName, 'detector:err', error);
@@ -590,7 +590,7 @@ module.exports = function(Device) {
       // 'masterKey',
     ];
 
-    keyNames.forEach(k => {
+    keyNames.forEach((k) => {
       // const isValid = timingSafeEqual(Buffer.from(device[k]), Buffer.from(key));
       // eslint-disable-next-line security/detect-object-injection
       const isValid = device[k] === key;
@@ -614,7 +614,7 @@ module.exports = function(Device) {
    * @param {string} deviceId - Device instance id
    * @returns {Promise<object>} device
    */
-  Device.getState = async deviceId => {
+  Device.getState = async (deviceId) => {
     logger.publish(4, `${collectionName}`, 'getState:req', { deviceId });
     const device = await utils.findById(Device, deviceId, {
       fields: {
@@ -639,7 +639,7 @@ module.exports = function(Device) {
    * @param {string} deviceId - Device instance id
    * @returns {Promise<object>} device
    */
-  Device.getFullState = async deviceId => {
+  Device.getFullState = async (deviceId) => {
     logger.publish(4, `${collectionName}`, 'getFullState:req', { deviceId });
     const resFilter = {
       include: ['sensors', 'address'],
@@ -684,7 +684,7 @@ module.exports = function(Device) {
    * @property {boolean} message.status - MQTT client status.
    * @returns {Promise<function | null>} Device.updateStatus
    */
-  Device.on('client', async message => {
+  Device.on('client', async (message) => {
     logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
     // if (!message || message === null) throw new Error('Message empty');
     const { client, status } = message;
@@ -705,7 +705,7 @@ module.exports = function(Device) {
    * @property {object}[message.client] - MQTT client
    * @returns {Promise<functions | null>} Device.onPublish | Device.execute
    */
-  Device.on('publish', async message => {
+  Device.on('publish', async (message) => {
     try {
       if (!message || message === null) throw new Error('Message empty');
       const { client, device, packet, pattern } = message;
@@ -778,7 +778,7 @@ module.exports = function(Device) {
    * @param {object} ctx.res - Response
    * @returns {Promise<function>} Device~onBeforeRemote
    */
-  Device.beforeRemote('**', async ctx => onBeforeRemote(Device.app, ctx));
+  Device.beforeRemote('**', async (ctx) => onBeforeRemote(Device.app, ctx));
 
   Device.afterRemoteError('*', (ctx, next) => {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, ctx.error);
@@ -790,14 +790,14 @@ module.exports = function(Device) {
    * Find devices
    * @method module:Device.find
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object[]>}
    */
 
   /**
    * Returns devices length
    * @method module:Device.count
    * @param {object} where
-   * @returns {number}
+   * @returns {Promise<object>}
    */
 
   /**
@@ -805,14 +805,14 @@ module.exports = function(Device) {
    * @method module:Device.findById
    * @param {any} id
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Create device
    * @method module:Device.create
    * @param {object} device
-   * @returns {object}
+   * @returns {Promise<object | object[]>}
    */
 
   /**
@@ -820,7 +820,7 @@ module.exports = function(Device) {
    * @method module:Device.updateById
    * @param {any} id
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
@@ -828,20 +828,20 @@ module.exports = function(Device) {
    * @method module:Device.deleteById
    * @param {any} id
    * @param {object} filter
-   * @returns {object}
+   * @returns {Promise<object>}
    */
 
   /**
    * Get device sensors
    * @method module:Device.prototype.__get__sensors
-   * @returns {Promise<function>} module:Sensor.find
+   * @returns {Promise<object[]>}
    */
 
   /**
-   * Get device sensors by id
-   * @method module:Sensor.prototype.__findById__sensors
-   * @param {string} id Resource key
-   * @returns {Promise<function>} module:Sensor.findById
+   * Get device sensor by id
+   * @method module:Device.prototype.__findById__sensors
+   * @param {string} id
+   * @returns {Promise<object>}
    */
 
   Device.disableRemoteMethodByName('upsertWithWhere');

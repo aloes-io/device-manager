@@ -13,11 +13,11 @@ const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'err
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-export const onBeforeSave = async ctx => {
+export const onBeforeSave = async (ctx) => {
   if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
   if (ctx.instance) {
     logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
-    await Promise.all(filteredProperties.map(async prop => ctx.instance.unsetAttribute(prop)));
+    await Promise.all(filteredProperties.map(async (prop) => ctx.instance.unsetAttribute(prop)));
     return ctx;
   }
   if (ctx.data) {
@@ -33,7 +33,7 @@ export const onBeforeSave = async ctx => {
     //   }
     // }
     // eslint-disable-next-line security/detect-object-injection
-    filteredProperties.forEach(p => delete ctx.data[p]);
+    filteredProperties.forEach((p) => delete ctx.data[p]);
     ctx.hookState.updateData = ctx.data;
     return ctx;
   }
@@ -46,7 +46,7 @@ export const onBeforeSave = async ctx => {
  * @param {object} application - Application instance
  * @returns {Promise<object>} application
  */
-const createKeys = async application => {
+const createKeys = async (application) => {
   const attributes = {};
   let hasChanged = false;
   if (!application.clientKey) {
@@ -102,11 +102,11 @@ const updateProps = async (app, instance) => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-export const onAfterSave = async ctx => {
+export const onAfterSave = async (ctx) => {
   if (ctx.hookState.updateData) {
     logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.hookState.updateData);
     const updatedProps = Object.keys(ctx.hookState.updateData);
-    if (updatedProps.some(prop => prop === 'status')) {
+    if (updatedProps.some((prop) => prop === 'status')) {
       // if (!ctx.instance) console.log('AFTER APP SAVE', ctx.where);
       // todo : if (ctx.where) update all ctx.where
       if (ctx.instance && ctx.instance.id) await ctx.Model.publish(ctx.instance, 'HEAD');
@@ -151,7 +151,7 @@ const deleteProps = async (app, instance) => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-export const onBeforeDelete = async ctx => {
+export const onBeforeDelete = async (ctx) => {
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
   if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
     const instance = await utils.findById(ctx.Model, ctx.where.id);
@@ -160,7 +160,7 @@ export const onBeforeDelete = async ctx => {
     const filter = { where: ctx.where };
     const applications = await utils.find(ctx.Model, filter);
     if (applications && applications.length > 0) {
-      await Promise.all(applications.map(async instance => deleteProps(ctx.Model.app, instance)));
+      await Promise.all(applications.map(async (instance) => deleteProps(ctx.Model.app, instance)));
     }
   }
   return ctx;
@@ -175,7 +175,7 @@ export const onBeforeDelete = async ctx => {
  * @param {object} ctx.res - Response
  * @returns {Promise<object>} ctx
  */
-export const onBeforeRemote = async ctx => {
+export const onBeforeRemote = async (ctx) => {
   if (
     ctx.method.name.indexOf('find') !== -1 ||
     ctx.method.name.indexOf('__get') !== -1 ||

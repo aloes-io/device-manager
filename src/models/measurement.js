@@ -27,7 +27,7 @@ import logger from '../services/logger';
  * @property {String} deviceId Device instance Id which has sent this measurement
  * @property {String} sensorId Device instance Id which has generated this measurement
  */
-module.exports = function(Measurement) {
+module.exports = function (Measurement) {
   Measurement.validatesPresenceOf('sensorId');
 
   Measurement.validatesPresenceOf('deviceId');
@@ -90,7 +90,7 @@ module.exports = function(Measurement) {
    * @param {object} sensor - updated Sensor instance
    * @returns {object} measurement
    */
-  Measurement.compose = sensor => {
+  Measurement.compose = (sensor) => {
     if (
       !sensor ||
       !sensor.id ||
@@ -132,11 +132,11 @@ module.exports = function(Measurement) {
     return measurement;
   };
 
-  Measurement.once('dataSourceAttached', Model => {
+  Measurement.once('dataSourceAttached', (Model) => {
     /**
      * Create measurement
      * @method module:Measurement.create
-     * @param {object} sensor
+     * @param {object} measurement
      * @returns {Promise<object>}
      */
 
@@ -146,7 +146,7 @@ module.exports = function(Measurement) {
      * @param {string} id
      * @returns {Promise<object | null>}
      */
-    Model.findById = async id => findMeasurements(Model.app, { id });
+    Model.findById = async (id) => findMeasurements(Model.app, { id });
 
     /**
      * Find measurements
@@ -154,7 +154,7 @@ module.exports = function(Measurement) {
      * @param {object} filter
      * @returns {Promise<object[] | null>}
      */
-    Model.find = async filter => {
+    Model.find = async (filter) => {
       if (!filter || filter === null) {
         throw utils.buildError(400, 'INVALID_ARG', 'Missing filter in argument');
       }
@@ -200,7 +200,7 @@ module.exports = function(Measurement) {
      * @param {any} id
      * @returns {Promise<boolean>}
      */
-    Model.destroyById = async id => deleteMeasurements(Model.app, { id });
+    Model.destroyById = async (id) => deleteMeasurements(Model.app, { id });
 
     /**
      * Delete measurements
@@ -208,7 +208,7 @@ module.exports = function(Measurement) {
      * @param {object} filter
      * @returns {Promise<boolean>}
      */
-    Model.delete = async filter => {
+    Model.delete = async (filter) => {
       if (!filter || filter === null) {
         throw utils.buildError(400, 'INVALID_ARG', 'Missing filter in argument');
       }
@@ -221,7 +221,7 @@ module.exports = function(Measurement) {
      * @param {object} filter - Where filter
      * @returns {Promise<boolean>}
      */
-    Model.destroyAll = async filter => {
+    Model.destroyAll = async (filter) => {
       if (!filter || filter === null) {
         throw utils.buildError(400, 'INVALID_ARG', 'Missing filter in argument');
       }
@@ -238,9 +238,9 @@ module.exports = function(Measurement) {
    * @param {object} ctx.res - Response
    * @returns {Promise<function>} Measurement~onBeforeRemote
    */
-  Measurement.beforeRemote('**', async ctx => onBeforeRemote(Measurement.app, ctx));
+  Measurement.beforeRemote('**', async (ctx) => onBeforeRemote(Measurement.app, ctx));
 
-  Measurement.afterRemoteError('*', async ctx => {
+  Measurement.afterRemoteError('*', async (ctx) => {
     logger.publish(2, `${collectionName}`, `after ${ctx.methodString}:err`, ctx.error);
     // publish on collectionName/ERROR
     return ctx;

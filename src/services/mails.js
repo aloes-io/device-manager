@@ -60,7 +60,7 @@ const mails = {};
  * @method module:Mails~sendMail
  * @returns {Promise<object>}
  */
-const sendMail = updatedOptions =>
+const sendMail = (updatedOptions) =>
   new Promise((resolve, reject) => {
     app.models.Email.send(updatedOptions, (err, mail) => (err ? reject(err) : resolve(mail)));
   });
@@ -72,7 +72,7 @@ const sendMail = updatedOptions =>
  * @param {object} options - Mail options
  * @returns {Promise<object>} result - Mail result
  */
-mails.send = async options => {
+mails.send = async (options) => {
   try {
     const updatedOptions = await utils.renderTemplate(options);
     let result = await sendMail(updatedOptions);
@@ -109,16 +109,14 @@ const verifyUser = (user, options) =>
  * @param {object} user - Account created
  * @returns {Promise<object>} response
  */
-mails.verifyEmail = async user => {
+mails.verifyEmail = async (user) => {
   try {
     logger.publish(4, `${collectionName}`, 'verifyEmail:req', { verifyTemplate, user });
     // loopback will append &token=value
     const options = {
       ...config.verifyOptions,
       to: user.email,
-      verifyHref: `${config.serverUrl}${config.restApiRoot}/users/confirm?uid=${user.id}&redirect=${
-        process.env.HTTP_CLIENT_URL
-      }/login`,
+      verifyHref: `${config.serverUrl}${config.restApiRoot}/users/confirm?uid=${user.id}&redirect=${process.env.HTTP_CLIENT_URL}/login`,
       user,
       text: `Please confirm account creation by opening this link`,
     };
@@ -144,14 +142,12 @@ mails.verifyEmail = async user => {
  * @param {object} options
  * @returns {Promise<object>} response
  */
-mails.sendResetPasswordMail = async options => {
+mails.sendResetPasswordMail = async (options) => {
   try {
     const newOptions = {
       ...config.resetOptions,
       to: options.email,
-      url: `${process.env.HTTP_CLIENT_URL}/reset-password?userId=${
-        options.accessToken.userId
-      }&token=${options.accessToken.id}`,
+      url: `${process.env.HTTP_CLIENT_URL}/reset-password?userId=${options.accessToken.userId}&token=${options.accessToken.id}`,
       user: options.user,
       text: `You can assign a new password on clicking that link`,
     };
@@ -170,7 +166,7 @@ mails.sendResetPasswordMail = async options => {
  * @param {object} options
  * @returns {Promise<object>} response
  */
-mails.sendContactForm = async options => {
+mails.sendContactForm = async (options) => {
   try {
     const newOptions = {
       ...config.contactFormOptions,
@@ -196,16 +192,14 @@ mails.sendContactForm = async options => {
  * @param {object} options
  * @returns {Promise<object>} response
  */
-mails.sendMailInvite = async options => {
+mails.sendMailInvite = async (options) => {
   try {
     const newOptions = {
       ...config.inviteOptions,
       to: options.email,
       guestName: options.email,
       url: `${process.env.HTTP_CLIENT_URL}`,
-      text: `${options.profile.firstName} ${options.profile.lastName} invited you to join ${
-        process.env.NODE_NAME
-      }`,
+      text: `${options.profile.firstName} ${options.profile.lastName} invited you to join ${process.env.NODE_NAME}`,
     };
     logger.publish(4, `${collectionName}`, 'sendMailInvite:req', newOptions);
     return mails.send(newOptions);

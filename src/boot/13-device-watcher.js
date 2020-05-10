@@ -5,10 +5,10 @@ import logger from '../services/logger';
 import utils from '../lib/utils';
 import deviceTypes from '../initial-data/device-types.json';
 
-const sortByType = instances =>
-  Object.keys(deviceTypes).map(type => {
-    const sorted = instances.filter(instance => instance.type === type);
-    const deviceNames = sorted.map(instance => instance.name);
+const sortByType = (instances) =>
+  Object.keys(deviceTypes).map((type) => {
+    const sorted = instances.filter((instance) => instance.type === type);
+    const deviceNames = sorted.map((instance) => instance.name);
     return { [type]: deviceNames };
   });
 

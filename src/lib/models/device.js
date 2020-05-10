@@ -26,7 +26,7 @@ const filteredProperties = ['children', 'size', 'show', 'group', 'success', 'err
 export function transportProtocolValidator(err) {
   if (
     !this.transportProtocol ||
-    !protocols.transport.some(p => p.toLowerCase() === this.transportProtocol.toLowerCase())
+    !protocols.transport.some((p) => p.toLowerCase() === this.transportProtocol.toLowerCase())
   ) {
     err();
   }
@@ -40,7 +40,7 @@ export function transportProtocolValidator(err) {
 export function messageProtocolValidator(err) {
   if (
     !this.messageProtocol ||
-    !protocols.message.some(p => p.toLowerCase() === this.messageProtocol.toLowerCase())
+    !protocols.message.some((p) => p.toLowerCase() === this.messageProtocol.toLowerCase())
   ) {
     err();
   }
@@ -74,7 +74,7 @@ export const deviceError = (code = 400, status, msg) => {
  * @param {object} device - Device instance
  * @returns {object} device
  */
-const setDeviceIcons = device => {
+const setDeviceIcons = (device) => {
   if (device.type && deviceTypes[device.type]) {
     device.icons[0] = deviceTypes[device.type].icons[0];
     device.icons[1] = deviceTypes[device.type].icons[1];
@@ -88,7 +88,7 @@ const setDeviceIcons = device => {
  * @param {object} device - Device instance
  * @returns {Promise<object>} device
  */
-const createKeys = async device => {
+const createKeys = async (device) => {
   logger.publish(5, `${collectionName}`, 'createKeys:req', device.name);
   const attributes = {};
   let hasChanged = false;
@@ -126,29 +126,21 @@ const createKeys = async device => {
  * @param {object} device - Device instance
  * @returns {object} device
  */
-const setDeviceQRCode = device => {
+const setDeviceQRCode = (device) => {
   switch (device.transportProtocol.toLowerCase()) {
     case 'mysensors':
       if (device.accessPointUrl && device.accessPointUrl.endsWith('/#!1')) {
         device.qrCode = `${device.accessPointUrl}`;
       } else if (device.accessPointUrl && device.id && device.apiKey) {
         if (process.env.HTTP_SECURE) {
-          device.qrCode = `${device.qrCode}http_server=${
-            process.env.DOMAIN
-          }&http_port=443&http_secure=true`;
+          device.qrCode = `${device.qrCode}http_server=${process.env.DOMAIN}&http_port=443&http_secure=true`;
         } else {
-          device.qrCode = `${device.qrCode}http_server=${
-            process.env.DOMAIN
-          }&http_port=80&http_secure=false`;
+          device.qrCode = `${device.qrCode}http_server=${process.env.DOMAIN}&http_port=80&http_secure=false`;
         }
         if (process.env.MQTT_SECURE) {
-          device.qrCode = `${device.qrCode}&mqtt_server=${
-            process.env.DOMAIN
-          }&mqtt_port=443&mqtt_secure=true`;
+          device.qrCode = `${device.qrCode}&mqtt_server=${process.env.DOMAIN}&mqtt_port=443&mqtt_secure=true`;
         } else {
-          device.qrCode = `${device.qrCode}&mqtt_server=${
-            process.env.DOMAIN
-          }&mqtt_port=80&mqtt_secure=false`;
+          device.qrCode = `${device.qrCode}&mqtt_server=${process.env.DOMAIN}&mqtt_port=80&mqtt_secure=false`;
         }
         device.qrCode = `${device.accessPointUrl}&device_id=${device.id}&apikey=${device.apiKey}`;
       }
@@ -159,22 +151,14 @@ const setDeviceQRCode = device => {
       } else if (device.accessPointUrl && device.id && device.apiKey) {
         device.qrCode = `${device.accessPointUrl}/param?`;
         if (process.env.HTTP_SECURE) {
-          device.qrCode = `${device.qrCode}http_server=${
-            process.env.DOMAIN
-          }&http_port=443&http_secure=true`;
+          device.qrCode = `${device.qrCode}http_server=${process.env.DOMAIN}&http_port=443&http_secure=true`;
         } else {
-          device.qrCode = `${device.qrCode}http_server=${
-            process.env.DOMAIN
-          }&http_port=80&http_secure=false`;
+          device.qrCode = `${device.qrCode}http_server=${process.env.DOMAIN}&http_port=80&http_secure=false`;
         }
         if (process.env.MQTT_SECURE) {
-          device.qrCode = `${device.qrCode}&mqtt_server=${
-            process.env.DOMAIN
-          }&mqtt_port=8883&mqtt_secure=true`;
+          device.qrCode = `${device.qrCode}&mqtt_server=${process.env.DOMAIN}&mqtt_port=8883&mqtt_secure=true`;
         } else {
-          device.qrCode = `${device.qrCode}&mqtt_server=${
-            process.env.DOMAIN
-          }&mqtt_port=1883&mqtt_secure=false`;
+          device.qrCode = `${device.qrCode}&mqtt_server=${process.env.DOMAIN}&mqtt_port=1883&mqtt_secure=false`;
         }
         device.qrCode = `${device.accessPointUrl}&device_id=${device.id}&apikey=${device.apiKey}`;
       }
@@ -197,7 +181,7 @@ const setDeviceQRCode = device => {
  */
 export const publishToDeviceApplications = (app, device, packet) => {
   if (device.appIds && device.appIds.length > 0) {
-    device.appIds.map(appId => {
+    device.appIds.map((appId) => {
       const parts = packet.topic.split('/');
       parts[0] = appId;
       const topic = parts.join('/');
@@ -214,11 +198,11 @@ export const publishToDeviceApplications = (app, device, packet) => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-export const onBeforeSave = async ctx => {
+export const onBeforeSave = async (ctx) => {
   if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
   if (ctx.instance) {
     logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
-    await Promise.all(filteredProperties.map(async prop => ctx.instance.unsetAttribute(prop)));
+    await Promise.all(filteredProperties.map(async (prop) => ctx.instance.unsetAttribute(prop)));
     if (ctx.instance.transportProtocol && ctx.instance.transportProtocol !== null) {
       await setDeviceQRCode(ctx.instance);
     }
@@ -243,7 +227,7 @@ export const onBeforeSave = async ctx => {
     //   }
     // }
     // eslint-disable-next-line security/detect-object-injection
-    filteredProperties.forEach(p => delete ctx.data[p]);
+    filteredProperties.forEach((p) => delete ctx.data[p]);
     ctx.hookState.updateData = ctx.data;
     return ctx;
   }
@@ -293,7 +277,7 @@ const updateProps = async (app, instance) => {
 
   if (sensors) {
     await Promise.all(
-      sensors.map(async sensor => {
+      sensors.map(async (sensor) => {
         utils.updateAttributes(sensor, {
           ...sensor,
           devEui: instance.devEui,
@@ -331,11 +315,11 @@ const updateProps = async (app, instance) => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-export const onAfterSave = async ctx => {
+export const onAfterSave = async (ctx) => {
   if (ctx.hookState.updateData) {
     logger.publish(4, `${collectionName}`, 'onAfterPartialSave:req', ctx.hookState.updateData);
     const updatedProps = Object.keys(ctx.hookState.updateData);
-    if (updatedProps.some(prop => prop === 'status')) {
+    if (updatedProps.some((prop) => prop === 'status')) {
       // todo : if (ctx.where) update all ctx.where
       if (ctx.instance && ctx.instance.id) await ctx.Model.publish(ctx.instance, 'HEAD');
     }
@@ -366,7 +350,7 @@ const deleteProps = async (app, instance) => {
       });
       const sensors = await instance.sensors.find();
       if (sensors && sensors !== null) {
-        await Promise.all(sensors.map(async sensor => sensor.delete()));
+        await Promise.all(sensors.map(async (sensor) => sensor.delete()));
       }
       await app.models.Device.publish(instance, 'DELETE');
     }
@@ -383,7 +367,7 @@ const deleteProps = async (app, instance) => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-export const onBeforeDelete = async ctx => {
+export const onBeforeDelete = async (ctx) => {
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
   if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
     const device = await utils.findById(ctx.Model, ctx.where.id);
@@ -392,7 +376,7 @@ export const onBeforeDelete = async ctx => {
     const filter = { where: ctx.where };
     const devices = await utils.find(ctx.Model, filter);
     if (devices && devices.length > 0) {
-      await Promise.all(devices.map(async device => deleteProps(ctx.Model.app, device)));
+      await Promise.all(devices.map(async (device) => deleteProps(ctx.Model.app, device)));
     }
   }
   return ctx;
@@ -627,7 +611,7 @@ const updateESP = async (ctx, deviceId, version) => {
 
   const endStream = new Promise((resolve, reject) => {
     const bodyChunks = [];
-    readStream.on('data', d => {
+    readStream.on('data', (d) => {
       bodyChunks.push(d);
       md5sum.update(d);
     });
