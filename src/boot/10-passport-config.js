@@ -19,7 +19,7 @@ module.exports = function passportConfig(app) {
       userCredentialModel: app.models.userCredential,
     });
 
-    const configuredProviders = Object.keys(providers).map(provider => {
+    const configuredProviders = Object.keys(providers).map((provider) => {
       const c = providers[provider];
       if (c.provider !== 'local' && !c.clientID) {
         return null;

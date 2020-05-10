@@ -17,19 +17,19 @@ export default async function createOmaApi(server) {
   }
 
   await server.models.OmaObject.destroyAll();
-  omaObjects.forEach(object => {
+  omaObjects.forEach((object) => {
     object.id = object.value;
     object.version = version;
   });
   const savedOmaObjects = await server.models.OmaObject.create(omaObjects);
-  omaResources.forEach(resource => {
+  omaResources.forEach((resource) => {
     resource.id = resource.value;
     resource.version = version;
   });
 
   await server.models.OmaResource.destroyAll();
   const savedOmaResources = await server.models.OmaResource.create(omaResources);
-  omaViews.forEach(resource => {
+  omaViews.forEach((resource) => {
     resource.id = resource.value;
     resource.version = version;
   });

@@ -1,6 +1,6 @@
 import logger from './logger';
 
-const DeltaTimer = function(cb, data, interval) {
+const DeltaTimer = function (cb, data, interval) {
   let timer, lastTime;
   let count = 0;
   let timeout = interval;

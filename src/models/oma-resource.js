@@ -17,7 +17,7 @@
  * @property {array} [range] OmaResource value range
  */
 
-module.exports = function(OmaResource) {
+module.exports = function (OmaResource) {
   OmaResource.disableRemoteMethodByName('create');
   OmaResource.disableRemoteMethodByName('upsert');
   OmaResource.disableRemoteMethodByName('deleteById');

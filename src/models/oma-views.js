@@ -8,7 +8,7 @@
  * @property {object} resources { [OmaViewssId] : "color" }
  */
 
-module.exports = function(OmaViews) {
+module.exports = function (OmaViews) {
   OmaViews.disableRemoteMethodByName('create');
   OmaViews.disableRemoteMethodByName('upsert');
   OmaViews.disableRemoteMethodByName('deleteById');

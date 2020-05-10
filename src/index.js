@@ -32,9 +32,9 @@ require('dotenv').config();
  * @param {string} processId - process id
  * @fires Server.start
  */
-const boot = processId => {
+const boot = (processId) => {
   const envVariables = {};
-  envVariablesKeys.forEach(key => {
+  envVariablesKeys.forEach((key) => {
     // eslint-disable-next-line security/detect-object-injection
     envVariables[key] = process.env[key];
   });
@@ -80,7 +80,7 @@ if (!process.env.CLUSTER_MODE || process.env.CLUSTER_MODE === 'false') {
 } else {
   logger.publish(1, 'loopback', 'init:cluster', { pid: process.pid });
 
-  process.on('message', packet => {
+  process.on('message', (packet) => {
     if (typeof packet.id === 'number' && packet.data.ready) {
       process.env.PROCESS_ID = packet.id;
       boot(packet.id);

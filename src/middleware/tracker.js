@@ -1,6 +1,6 @@
 import logger from '../services/logger';
 
-module.exports = function(options) {
+module.exports = function (options) {
   return function tracker(req, res, next) {
     if (options.enabled) {
       logger.publish(4, 'tracker', 'Request tracking middleware triggered on', req.url);

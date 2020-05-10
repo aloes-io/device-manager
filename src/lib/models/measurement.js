@@ -12,7 +12,7 @@ export function typeValidator(err) {
   if (
     !this.type ||
     !isLength(this.type.toString(), { min: 1, max: 4 }) ||
-    !omaObjects.some(object => object.value.toString() === this.type)
+    !omaObjects.some((object) => object.value.toString() === this.type)
   ) {
     err();
   }
@@ -22,13 +22,13 @@ export function resourceValidator(err) {
   if (
     this.resource === undefined ||
     !isLength(this.resource.toString(), { min: 1, max: 4 }) ||
-    !omaResources.some(resource => resource.value.toString() === this.resource)
+    !omaResources.some((resource) => resource.value.toString() === this.resource)
   ) {
     err();
   }
 }
 
-const getConnector = app =>
+const getConnector = (app) =>
   app && app.datasources && app.datasources.points && app.datasources.points.connector;
 
 /**
@@ -86,9 +86,9 @@ const getRetentionPolicies = (app, filter) => {
     return retentionPolicies;
   }
   if (typeof filter.rp === 'object') {
-    Object.keys(filter.rp).forEach(keyFilter => {
+    Object.keys(filter.rp).forEach((keyFilter) => {
       if (keyFilter === 'inq') {
-        Object.values(filter.rp.inq).forEach(rp => {
+        Object.values(filter.rp.inq).forEach((rp) => {
           // todo : validate rp
           // eslint-disable-next-line security/detect-object-injection
           if (influxConnector.retentionPolicies[rp]) {
@@ -146,7 +146,7 @@ export const findMeasurements = async (app, filter) => {
     if (filter.where) {
       if (filter.where.and) {
         filter.where.and.forEach((subFilter, index) => {
-          Object.keys(subFilter).forEach(key => {
+          Object.keys(subFilter).forEach((key) => {
             if (key === 'rp') {
               retentionPolicies = [...retentionPolicies, ...getRetentionPolicies(app, subFilter)];
               filter.where.and.splice(index, 1);
@@ -155,7 +155,7 @@ export const findMeasurements = async (app, filter) => {
         });
       } else if (filter.where.or) {
         filter.where.or.forEach((subFilter, index) => {
-          Object.keys(subFilter).forEach(key => {
+          Object.keys(subFilter).forEach((key) => {
             if (key === 'rp') {
               retentionPolicies = [...retentionPolicies, ...getRetentionPolicies(app, subFilter)];
               filter.where.or.splice(index, 1);
@@ -164,7 +164,7 @@ export const findMeasurements = async (app, filter) => {
           });
         });
       } else {
-        Object.keys(filter.where).forEach(key => {
+        Object.keys(filter.where).forEach((key) => {
           if (key === 'rp') {
             retentionPolicies = [...retentionPolicies, ...getRetentionPolicies(app, filter.where)];
             delete filter.where.rp;
@@ -182,7 +182,7 @@ export const findMeasurements = async (app, filter) => {
 
     let result = [];
     await Promise.all(
-      retentionPolicies.map(async rp => {
+      retentionPolicies.map(async (rp) => {
         try {
           const query = await buildQuery(app, filter, rp);
           logger.publish(4, `${collectionName}`, 'findMeasurements:query', { query });
@@ -225,7 +225,7 @@ export const updateMeasurements = async (app, attributes, instances) => {
     logger.publish(2, `${collectionName}`, 'updateMeasurements:req', { attributes, instances });
     if (Array.isArray(instances)) {
       result = await Promise.all(
-        instances.map(async instance => updatePoint(app, attributes, instance)),
+        instances.map(async (instance) => updatePoint(app, attributes, instance)),
       );
     } else {
       result = await updatePoint(app, attributes, instances);

@@ -18,14 +18,14 @@ const setCacheKey = (deviceId, sensorId, resourceId) => {
  * @property {String} resource Stringified Sensor resource instance
  */
 
-module.exports = function(SensorResource) {
+module.exports = function (SensorResource) {
   /**
    * Get SensorResource instances stored in cache
    * @method module:SensorResource.getAll
    * @param {object} [filter] - Key filter
    * @returns {Promise<object[]>} resources
    */
-  SensorResource.getAll = async filter => {
+  SensorResource.getAll = async (filter) => {
     const resources = [];
     logger.publish(4, `${collectionName}`, 'getAll:req', { filter });
     for await (const key of utils.cacheIterator(SensorResource, filter)) {
@@ -41,7 +41,7 @@ module.exports = function(SensorResource) {
    * @param {object} [filter] - Key filter
    * @returns {Promise<string[]>} resources keys
    */
-  SensorResource.deleteAll = async filter => {
+  SensorResource.deleteAll = async (filter) => {
     const resources = [];
     logger.publish(4, `${collectionName}`, 'deleteAll:req', { filter });
     for await (const key of utils.cacheIterator(SensorResource, filter)) {
@@ -74,7 +74,7 @@ module.exports = function(SensorResource) {
         const cachedResources = await SensorResource.getAll(filter);
         result = {};
         if (cachedResources) {
-          cachedResources.forEach(resource => {
+          cachedResources.forEach((resource) => {
             const [resourceKey] = Object.keys(resource);
             const [resourceValue] = Object.values(resource);
             if (!resourceKey) return;
@@ -110,7 +110,7 @@ module.exports = function(SensorResource) {
       });
       const result = {};
       await Promise.all(
-        resourceKeys.map(async resourceKey => {
+        resourceKeys.map(async (resourceKey) => {
           const key = setCacheKey(deviceId, sensorId, resourceKey);
           // todo : sqve as buffer ?
           // eslint-disable-next-line security/detect-object-injection

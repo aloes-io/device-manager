@@ -33,7 +33,7 @@ export function typeValidator(err) {
   if (
     !this.type ||
     !isLength(this.type.toString(), { min: 1, max: 4 }) ||
-    !omaObjects.some(object => object.value === this.type)
+    !omaObjects.some((object) => object.value === this.type)
   ) {
     err();
   }
@@ -50,7 +50,7 @@ export function resourceValidator(err) {
     this.resource === undefined ||
     this.resource === null ||
     !isLength(this.resource.toString(), { min: 1, max: 4 }) ||
-    !omaResources.some(resource => resource.value === this.resource)
+    !omaResources.some((resource) => resource.value === this.resource)
   ) {
     err();
   }
@@ -64,7 +64,7 @@ export function resourceValidator(err) {
 export function transportProtocolValidator(err) {
   if (
     !this.transportProtocol ||
-    !protocols.transport.some(p => p.toLowerCase() === this.transportProtocol.toLowerCase())
+    !protocols.transport.some((p) => p.toLowerCase() === this.transportProtocol.toLowerCase())
   ) {
     err();
   }
@@ -78,7 +78,7 @@ export function transportProtocolValidator(err) {
 export function messageProtocolValidator(err) {
   if (
     !this.messageProtocol ||
-    !protocols.message.some(p => p.toLowerCase() === this.messageProtocol.toLowerCase())
+    !protocols.message.some((p) => p.toLowerCase() === this.messageProtocol.toLowerCase())
   ) {
     err();
   }
@@ -129,7 +129,7 @@ export const compose = (device, attributes, isNewInstance = true) => {
     sensor = device.sensors()[0];
     // sensor = JSON.parse(JSON.stringify(sensor));
     const keys = Object.keys(attributes);
-    keys.forEach(key => {
+    keys.forEach((key) => {
       // special check for key === "value" ?
       // eslint-disable-next-line security/detect-object-injection
       sensor.setAttribute([key], attributes[key]);
@@ -193,11 +193,11 @@ export const compose = (device, attributes, isNewInstance = true) => {
 
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable camelcase */
-export const getResources = sensor => sensor.__get__resources(sensor.deviceId, sensor.id);
+export const getResources = (sensor) => sensor.__get__resources(sensor.deviceId, sensor.id);
 
 export const replaceResources = (sensor, resources) => sensor.__replace__resources(resources);
 
-export const deleteResources = sensor => sensor.__delete__resources();
+export const deleteResources = (sensor) => sensor.__delete__resources();
 /* eslint-enable no-underscore-dangle */
 /* eslint-enable camelcase */
 
@@ -447,7 +447,7 @@ export const persistingResource = async (app, sensor, client) => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-export const onBeforeSave = async ctx => {
+export const onBeforeSave = async (ctx) => {
   // if (ctx.options && ctx.options.skipPropertyFilter) return ctx;
   if (ctx.instance) {
     logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
@@ -455,7 +455,7 @@ export const onBeforeSave = async ctx => {
       if (ctx.instance.resources) {
         await replaceResources(ctx.instance, ctx.instance.resources);
       }
-      await Promise.all(filteredProperties.map(p => ctx.instance.unsetAttribute(p)));
+      await Promise.all(filteredProperties.map((p) => ctx.instance.unsetAttribute(p)));
     } else {
       ctx.instance.createdAt = new Date();
     }
@@ -470,13 +470,13 @@ export const onBeforeSave = async ctx => {
         const sensors = await utils.find(ctx.Model, { where: ctx.where });
         if (sensors && sensors.length > 0) {
           await Promise.all(
-            sensors.map(async sensor => replaceResources(sensor, ctx.data.resources)),
+            sensors.map(async (sensor) => replaceResources(sensor, ctx.data.resources)),
           );
         }
       }
     }
     // eslint-disable-next-line security/detect-object-injection
-    filteredProperties.map(p => delete ctx.data[p]);
+    filteredProperties.map((p) => delete ctx.data[p]);
     ctx.hookState.updateData = ctx.data;
   }
   return ctx;
@@ -488,7 +488,7 @@ export const onBeforeSave = async ctx => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-export const onAfterSave = async ctx => {
+export const onAfterSave = async (ctx) => {
   logger.publish(4, `${collectionName}`, 'onAfterSave:req', ctx.hookState);
   if (ctx.isNewInstance && ctx.instance.id && ctx.instance.resources) {
     await replaceResources(ctx.instance, ctx.instance.resources);
@@ -509,7 +509,7 @@ const deleteProps = async (app, sensor) => {
     logger.publish(4, `${collectionName}`, 'deleteProps:req', sensor);
     await app.models.Measurement.destroyAll({
       sensorId: sensor.id.toString(),
-    }).catch(e => e);
+    }).catch((e) => e);
     await deleteResources(sensor);
     await app.models.Sensor.publish(sensor.deviceId, sensor, 'DELETE');
     return true;
@@ -525,7 +525,7 @@ const deleteProps = async (app, sensor) => {
  * @param {object} ctx - Loopback context
  * @returns {Promise<object>} ctx
  */
-export const onBeforeDelete = async ctx => {
+export const onBeforeDelete = async (ctx) => {
   logger.publish(4, `${collectionName}`, 'onBeforeDelete:req', ctx.where);
   if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
     const sensor = await utils.findById(ctx.Model, ctx.where.id);
@@ -534,7 +534,7 @@ export const onBeforeDelete = async ctx => {
     const filter = { where: ctx.where };
     const sensors = await utils.find(ctx.Model, filter);
     if (sensors && sensors.length > 0) {
-      await Promise.all(sensors.map(async sensor => deleteProps(ctx.Model.app, sensor)));
+      await Promise.all(sensors.map(async (sensor) => deleteProps(ctx.Model.app, sensor)));
     }
   }
   return ctx;

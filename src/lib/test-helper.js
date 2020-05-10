@@ -129,13 +129,9 @@ function clientEvent(client, event) {
 function clientFactory(profile, type, key) {
   let clientId;
   if (type === 'user') {
-    clientId = `${profile.id}-${Math.random()
-      .toString(16)
-      .substr(2, 8)}`;
+    clientId = `${profile.id}-${Math.random().toString(16).substr(2, 8)}`;
   } else if (type === 'device') {
-    clientId = `${profile.devEui}-${Math.random()
-      .toString(16)
-      .substr(2, 8)}`;
+    clientId = `${profile.devEui}-${Math.random().toString(16).substr(2, 8)}`;
   } else if (type === 'application') {
     clientId = `${profile.id}-${Math.random()
       // clientId = `${profile.appEui}-${Math.random()
@@ -208,16 +204,14 @@ function sensorFactory(id, device, ownerId, sensorType) {
   }
   ownerId = ownerId || lastUserId;
   if (!device) return null;
-  let omaObject;
-  if (sensorType) {
-    omaObject = omaObjects.find(obj => obj.value === sensorType);
-  }
-  if (!omaObject) {
-    omaObject = omaObjects[Math.floor(Math.random() * omaObjects.length)];
-  }
+
+  const omaObject = sensorType
+    ? omaObjects.find((obj) => obj.value === sensorType)
+    : omaObjects[Math.floor(Math.random() * omaObjects.length)];
+
   const resourceKeys = Object.keys(omaObject.resources);
   let resource = Number(resourceKeys[Math.floor(Math.random() * resourceKeys.length)]);
-  const omaView = omaViews.find(view => view.value === omaObject.value);
+  const omaView = omaViews.find((view) => view.value === omaObject.value);
 
   if (resource === 0 || resource === 5 || resource === 6) {
     // these resources have no description yet
@@ -262,20 +256,20 @@ function userFactory(id, roleName) {
 function buildMethods(profile) {
   return {
     profile,
-    create: app =>
+    create: (app) =>
       app.models.user
         .create({
           email: profile.email,
           password: profile.password,
           // emailVerified: true,
         })
-        .then(user => {
+        .then((user) => {
           if (profile.roleName === 'admin') {
             return roleManager.setUserRole(app, user.id, 'admin', true).then(() => user);
           }
           return user;
         }),
-    login: app => app.models.user.login(profile),
+    login: (app) => app.models.user.login(profile),
   };
 }
 function timeout(fn, delay) {

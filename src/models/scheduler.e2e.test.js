@@ -43,8 +43,8 @@ const schedulerTest = () => {
           }
           return deviceFactory(index + 1, userIds[1]);
         });
-      await DeviceModel.create(deviceModels).then(res => {
-        devices = res.map(model => model.toJSON());
+      await DeviceModel.create(deviceModels).then((res) => {
+        devices = res.map((model) => model.toJSON());
         return res;
       });
 
@@ -56,8 +56,8 @@ const schedulerTest = () => {
             : sensorFactory(index + 1, devices[1], userIds[1], 3340);
         });
 
-      await SensorModel.create(sensorModels).then(res => {
-        sensors = res.map(model => model.toJSON());
+      await SensorModel.create(sensorModels).then((res) => {
+        sensors = res.map((model) => model.toJSON());
         return res;
       });
 
@@ -129,7 +129,7 @@ const schedulerTest = () => {
                     user: users[1].id,
                   },
                 }),
-                expect: resp => {
+                expect: (resp) => {
                   expect(resp.status).to.be.equal(200);
                   expect(resp.body.sensorId).to.be.equal(sensors[3].id);
                 },
@@ -156,7 +156,7 @@ const schedulerTest = () => {
                     user: users[1].id,
                   },
                 }),
-                expect: resp => {
+                expect: (resp) => {
                   expect(resp.status).to.be.equal(200);
                   expect(resp.body.sensorId).to.be.equal(sensors[3].id);
                 },
@@ -184,7 +184,7 @@ const schedulerTest = () => {
                     user: users[1].id,
                   },
                 }),
-                expect: resp => {
+                expect: (resp) => {
                   expect(resp.status).to.be.equal(200);
                   expect(resp.body.sensorId).to.be.equal(sensors[3].id);
                 },
@@ -213,7 +213,7 @@ const schedulerTest = () => {
                   deviceId: devices[1].id,
                   sensorId: sensors[3].id,
                 }),
-                expect: resp => {
+                expect: (resp) => {
                   expect(resp.status).to.be.equal(200);
                   expect(resp.body).to.be.equal(true);
                 },
@@ -237,7 +237,7 @@ const schedulerTest = () => {
                   secret: process.env.ALOES_KEY,
                   name: 'scheduler-clock',
                 }),
-                expect: resp => {
+                expect: (resp) => {
                   expect(resp.status).to.be.equal(200);
                   expect(resp.body).to.be.equal(false);
                 },

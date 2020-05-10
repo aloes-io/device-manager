@@ -49,11 +49,11 @@ const createConnections = setInterval(() => {
       clientId: `subUser_${username}_${numOfConn}_${UniqueId(10)}`,
     };
     clients[numOfConn] = mqtt.connect(url, options);
-    clients[numOfConn].on('connect', function() {
+    clients[numOfConn].on('connect', function () {
       console.log(new Date(), 'connected', options.clientId);
       //  this.subscribe('channel_'+options.clientId.split('_')[1])
       this.subscribe('5c96937cc08c0333b7958b6f/#', { qos: 1 });
-      this.on('message', topic => {
+      this.on('message', (topic) => {
         console.log(new Date(), 'message:', topic);
         counter += 1;
       });

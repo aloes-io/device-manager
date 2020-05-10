@@ -21,13 +21,13 @@ let httpServer;
 const app = loopback();
 
 const unless = (paths, middleware) => (req, res, next) => {
-  if (paths.some(p => req.path.indexOf(p) > -1)) {
+  if (paths.some((p) => req.path.indexOf(p) > -1)) {
     return next();
   }
   return middleware(req, res, next);
 };
 
-const getStoredClients = async filter => {
+const getStoredClients = async (filter) => {
   try {
     const baseUrl = `${process.env.HTTP_SERVER_URL}${process.env.REST_API_ROOT}`;
     // const baseUrl =
@@ -299,7 +299,7 @@ app.on('publish', async (topic, payload, retain = false, qos = 0) =>
 
 const bootApp = (loopbackApp, options) =>
   new Promise((resolve, reject) => {
-    boot(loopbackApp, options, err => (err ? reject(err) : resolve(true)));
+    boot(loopbackApp, options, (err) => (err ? reject(err) : resolve(true)));
   });
 
 /**
@@ -311,7 +311,7 @@ const bootApp = (loopbackApp, options) =>
  * @fires Server.started
  * @returns {boolean}
  */
-app.start = config => {
+app.start = (config) => {
   app.set('url', config.HTTP_SERVER_URL);
   app.set('host', config.HTTP_SERVER_HOST);
   app.set('port', Number(config.HTTP_SERVER_PORT));
@@ -333,7 +333,7 @@ app.start = config => {
 
   // specify multiple subnets as an array
   // app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
-  app.set('trust proxy', ip => {
+  app.set('trust proxy', (ip) => {
     if (config.HTTP_TRUST_PROXY && config.HTTP_TRUST_PROXY === 'true') {
       logger.publish(2, 'loopback', 'proxy:req', { ip });
       // if (ip === '127.0.0.1' || ip === '123.123.123.123') return true;
@@ -408,7 +408,7 @@ app.start = config => {
  * @method module:Server.init
  * @param {object} config - Parsed env variables
  */
-app.init = async config => {
+app.init = async (config) => {
   logger.publish(2, 'loopback', 'init', `${config.NODE_NAME} / ${config.NODE_ENV}`);
   await bootApp(app, {
     appRootDir: config.appRootDir,
@@ -438,7 +438,7 @@ app.on('start', app.init);
  * @fires Scheduler.started
  * @fires Sensor.started
  */
-app.on('started', config => {
+app.on('started', (config) => {
   app.bootState = true;
   const baseUrl = app.get('url').replace(/\/$/, '');
   logger.publish(4, 'loopback', 'Setup', `Browse ${process.env.NODE_NAME} API @: ${baseUrl}`);
@@ -478,7 +478,7 @@ app.on('started', config => {
  * @fires Client.stopped
  * @returns {boolean}
  */
-app.stop = async signal => {
+app.stop = async (signal) => {
   logger.publish(2, 'loopback', 'stopping', signal);
   MQTTClient.emit('stop');
   app.models.Application.emit('stopped');

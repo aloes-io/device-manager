@@ -13,7 +13,7 @@ export const clockInterval = 5000;
  * @param {object} ctx - Express context
  * @returns {Promise<object>} context
  */
-export const onBeforeRemote = async ctx => {
+export const onBeforeRemote = async (ctx) => {
   if (ctx.method.name === 'createOrUpdate') {
     const options = ctx.options || {};
     const isAdmin = options.currentUser.roles.includes('admin');
@@ -363,7 +363,7 @@ export const syncRunningTimers = async (Scheduler, delay) => {
   });
   const Sensor = Scheduler.app.models.Sensor;
   const SensorResource = Scheduler.app.models.SensorResource;
-  const promises = schedulers.map(async scheduler => {
+  const promises = schedulers.map(async (scheduler) => {
     try {
       let timeLeft = Math.round((scheduler.stopTime - Date.now()) / 1000);
       const sensor = await utils.findById(Sensor, scheduler.sensorId);

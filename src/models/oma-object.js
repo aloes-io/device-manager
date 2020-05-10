@@ -14,7 +14,7 @@
  * @property {string} resourceIds OmaResource references contained in this OmaObjectId
  * @property {object} resources OmaResource default key : value object
  */
-module.exports = function(OmaObject) {
+module.exports = function (OmaObject) {
   OmaObject.disableRemoteMethodByName('create');
   OmaObject.disableRemoteMethodByName('upsert');
   OmaObject.disableRemoteMethodByName('deleteById');

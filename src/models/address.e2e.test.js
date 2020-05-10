@@ -23,7 +23,7 @@ const addressTest = () => {
   const deviceApiUrl = `${restApiPath}/Devices/`;
   const userApiUrl = `${restApiPath}/Users/`;
 
-  describe(collectionName, function() {
+  describe(collectionName, function () {
     this.timeout(5000);
     this.slow(2000);
     const DeviceModel = app.models.Device;
@@ -70,7 +70,7 @@ const addressTest = () => {
               );
 
             const res = await DeviceModel.create(deviceModels);
-            devices = res.map(model => model.toJSON());
+            devices = res.map((model) => model.toJSON());
             deviceAddress = await utils.findOne(AddressModel, {
               where: {
                 and: [
@@ -310,7 +310,7 @@ const addressTest = () => {
                     },
                     expect: 200,
                   },
-                  step0Response => ({
+                  (step0Response) => ({
                     verb: 'put',
                     auth: profiles.user,
                     url: () => `${deviceApiUrl}${devices[1].id}/address`,
@@ -320,14 +320,14 @@ const addressTest = () => {
                     }),
                     expect: 200,
                   }),
-                  step1Response => ({
+                  (step1Response) => ({
                     verb: 'post',
                     auth: profiles.user,
                     url: () => `${apiUrl}search`,
                     body: () => ({
                       filter: { ownerType: 'Device', city: step1Response.body.city },
                     }),
-                    expect: resp => {
+                    expect: (resp) => {
                       expect(resp.status).to.be.equal(200);
                     },
                   }),
@@ -350,7 +350,7 @@ const addressTest = () => {
                     },
                     expect: 200,
                   },
-                  step0Response => ({
+                  (step0Response) => ({
                     verb: 'put',
                     auth: profiles.admin,
                     url: () => `${deviceApiUrl}${devices[0].id}/address`,
@@ -360,7 +360,7 @@ const addressTest = () => {
                     }),
                     expect: 200,
                   }),
-                  step1Response => ({
+                  (step1Response) => ({
                     verb: 'post',
                     auth: profiles.admin,
                     url: () => `${apiUrl}geo-locate`,
@@ -372,7 +372,7 @@ const addressTest = () => {
                         unit: 'kilometers',
                       },
                     }),
-                    expect: resp => {
+                    expect: (resp) => {
                       expect(resp.status).to.be.equal(200);
                     },
                   }),

@@ -19,7 +19,7 @@ const maxWrongAttemptsByIPperDay = 100;
 const maxConsecutiveFailsByUsernameAndIP = 15;
 
 const config = {};
-envVariablesKeys.forEach(key => {
+envVariablesKeys.forEach((key) => {
   // eslint-disable-next-line security/detect-object-injection
   config[key] = process.env[key];
 });
@@ -42,7 +42,7 @@ if (config.NODE_ENV !== 'development' && config.NODE_ENV !== 'test') {
     },
   });
 
-  redisClient.on('error', err => {
+  redisClient.on('error', (err) => {
     console.log('REDIS LIMITER ERR', err);
   });
 }

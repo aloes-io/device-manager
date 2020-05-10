@@ -13,7 +13,7 @@ const liner = new stream.Transform({ objectMode: true });
 //      }
 // })
 
-liner._transform = function(chunk, encoding, done) {
+liner._transform = function (chunk, encoding, done) {
   let data = chunk.toString();
   if (this._lastLineData) data = this._lastLineData + data;
 
@@ -24,7 +24,7 @@ liner._transform = function(chunk, encoding, done) {
   done();
 };
 
-liner._flush = function(done) {
+liner._flush = function (done) {
   if (this._lastLineData) this.push(this._lastLineData);
   this._lastLineData = null;
   done();

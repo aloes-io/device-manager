@@ -43,8 +43,11 @@ function randomHalf(arr) {
  */
 function toWeightTable(choices) {
   return table(
-    [['Route', 'Weight'], ['-----', '-----']].concat(
-      Object.keys(choices).map(key => [key, `${Math.round(choices[key] * 10000) / 100}%`]),
+    [
+      ['Route', 'Weight'],
+      ['-----', '-----'],
+    ].concat(
+      Object.keys(choices).map((key) => [key, `${Math.round(choices[key] * 10000) / 100}%`]),
     ),
   );
 }
@@ -62,7 +65,7 @@ function getBaseURL() {
  */
 function distillRoutes(routes) {
   return routes
-    .filter(route => {
+    .filter((route) => {
       if (safeMode && route.verb.toUpperCase() !== 'GET') {
         return false;
       }
@@ -70,7 +73,7 @@ function distillRoutes(routes) {
       return true;
     })
     .map(
-      route =>
+      (route) =>
         // TODO(schoon) - Handle the `accepts` in a meaningful way.
         `${route.verb.toUpperCase()} ${route.path}`,
     );
@@ -88,7 +91,7 @@ function weighChoices(routes) {
   }, {});
 
   // For simplicity, we normalize the weights to add up to 1.
-  Object.keys(choices).forEach(key => {
+  Object.keys(choices).forEach((key) => {
     choices[key] /= total;
   });
 

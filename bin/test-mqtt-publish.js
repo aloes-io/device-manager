@@ -108,7 +108,7 @@ const subClient = mqtt.connect({
   clientId: `subForPub_${username}_${UniqueId(5)}`,
 });
 
-subClient.on('connect', function() {
+subClient.on('connect', function () {
   count();
   this.subscribe('5c96937cc08c0333b7958b6f/TEST/PubControl');
   this.on('message', (topic, msg) => {

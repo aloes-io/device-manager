@@ -21,14 +21,14 @@ roleManager.getAppRoles = () => Object.values(appRolesById);
 roleManager.setAppRoles = async (app, roles) => {
   logger.publish(4, 'loopback', 'Initialize roles:req', roles);
   const savedRoles = await Promise.all(
-    roles.map(async roleName => {
+    roles.map(async (roleName) => {
       const obj = { name: roleName };
       const role = await app.models.Role.findOrCreate({ where: obj }, obj);
       return role[0];
     }),
   );
   // cache role name for quick mapping
-  savedRoles.forEach(role => {
+  savedRoles.forEach((role) => {
     appRolesById[role.id] = role.name;
   });
   logger.publish(3, 'loopback', 'Initialize roles:res', { appRolesById });
@@ -49,7 +49,7 @@ roleManager.getUserRoleNames = async (app, userId) => {
   });
   // console.log('getUserRoleNames:res', userRolesIds);
   // eslint-disable-next-line security/detect-object-injection
-  return userRolesIds.map(role => appRolesById[role] || null);
+  return userRolesIds.map((role) => appRolesById[role] || null);
 };
 
 /**
@@ -70,7 +70,7 @@ roleManager.setUserRole = async (app, userId, roleName, reset = false) => {
       return;
     }
     const appRoles = roleManager.getAppRoles();
-    const roleToRevoke = roles.find(role => appRoles.includes(role));
+    const roleToRevoke = roles.find((role) => appRoles.includes(role));
     const setRoleNoReset = async () => roleManager.setUserRole(app, userId, roleName);
     if (!roleToRevoke) {
       await setRoleNoReset();

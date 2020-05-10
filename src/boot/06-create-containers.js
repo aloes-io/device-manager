@@ -3,7 +3,7 @@
 import logger from '../services/logger';
 import utils from '../lib/utils';
 
-module.exports = async function(server) {
+module.exports = async function (server) {
   if (!utils.isMasterProcess(process.env)) return;
   const User = server.models.user;
   const Files = server.models.Files;
@@ -18,7 +18,7 @@ module.exports = async function(server) {
     await utils.mkDirByPathSync(`${Storage}`);
 
     const accountsContainers = await Promise.all(
-      accounts.map(async account => Files.createContainer(account.id)),
+      accounts.map(async (account) => Files.createContainer(account.id)),
     );
     logger.publish(5, 'loopback', 'boot:initAccountsStorages:res', accountsContainers);
 

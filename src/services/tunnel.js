@@ -6,7 +6,7 @@ import nodeCleanup from 'node-cleanup';
 
 const tunnel = {};
 
-const createTunnel = async options =>
+const createTunnel = async (options) =>
   new Promise((resolve, reject) => {
     localtunnel(options.port, options, (err, res) => (err ? reject(err) : resolve(res)));
   });
@@ -35,7 +35,7 @@ const initTunnel = async () => {
       console.log('Tunnel closed', tunnel.instance.url);
     });
 
-    tunnel.instance.on('error', err => {
+    tunnel.instance.on('error', (err) => {
       console.log('Tunnel err', err);
     });
 
