@@ -168,8 +168,8 @@ export const startTimer = async (Scheduler, sensor, resources, client, mode = 0)
     resources['5523'] = 'started';
     // console.log('Start lastTime', lastTime, 'interval :', sensor.resources['5521']);
   }
-  resources['5543'] = 0;
-  resources['5850'] = 1;
+  resources['5543'] = false;
+  resources['5850'] = true;
   await Scheduler.app.models.SensorResource.save(sensor.deviceId, sensor.id, resources);
   return scheduler;
 };
@@ -201,8 +201,6 @@ const stopExternalTimer = async (Model, sensor, client, scheduler) => {
 const stopTimer = async (Scheduler, sensor, resources, client, mode = 0) => {
   logger.publish(4, `${collectionName}`, 'stopTimer:req', { sensorId: sensor.id, mode });
   let scheduler = JSON.parse(await Scheduler.get(`sensor-${sensor.id}`));
-  // if (!scheduler || !scheduler.timerId) throw new Error('Missing timer');
-
   scheduler = await stopExternalTimer(Scheduler, sensor, client, scheduler);
 
   if (mode === 1) {
@@ -218,8 +216,8 @@ const stopTimer = async (Scheduler, sensor, resources, client, mode = 0) => {
     resources['5538'] = 0;
     resources['5523'] = 'stopped';
   }
-  resources['5543'] = 0;
-  resources['5850'] = 0;
+  resources['5543'] = false;
+  resources['5850'] = false;
   await Scheduler.app.models.SensorResource.save(sensor.deviceId, sensor.id, resources);
   return scheduler;
 };
@@ -273,18 +271,10 @@ export const parseTimerEvent = async (Scheduler, sensor, client) => {
  * @returns {Promise<object>} scheduler
  */
 export const parseTimerState = async (Scheduler, sensor, client) => {
-  let scheduler;
   logger.publish(4, `${collectionName}`, 'parseTimerState:req', sensor.resources['5850']);
-  switch (sensor.resources['5850']) {
-    case 0:
-      scheduler = await stopTimer(Scheduler, sensor, sensor.resources, client);
-      break;
-    case 1:
-      scheduler = await startTimer(Scheduler, sensor, sensor.resources, client);
-      break;
-    default:
-      logger.publish(3, `${collectionName}`, 'parseTimerState:notFound', sensor.resources['5850']);
-  }
+  const scheduler = sensor.resources['5850']
+    ? await startTimer(Scheduler, sensor, sensor.resources, client)
+    : await stopTimer(Scheduler, sensor, sensor.resources, client);
 
   return scheduler;
 };
@@ -314,18 +304,18 @@ export const onTimeout = async (Scheduler, sensorId) => {
     case 0:
       // immediate
       resources['5523'] = 'stopped';
-      resources['5850'] = 0;
+      resources['5850'] = false;
       resources['5538'] = 0;
-      resources['5543'] = 1;
+      resources['5543'] = true;
       resources['5534'] += 1;
       await stopTimer(Scheduler, sensor, resources, null, 0);
       break;
     case 1:
       // timeout
       resources['5523'] = 'stopped';
-      resources['5850'] = 0;
+      resources['5850'] = false;
       resources['5538'] = 0;
-      resources['5543'] = 1;
+      resources['5543'] = true;
       resources['5534'] += 1;
       await stopTimer(Scheduler, sensor, resources, null, 0);
       break;
@@ -333,15 +323,15 @@ export const onTimeout = async (Scheduler, sensorId) => {
       // interval
       resources['5538'] = sensor.resources['5521'];
       resources['5523'] = 'ticked';
-      resources['5543'] = 1;
-      resources['5850'] = 1;
+      resources['5543'] = true;
+      resources['5850'] = true;
       resources['5534'] += 1;
       await SensorResource.save(sensor.deviceId, sensor.id, resources);
       break;
     default:
       throw new Error('Wrong timer mode');
   }
-  await Sensor.createOrUpdate(sensor, 5543, 1);
+  await Sensor.createOrUpdate(sensor, 5543, true);
   return true;
 };
 
@@ -370,8 +360,8 @@ export const syncRunningTimers = async (Scheduler, delay) => {
       sensor.value = timeLeft;
       const resources = await SensorResource.find(sensor.deviceId, sensor.id);
       resources['5544'] += Math.round(delay / 1000);
-      resources['5543'] = 0;
-      resources['5850'] = 1;
+      resources['5543'] = false;
+      resources['5850'] = true;
       resources['5523'] = 'started';
       const clients = await Scheduler.app.models.Client.find({ match: `${sensor.ownerId}-*` });
       const client = clients.length ? clients[0] : null;

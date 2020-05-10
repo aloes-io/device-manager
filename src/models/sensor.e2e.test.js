@@ -786,11 +786,11 @@ const sensorTest = () => {
                     topic: `${devices[1].devEui}-out/1/3340/0/1/5850`,
                     payload: '1',
                   }),
-                  timeout: 150,
+                  timeout: 100,
                   expect: async () => {
                     const index = 4;
                     const sensor = await utils.findById(SensorModel, sensors[index].id);
-                    expect(sensor.value).to.be.equal(1);
+                    expect(sensor.value).to.be.equal(true);
                     const resources = await SensorResourceModel.find(
                       sensors[index].deviceId,
                       sensors[index].id,
@@ -819,7 +819,7 @@ const sensorTest = () => {
                   expect: async () => {
                     const index = 4;
                     const sensor = await utils.findById(SensorModel, sensors[index].id);
-                    expect(sensor.value).to.be.equal(0);
+                    expect(sensor.value).to.be.equal(false);
                     const resources = await SensorResourceModel.find(
                       sensors[index].deviceId,
                       sensors[index].id,

@@ -182,7 +182,7 @@ module.exports = function (Scheduler) {
    * @method module:Scheduler.onTick
    * @param {object} data - Timer event data
    * @fires Scheduler.publish
-   * @returns {Promise<function>} Scheduler~syncRunningTimers
+   * @returns {Promise<function | null>} Scheduler~syncRunningTimers
    */
   Scheduler.onTick = async (data) => {
     try {
