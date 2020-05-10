@@ -8,9 +8,9 @@ import chai, { expect } from 'chai';
 import chaiDeepMatch from 'chai-deep-match';
 import lbe2e from 'lb-declarative-e2e-test';
 import mqttTest from 'mqtt-declarative-e2e-test';
-import mqtt from 'mqtt';
+// import mqtt from 'mqtt';
 import app from '../index';
-import testHelper, { clientEvent, timeout } from '../lib/test-helper';
+import testHelper from '../lib/test-helper';
 import utils from '../lib/utils';
 
 require('../services/broker');

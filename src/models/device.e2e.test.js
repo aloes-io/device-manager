@@ -723,7 +723,7 @@ const deviceTest = () => {
         // return timeout(async () => {
         //   const device = await utils.findById(DeviceModel, devices[1].id);
         //   expect(device.status).to.be.equal(false);
-        }, 350);
+        // }, 350);
       });
 
       it('device CANNOT publish to ANY route', function (done) {
