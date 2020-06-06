@@ -17,6 +17,7 @@ import {
   transportProtocolValidator,
   typeValidator,
   deviceError,
+  patternDetector,
 } from '../lib/models/device';
 import logger from '../services/logger';
 import utils from '../lib/utils';
@@ -437,19 +438,7 @@ module.exports = function (Device) {
    * @param {object} client - MQTT client
    * @returns {object | null} pattern
    */
-  Device.detector = (packet, client) => {
-    try {
-      //  if (packet.topic.startsWith('$SYS')) return null;
-      if (packet.topic.split('/')[0] === '$SYS') return null;
-      if (client && !client.ownerId && !client.devEui) return null;
-      const pattern = iotAgent.patternDetector(packet);
-      logger.publish(3, collectionName, 'detector:res', { pattern });
-      return pattern;
-    } catch (error) {
-      logger.publish(2, collectionName, 'detector:err', error);
-      return null;
-    }
-  };
+  Device.detector = (packet, client) => patternDetector(packet, client);
 
   /**
    * Update device status from MQTT connection status

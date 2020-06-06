@@ -526,8 +526,7 @@ export const onPublished = async (broker, packet, client) => {
     return null;
   }
   logger.publish(3, 'broker', 'onPublished:req', { user: client.user, topic: packet.topic });
-  if (client.aloesId) {
-    return onInternalPublished(broker, packet, client);
-  }
-  return onExternalPublished(broker, packet, client);
+  return client.aloesId
+    ? onInternalPublished(broker, packet, client)
+    : onExternalPublished(broker, packet, client);
 };

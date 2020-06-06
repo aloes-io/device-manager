@@ -533,6 +533,26 @@ export const parseMessage = async (app, packet, pattern, client) => {
   throw utils.buildError(400, 'DECODING_ERROR', 'No attributes retrieved from Iot Agent');
 };
 
+/**
+ * Detect device known pattern and load the application instance
+ * @method module:Device~patternDetector
+ * @param {object} packet - MQTT packet
+ * @param {object} client - MQTT client
+ * @returns {object | null} pattern
+ */
+export const patternDetector = (packet, client) => {
+  try {
+    if (packet.topic.split('/')[0] === '$SYS') return null;
+    if (client && !client.ownerId && !client.devEui) return null;
+    const pattern = iotAgent.patternDetector(packet);
+    logger.publish(3, collectionName, 'detector:res', { pattern });
+    return pattern;
+  } catch (error) {
+    logger.publish(2, collectionName, 'detector:err', error);
+    return null;
+  }
+};
+
 const checkHeader = (headers, key, value = false) => {
   // eslint-disable-next-line security/detect-object-injection
   if (!headers || !headers[key] || (value && headers[key] !== value)) {
