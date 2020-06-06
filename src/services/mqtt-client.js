@@ -29,7 +29,7 @@ const baseOptions = {
   password: null,
 };
 
-// const modelNames = ['Device', 'Application', 'Sensor', 'User'];
+const modelNames = { device: 'Device', application: 'Application', sensor: 'Sensor', user: 'user' };
 
 const setClientId = (config) => {
   const prefix = `aloes-${config.ALOES_ID}`;
@@ -98,13 +98,11 @@ const findPattern = async (app, packet, client) => {
   let pattern = null;
   logger.publish(3, 'mqtt-client', 'findPattern:req', client);
   if (client && client.model) {
+    const modelName = modelNames[client.model.toLowerCase()];
     // eslint-disable-next-line security/detect-object-injection
-    pattern = await app.models[client.model].detector(packet, client);
+    pattern = await app.models[modelName].detector(packet, client);
   }
-  // else {
-  //   pattern = await app.models.Device.detector(packet);
-  //   //  pattern = await aloesClientPatternDetector(packet);
-  // }
+
   logger.publish(3, 'mqtt-client', 'findPattern:res', { topic: packet.topic, pattern });
   if (!pattern || !pattern.name || pattern.name === 'empty' || !pattern.params) {
     return null;

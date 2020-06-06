@@ -2,6 +2,7 @@
 
 /* eslint-disable global-require */
 import isEmail from 'validator/lib/isEmail';
+import { patternDetector } from '../lib/models/device';
 import {
   collectionName,
   onBeforeSave,
@@ -177,6 +178,16 @@ module.exports = function (User) {
     User.app.emit('sendMailInvite', options);
     return true;
   };
+
+  /**
+   * Detect device known pattern and load the application instance
+   * @method module:User~detector
+   * @param {object} packet - MQTT packet
+   * @param {object} client - MQTT client
+   * @returns {object | null} pattern
+   */
+  User.detector = (packet, client) => patternDetector(packet, client);
+
   /**
    * Update client (as the user) status from MQTT connection status
    * @async
