@@ -118,14 +118,13 @@ module.exports = function (Measurement) {
       timestamp,
       type: sensor.type.toString(),
       resource: sensor.resource.toString(),
+      nativeNodeId: sensor.nativeNodeId || '0',
       nativeSensorId: sensor.nativeSensorId,
       sensorId: sensor.id.toString(),
       deviceId: sensor.deviceId.toString(),
       ownerId: sensor.ownerId.toString(),
     };
-    if (sensor.nativeNodeId) {
-      measurement.nativeNodeId = sensor.nativeNodeId;
-    }
+
     logger.publish(4, `${collectionName}`, 'compose:res', {
       measurement,
     });
