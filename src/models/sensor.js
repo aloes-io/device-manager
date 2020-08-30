@@ -18,6 +18,7 @@ import {
   resourceValidator,
   transportProtocolValidator,
   typeValidator,
+  validateOmaObject,
 } from '../lib/models/sensor';
 import logger from '../services/logger';
 import utils from '../lib/utils';
@@ -472,6 +473,7 @@ module.exports = function (Sensor) {
      * @returns {Promise<object>}
      */
     Sensor.prototype.__create__resources = function (resources) {
+      validateOmaObject(this, resources);
       return SensorResource.save(this.deviceId, this.id, resources);
     };
 
@@ -482,6 +484,7 @@ module.exports = function (Sensor) {
      * @returns {Promise<object>}
      */
     Sensor.prototype.__replace__resources = function (resources) {
+      validateOmaObject(this, resources);
       return SensorResource.save(this.deviceId, this.id, resources);
     };
 

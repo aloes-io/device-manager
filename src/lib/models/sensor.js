@@ -151,45 +151,21 @@ export const compose = (device, attributes, isNewInstance = true) => {
   return sensor;
 };
 
-// /**
-//  * Build simple where filter based on given attributes
-//  * @method module:Sensor~buildWhere
-//  * @param {object} pattern - IotAgent detected pattern
-//  * @param {object} sensor - Incoming sensor instance
-//  */
-// export const buildWhere = attributes => {
-//   try {
-//     const filter = { where: {} };
-//     // check validAttributes
-//     const schema = Sensor.definition.properties;
-//     const schemaKeys = Object.keys(schema);
-//     const attributesKeys = Object.keys(attributes);
-//     if (attributesKeys.length > 1) {
-//       filter.where = { and: [] };
-//       attributesKeys.forEach(key =>
-//         schemaKeys.forEach(schemaKey => {
-//           if (schemaKey === key && attributes[key] !== null) {
-//             filter.where.and.push({
-//               [key]: attributes[key],
-//             });
-//           }
-//         }),
-//       );
-//     } else {
-//       schemaKeys.forEach(schemaKey => {
-//         if (schemaKey === attributesKeys[0] && attributes[attributesKeys[0]] !== null) {
-//           filter.where = {
-//             [attributesKeys[0]]: attributes[attributesKeys[0]],
-//           };
-//         }
-//       });
-//     }
-//     console.log('filter : ', filter);
-//     return filter;
-//   } catch (error) {
-//     return error;
-//   }
-// };
+export const validateOmaObject = (sensor, resources) => {
+  const { type } = sensor;
+  const omaObject = omaObjects.find(({ value }) => value === type);
+  if (!omaObject) {
+    return false;
+  }
+
+  for (let key in omaObject.resources) {
+    if (!resources.hasOwnProperty(key)) {
+      resources[key] = omaObject.resources[key];
+    }
+  }
+
+  return true;
+};
 
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable camelcase */

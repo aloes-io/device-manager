@@ -2,6 +2,7 @@
 
 import logger from '../services/logger';
 import utils from '../lib/utils';
+import { validateOmaObject } from '../lib/models/sensor';
 
 module.exports = async function migrateProps(app) {
   if (!utils.isMasterProcess(process.env)) return;
@@ -36,7 +37,10 @@ module.exports = async function migrateProps(app) {
         await sensor.setAttribute('createdAt', new Date());
       }
       if (sensor.resources) {
-        await SensorResource.save(sensor.deviceId, sensor.id, sensor.resources);
+        let resources = await SensorResource.find(sensor.deviceId, sensor.id);
+        resources = { ...resources, ...sensor.resources };
+        validateOmaObject(sensor, resources);
+        await SensorResource.save(sensor.deviceId, sensor.id, resources);
         await sensor.unsetAttribute('resources');
       }
     }),

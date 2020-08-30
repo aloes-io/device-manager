@@ -112,7 +112,6 @@ module.exports = function (SensorResource) {
       await Promise.all(
         resourceKeys.map(async (resourceKey) => {
           const key = setCacheKey(deviceId, sensorId, resourceKey);
-          // todo : sqve as buffer ?
           // eslint-disable-next-line security/detect-object-injection
           const resource = JSON.stringify({ [resourceKey]: resources[resourceKey] });
           if (ttl && ttl !== null) {
