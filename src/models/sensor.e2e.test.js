@@ -27,17 +27,21 @@ const restApiPath = `${process.env.REST_API_ROOT}`;
 // test sensor update / delete via user MQTT client
 // test invalid method via user MQTT client
 const sensorTest = () => {
-  const deviceFactory = testHelper.factories.device;
-  const sensorFactory = testHelper.factories.sensor;
-  const clientFactory = testHelper.factories.client;
+  const {
+    client: clientFactory,
+    device: deviceFactory,
+    sensor: sensorFactory,
+  } = testHelper.factories;
   const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Sensors';
   const apiUrl = `${restApiPath}/${collectionName}/`;
   const sensorsCount = 8;
-  const DeviceModel = app.models.Device;
-  const SensorModel = app.models.Sensor;
-  const SensorResourceModel = app.models.SensorResource;
-  const SchedulerModel = app.models.Scheduler;
+  const {
+    Device: DeviceModel,
+    Sensor: SensorModel,
+    SensorResource: SensorResourceModel,
+    Scheduler: SchedulerModel,
+  } = app.models;
   let users, devices, sensors, userIds, packets;
 
   async function beforeTests() {

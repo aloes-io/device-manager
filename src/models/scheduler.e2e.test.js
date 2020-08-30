@@ -15,14 +15,11 @@ const restApiPath = `${process.env.REST_API_ROOT}`;
 // todo :
 // test createOrUpdate mode === 1 || 2 || 3 (should trigger error)
 const schedulerTest = () => {
-  const deviceFactory = testHelper.factories.device;
-  const sensorFactory = testHelper.factories.sensor;
+  const { device: deviceFactory, sensor: sensorFactory } = testHelper.factories;
   const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Schedulers';
   const apiUrl = `${restApiPath}/${collectionName}/`;
-  const DeviceModel = app.models.Device;
-  const SensorModel = app.models.Sensor;
-
+  const { Device: DeviceModel, Sensor: SensorModel } = app.models;
   let users, devices, sensors, userIds;
 
   async function beforeTests() {

@@ -20,8 +20,7 @@ const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
 const clientTest = () => {
-  const clientFactory = testHelper.factories.client;
-  const deviceFactory = testHelper.factories.device;
+  const { client: clientFactory, device: deviceFactory } = testHelper.factories;
   const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Clients';
   const apiUrl = `${restApiPath}/${collectionName}/`;

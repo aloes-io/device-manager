@@ -18,13 +18,11 @@ const restApiPath = `${process.env.REST_API_ROOT}`;
 // test rate limiter with x failed login attempts
 // test single user deletion
 const userTest = () => {
-  const userFactory = testHelper.factories.user;
-  const clientFactory = testHelper.factories.client;
+  const { client: clientFactory, user: userFactory } = testHelper.factories;
   const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Users';
   const apiUrl = `${restApiPath}/${collectionName}/`;
-  const UserModel = app.models.user;
-  const ClientModel = app.models.Client;
+  const { Client: ClientModel, user: UserModel } = app.models;
   let userModels, users;
 
   async function beforeTests() {
