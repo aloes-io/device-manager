@@ -8,7 +8,7 @@
   },
   "scripts": {
     "lint": "npx eslint --ext js .",
-    "lint:fix": "npx eslint --ext js --fix",
+    "lint:fix": "npx eslint --fix --ext js",
     "docs:lib": "./node_modules/.bin/jsdoc2md ./src/lib/* > ./docs/lib/README.md",
     "docs:models": "./node_modules/.bin/jsdoc2md ./src/models/* ./src/lib/models/* > ./docs/api/README.md",
     "docs:services": "./node_modules/.bin/jsdoc2md ./src/services/* ./src/lib/services/* > ./docs/services/README.md",

@@ -162,7 +162,7 @@ const sensorTest = () => {
                   url: () => `${apiUrl}${sensors[1].id}/resources`,
                   body: () => ({
                     resources: {
-                      '5700': 30,
+                      5700: 30,
                     },
                   }),
                   expect: 401,
@@ -182,13 +182,13 @@ const sensorTest = () => {
                   url: () => `${apiUrl}${sensors[1].id}/resources`,
                   body: () => ({
                     resources: {
-                      '5700': 30,
+                      5700: 30,
                     },
                   }),
                   expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body).to.deep.equal({
-                      '5700': 30,
+                      5700: 30,
                     });
                   },
                 },
@@ -279,7 +279,7 @@ const sensorTest = () => {
                   url: () => `${apiUrl}${sensors[1].id}/resources/5700`,
                   expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
-                    expect(resp.body).to.deep.equal({ '5700': 30 });
+                    expect(resp.body).to.deep.equal({ 5700: 30 });
                   },
                 },
                 {
@@ -419,14 +419,14 @@ const sensorTest = () => {
                       body: () => ({
                         resources: {
                           ...step0Response.body,
-                          '5700': 30,
+                          5700: 30,
                         },
                       }),
                       expect: (resp) => {
                         expect(resp.status).to.be.equal(200);
                         expect(resp.body).to.deep.equal({
                           ...step0Response.body,
-                          '5700': 30,
+                          5700: 30,
                         });
                       },
                     }),
