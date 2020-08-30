@@ -626,11 +626,11 @@ Event reporting that an Application instance / collection is requested
     * _static_
         * [.find(filter)](#module_Client.find) ⇒ <code>Promise.&lt;Array.&lt;object&gt;&gt;</code>
         * [.remove(filter)](#module_Client.remove) ⇒ <code>Promise.&lt;Array.&lt;string&gt;&gt;</code>
-        * [.get(key, [cb])](#module_Client.get)
-        * [.set(key, value, [ttl], [cb])](#module_Client.set)
-        * [.delete(key, [cb])](#module_Client.delete)
-        * [.expire(key, [ttl], [cb])](#module_Client.expire)
-        * [.keys([filter], [cb])](#module_Client.keys) ⇒ <code>Array.&lt;string&gt;</code>
+        * [.get(key, [cb])](#module_Client.get) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
+        * [.set(key, value, [ttl], [cb])](#module_Client.set) ⇒ <code>Promise.&lt;undefined&gt;</code>
+        * [.delete(key, [cb])](#module_Client.delete) ⇒ <code>Promise.&lt;undefined&gt;</code>
+        * [.expire(key, [ttl], [cb])](#module_Client.expire) ⇒ <code>Promise.&lt;undefined&gt;</code>
+        * [.keys([filter], [cb])](#module_Client.keys) ⇒ <code>Promise.&lt;Array.&lt;string&gt;&gt;</code>
         * [.iterateKeys([filter])](#module_Client.iterateKeys) ⇒ <code>AsyncIterator</code>
     * _inner_
         * [~onBeforeRemote(ctx, [Model])](#module_Client..onBeforeRemote) ⇒ <code>Promise.&lt;object&gt;</code>
@@ -667,7 +667,7 @@ Find clients in the cache
 
 <a name="module_Client.get"></a>
 
-### Client.get(key, [cb])
+### Client.get(key, [cb]) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
 Get client by key
 
 Use callback or promise
@@ -682,7 +682,7 @@ Use callback or promise
 
 <a name="module_Client.set"></a>
 
-### Client.set(key, value, [ttl], [cb])
+### Client.set(key, value, [ttl], [cb]) ⇒ <code>Promise.&lt;undefined&gt;</code>
 Set client by key, with optional TTL
 
 Use callback or promise
@@ -699,7 +699,7 @@ Use callback or promise
 
 <a name="module_Client.delete"></a>
 
-### Client.delete(key, [cb])
+### Client.delete(key, [cb]) ⇒ <code>Promise.&lt;undefined&gt;</code>
 Delete Client by key
 
 Use callback or promise
@@ -714,7 +714,7 @@ Use callback or promise
 
 <a name="module_Client.expire"></a>
 
-### Client.expire(key, [ttl], [cb])
+### Client.expire(key, [ttl], [cb]) ⇒ <code>Promise.&lt;undefined&gt;</code>
 Set the TTL (time to live) in ms (milliseconds) for a given key
 
 Use callback or promise
@@ -730,7 +730,7 @@ Use callback or promise
 
 <a name="module_Client.keys"></a>
 
-### Client.keys([filter], [cb]) ⇒ <code>Array.&lt;string&gt;</code>
+### Client.keys([filter], [cb]) ⇒ <code>Promise.&lt;Array.&lt;string&gt;&gt;</code>
 Get all client keys
 
 Use callback or promise
@@ -896,7 +896,7 @@ Optional result callback
         * [.updateById(id, filter)](#module_Device.updateById) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.deleteById(id, filter)](#module_Device.deleteById) ⇒ <code>Promise.&lt;object&gt;</code>
     * _inner_
-        * [~detector(packet, client)](#module_Device..detector) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
+        * [~detector(packet, client)](#module_Device..detector) ⇒ <code>object</code> \| <code>null</code>
         * [~transportProtocolValidator(err)](#module_Device..transportProtocolValidator)
         * [~messageProtocolValidator(err)](#module_Device..messageProtocolValidator)
         * [~typeValidator(err)](#module_Device..typeValidator)
@@ -912,6 +912,7 @@ Optional result callback
         * [~onBeforeDelete(ctx)](#module_Device..onBeforeDelete) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onBeforeRemote(app, ctx)](#module_Device..onBeforeRemote) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~parseMessage(app, packet, pattern, client)](#module_Device..parseMessage) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [~patternDetector(packet, client)](#module_Device..patternDetector) ⇒ <code>object</code> \| <code>null</code>
         * ["client" (message)](#event_client) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
         * ["publish" (message)](#event_publish) ⇒ <code>Promise.&lt;(functions\|null)&gt;</code>
         * ["stopped"](#event_stopped)
@@ -1170,11 +1171,11 @@ Delete device by id
 
 <a name="module_Device..detector"></a>
 
-### Device~detector(packet, client) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
+### Device~detector(packet, client) ⇒ <code>object</code> \| <code>null</code>
 Detect device known pattern and load the application instance
 
 **Kind**: inner method of [<code>Device</code>](#module_Device)  
-**Returns**: <code>Promise.&lt;(object\|null)&gt;</code> - pattern  
+**Returns**: <code>object</code> \| <code>null</code> - pattern  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1371,6 +1372,19 @@ Adding device and sensor context to raw incoming data
 | app | <code>object</code> | Loopback app |
 | packet | <code>object</code> | MQTT packet |
 | pattern | <code>object</code> | Pattern detected by IotAgent |
+| client | <code>object</code> | MQTT client |
+
+<a name="module_Device..patternDetector"></a>
+
+### Device~patternDetector(packet, client) ⇒ <code>object</code> \| <code>null</code>
+Detect device known pattern and load the application instance
+
+**Kind**: inner method of [<code>Device</code>](#module_Device)  
+**Returns**: <code>object</code> \| <code>null</code> - pattern  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| packet | <code>object</code> | MQTT packet |
 | client | <code>object</code> | MQTT client |
 
 <a name="event_client"></a>
@@ -2042,16 +2056,16 @@ Event reporting that a measurement method is requested
         * [.publish(device, measurement, [method], [client])](#module_Scheduler.publish) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
         * [.onTimeout(body)](#module_Scheduler.onTimeout) ⇒ <code>Promise.&lt;function()&gt;</code>
         * [.createOrUpdate(sensor, [client])](#module_Scheduler.createOrUpdate) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [.onTick(data)](#module_Scheduler.onTick) ⇒ <code>Promise.&lt;function()&gt;</code>
+        * [.onTick(data)](#module_Scheduler.onTick) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
         * [.onTickHook(body)](#module_Scheduler.onTickHook) ⇒ <code>Promise.&lt;boolean&gt;</code>
         * [.setExternalClock(interval)](#module_Scheduler.setExternalClock) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.setInternalClock(callback, interval)](#module_Scheduler.setInternalClock) ⇒ <code>function</code>
         * [.setClock(interval)](#module_Scheduler.setClock)
-        * [.get(key, [cb])](#module_Scheduler.get)
-        * [.set(key, value, [ttl], [cb])](#module_Scheduler.set)
-        * [.delete(key, [cb])](#module_Scheduler.delete)
-        * [.expire(key, [ttl], [cb])](#module_Scheduler.expire)
-        * [.keys([filter], [cb])](#module_Scheduler.keys) ⇒ <code>Array.&lt;string&gt;</code>
+        * [.get(key, [cb])](#module_Scheduler.get) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
+        * [.set(key, value, [ttl], [cb])](#module_Scheduler.set) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.delete(key, [cb])](#module_Scheduler.delete) ⇒ <code>Promise.&lt;undefined&gt;</code>
+        * [.expire(key, [ttl], [cb])](#module_Scheduler.expire) ⇒ <code>Promise.&lt;undefined&gt;</code>
+        * [.keys([filter], [cb])](#module_Scheduler.keys) ⇒ <code>Promise.&lt;Array.&lt;string&gt;&gt;</code>
         * [.iterateKeys([filter])](#module_Scheduler.iterateKeys) ⇒ <code>AsyncIterator</code>
     * _inner_
         * [~onBeforeRemote(ctx)](#module_Scheduler..onBeforeRemote) ⇒ <code>Promise.&lt;object&gt;</code>
@@ -2136,13 +2150,13 @@ Create or update scheduler stored in cache
 
 <a name="module_Scheduler.onTick"></a>
 
-### Scheduler.onTick(data) ⇒ <code>Promise.&lt;function()&gt;</code>
+### Scheduler.onTick(data) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
 Scheduler tick event ( scheduler clock )
 
 Update every sensor having an active scheduler
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Returns**: <code>Promise.&lt;function()&gt;</code> - Scheduler~syncRunningTimers  
+**Returns**: <code>Promise.&lt;(function()\|null)&gt;</code> - Scheduler~syncRunningTimers  
 **Emits**: <code>Scheduler.event:publish</code>  
 
 | Param | Type | Description |
@@ -2203,12 +2217,11 @@ Scheduler will use Skyring external timer handler
 
 <a name="module_Scheduler.get"></a>
 
-### Scheduler.get(key, [cb])
+### Scheduler.get(key, [cb]) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
 Get Scheduler by key
 Use callback or promise
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Promise**: result  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2217,13 +2230,12 @@ Use callback or promise
 
 <a name="module_Scheduler.set"></a>
 
-### Scheduler.set(key, value, [ttl], [cb])
+### Scheduler.set(key, value, [ttl], [cb]) ⇒ <code>Promise.&lt;object&gt;</code>
 Set Scheduler by key, with optional TTL
 
 Use callback or promise
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Promise**: undefined  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2234,13 +2246,12 @@ Use callback or promise
 
 <a name="module_Scheduler.delete"></a>
 
-### Scheduler.delete(key, [cb])
+### Scheduler.delete(key, [cb]) ⇒ <code>Promise.&lt;undefined&gt;</code>
 Delete Scheduler by key
 
 Use callback or promise
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Promise**: undefined  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2249,13 +2260,12 @@ Use callback or promise
 
 <a name="module_Scheduler.expire"></a>
 
-### Scheduler.expire(key, [ttl], [cb])
+### Scheduler.expire(key, [ttl], [cb]) ⇒ <code>Promise.&lt;undefined&gt;</code>
 Set the TTL (time to live) in ms (milliseconds) for a given key
 
 Use callback or promise
 
 **Kind**: static method of [<code>Scheduler</code>](#module_Scheduler)  
-**Promise**: undefined  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -2265,7 +2275,7 @@ Use callback or promise
 
 <a name="module_Scheduler.keys"></a>
 
-### Scheduler.keys([filter], [cb]) ⇒ <code>Array.&lt;string&gt;</code>
+### Scheduler.keys([filter], [cb]) ⇒ <code>Promise.&lt;Array.&lt;string&gt;&gt;</code>
 Get all Scheduler keys
 
 Use callback or promise
@@ -2500,11 +2510,11 @@ Optional result callback
         * [.save(deviceId, sensorId, resources, [ttl])](#module_SensorResource.save) ⇒ <code>Promise.&lt;(Array.&lt;object&gt;\|null)&gt;</code>
         * [.remove(deviceId, sensorId, [resourceId])](#module_SensorResource.remove) ⇒ <code>Promise.&lt;boolean&gt;</code>
         * [.expireCache(deviceId, sensorId, resourceId, [ttl])](#module_SensorResource.expireCache) ⇒ <code>Promise.&lt;boolean&gt;</code>
-        * [.get(key, [cb])](#module_SensorResource.get)
-        * [.set(key, value, [ttl], [cb])](#module_SensorResource.set)
-        * [.delete(key, [cb])](#module_SensorResource.delete)
-        * [.expire(key, [ttl], [cb])](#module_SensorResource.expire)
-        * [.keys([filter], [cb])](#module_SensorResource.keys) ⇒ <code>Array.&lt;string&gt;</code>
+        * [.get(key, [cb])](#module_SensorResource.get) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
+        * [.set(key, value, [ttl], [cb])](#module_SensorResource.set) ⇒ <code>Promise.&lt;undefined&gt;</code>
+        * [.delete(key, [cb])](#module_SensorResource.delete) ⇒ <code>Promise.&lt;undefined&gt;</code>
+        * [.expire(key, [ttl], [cb])](#module_SensorResource.expire) ⇒ <code>Promise.&lt;undefined&gt;</code>
+        * [.keys([filter], [cb])](#module_SensorResource.keys) ⇒ <code>Promise.&lt;Array.&lt;string&gt;&gt;</code>
         * [.iterateKeys([filter])](#module_SensorResource.iterateKeys) ⇒ <code>AsyncIterator</code>
     * _inner_
         * [~errorCallback](#module_SensorResource..errorCallback) : <code>function</code>
@@ -2594,7 +2604,7 @@ Set TTL for a sensor stored in cache
 
 <a name="module_SensorResource.get"></a>
 
-### SensorResource.get(key, [cb])
+### SensorResource.get(key, [cb]) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
 Get SensorResource by key
 
 Use callback or promise
@@ -2609,7 +2619,7 @@ Use callback or promise
 
 <a name="module_SensorResource.set"></a>
 
-### SensorResource.set(key, value, [ttl], [cb])
+### SensorResource.set(key, value, [ttl], [cb]) ⇒ <code>Promise.&lt;undefined&gt;</code>
 Set SensorResource by key, with optional TTL
 
 Use callback or promise
@@ -2626,7 +2636,7 @@ Use callback or promise
 
 <a name="module_SensorResource.delete"></a>
 
-### SensorResource.delete(key, [cb])
+### SensorResource.delete(key, [cb]) ⇒ <code>Promise.&lt;undefined&gt;</code>
 Delete SensorResource by key
 
 Use callback or promise
@@ -2641,7 +2651,7 @@ Use callback or promise
 
 <a name="module_SensorResource.expire"></a>
 
-### SensorResource.expire(key, [ttl], [cb])
+### SensorResource.expire(key, [ttl], [cb]) ⇒ <code>Promise.&lt;undefined&gt;</code>
 Set the TTL (time to live) in ms (milliseconds) for a given key
 
 Use callback or promise
@@ -2657,7 +2667,7 @@ Use callback or promise
 
 <a name="module_SensorResource.keys"></a>
 
-### SensorResource.keys([filter], [cb]) ⇒ <code>Array.&lt;string&gt;</code>
+### SensorResource.keys([filter], [cb]) ⇒ <code>Promise.&lt;Array.&lt;string&gt;&gt;</code>
 Get all SensorResource keys
 
 Use callback or promise
@@ -3408,6 +3418,7 @@ Error callback
         * [.updateById(id)](#module_User.updateById) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.deleteById(id)](#module_User.deleteById) ⇒ <code>Promise.&lt;object&gt;</code>
     * _inner_
+        * [~detector(packet, client)](#module_User..detector) ⇒ <code>object</code> \| <code>null</code>
         * [~createProps(app, user)](#module_User..createProps) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
         * [~onBeforeSave(ctx)](#module_User..onBeforeSave) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onAfterSave(ctx)](#module_User..onAfterSave) ⇒ <code>Promise.&lt;object&gt;</code>
@@ -3579,6 +3590,19 @@ Delete user by id
 | Param | Type |
 | --- | --- |
 | id | <code>any</code> | 
+
+<a name="module_User..detector"></a>
+
+### User~detector(packet, client) ⇒ <code>object</code> \| <code>null</code>
+Detect device known pattern and load the application instance
+
+**Kind**: inner method of [<code>User</code>](#module_User)  
+**Returns**: <code>object</code> \| <code>null</code> - pattern  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| packet | <code>object</code> | MQTT packet |
+| client | <code>object</code> | MQTT client |
 
 <a name="module_User..createProps"></a>
 

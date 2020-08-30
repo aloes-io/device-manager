@@ -535,10 +535,10 @@ Promise wrapper to send verification email after user registration
         * [~updateModelsStatus(app, client, status)](#module_MQTTClient..updateModelsStatus)
         * [~findPattern(app, packet, client)](#module_MQTTClient..findPattern) ⇒ <code>Promise.&lt;(object\|null)&gt;</code>
         * [~redirectMessage(packet, client, pattern)](#module_MQTTClient..redirectMessage) ⇒ <code>string</code>
-        * [~onStatus(app, topic, payload)](#module_MQTTClient..onStatus) ⇒ <code>function</code>
+        * [~onStatus(app, topic, payload)](#module_MQTTClient..onStatus) ⇒ <code>boolean</code>
         * [~onReceive(app, topic, payload)](#module_MQTTClient..onReceive) ⇒ <code>Promise.&lt;object&gt;</code>
         * [~onMessage(app, topic, payload)](#module_MQTTClient..onMessage) ⇒ <code>Promise.&lt;(function()\|null)&gt;</code>
-        * [~startClient()](#module_MQTTClient..startClient)
+        * [~startClient()](#module_MQTTClient..startClient) ⇒ <code>Promise.&lt;boolean&gt;</code>
         * [~initClient(app, config)](#module_MQTTClient..initClient) ⇒ <code>Promise.&lt;boolean&gt;</code>
         * [~stopClient()](#module_MQTTClient..stopClient) ⇒ <code>Promise.&lt;boolean&gt;</code>
 
@@ -612,10 +612,10 @@ Retrieve pattern from packet.topic
 <a name="module_MQTTClient..redirectMessage"></a>
 
 ### MQTTClient~redirectMessage(packet, client, pattern) ⇒ <code>string</code>
-Redirect parsed message to corresponding Loopback model || device
+Redirect parsed message to corresponding Loopback model
 
 **Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
-**Returns**: <code>string</code> - serviceName  
+**Returns**: <code>string</code> - modelName  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -625,11 +625,11 @@ Redirect parsed message to corresponding Loopback model || device
 
 <a name="module_MQTTClient..onStatus"></a>
 
-### MQTTClient~onStatus(app, topic, payload) ⇒ <code>function</code>
+### MQTTClient~onStatus(app, topic, payload) ⇒ <code>boolean</code>
 Called when status message has been detected
 
 **Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
-**Returns**: <code>function</code> - module:MQTTClient~updateModelsStatus  
+**Returns**: <code>boolean</code> - status  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -640,8 +640,9 @@ Called when status message has been detected
 <a name="module_MQTTClient..onReceive"></a>
 
 ### MQTTClient~onReceive(app, topic, payload) ⇒ <code>Promise.&lt;object&gt;</code>
-Called when message arrived from the broker to be redirected to the right
-Model
+Event called when message arrived from the broker
+
+Will be redirected to the right Model
 
 **Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
 **Returns**: <code>Promise.&lt;object&gt;</code> - packet  
@@ -669,10 +670,11 @@ Parse the message arriving from the broker
 
 <a name="module_MQTTClient..startClient"></a>
 
-### MQTTClient~startClient()
+### MQTTClient~startClient() ⇒ <code>Promise.&lt;boolean&gt;</code>
 Setup MQTT client listeners
 
 **Kind**: inner method of [<code>MQTTClient</code>](#module_MQTTClient)  
+**Returns**: <code>Promise.&lt;boolean&gt;</code> - status  
 <a name="module_MQTTClient..initClient"></a>
 
 ### MQTTClient~initClient(app, config) ⇒ <code>Promise.&lt;boolean&gt;</code>
