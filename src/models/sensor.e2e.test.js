@@ -7,8 +7,7 @@
 import chai, { expect } from 'chai';
 import chaiDeepMatch from 'chai-deep-match';
 import lbe2e from 'lb-declarative-e2e-test';
-import mqttTest from 'mqtt-declarative-e2e-test';
-// import mqtt from 'mqtt';
+import {run as mqttTest, api} from 'mqtt-declarative-e2e-test';
 import app from '../index';
 import testHelper from '../lib/test-helper';
 import utils from '../lib/utils';
@@ -962,7 +961,7 @@ const sensorTest = () => {
         },
       };
 
-      mqttTest({}, e2eTestsSuite);
+      mqttTest({}, e2eTestsSuite, api.mocha);
     });
   });
 };
