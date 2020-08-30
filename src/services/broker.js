@@ -112,21 +112,30 @@ const authorizeSubscribe = (client, packet, cb) =>
     ? cb(null, packet)
     : cb(new Error('authorizeSubscribe error'));
 
-// const authorizeForward = (client, packet) => {
-//   // use this to avoid user sender to see its own message on other clients
-//   const topic = packet.topic;
-//   const topicParts = topic.split('/');
-//   logger.publish(3, 'broker', 'authorizeForward:req', {
-//     user: client && client.user,
-//     topic: topicParts,
-//   });
-//   if (!client) return packet;
-//   // if (topicParts[0].startsWith(client.user)) {
-//   //   // if (topicParts[0].startsWith(`aloes-${process.env.ALOES_ID}`)) {
-//   //   return null;
-//   // }
-//   return packet;
-// };
+/**
+ * Aedes forward authorization hook
+ *
+ * @method module:Broker~authorizeForward
+ * @param {object} client - MQTT client
+ * @param {object} packet - MQTT packet
+ * @returns {object} packet
+ */
+const authorizeForward = (client, packet) => {
+  // TODO: Use forward to avoid duplicated packet ?
+  const { topic } = packet;
+  const topicParts = topic.split('/');
+  logger.publish(3, 'broker', 'authorizeForward:req', {
+    user: client && client.user,
+    id: client && client.id,
+    model: client && client.model,
+    topic: topicParts,
+    packet,
+  });
+  // if (topicParts[0].startsWith(client.user)) {
+  //   return null;
+  // }
+  return packet;
+};
 
 /**
  * Aedes publised hook
@@ -141,6 +150,7 @@ const published = (packet, client, cb) =>
   onPublished(broker, packet, client)
     .then(() => cb())
     .catch(() => cb());
+
 /**
  * Convert payload before publish
  * @method module:Broker.publish
@@ -148,16 +158,7 @@ const published = (packet, client, cb) =>
  * @returns {function} broker.instance.publish
  */
 broker.publish = (packet) => {
-  // if (typeof packet.payload === 'boolean') {
-  //   packet.payload = packet.payload.toString();
-  // } else if (typeof packet.payload === 'number') {
-  //   packet.payload = packet.payload.toString();
-  // } else if (typeof packet.payload === 'string') {
-  //   packet.payload = Buffer.from(packet.payload);
-  // } else
   if (typeof packet.payload === 'object' && !Buffer.isBuffer(packet.payload)) {
-    // console.log('publish buffer ?', !Buffer.isBuffer(packet.payload));
-    //  packet.payload = JSON.stringify(packet.payload);
     packet.payload = Buffer.from(packet.payload);
   }
   // logger.publish(2, 'broker', 'publish:res', { topic:
@@ -299,8 +300,7 @@ broker.init = () => {
       password: config.REDIS_PASS,
       lazyConnect: true,
       retryStrategy(times) {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
+        return Math.min(times * 50, 2000);
       },
     });
   }
@@ -317,7 +317,7 @@ broker.init = () => {
     published,
     authorizePublish,
     authorizeSubscribe,
-    // authorizeForward,
+    authorizeForward,
     trustProxy: true,
     trustedProxies: [],
   };

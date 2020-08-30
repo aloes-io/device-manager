@@ -1,4 +1,4 @@
-/* Copyright 2019 Edouard Maleix, read LICENSE */
+/* Copyright 2020 Edouard Maleix, read LICENSE */
 
 /* eslint-disable import/no-extraneous-dependencies */
 /* eslint-disable global-require */
@@ -6,6 +6,15 @@ import { protocolDecoder } from 'aedes-protocol-decoder';
 import axios from 'axios';
 import ws from 'websocket-stream';
 import logger from '../../services/logger';
+
+// const brokerResponseCodes = {
+//   '0': 'Accepted',
+//   '1': 'Unacceptable protocol version',
+//   '2': 'Identifier rejected',
+//   '3': 'Server unavailable',
+//   '4': 'Bad user name or password',
+//   '5': 'Not authorized',
+// };
 
 /**
  * Aedes persistence layer
@@ -27,13 +36,11 @@ export const persistence = (config) => {
     lazyConnect: true,
     password: config.REDIS_PASS,
     retryStrategy(times) {
-      const delay = Math.min(times * 50, 2000);
-      return delay;
+      return Math.min(times * 50, 2000);
     },
     maxSessionDelivery: 100, //   maximum offline messages deliverable on
     //   client CONNECT, default is 1000
     packetTTL(packet) {
-      //  offline message TTL ( in seconds )
       const ttl = 1 * 60 * 60;
       if (packet && packet.topic.search(/device/i) !== -1) {
         return ttl;
@@ -65,8 +72,7 @@ export const emitter = (config) => {
     lazyConnect: true,
     concurrency: 100,
     retryStrategy(times) {
-      const delay = Math.min(times * 50, 2000);
-      return delay;
+      return Math.min(times * 50, 2000);
     },
   });
 };
@@ -178,12 +184,12 @@ export const getClientProps = (client) => {
  * @returns {array|object}
  */
 export const getClients = (broker, id) => {
-  if (!broker.instance) return null;
-  if (id && typeof id === 'string') {
-    // eslint-disable-next-line security/detect-object-injection
-    return broker.instance.clients[id];
+  const { instance } = broker;
+  if (!instance) {
+    return null;
   }
-  return broker.instance.clients;
+  // eslint-disable-next-line security/detect-object-injection
+  return id && typeof id === 'string' ? instance.clients[id] : instance.clients;
 };
 
 /**
@@ -202,7 +208,9 @@ export const getClientsByTopic = (broker, topic) =>
     const clients = [];
     return stream
       .on('data', (clientId) => {
-        if (clientId !== null) clients.push(clientId);
+        if (clientId !== null) {
+          clients.push(clientId);
+        }
       })
       .on('end', () => {
         logger.publish(5, 'broker', 'getClientsByTopic:res', { clients });
@@ -226,12 +234,13 @@ export const getAloesClientTopic = (clientId) => {
  */
 export const pickRandomClient = (broker, clientIds) => {
   try {
-    if (!clientIds || clientIds === null) return null;
+    if (!clientIds) {
+      return null;
+    }
     const connectedClients = clientIds
       .map((clientId) => {
         const client = getClients(broker, clientId);
-        if (client) return clientId;
-        return null;
+        return client ? clientId : null;
       })
       .filter((val) => val !== null);
     logger.publish(5, 'broker', 'pickRandomClient:req', { clientIds: connectedClients });
@@ -266,15 +275,6 @@ const authentificationRequest = async (credentials) => {
   return data || null;
 };
 
-// const brokerResponseCodes = {
-//   '0': 'Accepted',
-//   '1': 'Unacceptable protocol version',
-//   '2': 'Identifier rejected',
-//   '3': 'Server unavailable',
-//   '4': 'Bad user name or password',
-//   '5': 'Not authorized',
-// };
-
 /**
  * Check client credentials and update client properties
  *
@@ -296,8 +296,9 @@ export const onAuthenticate = async (client, username, password) => {
       client: client.id || null,
       username,
     });
-    if (!client || !client.id) return 1;
-    if (!password || !username) return 4;
+    if (!password || !username) {
+      return 4;
+    }
 
     let status, foundClient;
     foundClient = getClientProps(client);
@@ -324,9 +325,7 @@ export const onAuthenticate = async (client, username, password) => {
       }
     }
 
-    if (status === undefined) status = 2;
-
-    return status;
+    return status || 2;
   } catch (error) {
     if (error.code === 'ECONNREFUSED') {
       return 3;
@@ -344,9 +343,10 @@ export const onAuthenticate = async (client, username, password) => {
  */
 export const onAuthorizePublish = (client, packet) => {
   let auth = false;
-  const topic = packet.topic;
-  // if (!topic) return auth;
-  if (!client.user) return auth;
+  const { topic } = packet;
+  if (!client.user) {
+    return auth;
+  }
   const topicParts = topic.split('/');
   const topicIdentifier = topicParts[0];
   logger.publish(5, 'broker', 'onAuthorizePublish:req', {
@@ -362,7 +362,6 @@ export const onAuthorizePublish = (client, packet) => {
     auth = true;
   } else if (client.devEui && topicIdentifier.startsWith(client.devEui)) {
     // todo : limit access to device out prefix if any - /
-    // endsWith(device.outPrefix)
     auth = true;
   } else if (
     client.appId &&
@@ -384,8 +383,7 @@ export const onAuthorizePublish = (client, packet) => {
  */
 export const onAuthorizeSubscribe = (client, packet) => {
   let auth = false;
-  const topic = packet.topic;
-  // if (!topic) return auth;
+  const { topic } = packet;
   if (!client.user) return auth;
   const topicParts = topic.split('/');
   const topicIdentifier = topicParts[0];
@@ -422,7 +420,7 @@ export const onAuthorizeSubscribe = (client, packet) => {
 const getAloesClient = async (broker) => {
   const aloesId = process.env.ALOES_ID;
   const aloesClientsIds = await getClientsByTopic(broker, `aloes-${aloesId}/sync`);
-  if (!aloesClientsIds || aloesClientsIds === null) {
+  if (!aloesClientsIds) {
     throw new Error('No Aloes app client subscribed');
   }
   const aloesClient = pickRandomClient(broker, aloesClientsIds);
@@ -475,8 +473,6 @@ const onInternalPublished = (broker, packet) => {
   if (topicParts[2] === 'tx') {
     packet.topic = topicParts.slice(3, topicParts.length).join('/');
     packet.qos = 1;
-    // packet.retain = false;
-    // console.log('broker, reformatted packet to instance', packet);
     broker.publish(packet);
   }
   // else if (topicParts[1] === 'sync') {
@@ -497,7 +493,7 @@ const onExternalPublished = async (broker, packet, client) => {
   const foundClient = getClientProps(client);
   packet.topic = `${getAloesClientTopic(aloesClient.id)}/rx/${packet.topic}`;
 
-  // check packet payload type to preformat before stringify
+  // TODO: check packet payload type to preformat before stringify
   if (client.ownerId) {
     packet.payload = JSON.parse(packet.payload.toString());
   }
@@ -509,7 +505,6 @@ const onExternalPublished = async (broker, packet, client) => {
   // }
   packet.payload = Buffer.from(JSON.stringify({ payload: packet.payload, client: foundClient }));
   broker.publish(packet);
-
   return packet;
 };
 
