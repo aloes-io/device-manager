@@ -655,7 +655,7 @@ module.exports = function (Device) {
     if (device.sensors()) {
       const sensors = await Promise.all(
         device.sensors().map(async (sensor) => ({
-          ...sensor,
+          ...JSON.parse(JSON.stringify(sensor)),
           resources: await getResources(sensor),
         })),
       );
