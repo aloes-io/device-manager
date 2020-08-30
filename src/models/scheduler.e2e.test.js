@@ -15,14 +15,11 @@ const restApiPath = `${process.env.REST_API_ROOT}`;
 // todo :
 // test createOrUpdate mode === 1 || 2 || 3 (should trigger error)
 const schedulerTest = () => {
-  const deviceFactory = testHelper.factories.device;
-  const sensorFactory = testHelper.factories.sensor;
+  const { device: deviceFactory, sensor: sensorFactory } = testHelper.factories;
   const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Schedulers';
   const apiUrl = `${restApiPath}/${collectionName}/`;
-  const DeviceModel = app.models.Device;
-  const SensorModel = app.models.Sensor;
-
+  const { Device: DeviceModel, Sensor: SensorModel } = app.models;
   let users, devices, sensors, userIds;
 
   async function beforeTests() {
@@ -98,9 +95,9 @@ const schedulerTest = () => {
                     ...sensors[3],
                     resources: {
                       ...sensors[3].resources,
-                      '5523': 'start',
-                      '5526': 0,
-                      '5521': 1500,
+                      5523: 'start',
+                      5526: 0,
+                      5521: 1500,
                     },
                     resource: 5523,
                     value: 'start',
@@ -123,9 +120,9 @@ const schedulerTest = () => {
                     ...sensors[3],
                     resources: {
                       ...sensors[3].resources,
-                      '5523': 'start',
-                      '5526': 1,
-                      '5521': 1500,
+                      5523: 'start',
+                      5526: 1,
+                      5521: 1500,
                     },
                     resource: 5523,
                     value: 'start',
@@ -151,10 +148,10 @@ const schedulerTest = () => {
                     ...sensors[3],
                     resources: {
                       ...sensors[3].resources,
-                      '5521': 1500,
-                      '5538': 1300,
-                      '5523': 'pause',
-                      '5526': 1,
+                      5521: 1500,
+                      5538: 1300,
+                      5523: 'pause',
+                      5526: 1,
                     },
                     resource: 5523,
                     value: 'pause',
@@ -180,10 +177,10 @@ const schedulerTest = () => {
                     ...sensors[3],
                     resources: {
                       ...sensors[3].resources,
-                      '5521': 1500,
-                      '5538': 1300,
-                      '5523': 'restart',
-                      '5526': 1,
+                      5521: 1500,
+                      5538: 1300,
+                      5523: 'restart',
+                      5526: 1,
                     },
                     resource: 5523,
                     value: 'restart',
@@ -209,10 +206,10 @@ const schedulerTest = () => {
                     ...sensors[3],
                     resources: {
                       ...sensors[3].resources,
-                      '5521': 1500,
-                      '5538': 1300,
-                      '5523': 'stop',
-                      '5526': 1,
+                      5521: 1500,
+                      5538: 1300,
+                      5523: 'stop',
+                      5526: 1,
                     },
                     resource: 5523,
                     value: 'stop',
@@ -238,9 +235,9 @@ const schedulerTest = () => {
                     ...sensors[3],
                     resources: {
                       ...sensors[3].resources,
-                      '5850': true,
-                      '5526': 0,
-                      '5521': 1500,
+                      5850: true,
+                      5526: 0,
+                      5521: 1500,
                     },
                     resource: 5850,
                     value: true,
@@ -266,8 +263,8 @@ const schedulerTest = () => {
                     ...sensors[3],
                     resources: {
                       ...sensors[3].resources,
-                      '5850': false,
-                      '5526': 0,
+                      5850: false,
+                      5526: 0,
                     },
                     resource: 5850,
                     value: false,
@@ -310,9 +307,9 @@ const schedulerTest = () => {
                         ...sensors[3],
                         resources: {
                           ...sensors[3].resources,
-                          '5850': true,
-                          '5526': 0,
-                          '5521': 1500,
+                          5850: true,
+                          5526: 0,
+                          5521: 1500,
                         },
                         resource: 5850,
                         value: true,

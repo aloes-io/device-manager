@@ -27,17 +27,21 @@ const restApiPath = `${process.env.REST_API_ROOT}`;
 // test sensor update / delete via user MQTT client
 // test invalid method via user MQTT client
 const sensorTest = () => {
-  const deviceFactory = testHelper.factories.device;
-  const sensorFactory = testHelper.factories.sensor;
-  const clientFactory = testHelper.factories.client;
+  const {
+    client: clientFactory,
+    device: deviceFactory,
+    sensor: sensorFactory,
+  } = testHelper.factories;
   const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Sensors';
   const apiUrl = `${restApiPath}/${collectionName}/`;
   const sensorsCount = 8;
-  const DeviceModel = app.models.Device;
-  const SensorModel = app.models.Sensor;
-  const SensorResourceModel = app.models.SensorResource;
-  const SchedulerModel = app.models.Scheduler;
+  const {
+    Device: DeviceModel,
+    Sensor: SensorModel,
+    SensorResource: SensorResourceModel,
+    Scheduler: SchedulerModel,
+  } = app.models;
   let users, devices, sensors, userIds, packets;
 
   async function beforeTests() {
@@ -158,7 +162,7 @@ const sensorTest = () => {
                   url: () => `${apiUrl}${sensors[1].id}/resources`,
                   body: () => ({
                     resources: {
-                      '5700': 30,
+                      5700: 30,
                     },
                   }),
                   expect: 401,
@@ -178,13 +182,13 @@ const sensorTest = () => {
                   url: () => `${apiUrl}${sensors[1].id}/resources`,
                   body: () => ({
                     resources: {
-                      '5700': 30,
+                      5700: 30,
                     },
                   }),
                   expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
                     expect(resp.body).to.deep.equal({
-                      '5700': 30,
+                      5700: 30,
                     });
                   },
                 },
@@ -275,7 +279,7 @@ const sensorTest = () => {
                   url: () => `${apiUrl}${sensors[1].id}/resources/5700`,
                   expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
-                    expect(resp.body).to.deep.equal({ '5700': 30 });
+                    expect(resp.body).to.deep.equal({ 5700: 30 });
                   },
                 },
                 {
@@ -415,14 +419,14 @@ const sensorTest = () => {
                       body: () => ({
                         resources: {
                           ...step0Response.body,
-                          '5700': 30,
+                          5700: 30,
                         },
                       }),
                       expect: (resp) => {
                         expect(resp.status).to.be.equal(200);
                         expect(resp.body).to.deep.equal({
                           ...step0Response.body,
-                          '5700': 30,
+                          5700: 30,
                         });
                       },
                     }),

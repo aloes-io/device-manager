@@ -12,8 +12,8 @@
         * [.removeFile(filePath)](#module_Utils.removeFile) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.cacheIterator(Model, [filter])](#module_Utils.cacheIterator) ⇒ <code>Promise.&lt;string&gt;</code>
         * [.find(Model, [filter])](#module_Utils.find) ⇒ <code>Promise.&lt;Array.&lt;object&gt;&gt;</code>
-        * [.find(Model, [filter])](#module_Utils.find) ⇒ <code>Promise.&lt;object&gt;</code>
-        * [.find(Model, id, [filter])](#module_Utils.find) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.findOne(Model, [filter])](#module_Utils.findOne) ⇒ <code>Promise.&lt;object&gt;</code>
+        * [.findById(Model, id, [filter])](#module_Utils.findById) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.create(Model, instances)](#module_Utils.create) ⇒ <code>Promise.&lt;(object\|Array.&lt;object&gt;)&gt;</code>
         * [.updateAttribute(instance, name, value)](#module_Utils.updateAttribute) ⇒ <code>Promise.&lt;object&gt;</code>
         * [.updateAttributes(instance, attributes)](#module_Utils.updateAttributes) ⇒ <code>Promise.&lt;object&gt;</code>
@@ -125,9 +125,9 @@ Promise wrapper to find Model instances
 | Model | <code>function</code> | 
 | [filter] | <code>object</code> | 
 
-<a name="module_Utils.find"></a>
+<a name="module_Utils.findOne"></a>
 
-### Utils.find(Model, [filter]) ⇒ <code>Promise.&lt;object&gt;</code>
+### Utils.findOne(Model, [filter]) ⇒ <code>Promise.&lt;object&gt;</code>
 Promise wrapper to findOne Model instance
 
 **Kind**: static method of [<code>Utils</code>](#module_Utils)  
@@ -138,9 +138,9 @@ Promise wrapper to findOne Model instance
 | Model | <code>function</code> | 
 | [filter] | <code>object</code> | 
 
-<a name="module_Utils.find"></a>
+<a name="module_Utils.findById"></a>
 
-### Utils.find(Model, id, [filter]) ⇒ <code>Promise.&lt;object&gt;</code>
+### Utils.findById(Model, id, [filter]) ⇒ <code>Promise.&lt;object&gt;</code>
 Promise wrapper to findById Model instance
 
 **Kind**: static method of [<code>Utils</code>](#module_Utils)  

@@ -19,6 +19,7 @@ import {
   deviceError,
   patternDetector,
 } from '../lib/models/device';
+import { getResources } from '../lib/models/sensor';
 import logger from '../services/logger';
 import utils from '../lib/utils';
 
@@ -632,7 +633,6 @@ module.exports = function (Device) {
     logger.publish(4, `${collectionName}`, 'getFullState:req', { deviceId });
     const resFilter = {
       include: ['sensors', 'address'],
-      // include: ['address'],
       fields: {
         id: true,
         devEui: true,
@@ -647,9 +647,20 @@ module.exports = function (Device) {
         transportProtocolVersion: true,
       },
     };
-    const device = await utils.findById(Device, deviceId, resFilter);
+    let device = await utils.findById(Device, deviceId, resFilter);
     if (!device || !device.id) {
       throw utils.buildError(404, 'DEVICE_NOT_FOUND', "The device requested doesn't exist");
+    }
+
+    if (device.sensors()) {
+      const sensors = await Promise.all(
+        device.sensors().map(async (sensor) => ({
+          ...sensor,
+          resources: await getResources(sensor),
+        })),
+      );
+      device = JSON.parse(JSON.stringify(device));
+      device.sensors = sensors;
     }
     logger.publish(4, `${collectionName}`, 'getFullState:res', device);
     return device;

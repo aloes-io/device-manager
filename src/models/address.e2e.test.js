@@ -15,8 +15,8 @@ const restApiPath = `${process.env.REST_API_ROOT}`;
 // const restApiPath = `${process.env.REST_API_ROOT}/${process.env.REST_API_VERSION}`;
 
 const addressTest = () => {
-  const deviceFactory = testHelper.factories.device;
-  const addressFactory = testHelper.factories.address;
+  const { address: addressFactory, device: deviceFactory } = testHelper.factories;
+
   const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Addresses';
   const apiUrl = `${restApiPath}/${collectionName}/`;
@@ -26,8 +26,7 @@ const addressTest = () => {
   describe(collectionName, function () {
     this.timeout(5000);
     this.slow(2000);
-    const DeviceModel = app.models.Device;
-    const AddressModel = app.models.Address;
+    const { Address: AddressModel, Device: DeviceModel } = app.models;
     let devices, users, userAddress, deviceAddress;
 
     const profiles = {

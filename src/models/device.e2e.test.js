@@ -24,14 +24,15 @@ const restApiPath = `${process.env.REST_API_ROOT}`;
 // test findByPattern & updateFirmware endpoints
 // test find with filter
 const deviceTest = () => {
-  const deviceFactory = testHelper.factories.device;
-  const clientFactory = testHelper.factories.client;
+  const {
+    client: clientFactory,
+    device: deviceFactory,
+    sensor: sensorFactory,
+  } = testHelper.factories;
   const loginUrl = `${restApiPath}/Users/login`;
   const collectionName = 'Devices';
   const apiUrl = `${restApiPath}/${collectionName}/`;
-
-  const ClientModel = app.models.Client;
-  const DeviceModel = app.models.Device;
+  const { Client: ClientModel, Device: DeviceModel, Sensor: SensorModel } = app.models;
   let devices, users, userIds, packets, patterns;
 
   async function beforeTests() {
@@ -49,6 +50,13 @@ const deviceTest = () => {
       // console.log('CREATED DEVICES MODELS ', models);
       const res = await DeviceModel.create(models);
       devices = res.map((model) => model.toJSON());
+
+      await SensorModel.create(
+        Array(2)
+          .fill('')
+          .map((_, index) => sensorFactory(index + 1, devices[0], userIds[0])),
+      );
+
       // const packet = { topic: `${devices[0].devEui}-out/`, payload };
       const userPacket = {
         topic: `${users[1].id}/Device/PUT/${devices[1].id}`,
