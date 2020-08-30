@@ -453,7 +453,8 @@ export const onBeforeSave = async (ctx) => {
     logger.publish(4, `${collectionName}`, 'onBeforeSave:req', ctx.instance);
     if (ctx.instance.id) {
       if (ctx.instance.resources) {
-        await replaceResources(ctx.instance, ctx.instance.resources);
+        const resources = await getResources(ctx.instance);
+        await replaceResources(ctx.instance, { ...resources, ...ctx.instance.resources });
       }
       await Promise.all(filteredProperties.map((p) => ctx.instance.unsetAttribute(p)));
     } else {
@@ -465,12 +466,16 @@ export const onBeforeSave = async (ctx) => {
     if (ctx.data.resources) {
       if (ctx.where && ctx.where.id && !ctx.where.id.inq) {
         const sensor = await utils.findById(ctx.Model, ctx.where.id);
-        await replaceResources(sensor, ctx.data.resources);
+        const resources = await getResources(sensor);
+        await replaceResources(sensor, { ...resources, ...ctx.data.resources });
       } else {
         const sensors = await utils.find(ctx.Model, { where: ctx.where });
         if (sensors && sensors.length > 0) {
           await Promise.all(
-            sensors.map(async (sensor) => replaceResources(sensor, ctx.data.resources)),
+            sensors.map(async (sensor) => {
+              const resources = await getResources(sensor);
+              return replaceResources(sensor, { ...resources, ...ctx.data.resources });
+            }),
           );
         }
       }

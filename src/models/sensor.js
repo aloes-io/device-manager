@@ -222,7 +222,6 @@ module.exports = function (Sensor) {
 
     const foundSensor = await utils.findById(Sensor, sensor.id);
     const resources = await getResources(foundSensor);
-
     sensor.resources = sensor.resources ? { ...resources, ...sensor.resources } : resources;
     const updatedSensor = updateAloesSensors(sensor, Number(resourceKey), resourceValue);
     if (!updatedSensor || !updatedSensor.id) {
