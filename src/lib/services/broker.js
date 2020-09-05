@@ -170,8 +170,6 @@ export const getClientProps = (client) => {
       }
     }
   });
-  // logger.publish(5, 'broker', 'getClientProps:res', { client: clientObject
-  // });
   return clientObject;
   /* eslint-enable security/detect-object-injection */
 };
@@ -323,9 +321,10 @@ export const onAuthenticate = async (client, username, password) => {
           client[key] = foundClient[key];
         });
       }
+    } else {
+      status = 2;
     }
-
-    return status || 2;
+    return status;
   } catch (error) {
     if (error.code === 'ECONNREFUSED') {
       return 3;
