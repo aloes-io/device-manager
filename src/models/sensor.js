@@ -452,8 +452,10 @@ module.exports = function (Sensor) {
      * @method module:Sensor.prototype.__get__resources
      * @returns {Promise<object>}
      */
-    Sensor.prototype.__get__resources = function () {
-      return SensorResource.find(this.deviceId, this.id);
+    Sensor.prototype.__get__resources = async function () {
+      const resources = await SensorResource.find(this.deviceId, this.id);
+      validateOmaObject(this, resources);
+      return resources;
     };
 
     /**
