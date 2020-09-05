@@ -7,7 +7,7 @@
 import chai, { expect } from 'chai';
 import chaiDeepMatch from 'chai-deep-match';
 import lbe2e from 'lb-declarative-e2e-test';
-import {run as mqttTest, api} from 'mqtt-declarative-e2e-test';
+import { run as mqttTest, api } from 'mqtt-declarative-e2e-test';
 import app from '../index';
 import testHelper from '../lib/test-helper';
 import utils from '../lib/utils';
@@ -186,7 +186,7 @@ const sensorTest = () => {
                   }),
                   expect: (resp) => {
                     expect(resp.status).to.be.equal(200);
-                    expect(resp.body).to.deep.equal({
+                    expect(resp.body).to.deep.match({
                       5700: 30,
                     });
                   },

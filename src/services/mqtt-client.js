@@ -19,8 +19,6 @@ MQTTClient.maxFailureCount = 10;
 const baseOptions = {
   keepalive: 60,
   reschedulePings: true,
-  // protocolId : 'MQTT',
-  // protocolVersion : 4,
   reconnectPeriod: 2000,
   connectTimeout: 2 * 1000,
   clean: false,
@@ -234,7 +232,9 @@ const onReceive = async (app, topic, payload) => {
     const modelName = redirectMessage(packet, client, pattern);
     // eslint-disable-next-line security/detect-object-injection
     const Model = app.models[modelName];
-    if (Model) Model.emit('publish', { pattern, packet, client });
+    if (Model) {
+      Model.emit('publish', { pattern, packet, client });
+    }
     logger.publish(4, 'mqtt-client', 'onReceive:res', packet);
     return packet;
   } catch (error) {
@@ -388,7 +388,9 @@ MQTTClient.publish = async (topic, payload, retain = false, qos = 0) => {
   // topic = `${pubsubVersion}/${getBaseTopic()}/tx/${topic}`;
   topic = `${getBaseTopic()}/tx/${topic}`;
   logger.publish(3, 'mqtt-client', 'publish:topic', topic);
-  if (!mqttClient) return false;
+  if (!mqttClient) {
+    return false;
+  }
   await mqttClient.publish(topic, payload, { qos, retain });
   return true;
 };

@@ -18,6 +18,7 @@ import {
   resourceValidator,
   transportProtocolValidator,
   typeValidator,
+  validateOmaObject,
 } from '../lib/models/sensor';
 import logger from '../services/logger';
 import utils from '../lib/utils';
@@ -222,7 +223,6 @@ module.exports = function (Sensor) {
 
     const foundSensor = await utils.findById(Sensor, sensor.id);
     const resources = await getResources(foundSensor);
-
     sensor.resources = sensor.resources ? { ...resources, ...sensor.resources } : resources;
     const updatedSensor = updateAloesSensors(sensor, Number(resourceKey), resourceValue);
     if (!updatedSensor || !updatedSensor.id) {
@@ -452,8 +452,10 @@ module.exports = function (Sensor) {
      * @method module:Sensor.prototype.__get__resources
      * @returns {Promise<object>}
      */
-    Sensor.prototype.__get__resources = function () {
-      return SensorResource.find(this.deviceId, this.id);
+    Sensor.prototype.__get__resources = async function () {
+      const resources = await SensorResource.find(this.deviceId, this.id);
+      validateOmaObject(this, resources);
+      return resources;
     };
 
     /**
@@ -473,6 +475,7 @@ module.exports = function (Sensor) {
      * @returns {Promise<object>}
      */
     Sensor.prototype.__create__resources = function (resources) {
+      validateOmaObject(this, resources);
       return SensorResource.save(this.deviceId, this.id, resources);
     };
 
@@ -483,6 +486,7 @@ module.exports = function (Sensor) {
      * @returns {Promise<object>}
      */
     Sensor.prototype.__replace__resources = function (resources) {
+      validateOmaObject(this, resources);
       return SensorResource.save(this.deviceId, this.id, resources);
     };
 
