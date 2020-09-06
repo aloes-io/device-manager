@@ -328,10 +328,11 @@ module.exports = function (Device) {
       })) || [];
 
     try {
-      const address = await Device.app.models.Address.verify(filter.text);
+      const { Address } = Device.app.models;
+      const address = await Address.verify(filter.text);
       address.ownerType = filter.ownerType;
       // address.public = filter.public;
-      const addresses = await Device.app.models.Address.search(address);
+      const addresses = await Address.search(address);
       if (addresses.length > 0) {
         const moreDevices = await Promise.all(
           addresses.map(async (addr) =>
@@ -426,8 +427,7 @@ module.exports = function (Device) {
         // eslint-disable-next-line security/detect-object-injection
         ['address', 'icons', 'sensors', 'collaborators', 'appIds'].forEach((p) => delete device[p]);
       });
-      const result = utils.exportToCSV(devices, filter);
-      return result;
+      return utils.exportToCSV(devices, filter);
     }
     return null;
   };
@@ -685,14 +685,20 @@ module.exports = function (Device) {
    * @returns {Promise<function | null>} Device.updateStatus
    */
   Device.on('client', async (message) => {
-    logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
-    // if (!message || message === null) throw new Error('Message empty');
-    const { client, status } = message;
-    if (!client || !client.user || status === undefined) {
-      // throw new Error('Message missing properties');
+    try {
+      logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
+      if (!message || message === null) {
+        throw new Error('Message empty');
+      }
+      const { client, status } = message;
+      if (!client || !client.user || status === undefined) {
+        throw new Error('Message missing properties');
+      }
+      return await Device.updateStatus(client, status);
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'on-client:err', error);
       return null;
     }
-    return Device.updateStatus(client, status);
   });
 
   /**
@@ -707,14 +713,18 @@ module.exports = function (Device) {
    */
   Device.on('publish', async (message) => {
     try {
-      if (!message || message === null) throw new Error('Message empty');
+      if (!message || message === null) {
+        throw new Error('Message empty');
+      }
       const { client, device, packet, pattern } = message;
       logger.publish(4, collectionName, 'on-publish:req', pattern.name);
-      if (!pattern) throw new Error('Message is missing pattern');
+      if (!pattern) {
+        throw new Error('Message is missing pattern');
+      }
       if (device && device !== null) {
-        return Device.execute(device, pattern.params.method, client);
+        return await Device.execute(device, pattern.params.method, client);
       } else if (packet) {
-        return Device.onPublish(packet, pattern, client);
+        return await Device.onPublish(packet, pattern, client);
       }
       return null;
     } catch (error) {

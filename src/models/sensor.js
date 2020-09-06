@@ -241,7 +241,6 @@ module.exports = function (Sensor) {
     await Sensor.replaceById(sensor.id, updatedSensor);
     await Sensor.publish(sensor.deviceId.toString(), updatedSensor, 'PUT', client);
     await persistingResource(Sensor.app, updatedSensor, client);
-
     return updatedSensor;
   };
 
@@ -257,7 +256,9 @@ module.exports = function (Sensor) {
       sensorId: sensor.id,
     });
     const instance = await utils.findById(Sensor, sensor.id);
-    if (!instance) throw new Error('Sensor not found');
+    if (!instance) {
+      throw new Error('Sensor not found');
+    }
     // if (pattern.name.toLowerCase() !== 'aloesclient') {
     //   let packet = { payload: JSON.stringify(instance) };
     //   packet = await iotAgent.decode(packet, pattern.params);
@@ -377,7 +378,7 @@ module.exports = function (Sensor) {
           });
           return !sensors || sensors === null ? [] : [...JSON.parse(JSON.stringify(sensors))];
         } catch (e) {
-          return null;
+          return [];
         }
       }),
     );
@@ -441,8 +442,7 @@ module.exports = function (Sensor) {
   });
 
   Sensor.once('started', () => {
-    const SensorResource = Sensor.app.models.SensorResource;
-    const Measurement = Sensor.app.models.Measurement;
+    const { Measurement, SensorResource } = Sensor.app.models;
 
     /* eslint-disable camelcase */
     /* eslint-disable no-underscore-dangle */
@@ -564,7 +564,7 @@ module.exports = function (Sensor) {
     Sensor.prototype.__replace__measurements = async function (attributes, filter) {
       if (!filter) filter = { where: {} };
       try {
-        const result = await Measurement.replace(
+        return await Measurement.replace(
           {
             where: {
               ...filter.where,
@@ -575,7 +575,6 @@ module.exports = function (Sensor) {
           },
           attributes,
         );
-        return result;
       } catch (error) {
         return null;
       }

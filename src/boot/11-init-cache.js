@@ -7,8 +7,6 @@ module.exports = async function initCache(app) {
   if (utils.isMasterProcess(process.env)) {
     logger.publish(2, 'loopback', 'boot:initCache:req', '');
     await app.models.Client.remove();
-    await app.models.Device.updateAll(
-      { status: false, clients: [] },
-    );
+    await app.models.Device.updateAll({ status: false, clients: [] });
   }
 };

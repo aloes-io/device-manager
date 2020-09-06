@@ -158,12 +158,12 @@ export const validateOmaObject = (sensor, resources) => {
     return false;
   }
 
-  for (let key in omaObject.resources) {
-    if (!resources.hasOwnProperty(key)) {
+  Object.keys(omaObject.resources).forEach((key) => {
+    if (!Object.prototype.hasOwnProperty.call(resources, key)) {
+      // eslint-disable-next-line security/detect-object-injection
       resources[key] = omaObject.resources[key];
     }
-  }
-
+  });
   return true;
 };
 
@@ -305,7 +305,9 @@ export const getPersistingMethod = (sensorType, resource, type) => {
   logger.publish(5, `${collectionName}`, 'getPersistingMethod:req', {
     type,
   });
-  if (!sensorType || !resource) return null;
+  if (!sensorType || !resource) {
+    return null;
+  }
   const saveMethod = methodsByType[type ? type.toLowerCase() : null](sensorType, resource);
   logger.publish(3, `${collectionName}`, 'getPersistingMethod:res', {
     method: saveMethod,
@@ -325,12 +327,11 @@ const saveFile = async (app, sensor) => {
   const Files = app.models.Files;
   const buffer = await Files.compose(sensor);
   // todo limit buffer size ?  send error ?
-  const fileMeta = await Files.uploadBuffer(
+  return Files.uploadBuffer(
     buffer,
     sensor.ownerId.toString(),
     `${sensor.deviceId.toString()}-${sensor.id.toString()}`,
   );
-  return fileMeta;
 };
 
 /**
@@ -410,7 +411,7 @@ export const persistingResource = async (app, sensor, client) => {
       return null;
     }
     // eslint-disable-next-line security/detect-object-injection
-    return saveSensorRelations[method](app, sensor, client);
+    return await saveSensorRelations[method](app, sensor, client);
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'persistingResource:err', error);
     return null;

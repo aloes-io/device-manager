@@ -112,10 +112,11 @@ module.exports = function (Scheduler) {
    */
   Scheduler.onTimeout = async (body) => {
     const { sensorId } = body;
-    if (!sensorId) throw new Error('Missing sensor Id');
+    if (!sensorId) {
+      throw new Error('Missing sensor Id');
+    }
     logger.publish(4, `${collectionName}`, 'onTimeout:req', body);
     return onTimeout(Scheduler, sensorId);
-    // return true;
   };
 
   /**
@@ -184,7 +185,9 @@ module.exports = function (Scheduler) {
   Scheduler.onTick = async (data) => {
     try {
       const { delay, time, lastTime } = data;
-      if (!time || !lastTime) throw new Error('Missing event properties');
+      if (!time || !lastTime) {
+        throw new Error('Missing event properties');
+      }
       const topic = `aloes-${process.env.ALOES_ID}/${collectionName}/HEAD`;
       const payload = { date: new Date(time), time, lastTime };
       Scheduler.app.emit('publish', topic, payload, false, 0);
@@ -235,11 +238,9 @@ module.exports = function (Scheduler) {
         lastTime: scheduler && scheduler.lastTime ? scheduler.lastTime : +new Date(),
       };
       Scheduler.emit('tick', payload);
-
       scheduler = await resetClock(Scheduler.app, scheduler, clockInterval, body);
       await Scheduler.set(schedulerClockId, JSON.stringify(scheduler));
       logger.publish(3, `${collectionName}`, 'onTickHook:res', scheduler);
-
       return true;
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'onTickHook:err', error);
@@ -258,9 +259,8 @@ module.exports = function (Scheduler) {
   Scheduler.setExternalClock = async (interval) => {
     let scheduler = JSON.parse(await Scheduler.get(schedulerClockId)) || {};
     logger.publish(5, `${collectionName}`, 'setExternalClock:req', interval);
-    if (scheduler && scheduler.timerId) {
-      const diff = Date.now() - scheduler.stopTime;
-      if (diff < 0) return scheduler;
+    if (scheduler && scheduler.timerId && Date.now() - scheduler.stopTime < 0) {
+      return scheduler;
     }
 
     scheduler = await resetClock(Scheduler.app, scheduler, interval, {
@@ -269,7 +269,6 @@ module.exports = function (Scheduler) {
     });
     await Scheduler.set(schedulerClockId, JSON.stringify(scheduler));
     logger.publish(4, `${collectionName}`, 'setExternalClock:res', { scheduler });
-
     return scheduler;
   };
 

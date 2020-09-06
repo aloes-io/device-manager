@@ -7,14 +7,11 @@ import { validateOmaObject } from '../lib/models/sensor';
 module.exports = async function migrateProps(app) {
   if (!utils.isMasterProcess(process.env)) return;
 
-  const Device = app.models.Device;
-  const Sensor = app.models.Sensor;
-  const SensorResource = app.models.SensorResource;
+  const { Device, Sensor, SensorResource } = app.models;
   const devices = await utils.find(Device);
   await Promise.all(
     devices.map(async (device) => {
       const deviceHasAddress = await device.address.get();
-      // console.log('device has address', deviceHasAddress);
       if (!deviceHasAddress) {
         await device.address.create({
           street: '',

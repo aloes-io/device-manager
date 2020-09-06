@@ -7,10 +7,9 @@ import utils from '../lib/utils';
 const collectionName = 'SensorResource';
 
 const setCacheKey = (deviceId, sensorId, resourceId) => {
-  if (resourceId) {
-    return `deviceId-${deviceId}-sensorId-${sensorId}-resourceId-${resourceId}`;
-  }
-  return `deviceId-${deviceId}-sensorId-${sensorId}-resourceId-*`;
+  return resourceId
+    ? `deviceId-${deviceId}-sensorId-${sensorId}-resourceId-${resourceId}`
+    : `deviceId-${deviceId}-sensorId-${sensorId}-resourceId-*`;
 };
 
 /**
@@ -77,7 +76,9 @@ module.exports = function (SensorResource) {
           cachedResources.forEach((resource) => {
             const [resourceKey] = Object.keys(resource);
             const [resourceValue] = Object.values(resource);
-            if (!resourceKey) return;
+            if (!resourceKey) {
+              return;
+            }
             // eslint-disable-next-line security/detect-object-injection
             result[resourceKey] = resourceValue;
           });
@@ -100,7 +101,7 @@ module.exports = function (SensorResource) {
    * @param {number} [ttl] - Expire delay
    * @returns {Promise<object[] | null>} resources
    */
-  SensorResource.save = async (deviceId, sensorId, resources, ttl) => {
+  SensorResource.save = async (deviceId, sensorId, resources, ttl = 0) => {
     try {
       const resourceKeys = Object.keys(resources);
       logger.publish(4, `${collectionName}`, 'save:req', {
@@ -114,11 +115,7 @@ module.exports = function (SensorResource) {
           const key = setCacheKey(deviceId, sensorId, resourceKey);
           // eslint-disable-next-line security/detect-object-injection
           const resource = JSON.stringify({ [resourceKey]: resources[resourceKey] });
-          if (ttl && ttl !== null) {
-            await SensorResource.set(key, resource, ttl);
-          } else {
-            await SensorResource.set(key, resource);
-          }
+          await SensorResource.set(key, resource, ttl);
           // eslint-disable-next-line security/detect-object-injection
           result[resourceKey] = resources[resourceKey];
           return resource;

@@ -64,7 +64,6 @@ export const deleteTimer = async (app, timerId) =>
  */
 export const resetClock = async (app, scheduler = {}, timeout, data) => {
   const baseUrl = app.get('url') || process.env.HTTP_SERVER_URL;
-
   const timer = {
     timeout,
     data,
@@ -87,7 +86,6 @@ export const resetClock = async (app, scheduler = {}, timeout, data) => {
   scheduler.timerId = timerId;
   scheduler.interval = clockInterval;
   scheduler.isUpdating = false;
-
   return scheduler;
 };
 
@@ -125,7 +123,6 @@ const startExternalTimer = async (Model, sensor, client, scheduler) => {
 
   await Model.set(`sensor-${sensor.id}`, JSON.stringify(scheduler));
   await Model.publish(sensor.deviceId, scheduler, 'POST', client);
-
   return scheduler;
 };
 
@@ -301,9 +298,13 @@ export const onTimeout = async (Scheduler, sensorId) => {
   const SensorResource = Scheduler.app.models.SensorResource;
 
   const sensor = await utils.findById(Sensor, sensorId);
-  if (!sensor) return false;
+  if (!sensor) {
+    return false;
+  }
   const resources = await SensorResource.find(sensor.deviceId, sensor.id);
-  if (!resources) return false;
+  if (!resources) {
+    return false;
+  }
   const mode = resources['5526'];
   logger.publish(4, `${collectionName}`, 'onTimeout:mode', resources['5526']);
 
@@ -358,8 +359,7 @@ export const syncRunningTimers = async (Scheduler, delay) => {
   logger.publish(3, `${collectionName}`, 'syncRunningTimers:req', {
     schedulersCount: schedulers && schedulers.length,
   });
-  const Sensor = Scheduler.app.models.Sensor;
-  const SensorResource = Scheduler.app.models.SensorResource;
+  const { Sensor, SensorResource } = Scheduler.app.models;
   const promises = schedulers.map(async (scheduler) => {
     try {
       let timeLeft = Math.round((scheduler.stopTime - Date.now()) / 1000);
@@ -380,7 +380,7 @@ export const syncRunningTimers = async (Scheduler, delay) => {
         await SensorResource.save(sensor.deviceId, sensor.id, resources);
       }
       logger.publish(3, `${collectionName}`, 'syncRunningTimers:res', { timeLeft, client });
-      return Sensor.createOrUpdate(sensor, 5538, timeLeft, client);
+      return await Sensor.createOrUpdate(sensor, 5538, timeLeft, client);
     } catch (error) {
       return null;
     }
