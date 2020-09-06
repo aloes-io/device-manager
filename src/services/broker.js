@@ -186,7 +186,7 @@ broker.start = () => {
    * @param {object} client - MQTT client
    * @returns {Promise<function>} Broker~updateClientStatus
    */
-  broker.instance.on('client', async (client) => {
+  broker.instance.on('client', (client) => {
     logger.publish(3, 'broker', 'onClientConnect', client.id);
     return updateClientStatus(broker, client, true);
   });
@@ -197,7 +197,7 @@ broker.start = () => {
    * @param {object} client - MQTT client
    * @returns {Promise<function>} Broker~updateClientStatus
    */
-  broker.instance.on('clientDisconnect', async (client) => {
+  broker.instance.on('clientDisconnect', (client) => {
     logger.publish(3, 'broker', 'onClientDisconnect', client.id);
     return updateClientStatus(broker, client, false);
   });

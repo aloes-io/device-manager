@@ -308,7 +308,7 @@ const schedulerTest = () => {
                         resources: {
                           ...sensors[3].resources,
                           5850: true,
-                          5526: 0,
+                          5526: 1,
                           5521: 1500,
                         },
                         resource: 5850,
@@ -327,7 +327,6 @@ const schedulerTest = () => {
                     url: () => `${apiUrl}on-timeout`,
                     body: () => ({
                       secret: process.env.ALOES_KEY,
-                      deviceId: devices[1].id,
                       sensorId: sensors[3].id,
                     }),
                     expect: (resp) => {

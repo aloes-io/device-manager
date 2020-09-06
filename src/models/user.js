@@ -110,7 +110,6 @@ module.exports = function (User) {
     }
     const user = await utils.findById(User, accessToken.userId);
     await utils.updateAttribute(user, 'password', newPassword);
-
     return true;
   };
 

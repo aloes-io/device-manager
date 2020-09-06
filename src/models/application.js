@@ -271,14 +271,20 @@ module.exports = (Application) => {
    * @returns {Promise<function | null>} Application.updateStatus
    */
   Application.on('client', async (message) => {
-    logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
-    // if (!message || message === null) throw new Error('Message empty');
-    const { client, status } = message;
-    if (!client || !client.user) {
+    try {
+      logger.publish(4, `${collectionName}`, 'on-client:req', Object.keys(message));
+      if (!message || message === null) {
+        throw new Error('Message empty');
+      }
+      const { client, status } = message;
+      if (!client || !client.user) {
+        throw new Error('Message missing properties');
+      }
+      return await Application.updateStatus(client, status);
+    } catch (error) {
+      logger.publish(2, `${collectionName}`, 'on-client:err', error);
       return null;
-      // throw new Error('Message missing properties');
     }
-    return Application.updateStatus(client, status);
   });
 
   /**
@@ -292,13 +298,15 @@ module.exports = (Application) => {
    */
   Application.on('publish', async (message) => {
     try {
-      // if (!message || message === null) throw new Error('Message empty');
+      if (!message || message === null) {
+        throw new Error('Message empty');
+      }
       const { client, packet, pattern } = message;
       logger.publish(4, collectionName, 'on:publish:req', pattern.name);
       if (!packet || !pattern) {
         throw new Error('Message missing properties');
       }
-      return Application.onPublish(packet, client, pattern);
+      return await Application.onPublish(packet, client, pattern);
     } catch (error) {
       logger.publish(2, `${collectionName}`, 'on-publish:err', error);
       return null;
@@ -316,7 +324,7 @@ module.exports = (Application) => {
     try {
       if (utils.isMasterProcess(process.env)) {
         logger.publish(3, `${collectionName}`, 'on-stop:res', '');
-        return Application.updateAll({ status: true }, { status: false, clients: [] });
+        return await Application.updateAll({ status: true }, { status: false, clients: [] });
       }
       return null;
     } catch (error) {

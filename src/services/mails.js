@@ -152,7 +152,7 @@ mails.sendResetPasswordMail = async (options) => {
       text: `You can assign a new password on clicking that link`,
     };
     logger.publish(4, `${collectionName}`, 'sendResetPasswordMail:req', newOptions);
-    return mails.send(newOptions);
+    return await mails.send(newOptions);
   } catch (error) {
     logger.publish(4, `${collectionName}`, 'sendResetPasswordMail:err', error);
     return null;
@@ -178,7 +178,7 @@ mails.sendContactForm = async (options) => {
       text: options.content,
     };
     logger.publish(4, `${collectionName}`, 'sendContactForm:req', newOptions);
-    return mails.send(newOptions);
+    return await mails.send(newOptions);
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'sendContactForm:err', error);
     return null;
@@ -202,7 +202,7 @@ mails.sendMailInvite = async (options) => {
       text: `${options.profile.firstName} ${options.profile.lastName} invited you to join ${process.env.NODE_NAME}`,
     };
     logger.publish(4, `${collectionName}`, 'sendMailInvite:req', newOptions);
-    return mails.send(newOptions);
+    return await mails.send(newOptions);
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'sendConsendMailInvitetactForm:err', error);
     return null;

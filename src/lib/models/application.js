@@ -89,7 +89,7 @@ const createProps = async (app, instance) => {
 const updateProps = async (app, instance) => {
   try {
     instance = await createKeys(instance);
-    return app.models.Application.publish(instance, 'PUT');
+    return await app.models.Application.publish(instance, 'PUT');
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'updateProps:err', error);
     return null;
@@ -109,7 +109,9 @@ export const onAfterSave = async (ctx) => {
     if (updatedProps.some((prop) => prop === 'status')) {
       // if (!ctx.instance) console.log('AFTER APP SAVE', ctx.where);
       // todo : if (ctx.where) update all ctx.where
-      if (ctx.instance && ctx.instance.id) await ctx.Model.publish(ctx.instance, 'HEAD');
+      if (ctx.instance && ctx.instance.id) {
+        await ctx.Model.publish(ctx.instance, 'HEAD');
+      }
     }
   } else if (ctx.instance && ctx.Model) {
     logger.publish(4, `${collectionName}`, 'afterSave:req', ctx.instance);
@@ -132,13 +134,7 @@ export const onAfterSave = async (ctx) => {
 const deleteProps = async (app, instance) => {
   try {
     logger.publish(4, `${collectionName}`, 'deleteProps:req', instance);
-    // const Device = app.models.Device;
-    // const devices = await utils.find(Device, { where: { appEui: instance.appEui } });
-    // if (devices && devices.length > 0) {
-    //   const promises = await devices.map(async device => device.delete());
-    //   await Promise.all(promises);
-    // }
-    return app.models.Application.publish(instance, 'DELETE');
+    return await app.models.Application.publish(instance, 'DELETE');
   } catch (error) {
     logger.publish(2, `${collectionName}`, 'deleteProps:err', error);
     return null;
@@ -240,9 +236,7 @@ export const onBeforeRemote = async (ctx) => {
  * @fires Sensor.publish
  */
 export const parseMessage = async (app, packet, pattern, client) => {
-  const Application = app.models.Application;
-  const Device = app.models.Device;
-  const Sensor = app.models.Sensor;
+  const { Application, Device, Sensor } = app.models;
   const attributes = JSON.parse(packet.payload);
   let foundInstance = null;
   let instanceId;

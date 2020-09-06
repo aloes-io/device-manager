@@ -247,7 +247,7 @@ const authenticateInstance = async (client, username, password) => {
 
     if (auth) {
       await rateLimiter.cleanAuthLimiter(client.ip, client.user);
-      // remove client.connDetails rateLimit
+      // TODO remove client.connDetails rateLimit
       return sendAuth(client, 0);
     }
 

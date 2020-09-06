@@ -37,8 +37,7 @@ if (config.NODE_ENV !== 'development' && config.NODE_ENV !== 'test') {
       //   // This error will be caught by limiter and then insurance limiter is used in this case
       //   return new Error('Retry time exhausted');
       // }
-      const delay = Math.min(times * 50, 2000);
-      return delay;
+      return Math.min(times * 50, 2000);
     },
   });
 
