@@ -294,9 +294,7 @@ export const parseTimerState = async (Scheduler, sensor, client) => {
  * @returns {Promise<boolean>} status
  */
 export const onTimeout = async (Scheduler, sensorId) => {
-  const Sensor = Scheduler.app.models.Sensor;
-  const SensorResource = Scheduler.app.models.SensorResource;
-
+  const { Sensor, SensorResource } = Scheduler.app.models;
   const sensor = await utils.findById(Sensor, sensorId);
   if (!sensor) {
     return false;

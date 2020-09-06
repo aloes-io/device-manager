@@ -101,7 +101,7 @@ module.exports = function (SensorResource) {
    * @param {number} [ttl] - Expire delay
    * @returns {Promise<object[] | null>} resources
    */
-  SensorResource.save = async (deviceId, sensorId, resources, ttl = 0) => {
+  SensorResource.save = async (deviceId, sensorId, resources, ttl) => {
     try {
       const resourceKeys = Object.keys(resources);
       logger.publish(4, `${collectionName}`, 'save:req', {
@@ -115,7 +115,11 @@ module.exports = function (SensorResource) {
           const key = setCacheKey(deviceId, sensorId, resourceKey);
           // eslint-disable-next-line security/detect-object-injection
           const resource = JSON.stringify({ [resourceKey]: resources[resourceKey] });
-          await SensorResource.set(key, resource, ttl);
+          if (ttl) {
+            await SensorResource.set(key, resource, ttl);
+          } else {
+            await SensorResource.set(key, resource);
+          }
           // eslint-disable-next-line security/detect-object-injection
           result[resourceKey] = resources[resourceKey];
           return resource;
