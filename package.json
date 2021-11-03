@@ -113,7 +113,7 @@
     "strong-error-handler": "^3.4.0",
     "swagger-ui": "^3.25.0",
     "uid": "0.0.2",
-    "validator": "^12.0.0",
+    "validator": "^13.7.0",
     "websocket-stream": "^5.5.2",
     "yargs": "^15.3.1"
   },
