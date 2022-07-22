@@ -79,7 +79,7 @@
     "express-flash": "0.0.2",
     "express-history-api-fallback": "^2.2.1",
     "express-session": "^1.17.0",
-    "file-type": "^13.1.2",
+    "file-type": "^16.5.4",
     "helmet": "^3.21.2",
     "ioredis": "^4.17.3",
     "iot-agent": "^1.0.13",
